@@ -9,7 +9,7 @@ export function Header() {
 
   const navItems = [
     { path: "/", label: "Home", icon: Home },
-    { path: "/locker", label: "Token Locker", icon: Lock },
+    { path: "/locker", label: "CHEESELock", icon: Lock },
   ];
 
   return (
@@ -18,7 +18,10 @@ export function Header() {
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
             <img src={cheeseLogo} alt="Cheese Logo" className="h-8 w-8" />
-            <span className="text-xl font-bold text-cheese-gradient">Cheese DAO</span>
+            <span className="text-xl font-bold">
+              <span className="text-cheese">CHEESE</span>
+              <span className="text-foreground">Hub</span>
+            </span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (

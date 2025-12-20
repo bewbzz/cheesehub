@@ -17,7 +17,10 @@ const Index = () => {
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cheese/10 border border-cheese/20 mb-6">
               <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
-              <span className="text-sm font-medium text-cheese">Cheese DAO Tools</span>
+              <span className="text-sm font-medium">
+                <span className="text-cheese">CHEESE</span>
+                <span className="text-foreground">Hub</span>
+              </span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               <span className="text-cheese-gradient">WAX Blockchain</span>
@@ -31,7 +34,7 @@ const Index = () => {
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/locker">
                   <Lock className="mr-2 h-5 w-5" />
-                  Token Locker
+                  CHEESELock
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -43,7 +46,7 @@ const Index = () => {
       {/* Features Section */}
       <section className="container py-16">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Why Use Cheese DAO Tools?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Why Use <span className="text-cheese">CHEESE</span><span className="text-foreground">Hub</span>?</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             A cleaner, more intuitive interface for interacting with WaxDAO's battle-tested smart contracts
           </p>
@@ -99,7 +102,7 @@ const Index = () => {
             </p>
             <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
               <Link to="/locker">
-                Go to Token Locker
+                Go to CHEESELock
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -110,7 +113,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container text-center text-sm text-muted-foreground">
-          <p>Cheese DAO Tools • Built on WAX • Powered by WaxDAO Smart Contracts</p>
+          <p><span className="text-cheese">CHEESE</span><span className="text-foreground">Hub</span> • Built on WAX • Powered by WaxDAO Smart Contracts</p>
         </div>
       </footer>
     </div>

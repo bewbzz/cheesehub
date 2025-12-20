@@ -10,7 +10,10 @@ export default function Locker() {
       <Header />
       <main className="container py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-cheese-gradient mb-2">Token Locker</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="text-cheese">CHEESE</span>
+            <span className="text-foreground">Lock</span>
+          </h1>
           <p className="text-muted-foreground">
             Lock your tokens securely on the WAX blockchain using WaxDAO smart contracts
           </p>

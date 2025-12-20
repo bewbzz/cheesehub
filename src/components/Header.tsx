@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home, ShoppingBag, ShoppingCart } from "lucide-react";
+import { Lock, Home, ShoppingBag, ShoppingCart, Droplets } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -14,6 +14,10 @@ export function Header() {
     { path: "/", label: "Home", icon: Home },
     { path: "/locker", label: "CHEESELock", icon: Lock },
     { path: "/drops", label: "CHEESEDrops", icon: ShoppingBag },
+  ];
+
+  const externalLinks = [
+    { url: "https://cheeseonwax.github.io/tools/cheesefaucet.html", label: "CHEESEFaucet", icon: Droplets },
   ];
 
   return (
@@ -42,6 +46,18 @@ export function Header() {
                 <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
+            ))}
+            {externalLinks.map((item) => (
+              <a
+                key={item.url}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </a>
             ))}
           </nav>
         </div>

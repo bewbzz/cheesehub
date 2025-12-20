@@ -43,6 +43,7 @@
     "@waxio/waxjs": "^1.7.1",
     "anchor-link": "^3.6.0",
     "anchor-link-browser-transport": "^3.6.1",
+    "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

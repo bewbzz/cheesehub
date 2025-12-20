@@ -1,18 +1,22 @@
 import { fetchTable, WAXDAO_CONTRACT } from "@/lib/wax";
 
+// Actual table structure from WaxDAO locker contract
 export interface TokenLock {
-  lock_id: number;
-  owner: string;
+  ID: number;
+  creator: string;
+  receiver: string;
+  amount: string;  // e.g., "100.0000 WAX"
   token_contract: string;
-  locked_amount: string;
-  unlock_time: string;
-  is_claimed: boolean;
+  time_of_creation: number;  // Unix timestamp
+  time_of_deposit: number;   // Unix timestamp
+  unlock_time: number;       // Unix timestamp
+  status: number;            // 0 = locked, 1 = claimed
 }
 
-// Fetch locks for a specific user
+// Fetch locks for a specific user (by receiver - the person who can claim)
 export async function fetchUserLocks(account: string): Promise<TokenLock[]> {
   try {
-    // The locker table uses owner as secondary index
+    // Use receiver index (index_position 3) to find locks claimable by this user
     const locks = await fetchTable<TokenLock>(
       WAXDAO_CONTRACT,
       WAXDAO_CONTRACT,
@@ -21,10 +25,12 @@ export async function fetchUserLocks(account: string): Promise<TokenLock[]> {
         lower_bound: account,
         upper_bound: account,
         key_type: "name",
-        index_position: 2,
+        index_position: 3, // receiver index
         limit: 100,
       }
     );
+    
+    console.log("Raw locks data:", locks);
     return locks;
   } catch (error) {
     console.error("Failed to fetch locks:", error);
@@ -42,30 +48,29 @@ export function parseAsset(asset: string | undefined): { amount: string; symbol:
   return { amount: parts[0] || "0", symbol: parts[1] || "UNKNOWN" };
 }
 
-// Format unlock time
-export function formatUnlockTime(timestamp: string): string {
-  const date = new Date(timestamp + "Z");
+// Format unlock time from Unix timestamp
+export function formatUnlockTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000); // Convert seconds to milliseconds
   return date.toLocaleString();
 }
 
 // Check if lock is claimable
 export function isClaimable(lock: TokenLock): boolean {
-  if (lock.is_claimed) return false;
-  const unlockTime = new Date(lock.unlock_time + "Z");
-  return new Date() >= unlockTime;
+  if (lock.status === 1) return false; // Already claimed
+  const now = Math.floor(Date.now() / 1000); // Current time in seconds
+  return now >= lock.unlock_time;
 }
 
 // Get time remaining until unlock
-export function getTimeRemaining(timestamp: string): string {
-  const unlockTime = new Date(timestamp + "Z");
-  const now = new Date();
-  const diff = unlockTime.getTime() - now.getTime();
+export function getTimeRemaining(timestamp: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = timestamp - now;
 
   if (diff <= 0) return "Unlocked";
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const days = Math.floor(diff / (60 * 60 * 24));
+  const hours = Math.floor((diff % (60 * 60 * 24)) / (60 * 60));
+  const minutes = Math.floor((diff % (60 * 60)) / 60);
 
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;

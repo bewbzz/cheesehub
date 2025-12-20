@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@/hooks/useWallet";
-import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining } from "@/lib/locker";
+import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
 import { transact, WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function MyLocks() {
       await transact(session, [
         {
           account: WAXDAO_CONTRACT,
-          name: "claim",
+          name: "withdraw",
           authorization: [{ actor: session.account, permission: "active" }],
           data: {
             lock_id: lock.ID,
@@ -115,11 +115,12 @@ export function MyLocks() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {locks.map((lock) => {
+        {locks.map((lock) => {
             const { amount, symbol } = parseAsset(lock.amount);
             const claimable = isClaimable(lock);
             const timeRemaining = getTimeRemaining(lock.unlock_time);
-            const isClaimed = lock.status === 1;
+            const isWithdrawn = lock.status === LOCK_STATUS.WITHDRAWN;
+            const status = getLockStatus(lock);
 
             return (
               <Card
@@ -134,10 +135,10 @@ export function MyLocks() {
                       <span className="text-cheese">{symbol}</span>
                     </CardTitle>
                     <Badge
-                      variant={isClaimed ? "secondary" : claimable ? "default" : "outline"}
+                      variant={status.variant}
                       className={claimable ? "bg-cheese text-cheese-foreground" : ""}
                     >
-                      {isClaimed ? "Claimed" : claimable ? "Claimable" : "Locked"}
+                      {status.label}
                     </Badge>
                   </div>
                   <CardDescription className="font-mono text-xs">
@@ -155,13 +156,13 @@ export function MyLocks() {
                       {claimable ? "Unlocked" : "Unlocks in"}
                     </span>
                     <span className="font-medium">
-                      {isClaimed ? "-" : timeRemaining}
+                      {isWithdrawn ? "-" : timeRemaining}
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {formatUnlockTime(lock.unlock_time)}
                   </div>
-                  {claimable && !isClaimed && (
+                  {claimable && (
                     <Button
                       onClick={() => handleClaim(lock)}
                       disabled={claiming === lock.ID}

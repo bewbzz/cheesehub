@@ -1,4 +1,4 @@
-import { DropsHeader } from "@/components/drops/DropsHeader";
+import { Header } from "@/components/Header";
 import { DropsHero } from "@/components/drops/DropsHero";
 import { DropCard } from "@/components/drops/DropCard";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -22,7 +22,7 @@ const Drops = () => {
   return (
     <div className="min-h-screen bg-background grid-pattern relative">
       <BackgroundDecorations />
-      <DropsHeader />
+      <Header />
       <DropsHero drops={displayDrops} isLoading={isLoading} />
 
       <main className="container pb-20">

@@ -1,5 +1,12 @@
 import { fetchTable, WAXDAO_CONTRACT } from "@/lib/wax";
 
+// Lock status values from WaxDAO locker contract
+export const LOCK_STATUS = {
+  CREATED: 0,     // Lock created, awaiting token deposit
+  FUNDED: 1,      // Tokens deposited, lock is active
+  WITHDRAWN: 2,   // Tokens have been claimed/withdrawn
+} as const;
+
 // Actual table structure from WaxDAO locker contract
 export interface TokenLock {
   ID: number;
@@ -10,7 +17,7 @@ export interface TokenLock {
   time_of_creation: number;  // Unix timestamp
   time_of_deposit: number;   // Unix timestamp
   unlock_time: number;       // Unix timestamp
-  status: number;            // 0 = locked, 1 = claimed
+  status: number;            // 0 = created, 1 = funded, 2 = withdrawn
 }
 
 // Fetch locks for a specific user (by receiver - the person who can claim)
@@ -54,9 +61,9 @@ export function formatUnlockTime(timestamp: number): string {
   return date.toLocaleString();
 }
 
-// Check if lock is claimable
+// Check if lock is claimable (must be funded AND unlock time has passed)
 export function isClaimable(lock: TokenLock): boolean {
-  if (lock.status === 1) return false; // Already claimed
+  if (lock.status !== LOCK_STATUS.FUNDED) return false; // Only funded locks can be claimed
   const now = Math.floor(Date.now() / 1000); // Current time in seconds
   return now >= lock.unlock_time;
 }
@@ -75,4 +82,19 @@ export function getTimeRemaining(timestamp: number): string {
   if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
+}
+
+// Get display status for a lock
+export function getLockStatus(lock: TokenLock): { label: string; variant: "default" | "secondary" | "outline" | "destructive" } {
+  if (lock.status === LOCK_STATUS.WITHDRAWN) {
+    return { label: "Claimed", variant: "secondary" };
+  }
+  if (lock.status === LOCK_STATUS.CREATED) {
+    return { label: "Awaiting Deposit", variant: "outline" };
+  }
+  // Status is FUNDED
+  if (isClaimable(lock)) {
+    return { label: "Claimable", variant: "default" };
+  }
+  return { label: "Locked", variant: "outline" };
 }

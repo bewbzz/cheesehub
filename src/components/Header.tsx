@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home } from "lucide-react";
+import { Lock, Home, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
@@ -10,6 +10,7 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Home", icon: Home },
     { path: "/locker", label: "CHEESELock", icon: Lock },
+    { path: "/drops", label: "CHEESEDrops", icon: ShoppingBag },
   ];
 
   return (

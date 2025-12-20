@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Lock, ArrowRight, Shield, Clock, Zap } from "lucide-react";
+import cheeseLogo from "@/assets/cheese-logo.png";
 
 const Index = () => {
   return (
@@ -15,7 +16,7 @@ const Index = () => {
         <div className="container relative py-20 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cheese/10 border border-cheese/20 mb-6">
-              <span className="text-2xl">🧀</span>
+              <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
               <span className="text-sm font-medium text-cheese">Cheese DAO Tools</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
@@ -90,8 +91,8 @@ const Index = () => {
       {/* Token Locker CTA */}
       <section className="container py-16">
         <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-          <CardContent className="py-12 text-center">
-            <Lock className="h-16 w-16 text-cheese mx-auto mb-6 animate-float" />
+        <CardContent className="py-12 text-center">
+            <img src={cheeseLogo} alt="Cheese" className="h-16 w-16 mx-auto mb-6 animate-float" />
             <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Lock Your Tokens?</h2>
             <p className="text-muted-foreground max-w-xl mx-auto mb-8">
               Secure your tokens with time-locked smart contracts. Perfect for token vesting, investor protection, or showing commitment to your community.

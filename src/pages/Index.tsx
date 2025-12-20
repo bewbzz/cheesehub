@@ -1,12 +1,117 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Header } from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { Lock, ArrowRight, Shield, Clock, Zap } from "lucide-react";
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cheese/5 via-transparent to-cheese-dark/5" />
+        <div className="container relative py-20 md:py-32">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cheese/10 border border-cheese/20 mb-6">
+              <span className="text-2xl">🧀</span>
+              <span className="text-sm font-medium text-cheese">Cheese DAO Tools</span>
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <span className="text-cheese-gradient">WAX Blockchain</span>
+              <br />
+              <span className="text-foreground">DeFi Tools</span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Alternative front-end for WaxDAO smart contracts. Lock tokens, create DAOs, and manage your WAX assets with a beautiful cheese-themed interface.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/locker">
+                  <Lock className="mr-2 h-5 w-5" />
+                  Token Locker
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="container py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Why Use Cheese DAO Tools?</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            A cleaner, more intuitive interface for interacting with WaxDAO's battle-tested smart contracts
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-cheese" />
+              </div>
+              <CardTitle>Secure</CardTitle>
+              <CardDescription>
+                Uses WaxDAO's audited smart contracts. Your tokens never leave the blockchain.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
+                <Clock className="h-6 w-6 text-cheese" />
+              </div>
+              <CardTitle>Time-Locked</CardTitle>
+              <CardDescription>
+                Lock tokens until a specific date. Perfect for vesting, trust, or commitment.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
+            <CardHeader>
+              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
+                <Zap className="h-6 w-6 text-cheese" />
+              </div>
+              <CardTitle>Easy to Use</CardTitle>
+              <CardDescription>
+                Connect your WAX wallet and start locking in seconds. No complicated setup required.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </section>
+
+      {/* Token Locker CTA */}
+      <section className="container py-16">
+        <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+          <CardContent className="py-12 text-center">
+            <Lock className="h-16 w-16 text-cheese mx-auto mb-6 animate-float" />
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Lock Your Tokens?</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto mb-8">
+              Secure your tokens with time-locked smart contracts. Perfect for token vesting, investor protection, or showing commitment to your community.
+            </p>
+            <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+              <Link to="/locker">
+                Go to Token Locker
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border/50 py-8">
+        <div className="container text-center text-sm text-muted-foreground">
+          <p>Cheese DAO Tools • Built on WAX • Powered by WaxDAO Smart Contracts</p>
+        </div>
+      </footer>
     </div>
   );
 };

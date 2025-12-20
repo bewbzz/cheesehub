@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
 import { Lock, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function Header() {
   const location = useLocation();
@@ -16,7 +17,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🧀</span>
+            <img src={cheeseLogo} alt="Cheese Logo" className="h-8 w-8" />
             <span className="text-xl font-bold text-cheese-gradient">Cheese DAO</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">

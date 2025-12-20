@@ -125,7 +125,8 @@ export async function fetchTable<T>(
     index_position?: number;
   } = {}
 ): Promise<T[]> {
-  const response = await fetch(`${WAX_RPC_ENDPOINTS[0]}/v1/chain/get_table_rows`, {
+  // Use eosphere endpoint which has better CORS support for browser requests
+  const response = await fetch(`https://wax.eosphere.io/v1/chain/get_table_rows`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

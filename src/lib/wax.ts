@@ -1,7 +1,3 @@
-import * as waxjs from "@waxio/waxjs/dist";
-import AnchorLink from "anchor-link";
-import AnchorLinkBrowserTransport from "anchor-link-browser-transport";
-
 // WAX API endpoints
 const WAX_RPC_ENDPOINTS = [
   "https://wax.greymass.com",
@@ -15,39 +11,59 @@ export const WAXDAO_CONTRACT = "waxdaolocker";
 // WAX Chain ID
 const WAX_CHAIN_ID = "1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4";
 
-// Initialize WAX Cloud Wallet
-export const wax = new waxjs.WaxJS({
-  rpcEndpoint: WAX_RPC_ENDPOINTS[0],
-  tryAutoLogin: false,
-});
-
-// Initialize Anchor
-const transport = new AnchorLinkBrowserTransport();
-export const anchorLink = new AnchorLink({
-  transport,
-  chains: [
-    {
-      chainId: WAX_CHAIN_ID,
-      nodeUrl: WAX_RPC_ENDPOINTS[0],
-    },
-  ],
-});
-
 export type WalletType = "wax" | "anchor";
 
 export interface WalletSession {
   type: WalletType;
   account: string;
   anchorSession?: any;
+  waxInstance?: any;
+}
+
+// Lazy-loaded WAX instance
+let waxInstance: any = null;
+let anchorLinkInstance: any = null;
+
+async function getWaxInstance() {
+  if (!waxInstance) {
+    const waxjs = await import("@waxio/waxjs/dist");
+    waxInstance = new waxjs.WaxJS({
+      rpcEndpoint: WAX_RPC_ENDPOINTS[0],
+      tryAutoLogin: false,
+    });
+  }
+  return waxInstance;
+}
+
+async function getAnchorLink() {
+  if (!anchorLinkInstance) {
+    const [AnchorLink, AnchorLinkBrowserTransport] = await Promise.all([
+      import("anchor-link").then((m) => m.default),
+      import("anchor-link-browser-transport").then((m) => m.default),
+    ]);
+    const transport = new AnchorLinkBrowserTransport();
+    anchorLinkInstance = new AnchorLink({
+      transport,
+      chains: [
+        {
+          chainId: WAX_CHAIN_ID,
+          nodeUrl: WAX_RPC_ENDPOINTS[0],
+        },
+      ],
+    });
+  }
+  return anchorLinkInstance;
 }
 
 // Login with WAX Cloud Wallet
 export async function loginWithWax(): Promise<WalletSession> {
   try {
+    const wax = await getWaxInstance();
     const userAccount = await wax.login();
     return {
       type: "wax",
       account: userAccount,
+      waxInstance: wax,
     };
   } catch (error) {
     console.error("WAX Cloud Wallet login failed:", error);
@@ -58,6 +74,7 @@ export async function loginWithWax(): Promise<WalletSession> {
 // Login with Anchor
 export async function loginWithAnchor(): Promise<WalletSession> {
   try {
+    const anchorLink = await getAnchorLink();
     const identity = await anchorLink.login("cheesedaotools");
     return {
       type: "anchor",
@@ -84,6 +101,7 @@ export async function transact(
   actions: any[]
 ): Promise<any> {
   if (session.type === "wax") {
+    const wax = session.waxInstance || (await getWaxInstance());
     return await wax.api.transact(
       { actions },
       { blocksBehind: 3, expireSeconds: 120 }

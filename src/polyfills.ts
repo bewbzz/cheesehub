@@ -1,6 +1,8 @@
+// Polyfills must be set up BEFORE any WAX imports
 import { Buffer } from "buffer";
 
-// Polyfills for Node.js globals needed by WAX libraries
-(window as any).global = window;
+(window as any).global = globalThis;
 (window as any).Buffer = Buffer;
 (window as any).process = { env: {} };
+
+export {};

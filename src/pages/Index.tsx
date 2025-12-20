@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Lock, ArrowRight, Shield, Clock, Zap } from "lucide-react";
+import { Lock, ArrowRight, Shield, Clock, Zap, ShoppingBag } from "lucide-react";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 const Index = () => {
@@ -28,13 +28,20 @@ const Index = () => {
               <span className="text-foreground">DeFi Tools</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Alternative front-end for WaxDAO smart contracts. Lock tokens, create DAOs, and manage your WAX assets with a beautiful cheese-themed interface.
+              Alternative front-end for WaxDAO smart contracts. Lock tokens, buy NFT drops, and manage your WAX assets with a beautiful cheese-themed interface.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/locker">
                   <Lock className="mr-2 h-5 w-5" />
                   CHEESELock
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="border-cheese/50 hover:bg-cheese/10 text-foreground font-semibold">
+                <Link to="/drops">
+                  <ShoppingBag className="mr-2 h-5 w-5" />
+                  CHEESEDrops
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
@@ -91,23 +98,47 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Token Locker CTA */}
+      {/* Products Section */}
       <section className="container py-16">
-        <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-        <CardContent className="py-12 text-center">
-            <img src={cheeseLogo} alt="Cheese" className="h-16 w-16 mx-auto mb-6 animate-float" />
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Lock Your Tokens?</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto mb-8">
-              Secure your tokens with time-locked smart contracts. Perfect for token vesting, investor protection, or showing commitment to your community.
-            </p>
-            <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-              <Link to="/locker">
-                Go to CHEESELock
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* CHEESELock CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <Lock className="h-8 w-8 text-cheese" />
+              </div>
+              <h2 className="text-2xl font-bold mb-4">CHEESELock</h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Secure your tokens with time-locked smart contracts. Perfect for vesting and investor protection.
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/locker">
+                  Go to CHEESELock
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* CHEESEDrops CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <ShoppingBag className="h-8 w-8 text-cheese" />
+              </div>
+              <h2 className="text-2xl font-bold mb-4">CHEESEDrops</h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Exchange your CHEESE tokens for exclusive NFTs and physical items from our collection.
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/drops">
+                  Go to CHEESEDrops
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       {/* Footer */}

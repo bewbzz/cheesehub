@@ -118,4 +118,42 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  .cheese-text-glow {
+    text-shadow: 0 0 20px hsl(var(--cheese) / 0.5),
+                 0 0 40px hsl(var(--cheese) / 0.3);
+  }
+
+  .hover-cheese-glow {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .hover-cheese-glow:hover {
+    box-shadow: 0 0 30px hsl(var(--cheese) / 0.4),
+                0 0 60px hsl(var(--cheese) / 0.2);
+  }
+
+  .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .text-cheese {
+    color: hsl(var(--cheese));
+  }
 }

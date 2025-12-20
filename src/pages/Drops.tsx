@@ -6,7 +6,6 @@ import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations"
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllDrops } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
-import { mockDrops } from "@/data/mockDrops";
 import type { NFTDrop } from "@/types/drop";
 
 const Drops = () => {
@@ -17,8 +16,8 @@ const Drops = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
-  // Use API drops if available, otherwise fall back to mock data
-  const displayDrops: NFTDrop[] = drops && drops.length > 0 ? drops : mockDrops;
+  // Use real API data - show empty state if no drops available
+  const displayDrops: NFTDrop[] = drops || [];
 
   return (
     <div className="min-h-screen bg-background grid-pattern relative">
@@ -58,12 +57,7 @@ const Drops = () => {
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground">Showing sample drops.</p>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-8">
-              {mockDrops.map((drop) => (
-                <DropCard key={drop.id} drop={drop} />
-              ))}
-            </div>
+            <p className="text-lg text-muted-foreground">Failed to load drops. Please try again later.</p>
           </div>
         ) : displayDrops.length === 0 ? (
           <div className="text-center py-12">

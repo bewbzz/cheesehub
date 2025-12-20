@@ -33,9 +33,13 @@ export async function fetchUserLocks(account: string): Promise<TokenLock[]> {
 }
 
 // Format asset string (e.g., "100.0000 WAX" -> { amount: "100.0000", symbol: "WAX" })
-export function parseAsset(asset: string): { amount: string; symbol: string } {
-  const [amount, symbol] = asset.split(" ");
-  return { amount, symbol };
+export function parseAsset(asset: string | undefined): { amount: string; symbol: string } {
+  if (!asset || typeof asset !== 'string') {
+    console.warn("parseAsset received invalid value:", asset);
+    return { amount: "0", symbol: "UNKNOWN" };
+  }
+  const parts = asset.split(" ");
+  return { amount: parts[0] || "0", symbol: parts[1] || "UNKNOWN" };
 }
 
 // Format unlock time

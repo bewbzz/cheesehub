@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home, ShoppingBag, ShoppingCart, Droplets } from "lucide-react";
+import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -45,6 +45,19 @@ export function Header() {
               <Droplets className="h-4 w-4" />
               CHEESEFaucet
             </a>
+            {/* CHEESEFaucet 2.0 (internal) */}
+            <Link
+              to="/faucet"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/faucet"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Zap className="h-4 w-4" />
+              CHEESEFaucet 2.0
+            </Link>
             {/* CHEESELock */}
             <Link
               to="/locker"

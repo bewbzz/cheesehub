@@ -777,6 +777,7 @@ export function buildUnstakeNFTAction(
 }
 
 // Build action for depositing tokens to DAO treasury
+// Tokens are sent directly to the DAO account
 export function buildDepositToTreasuryAction(
   sender: string,
   daoName: string,
@@ -849,12 +850,19 @@ const ATOMIC_API_ENDPOINTS = [
   'https://wax.api.atomicassets.io',
 ];
 
-async function fetchFromAtomicAPI(path: string): Promise<Response> {
+async function fetchFromAtomicAPI(path: string, bustCache = false): Promise<Response> {
   let lastError: Error | null = null;
+  
+  // Add cache-busting parameter if requested
+  const cacheBuster = bustCache ? `&_t=${Date.now()}` : '';
+  const separator = path.includes('?') ? '' : '?';
+  const fullPath = bustCache ? `${path}${separator}${cacheBuster}` : path;
   
   for (const baseUrl of ATOMIC_API_ENDPOINTS) {
     try {
-      const response = await fetch(`${baseUrl}${path}`);
+      const response = await fetch(`${baseUrl}${fullPath}`, {
+        cache: bustCache ? 'no-store' : 'default',
+      });
       if (response.ok) {
         return response;
       }
@@ -867,10 +875,12 @@ async function fetchFromAtomicAPI(path: string): Promise<Response> {
   throw lastError || new Error('All AtomicAssets API endpoints failed');
 }
 
-export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
+export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {
+    // Always bust cache for treasury to get latest data after deposits
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${daoName}&limit=100`
+      `/atomicassets/v1/assets?owner=${daoName}&limit=100`,
+      bustCache
     );
     
     const json = await response.json();
@@ -909,10 +919,12 @@ export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT
 }
 
 // Fetch user's NFTs for deposit to treasury
-export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]> {
+export async function fetchUserNFTs(userAccount: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {
+    // Bust cache to get latest data after deposits
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`
+      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`,
+      bustCache
     );
     
     const json = await response.json();
@@ -950,6 +962,7 @@ export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]>
 }
 
 // Build action for depositing NFTs to DAO treasury
+// NFTs are sent directly to the DAO account
 export function buildDepositNFTToTreasuryAction(
   sender: string,
   daoName: string,

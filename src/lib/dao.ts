@@ -793,6 +793,7 @@ export function buildDepositToTreasuryActions(
     data: {
       user: sender,
       dao: daoName,
+      token_contract: tokenContract,
       token_symbol: `${tokenSymbol.split(",")[0] || "8"},${tokenSymbol.split(",")[1] || tokenSymbol}`,
     },
   };

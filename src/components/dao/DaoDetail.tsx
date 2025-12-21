@@ -175,8 +175,10 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {/* Description */}
                   {dao.description && (
                     <div className="bg-muted/30 rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground mb-1">Description</p>
-                      <p className="text-foreground">{dao.description}</p>
+                      <p className="text-sm text-muted-foreground mb-2">Description</p>
+                      <div className="text-foreground whitespace-pre-line leading-relaxed">
+                        {dao.description}
+                      </div>
                     </div>
                   )}
 

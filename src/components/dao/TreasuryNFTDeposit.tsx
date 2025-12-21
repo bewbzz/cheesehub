@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { buildDepositNFTToTreasuryAction, fetchUserNFTs, TreasuryNFT } from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check, RefreshCw } from "lucide-react";
+import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TreasuryNFTDepositProps {
@@ -17,21 +17,11 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
   const [nfts, setNfts] = useState<TreasuryNFT[]>([]);
   const [loadingNFTs, setLoadingNFTs] = useState(false);
   const [selectedNFTs, setSelectedNFTs] = useState<Set<string>>(new Set());
-  const [processingMessage, setProcessingMessage] = useState<string | null>(null);
-  
-  // Use ref to track if component is still mounted during async operations
-  const isMountedRef = useRef(true);
-  // Store selected count before transaction to avoid state issues
-  const selectedCountRef = useRef(0);
 
   useEffect(() => {
-    isMountedRef.current = true;
     if (session) {
       loadUserNFTs();
     }
-    return () => {
-      isMountedRef.current = false;
-    };
   }, [session]);
 
   async function loadUserNFTs() {
@@ -39,15 +29,11 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
     setLoadingNFTs(true);
     try {
       const userNFTs = await fetchUserNFTs(String(session.actor));
-      if (isMountedRef.current) {
-        setNfts(userNFTs);
-      }
+      setNfts(userNFTs);
     } catch (error) {
       console.error("Failed to load NFTs:", error);
     } finally {
-      if (isMountedRef.current) {
-        setLoadingNFTs(false);
-      }
+      setLoadingNFTs(false);
     }
   }
 
@@ -72,66 +58,24 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
       return;
     }
 
-    // Store count before transaction starts
-    selectedCountRef.current = selectedNFTs.size;
-    const assetIds = Array.from(selectedNFTs);
-
     setLoading(true);
-    setProcessingMessage(null);
-    
     try {
       const action = buildDepositNFTToTreasuryAction(
         String(session.actor),
         daoName,
-        assetIds
+        Array.from(selectedNFTs)
       );
 
       await session.transact({ actions: [action] });
-      
-      // Transaction succeeded - update state only if still mounted
-      if (isMountedRef.current) {
-        setSelectedNFTs(new Set());
-        toast.success(`Successfully deposited ${selectedCountRef.current} NFT(s)!`);
-        
-        // Refresh user's NFTs immediately
-        await loadUserNFTs();
-        
-        // Wait for blockchain indexers before refreshing treasury
-        setProcessingMessage("Waiting for blockchain to sync...");
-        await new Promise(resolve => setTimeout(resolve, 4000));
-        
-        if (isMountedRef.current) {
-          setProcessingMessage(null);
-          onSuccess();
-        }
-      }
-    } catch (error: unknown) {
+      toast.success(`Successfully deposited ${selectedNFTs.size} NFT(s) to treasury!`);
+      setSelectedNFTs(new Set());
+      await loadUserNFTs();
+      onSuccess();
+    } catch (error) {
       console.error("Failed to deposit NFTs:", error);
-      
-      if (!isMountedRef.current) return;
-      
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Detect user cancellation - these are not errors
-      const isCancellation = 
-        errorMessage.toLowerCase().includes("modal closed") ||
-        errorMessage.toLowerCase().includes("rejected") ||
-        errorMessage.toLowerCase().includes("cancelled") ||
-        errorMessage.toLowerCase().includes("canceled") ||
-        errorMessage.toLowerCase().includes("user rejected") ||
-        errorMessage.toLowerCase().includes("user denied") ||
-        errorMessage.toLowerCase().includes("aborted");
-      
-      if (isCancellation) {
-        toast.info("Transaction cancelled");
-      } else {
-        toast.error(errorMessage || "Failed to deposit NFTs");
-      }
+      toast.error(error instanceof Error ? error.message : "Failed to deposit NFTs");
     } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setProcessingMessage(null);
-      }
+      setLoading(false);
     }
   }
 
@@ -155,12 +99,12 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
           variant="ghost"
           size="sm"
           onClick={loadUserNFTs}
-          disabled={loadingNFTs || loading}
+          disabled={loadingNFTs}
         >
           {loadingNFTs ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-4 w-4" />
+            "Refresh"
           )}
         </Button>
       </div>
@@ -180,11 +124,9 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
             {nfts.map((nft) => (
               <button
                 key={nft.asset_id}
-                onClick={() => !loading && toggleNFT(nft.asset_id)}
-                disabled={loading}
+                onClick={() => toggleNFT(nft.asset_id)}
                 className={cn(
                   "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                  loading && "opacity-50 cursor-not-allowed",
                   selectedNFTs.has(nft.asset_id)
                     ? "border-cheese ring-2 ring-cheese/30"
                     : "border-border/50 hover:border-cheese/50"
@@ -218,13 +160,6 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
             <span className="font-medium">{selectedNFTs.size} NFT(s)</span>
           </div>
 
-          {processingMessage && (
-            <div className="flex items-center justify-center gap-2 p-2 bg-cheese/10 rounded-lg text-sm text-cheese">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {processingMessage}
-            </div>
-          )}
-
           <Button
             onClick={handleDeposit}
             disabled={loading || selectedNFTs.size === 0}
@@ -233,7 +168,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {processingMessage ? "Processing..." : "Depositing..."}
+                Depositing...
               </>
             ) : (
               <>

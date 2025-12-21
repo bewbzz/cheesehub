@@ -776,45 +776,7 @@ export function buildUnstakeNFTAction(
   };
 }
 
-// Build actions for depositing tokens to DAO treasury
-// Two-step process: 1) Announce deposit via tokendeposit action, 2) Transfer tokens with correct memo
-export function buildDepositToTreasuryActions(
-  sender: string,
-  daoName: string,
-  quantity: string,
-  tokenContract: string,
-  tokenSymbol: string
-) {
-  // Action 1: Announce the deposit to the DAO contract
-  const announceAction = {
-    account: DAO_CONTRACT,
-    name: "tokendeposit",
-    authorization: [{ actor: sender, permission: "active" }],
-    data: {
-      user: sender,
-      dao: daoName,
-      token_contract: tokenContract,
-      token_symbol: `${tokenSymbol.split(",")[0] || "8"},${tokenSymbol.split(",")[1] || tokenSymbol}`,
-    },
-  };
-
-  // Action 2: Transfer tokens with the correct memo format
-  const transferAction = {
-    account: tokenContract,
-    name: "transfer",
-    authorization: [{ actor: sender, permission: "active" }],
-    data: {
-      from: sender,
-      to: DAO_CONTRACT,
-      quantity: quantity,
-      memo: `|treasury_deposit|${daoName}|`,
-    },
-  };
-
-  return [announceAction, transferAction];
-}
-
-// Legacy single-action function (deprecated, use buildDepositToTreasuryActions instead)
+// Build action for depositing tokens to DAO treasury
 export function buildDepositToTreasuryAction(
   sender: string,
   daoName: string,
@@ -827,9 +789,9 @@ export function buildDepositToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: DAO_CONTRACT,
+      to: daoName,
       quantity: quantity,
-      memo: `|treasury_deposit|${daoName}|`,
+      memo: "treasury deposit",
     },
   };
 }
@@ -887,19 +849,12 @@ const ATOMIC_API_ENDPOINTS = [
   'https://wax.api.atomicassets.io',
 ];
 
-async function fetchFromAtomicAPI(path: string, bustCache = false): Promise<Response> {
+async function fetchFromAtomicAPI(path: string): Promise<Response> {
   let lastError: Error | null = null;
-  
-  // Add cache-busting parameter if requested
-  const cacheBuster = bustCache ? `&_t=${Date.now()}` : '';
-  const separator = path.includes('?') ? '' : '?';
-  const fullPath = bustCache ? `${path}${separator}${cacheBuster}` : path;
   
   for (const baseUrl of ATOMIC_API_ENDPOINTS) {
     try {
-      const response = await fetch(`${baseUrl}${fullPath}`, {
-        cache: bustCache ? 'no-store' : 'default',
-      });
+      const response = await fetch(`${baseUrl}${path}`);
       if (response.ok) {
         return response;
       }
@@ -912,142 +867,41 @@ async function fetchFromAtomicAPI(path: string, bustCache = false): Promise<Resp
   throw lastError || new Error('All AtomicAssets API endpoints failed');
 }
 
-export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): Promise<TreasuryNFT[]> {
+export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
   try {
-    // First, try to get NFT asset IDs from the DAO contract's treasury table with pagination
-    let allAssetIds: string[] = [];
-    let hasMore = true;
-    let lowerBound = "";
+    const response = await fetchFromAtomicAPI(
+      `/atomicassets/v1/assets?owner=${daoName}&limit=100`
+    );
     
-    while (hasMore) {
-      const treasuryResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: DAO_CONTRACT,
-            scope: daoName,
-            table: "treasurynfts",
-            limit: 1000,
-            lower_bound: lowerBound || undefined,
-          }),
-        }
-      );
-      
-      const treasuryData = await treasuryResponse.json();
-      
-      if (treasuryData.rows && treasuryData.rows.length > 0) {
-        const assetIds = treasuryData.rows.map((row: { asset_id?: string; id?: string }) => 
-          row.asset_id || row.id
-        ).filter(Boolean);
-        allAssetIds = [...allAssetIds, ...assetIds];
-        
-        hasMore = treasuryData.more === true;
-        if (hasMore && treasuryData.next_key) {
-          lowerBound = treasuryData.next_key;
-        } else {
-          hasMore = false;
-        }
-      } else {
-        hasMore = false;
-      }
+    const json = await response.json();
+    
+    if (!json.success || !json.data) {
+      console.log("No treasury NFTs found for", daoName);
+      return [];
     }
     
-    console.log("Treasury NFTs for", daoName, ":", allAssetIds.length, "NFTs");
-    
-    // If we have asset IDs from the table, fetch their details in batches
-    if (allAssetIds.length > 0) {
-      const allNFTs: TreasuryNFT[] = [];
-      const batchSize = 100; // AtomicAssets API limit per request
+    return json.data.map((asset: Record<string, unknown>) => {
+      const data = asset.data as Record<string, string> || {};
+      const collection = asset.collection as { collection_name: string } || { collection_name: "" };
+      const schema = asset.schema as { schema_name: string } || { schema_name: "" };
+      const template = asset.template as { template_id: string } || { template_id: "" };
       
-      for (let i = 0; i < allAssetIds.length; i += batchSize) {
-        const batch = allAssetIds.slice(i, i + batchSize);
-        const response = await fetchFromAtomicAPI(
-          `/atomicassets/v1/assets?ids=${batch.join(',')}&limit=${batchSize}`,
-          bustCache
-        );
-        
-        const json = await response.json();
-        
-        if (json.success && json.data) {
-          const nfts = json.data.map((asset: Record<string, unknown>) => {
-            const data = asset.data as Record<string, string> || {};
-            const collection = asset.collection as { collection_name: string } || { collection_name: "" };
-            const schema = asset.schema as { schema_name: string } || { schema_name: "" };
-            const template = asset.template as { template_id: string } || { template_id: "" };
-            
-            let image = data.img || data.image || "";
-            if (image && !image.startsWith("http")) {
-              if (image.startsWith("Qm") || image.startsWith("bafy")) {
-                image = `https://ipfs.io/ipfs/${image}`;
-              }
-            }
-            
-            return {
-              asset_id: asset.asset_id as string,
-              name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
-              image,
-              collection: collection.collection_name,
-              schema: schema.schema_name,
-              template_id: template.template_id,
-            };
-          });
-          allNFTs.push(...nfts);
+      let image = data.img || data.image || "";
+      if (image && !image.startsWith("http")) {
+        if (image.startsWith("Qm") || image.startsWith("bafy")) {
+          image = `https://ipfs.io/ipfs/${image}`;
         }
       }
       
-      return allNFTs;
-    }
-    
-    // Fallback: Query NFTs owned by dao.waxdao with pagination
-    console.log("No treasurynfts table found, trying fallback query");
-    const allNFTs: TreasuryNFT[] = [];
-    let page = 1;
-    let hasMoreNFTs = true;
-    
-    while (hasMoreNFTs && page <= 10) { // Limit to 1000 NFTs max (10 pages)
-      const response = await fetchFromAtomicAPI(
-        `/atomicassets/v1/assets?owner=${DAO_CONTRACT}&page=${page}&limit=100`,
-        bustCache
-      );
-      
-      const json = await response.json();
-      
-      if (!json.success || !json.data || json.data.length === 0) {
-        hasMoreNFTs = false;
-      } else {
-        const nfts = json.data.map((asset: Record<string, unknown>) => {
-          const data = asset.data as Record<string, string> || {};
-          const collection = asset.collection as { collection_name: string } || { collection_name: "" };
-          const schema = asset.schema as { schema_name: string } || { schema_name: "" };
-          const template = asset.template as { template_id: string } || { template_id: "" };
-          
-          let image = data.img || data.image || "";
-          if (image && !image.startsWith("http")) {
-            if (image.startsWith("Qm") || image.startsWith("bafy")) {
-              image = `https://ipfs.io/ipfs/${image}`;
-            }
-          }
-          
-          return {
-            asset_id: asset.asset_id as string,
-            name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
-            image,
-            collection: collection.collection_name,
-            schema: schema.schema_name,
-            template_id: template.template_id,
-          };
-        });
-        
-        allNFTs.push(...nfts);
-        hasMoreNFTs = json.data.length === 100;
-        page++;
-      }
-    }
-    
-    return allNFTs;
+      return {
+        asset_id: asset.asset_id as string,
+        name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
+        image,
+        collection: collection.collection_name,
+        schema: schema.schema_name,
+        template_id: template.template_id,
+      };
+    });
   } catch (error) {
     console.error("Error fetching treasury NFTs:", error);
     return [];
@@ -1055,12 +909,10 @@ export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): P
 }
 
 // Fetch user's NFTs for deposit to treasury
-export async function fetchUserNFTs(userAccount: string, bustCache = true): Promise<TreasuryNFT[]> {
+export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]> {
   try {
-    // Bust cache to get latest data after deposits
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`,
-      bustCache
+      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`
     );
     
     const json = await response.json();
@@ -1098,7 +950,6 @@ export async function fetchUserNFTs(userAccount: string, bustCache = true): Prom
 }
 
 // Build action for depositing NFTs to DAO treasury
-// NFTs must be sent to the DAO contract with correct memo format
 export function buildDepositNFTToTreasuryAction(
   sender: string,
   daoName: string,
@@ -1110,9 +961,9 @@ export function buildDepositNFTToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: DAO_CONTRACT,
+      to: daoName,
       asset_ids: assetIds,
-      memo: `|treasury_deposit|${daoName}|`,
+      memo: "treasury deposit",
     },
   };
 }

@@ -402,15 +402,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         <h4 className="font-medium text-sm">NFTs in Treasury</h4>
                         <Badge variant="secondary" className="text-xs">{treasuryNFTs.length}</Badge>
                       </div>
-                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-60 overflow-y-auto">
-                        {/* Sort by asset_id descending (higher = newer) */}
-                        {[...treasuryNFTs].sort((a, b) => 
-                          Number(b.asset_id) - Number(a.asset_id)
-                        ).map((nft) => (
+                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
+                        {treasuryNFTs.map((nft) => (
                           <div
                             key={nft.asset_id}
-                            className="relative aspect-square rounded-lg overflow-hidden border border-border/50 group"
-                            title={`Asset ID: ${nft.asset_id}`}
+                            className="relative aspect-square rounded-lg overflow-hidden border border-border/50"
                           >
                             {nft.image ? (
                               <img
@@ -425,14 +421,10 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                             )}
                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
                               <p className="text-[8px] text-white truncate">{nft.name}</p>
-                              <p className="text-[7px] text-white/60 truncate">#{nft.asset_id}</p>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Sorted by newest first. Hover for full asset ID.
-                      </p>
                     </div>
                   )}
 
@@ -445,10 +437,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {/* NFT Deposit Form */}
                   <TreasuryNFTDeposit 
                     daoName={dao.dao_name} 
-                    onSuccess={async () => {
-                      // Add slight delay and then refresh treasury
-                      await loadTreasury();
-                    }}
+                    onSuccess={loadTreasury}
                   />
 
                   {/* Withdrawal Info */}

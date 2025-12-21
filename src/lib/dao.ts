@@ -117,7 +117,7 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
     return (data.rows || []).map((row: Record<string, unknown>) => ({
       dao_name: row.daoname as string || "",
       creator: row.creator as string || "",
-      description: "", // Not stored on-chain
+      description: row.description as string || "",
       logo: "", // Not stored on-chain - could fetch from IPFS/external source
       token_contract: row.gov_token_contract as string || "",
       token_symbol: row.gov_token_symbol as string || "",

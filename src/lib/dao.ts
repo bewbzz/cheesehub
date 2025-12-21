@@ -842,10 +842,35 @@ export function buildTokenTransferProposalAction(
 }
 
 // Fetch NFTs owned by a DAO treasury
+// Alternative AtomicAssets API endpoints (fallbacks for reliability)
+const ATOMIC_API_ENDPOINTS = [
+  'https://aa.wax.blacklusion.io',
+  'https://wax-aa.eu.eosamsterdam.net',
+  'https://wax.api.atomicassets.io',
+];
+
+async function fetchFromAtomicAPI(path: string): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (const baseUrl of ATOMIC_API_ENDPOINTS) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`);
+      if (response.ok) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`API ${baseUrl} failed, trying next...`);
+    }
+  }
+  
+  throw lastError || new Error('All AtomicAssets API endpoints failed');
+}
+
 export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
   try {
-    const response = await fetch(
-      `https://wax.api.atomicassets.io/atomicassets/v1/assets?owner=${daoName}&limit=100`
+    const response = await fetchFromAtomicAPI(
+      `/atomicassets/v1/assets?owner=${daoName}&limit=100`
     );
     
     const json = await response.json();
@@ -886,8 +911,8 @@ export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT
 // Fetch user's NFTs for deposit to treasury
 export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]> {
   try {
-    const response = await fetch(
-      `https://wax.api.atomicassets.io/atomicassets/v1/assets?owner=${userAccount}&limit=100`
+    const response = await fetchFromAtomicAPI(
+      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`
     );
     
     const json = await response.json();

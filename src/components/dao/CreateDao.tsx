@@ -129,7 +129,7 @@ export function CreateDao() {
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-1 h-auto hover:bg-cheese/10">
-                    <Info className="h-4 w-4 text-muted-foreground hover:text-cheese transition-colors" />
+                    <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[85vh]">

@@ -175,17 +175,19 @@ export function CreateLock() {
               <SelectValue placeholder={loading ? "Loading tokens..." : "Choose a token"} />
             </SelectTrigger>
             <SelectContent>
-              {tokens.map((token) => (
-                <SelectItem
-                  key={`${token.contract}:${token.symbol}`}
-                  value={`${token.contract}:${token.symbol}`}
-                >
-                  <span className="flex items-center gap-2">
-                    <img src={cheeseLogo} alt={token.symbol} className="h-4 w-4" />
-                    {token.symbol} - {token.amount}
-                  </span>
-                </SelectItem>
-              ))}
+              {[...tokens]
+                .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+                .map((token) => (
+                  <SelectItem
+                    key={`${token.contract}:${token.symbol}`}
+                    value={`${token.contract}:${token.symbol}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <img src={cheeseLogo} alt={token.symbol} className="h-4 w-4" />
+                      {token.symbol} - {token.amount}
+                    </span>
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           {tokenInfo && (

@@ -104,9 +104,25 @@ export function CreateLock() {
       // Format amount with correct precision
       const precision = tokenInfo.amount.split(".")[1]?.length || 4;
       const formattedAmount = `${parseFloat(amount).toFixed(precision)} ${tokenInfo.symbol}`;
+      const unlockTimestamp = Math.floor(unlockDateTime.getTime() / 1000);
 
+      // Two-step process: 1) createlock, 2) deposit tokens
       await session.transact({
         actions: [
+          // Step 1: Create the lock record
+          {
+            account: WAXDAO_CONTRACT,
+            name: "createlock",
+            authorization: [session.permissionLevel],
+            data: {
+              creator: accountName,
+              receiver: accountName,
+              amount: formattedAmount,
+              token_contract: tokenInfo.contract,
+              unlock_time: unlockTimestamp,
+            },
+          },
+          // Step 2: Deposit tokens to activate the lock
           {
             account: tokenInfo.contract,
             name: "transfer",

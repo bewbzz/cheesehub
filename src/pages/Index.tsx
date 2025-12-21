@@ -30,18 +30,16 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                <Link to="/locker">
-                  <Lock className="mr-2 h-5 w-5" />
-                  CHEESELock
+                <a href="https://cheeseonwax.github.io/" target="_blank" rel="noopener noreferrer">
+                  Website
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
+                </a>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-cheese/50 hover:bg-cheese/10 text-foreground font-semibold">
-                <Link to="/drops">
-                  <ShoppingBag className="mr-2 h-5 w-5" />
-                  CHEESEDrops
+                <a href="https://cheeseonwax.github.io/cheesepaper.pdf" target="_blank" rel="noopener noreferrer">
+                  White paper
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
+                </a>
               </Button>
             </div>
           </div>

@@ -128,8 +128,9 @@ export function CreateDao() {
               </span>
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-1 h-auto hover:bg-cheese/10">
+                  <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
                     <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
+                    <span className="text-xs text-cheese font-medium">click me for help</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[85vh]">

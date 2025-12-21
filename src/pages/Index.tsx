@@ -19,7 +19,7 @@ const Index = () => {
             <img 
               src={cheeseArmy} 
               alt="" 
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-72 md:w-96 opacity-25 pointer-events-none"
+              className="absolute left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 w-72 md:w-96 opacity-25 pointer-events-none"
             />
             <h1 className="relative text-4xl md:text-6xl font-bold mb-6">
               <span className="text-cheese">CHEESE</span>

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWax } from "@/context/WaxContext";
-import { buildDepositToTreasuryAction, fetchUserTokenBalance } from "@/lib/dao";
+import { buildDepositToTreasuryActions, fetchUserTokenBalance } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
 import { useEffect } from "react";
@@ -66,14 +66,15 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       // Format amount with correct precision
       const formattedAmount = `${parseFloat(amount).toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
       
-      const action = buildDepositToTreasuryAction(
+      // Build two-step deposit actions (announce + transfer)
+      const actions = buildDepositToTreasuryActions(
         String(session.actor),
         daoName,
         formattedAmount,
         selectedToken.contract
       );
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions });
       toast.success(`Successfully deposited ${formattedAmount} to treasury!`);
       setAmount("");
       await loadUserBalance(); // Refresh user's token balance

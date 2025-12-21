@@ -92,6 +92,28 @@ export interface TreasuryBalance {
   precision: number;
 }
 
+export interface StakedToken {
+  balance: string;
+  weight: number;
+}
+
+export interface StakedNFT {
+  asset_id: string;
+  name: string;
+  image: string;
+  collection: string;
+  schema: string;
+}
+
+export interface UserNFT {
+  asset_id: string;
+  name: string;
+  image: string;
+  collection: string;
+  schema: string;
+  template_id: string;
+}
+
 // Fetch all DAOs from the contract
 export async function fetchAllDaos(): Promise<DaoInfo[]> {
   try {
@@ -363,13 +385,224 @@ export function buildVoteAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "vote", // Action name may need adjustment
+    name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
     data: {
       voter,
       dao_name: daoName,
       proposal_id: proposalId,
       vote,
+    },
+  };
+}
+
+// Fetch user's staked tokens in a DAO
+export async function fetchUserStakedTokens(
+  daoName: string,
+  userAccount: string
+): Promise<StakedToken | null> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: daoName,
+          table: "stakers",
+          lower_bound: userAccount,
+          upper_bound: userAccount,
+          limit: 1,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    console.log("Staked tokens data:", data);
+    
+    if (data.rows && data.rows.length > 0) {
+      const row = data.rows[0];
+      return {
+        balance: row.balance || "0",
+        weight: parseInt(row.weight) || 0,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching staked tokens:", error);
+    return null;
+  }
+}
+
+// Fetch user's staked NFTs in a DAO
+export async function fetchUserStakedNFTs(
+  daoName: string,
+  userAccount: string
+): Promise<StakedNFT[]> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: daoName,
+          table: "stakednfts",
+          lower_bound: userAccount,
+          upper_bound: userAccount,
+          index_position: 2,
+          key_type: "name",
+          limit: 100,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    console.log("Staked NFTs data:", data);
+    
+    // For each staked NFT, we need to fetch asset details from AtomicAssets
+    const stakedNFTs: StakedNFT[] = [];
+    
+    if (data.rows && data.rows.length > 0) {
+      for (const row of data.rows) {
+        const assetId = row.asset_id?.toString() || row.asset_ids?.[0]?.toString();
+        if (assetId) {
+          try {
+            const assetResponse = await fetch(
+              `https://wax.api.atomicassets.io/atomicassets/v1/assets/${assetId}`
+            );
+            const assetData = await assetResponse.json();
+            
+            if (assetData.success && assetData.data) {
+              const asset = assetData.data;
+              stakedNFTs.push({
+                asset_id: assetId,
+                name: asset.data?.name || asset.name || `NFT #${assetId}`,
+                image: asset.data?.img || asset.data?.image || "",
+                collection: asset.collection?.collection_name || "",
+                schema: asset.schema?.schema_name || "",
+              });
+            }
+          } catch {
+            console.log(`Could not fetch asset ${assetId}`);
+          }
+        }
+      }
+    }
+    
+    return stakedNFTs;
+  } catch (error) {
+    console.error("Error fetching staked NFTs:", error);
+    return [];
+  }
+}
+
+// Fetch user's token balance
+export async function fetchUserTokenBalance(
+  contract: string,
+  symbol: string,
+  userAccount: string
+): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_currency_balance`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: contract,
+          account: userAccount,
+          symbol: symbol,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0];
+    }
+    return `0 ${symbol}`;
+  } catch (error) {
+    console.error("Error fetching token balance:", error);
+    return `0 ${symbol}`;
+  }
+}
+
+// Build action for staking tokens
+export function buildStakeTokenAction(
+  staker: string,
+  daoName: string,
+  amount: string,
+  tokenContract: string
+) {
+  return {
+    account: tokenContract,
+    name: "transfer",
+    authorization: [{ actor: staker, permission: "active" }],
+    data: {
+      from: staker,
+      to: DAO_CONTRACT,
+      quantity: amount,
+      memo: `stake|${daoName}`,
+    },
+  };
+}
+
+// Build action for unstaking tokens
+export function buildUnstakeTokenAction(
+  staker: string,
+  daoName: string,
+  amount: string
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "unstake",
+    authorization: [{ actor: staker, permission: "active" }],
+    data: {
+      user: staker,
+      daoname: daoName,
+      quantity: amount,
+    },
+  };
+}
+
+// Build action for staking NFTs
+export function buildStakeNFTAction(
+  staker: string,
+  daoName: string,
+  assetIds: string[]
+) {
+  return {
+    account: "atomicassets",
+    name: "transfer",
+    authorization: [{ actor: staker, permission: "active" }],
+    data: {
+      from: staker,
+      to: DAO_CONTRACT,
+      asset_ids: assetIds,
+      memo: `stake|${daoName}`,
+    },
+  };
+}
+
+// Build action for unstaking NFTs
+export function buildUnstakeNFTAction(
+  staker: string,
+  daoName: string,
+  assetIds: string[]
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "unstakenft",
+    authorization: [{ actor: staker, permission: "active" }],
+    data: {
+      user: staker,
+      daoname: daoName,
+      asset_ids: assetIds,
     },
   };
 }

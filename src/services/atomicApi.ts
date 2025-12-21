@@ -358,3 +358,49 @@ export async function fetchAllDrops(): Promise<NFTDrop[]> {
     return drop.price > 0; // Only show items with prices
   });
 }
+
+// Fetch user's NFTs filtered by collections and schemas (for DAO staking)
+export async function fetchUserNFTsBySchema(
+  account: string,
+  collections: string[],
+  schemas: string[]
+): Promise<{ asset_id: string; name: string; image: string; collection: string; schema: string; template_id: string }[]> {
+  try {
+    const results: { asset_id: string; name: string; image: string; collection: string; schema: string; template_id: string }[] = [];
+    
+    // Fetch NFTs for each collection/schema pair
+    for (let i = 0; i < collections.length; i++) {
+      const collection = collections[i];
+      const schema = schemas[i];
+      
+      const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.assets || '/atomicassets/v1/assets'}`);
+      url.searchParams.set('owner', account);
+      url.searchParams.set('collection_name', collection);
+      if (schema) {
+        url.searchParams.set('schema_name', schema);
+      }
+      url.searchParams.set('limit', '100');
+      
+      const response = await fetch(url.toString());
+      const json = await response.json();
+      
+      if (json.success && json.data) {
+        for (const asset of json.data) {
+          results.push({
+            asset_id: asset.asset_id,
+            name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+            image: getImageUrl(asset.data?.img || asset.data?.image),
+            collection: asset.collection?.collection_name || collection,
+            schema: asset.schema?.schema_name || schema,
+            template_id: asset.template?.template_id || '',
+          });
+        }
+      }
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error fetching user NFTs by schema:', error);
+    return [];
+  }
+}

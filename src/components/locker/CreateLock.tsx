@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useWallet } from "@/hooks/useWallet";
-import { getTokenBalances, transact, WAXDAO_CONTRACT } from "@/lib/wax";
+import { useWax } from "@/context/WaxContext";
+import { getTokenBalances, WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ interface TokenBalance {
 }
 
 export function CreateLock() {
-  const { session } = useWallet();
+  const { session, accountName, isConnected } = useWax();
   const { toast } = useToast();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,16 +36,16 @@ export function CreateLock() {
   const [unlockTime, setUnlockTime] = useState("00:00");
 
   useEffect(() => {
-    if (session) {
+    if (accountName) {
       loadTokens();
     }
-  }, [session]);
+  }, [accountName]);
 
   const loadTokens = async () => {
-    if (!session) return;
+    if (!accountName) return;
     setLoading(true);
     try {
-      const balances = await getTokenBalances(session.account);
+      const balances = await getTokenBalances(accountName);
       setTokens(balances);
     } catch (error) {
       console.error("Failed to load tokens:", error);
@@ -58,7 +58,7 @@ export function CreateLock() {
   };
 
   const handleCreate = async () => {
-    if (!session) return;
+    if (!session || !accountName) return;
 
     const tokenInfo = getSelectedTokenInfo();
     if (!tokenInfo) {
@@ -105,19 +105,21 @@ export function CreateLock() {
       const precision = tokenInfo.amount.split(".")[1]?.length || 4;
       const formattedAmount = `${parseFloat(amount).toFixed(precision)} ${tokenInfo.symbol}`;
 
-      await transact(session, [
-        {
-          account: tokenInfo.contract,
-          name: "transfer",
-          authorization: [{ actor: session.account, permission: "active" }],
-          data: {
-            from: session.account,
-            to: WAXDAO_CONTRACT,
-            quantity: formattedAmount,
-            memo: `lock:${unlockDateTime.toISOString().split(".")[0]}`,
+      await session.transact({
+        actions: [
+          {
+            account: tokenInfo.contract,
+            name: "transfer",
+            authorization: [session.permissionLevel],
+            data: {
+              from: accountName,
+              to: WAXDAO_CONTRACT,
+              quantity: formattedAmount,
+              memo: `lock:${unlockDateTime.toISOString().split(".")[0]}`,
+            },
           },
-        },
-      ]);
+        ],
+      });
 
       toast({
         title: "Lock Created!",
@@ -139,7 +141,7 @@ export function CreateLock() {
     setCreating(false);
   };
 
-  if (!session) {
+  if (!isConnected) {
     return (
       <Card className="border-dashed border-muted-foreground/30">
         <CardContent className="flex flex-col items-center justify-center py-12">

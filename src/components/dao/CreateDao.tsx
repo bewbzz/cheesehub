@@ -143,10 +143,10 @@ export function CreateDao() {
                     <Accordion type="multiple" defaultValue={["dao-types", "settings"]} className="space-y-2">
                       
                       <AccordionItem value="dao-name" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           DAO Name Format
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                        <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
                             Your DAO name must follow the WAX account name format:
                           </p>
@@ -164,47 +164,28 @@ export function CreateDao() {
                       </AccordionItem>
 
                       <AccordionItem value="dao-types" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                          DAO Types Explained
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                          DAO Type: Stake Tokens To DAO
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-3">
-                          <p>WaxDAO supports several DAO types. This form creates a <strong className="text-cheese">"Stake Tokens To DAO"</strong> type:</p>
-                          
-                          <div className="space-y-2">
-                            <div className="p-2 rounded border border-cheese/30 bg-cheese/10">
-                              <p className="font-medium text-foreground">Stake Tokens To DAO (Current)</p>
-                              <p className="text-xs mt-1">
-                                Members stake governance tokens to the DAO contract to gain voting power. 
-                                Tokens are held custodially until unstaked. Your voting power equals your staked amount.
-                              </p>
-                            </div>
-                            
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Custodial NFT Farm</p>
-                              <p className="text-xs mt-1">Members stake NFTs to the DAO to gain voting power.</p>
-                            </div>
-                            
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Custodial Token Pool</p>
-                              <p className="text-xs mt-1">Members deposit tokens into a shared pool for governance.</p>
-                            </div>
-                            
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Non-Custodial (NFTs)</p>
-                              <p className="text-xs mt-1">Voting power based on NFT ownership without staking.</p>
-                            </div>
-                          </div>
+                        <AccordionContent className="text-sm text-foreground space-y-2">
+                          <p>
+                            This form creates a <strong className="text-cheese">"Stake Tokens To DAO"</strong> (custodial) type DAO.
+                          </p>
+                          <p>
+                            Members stake governance tokens to the DAO contract to gain voting power. 
+                            Tokens are held custodially until unstaked. Your voting power equals your staked amount.
+                          </p>
                         </AccordionContent>
                       </AccordionItem>
 
                       <AccordionItem value="settings" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           Configuration Settings
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-4">
+                        <AccordionContent className="text-sm text-foreground space-y-4">
                           
                           <div>
-                            <p className="font-medium text-foreground">Threshold</p>
+                            <p className="font-medium text-cheese">Threshold</p>
                             <p className="text-xs mt-1">
                               The percentage of "Yes" votes required for a proposal to pass. 
                               A 51% threshold means a simple majority is needed. Higher thresholds 
@@ -213,7 +194,7 @@ export function CreateDao() {
                           </div>
 
                           <div>
-                            <p className="font-medium text-foreground">Minimum Votes</p>
+                            <p className="font-medium text-cheese">Minimum Votes</p>
                             <p className="text-xs mt-1">
                               The minimum total vote weight needed for a proposal to be valid. 
                               This prevents proposals from passing with very few participants. 
@@ -223,7 +204,7 @@ export function CreateDao() {
                           </div>
 
                           <div>
-                            <p className="font-medium text-foreground">Voting Duration</p>
+                            <p className="font-medium text-cheese">Voting Duration</p>
                             <p className="text-xs mt-1">
                               How long voting stays open for each proposal. Common durations are 
                               24 hours (quick decisions), 72 hours (standard), or 168 hours (1 week for major decisions).
@@ -234,15 +215,15 @@ export function CreateDao() {
                       </AccordionItem>
 
                       <AccordionItem value="proposer-types" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           Proposer Types
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-3">
+                        <AccordionContent className="text-sm text-foreground space-y-3">
                           <p>Control who can create proposals in your DAO:</p>
                           
                           <div className="space-y-2">
                             <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Anyone</p>
+                              <p className="font-medium text-cheese">Anyone</p>
                               <p className="text-xs mt-1">
                                 Any WAX wallet can create proposals. Most democratic but may require 
                                 proposal fees to prevent spam.
@@ -250,7 +231,7 @@ export function CreateDao() {
                             </div>
                             
                             <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Authors Only</p>
+                              <p className="font-medium text-cheese">Authors Only</p>
                               <p className="text-xs mt-1">
                                 Only wallets you specifically authorize can create proposals. 
                                 Good for curated governance with trusted community members.
@@ -258,7 +239,7 @@ export function CreateDao() {
                             </div>
                             
                             <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-foreground">Stake Weight</p>
+                              <p className="font-medium text-cheese">Stake Weight</p>
                               <p className="text-xs mt-1">
                                 Users must hold a minimum amount of governance tokens to create proposals. 
                                 Ensures proposers have skin in the game.
@@ -269,10 +250,10 @@ export function CreateDao() {
                       </AccordionItem>
 
                       <AccordionItem value="proposal-cost" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           Proposal Cost
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                        <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
                             An optional WAX fee required to submit a proposal. This fee goes directly 
                             to your DAO's treasury and serves two purposes:
@@ -289,10 +270,10 @@ export function CreateDao() {
                       </AccordionItem>
 
                       <AccordionItem value="treasury" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           Treasury & Deposits
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                        <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
                             After creating your DAO, you can deposit WAX, tokens, and NFTs to the treasury. 
                             These assets can then be distributed through governance proposals.
@@ -305,10 +286,10 @@ export function CreateDao() {
                       </AccordionItem>
 
                       <AccordionItem value="modify" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           Modifying Settings Later
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-muted-foreground">
+                        <AccordionContent className="text-sm text-foreground">
                           <p>
                             Once created, DAO settings can be modified through governance proposals. 
                             Create a proposal to change settings, and if it passes the voting threshold, 

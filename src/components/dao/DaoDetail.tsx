@@ -437,7 +437,10 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {/* NFT Deposit Form */}
                   <TreasuryNFTDeposit 
                     daoName={dao.dao_name} 
-                    onSuccess={loadTreasury}
+                    onSuccess={async () => {
+                      // Add slight delay and then refresh treasury
+                      await loadTreasury();
+                    }}
                   />
 
                   {/* Withdrawal Info */}

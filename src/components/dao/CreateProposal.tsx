@@ -6,9 +6,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateProposalAction, buildTokenTransferProposalAction, TokenTransferProposalData } from "@/lib/dao";
+import { 
+  buildCreateProposalAction, 
+  buildTokenTransferProposalAction, 
+  buildMultiOptionProposalAction,
+  buildRankedChoiceProposalAction,
+  TokenTransferProposalData 
+} from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, X, FileText, Send } from "lucide-react";
+import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy } from "lucide-react";
 
 interface CreateProposalProps {
   daoName: string;
@@ -16,13 +22,15 @@ interface CreateProposalProps {
   onCancel: () => void;
 }
 
+type ProposalType = "yesnoabstain" | "transfer" | "mostvotes" | "rankedchoice";
+
 export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalProps) {
   const { session } = useWax();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    proposalType: "standard",
+    proposalType: "yesnoabstain" as ProposalType,
   });
   const [transferData, setTransferData] = useState<TokenTransferProposalData>({
     recipient: "",
@@ -30,6 +38,25 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
     tokenSymbol: "WAX",
     tokenContract: "eosio.token",
   });
+  const [customOptions, setCustomOptions] = useState<string[]>(["", ""]);
+
+  const addOption = () => {
+    if (customOptions.length < 10) {
+      setCustomOptions([...customOptions, ""]);
+    }
+  };
+
+  const removeOption = (index: number) => {
+    if (customOptions.length > 2) {
+      setCustomOptions(customOptions.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateOption = (index: number, value: string) => {
+    const newOptions = [...customOptions];
+    newOptions[index] = value;
+    setCustomOptions(newOptions);
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,32 +83,51 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
       }
     }
 
+    // Validate custom options for multi-option and ranked choice
+    if (formData.proposalType === "mostvotes" || formData.proposalType === "rankedchoice") {
+      const validOptions = customOptions.filter(opt => opt.trim());
+      if (validOptions.length < 2) {
+        toast.error("At least 2 options are required");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       let action;
+      const actor = String(session.actor);
       
-      if (formData.proposalType === "transfer") {
-        // Build token transfer proposal with the transfer action included
-        action = buildTokenTransferProposalAction(
-          String(session.actor),
-          daoName,
-          {
+      switch (formData.proposalType) {
+        case "transfer":
+          action = buildTokenTransferProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             transfer: transferData,
-          }
-        );
-      } else {
-        // Build standard proposal
-        action = buildCreateProposalAction(
-          String(session.actor),
-          daoName,
-          {
+          });
+          break;
+        
+        case "mostvotes":
+          action = buildMultiOptionProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
-            proposalType: formData.proposalType,
-          }
-        );
+            options: customOptions.filter(opt => opt.trim()),
+          });
+          break;
+        
+        case "rankedchoice":
+          action = buildRankedChoiceProposalAction(actor, daoName, {
+            title: formData.title,
+            description: formData.description,
+            options: customOptions.filter(opt => opt.trim()),
+          });
+          break;
+        
+        default: // yesnoabstain
+          action = buildCreateProposalAction(actor, daoName, {
+            title: formData.title,
+            description: formData.description,
+            proposalType: "standard",
+          });
       }
 
       await session.transact({ actions: [action] });
@@ -94,6 +140,25 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
       setLoading(false);
     }
   }
+
+  const proposalTypeInfo: Record<ProposalType, { icon: React.ReactNode; description: string }> = {
+    yesnoabstain: {
+      icon: <Vote className="h-4 w-4 text-cheese" />,
+      description: "Voters choose Yes, No, or Abstain",
+    },
+    transfer: {
+      icon: <Send className="h-4 w-4 text-cheese" />,
+      description: "Transfer tokens from the DAO treasury when passed",
+    },
+    mostvotes: {
+      icon: <Trophy className="h-4 w-4 text-cheese" />,
+      description: "Multiple options - the one with most votes wins",
+    },
+    rankedchoice: {
+      icon: <ListOrdered className="h-4 w-4 text-cheese" />,
+      description: "Voters rank options by preference",
+    },
+  };
 
   return (
     <Card className="bg-muted/30 border-cheese/20">
@@ -135,33 +200,51 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
 
           {/* Proposal Type */}
           <div className="space-y-2">
-            <Label htmlFor="type">Type</Label>
+            <Label htmlFor="type">Voting Type</Label>
             <Select
               value={formData.proposalType}
-              onValueChange={(value) => setFormData({ ...formData, proposalType: value })}
+              onValueChange={(value: ProposalType) => setFormData({ ...formData, proposalType: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select type" />
+                <SelectValue placeholder="Select voting type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="yesnoabstain">
+                  <span className="flex items-center gap-2">
+                    <Vote className="h-3 w-3" />
+                    Yes / No / Abstain
+                  </span>
+                </SelectItem>
+                <SelectItem value="mostvotes">
+                  <span className="flex items-center gap-2">
+                    <Trophy className="h-3 w-3" />
+                    Most Votes Wins
+                  </span>
+                </SelectItem>
+                <SelectItem value="rankedchoice">
+                  <span className="flex items-center gap-2">
+                    <ListOrdered className="h-3 w-3" />
+                    Ranked Choice
+                  </span>
+                </SelectItem>
                 <SelectItem value="transfer">
                   <span className="flex items-center gap-2">
                     <Send className="h-3 w-3" />
-                    Token Transfer (Treasury Withdrawal)
+                    Token Transfer
                   </span>
                 </SelectItem>
-                <SelectItem value="funding">Funding Request</SelectItem>
-                <SelectItem value="governance">Governance Change</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              {proposalTypeInfo[formData.proposalType].icon}
+              {proposalTypeInfo[formData.proposalType].description}
+            </p>
           </div>
 
-          {/* Token Transfer Fields - shown only for transfer type */}
+          {/* Token Transfer Fields */}
           {formData.proposalType === "transfer" && (
             <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border/50">
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <p className="text-sm font-medium flex items-center gap-2">
                 <Send className="h-4 w-4 text-cheese" />
                 Token Transfer Details
               </p>
@@ -219,6 +302,63 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
 
               <p className="text-xs text-muted-foreground">
                 When this proposal passes, {transferData.amount || "0"} {transferData.tokenSymbol} will be transferred from the DAO treasury to {transferData.recipient || "[recipient]"}
+              </p>
+            </div>
+          )}
+
+          {/* Custom Options for Most Votes Wins & Ranked Choice */}
+          {(formData.proposalType === "mostvotes" || formData.proposalType === "rankedchoice") && (
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  {formData.proposalType === "mostvotes" ? (
+                    <Trophy className="h-4 w-4 text-cheese" />
+                  ) : (
+                    <ListOrdered className="h-4 w-4 text-cheese" />
+                  )}
+                  Voting Options
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addOption}
+                  disabled={customOptions.length >= 10}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {customOptions.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground w-6">{index + 1}.</span>
+                    <Input
+                      placeholder={`Option ${index + 1}`}
+                      value={option}
+                      onChange={(e) => updateOption(index, e.target.value)}
+                      className="flex-1"
+                    />
+                    {customOptions.length > 2 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeOption(index)}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {formData.proposalType === "mostvotes"
+                  ? "Voters will select one option. The option with the most votes wins."
+                  : "Voters will rank all options in order of preference. Uses instant-runoff voting."}
               </p>
             </div>
           )}

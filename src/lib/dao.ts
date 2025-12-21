@@ -606,3 +606,68 @@ export function buildUnstakeNFTAction(
     },
   };
 }
+
+// Build action for depositing tokens to DAO treasury
+export function buildDepositToTreasuryAction(
+  sender: string,
+  daoName: string,
+  quantity: string,
+  tokenContract: string
+) {
+  return {
+    account: tokenContract,
+    name: "transfer",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      from: sender,
+      to: daoName,
+      quantity: quantity,
+      memo: "treasury deposit",
+    },
+  };
+}
+
+// Token transfer action for proposals (to be executed when proposal passes)
+export interface TokenTransferProposalData {
+  recipient: string;
+  amount: string;
+  tokenSymbol: string;
+  tokenContract: string;
+}
+
+// Build action for creating a token transfer proposal
+export function buildTokenTransferProposalAction(
+  proposer: string,
+  daoName: string,
+  proposal: {
+    title: string;
+    description: string;
+    transfer: TokenTransferProposalData;
+  }
+) {
+  // The proposal includes the transfer action that will be executed if passed
+  const transferAction: ProposalAction = {
+    contract: proposal.transfer.tokenContract,
+    action: "transfer",
+    data: {
+      from: daoName,
+      to: proposal.transfer.recipient,
+      quantity: proposal.transfer.amount,
+      memo: `DAO proposal: ${proposal.title}`,
+    },
+  };
+
+  return {
+    account: DAO_CONTRACT,
+    name: "createprop",
+    authorization: [{ actor: proposer, permission: "active" }],
+    data: {
+      proposer,
+      dao_name: daoName,
+      title: proposal.title,
+      description: proposal.description,
+      proposal_type: "transfer",
+      actions: [transferAction],
+    },
+  };
+}

@@ -1,8 +1,19 @@
 import { fetchTable, WAXDAO_CONTRACT } from "./wax";
 
-// Faucet contract
-export const FAUCET_CONTRACT = "cheesecheese";
+// Smart contract addresses
+export const STAKING_CONTRACT = "cheesecheese"; // Handles stake/unstake/refund
+export const FAUCET_CONTRACT = "cheesefaucet";  // Handles claims
 export const CHEESE_TOKEN_CONTRACT = "cheloyszcvry";
+
+// Token IDs for claims on cheesefaucet contract
+export const CLAIM_TOKEN_IDS = {
+  wedgeCheese: 1,  // CHEESE for all stakers (WEDGE claim)
+  wheelCheese: 2,  // CHEESE for WHEEL stakers (33% APR)
+  wax: 3,          // WAX for WHEEL stakers
+  lswax: 4,        // LSWAX for WHEEL stakers
+} as const;
+
+export type ClaimTokenId = typeof CLAIM_TOKEN_IDS[keyof typeof CLAIM_TOKEN_IDS];
 
 // Stake types
 export type StakeType = "wedge" | "wheel" | null;
@@ -39,12 +50,12 @@ export const FAUCET_CONFIG: FaucetConfig = {
   unstakeCooldown: 72 * 60 * 60, // 72 hours
 };
 
-// Fetch user's stake info from the faucet contract
+// Fetch user's stake info from the staking contract
 export async function getStakeInfo(account: string): Promise<StakeInfo | null> {
   try {
     const rows = await fetchTable<any>(
-      FAUCET_CONTRACT,
-      FAUCET_CONTRACT,
+      STAKING_CONTRACT,
+      STAKING_CONTRACT,
       "stakers",
       {
         lower_bound: account,
@@ -143,7 +154,7 @@ export async function getCheeseBalance(account: string): Promise<string> {
   }
 }
 
-// Build stake action (transfer CHEESE to faucet contract with memo)
+// Build stake action (transfer CHEESE to staking contract with memo)
 export function buildStakeAction(account: string, amount: number) {
   const quantity = `${amount.toFixed(4)} CHEESE`;
   return {
@@ -152,7 +163,7 @@ export function buildStakeAction(account: string, amount: number) {
     authorization: [{ actor: account, permission: "active" }],
     data: {
       from: account,
-      to: FAUCET_CONTRACT,
+      to: STAKING_CONTRACT,
       quantity,
       memo: "stake",
     },
@@ -162,7 +173,7 @@ export function buildStakeAction(account: string, amount: number) {
 // Build unstake action
 export function buildUnstakeAction(account: string) {
   return {
-    account: FAUCET_CONTRACT,
+    account: STAKING_CONTRACT,
     name: "unstake",
     authorization: [{ actor: account, permission: "active" }],
     data: {
@@ -174,7 +185,7 @@ export function buildUnstakeAction(account: string) {
 // Build refund action (after cooldown)
 export function buildRefundAction(account: string) {
   return {
-    account: FAUCET_CONTRACT,
+    account: STAKING_CONTRACT,
     name: "refund",
     authorization: [{ actor: account, permission: "active" }],
     data: {
@@ -183,15 +194,15 @@ export function buildRefundAction(account: string) {
   };
 }
 
-// Build claim action
-export function buildClaimAction(account: string, claimType: "cheese" | "wax" | "lswax" | "wedge") {
+// Build claim action (on cheesefaucet contract with token ID)
+export function buildClaimAction(account: string, tokenId: ClaimTokenId) {
   return {
     account: FAUCET_CONTRACT,
     name: "claim",
     authorization: [{ actor: account, permission: "active" }],
     data: {
-      staker: account,
-      claim_type: claimType,
+      tokenid: tokenId,
+      user: account,
     },
   };
 }

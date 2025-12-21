@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { LucideIcon } from "lucide-react";
+import { ClaimTokenId } from "@/lib/faucet";
 
 interface RewardRowProps {
   icon: LucideIcon;
   label: string;
   description: string;
   amount: string;
-  claimType: "cheese" | "wax" | "lswax" | "wedge";
+  tokenId: ClaimTokenId;
   disabled: boolean;
   isClaiming: boolean;
-  onClaim: (claimType: "cheese" | "wax" | "lswax" | "wedge") => void;
+  onClaim: (tokenId: ClaimTokenId) => void;
   requiresWheel?: boolean;
   stakeType?: "wedge" | "wheel" | null;
 }
@@ -19,7 +20,7 @@ export function RewardRow({
   label,
   description,
   amount,
-  claimType,
+  tokenId,
   disabled,
   isClaiming,
   onClaim,
@@ -53,7 +54,7 @@ export function RewardRow({
 
       {/* Claim Button */}
       <Button
-        onClick={() => onClaim(claimType)}
+        onClick={() => onClaim(tokenId)}
         disabled={!canClaim || isClaiming || isLocked}
         className={`shrink-0 min-w-[80px] ${
           canClaim && !isLocked

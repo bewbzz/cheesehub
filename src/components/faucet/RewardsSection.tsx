@@ -1,13 +1,13 @@
 import { Coins, Droplets, Sparkles, CircleDollarSign } from "lucide-react";
 import { RewardRow } from "./RewardRow";
-import { ClaimableRewards, StakeInfo } from "@/lib/faucet";
+import { ClaimableRewards, StakeInfo, CLAIM_TOKEN_IDS, ClaimTokenId } from "@/lib/faucet";
 
 interface RewardsSectionProps {
   rewards: ClaimableRewards;
   stakeInfo: StakeInfo | null;
   isConnected: boolean;
   isClaiming: boolean;
-  onClaim: (claimType: "cheese" | "wax" | "lswax" | "wedge") => void;
+  onClaim: (tokenId: ClaimTokenId) => void;
 }
 
 export function RewardsSection({
@@ -44,7 +44,7 @@ export function RewardsSection({
         label="CHEESE (Wedge Claim)"
         description="Daily CHEESE for all stakers"
         amount={rewards.wedgeCheese}
-        claimType="wedge"
+        tokenId={CLAIM_TOKEN_IDS.wedgeCheese}
         disabled={!isConnected}
         isClaiming={isClaiming}
         onClaim={onClaim}
@@ -56,7 +56,7 @@ export function RewardsSection({
         label="CHEESE (33%+ APR)"
         description="APR rewards for WHEEL stakers"
         amount={rewards.cheese}
-        claimType="cheese"
+        tokenId={CLAIM_TOKEN_IDS.wheelCheese}
         disabled={!isConnected}
         isClaiming={isClaiming}
         onClaim={onClaim}
@@ -69,7 +69,7 @@ export function RewardsSection({
         label="WAX"
         description="Daily WAX for WHEEL stakers"
         amount={rewards.wax}
-        claimType="wax"
+        tokenId={CLAIM_TOKEN_IDS.wax}
         disabled={!isConnected}
         isClaiming={isClaiming}
         onClaim={onClaim}
@@ -82,7 +82,7 @@ export function RewardsSection({
         label="LSWAX"
         description="Liquid Staked WAX from waxfusion.io"
         amount={rewards.lswax}
-        claimType="lswax"
+        tokenId={CLAIM_TOKEN_IDS.lswax}
         disabled={!isConnected}
         isClaiming={isClaiming}
         onClaim={onClaim}

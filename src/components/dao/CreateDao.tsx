@@ -291,9 +291,8 @@ export function CreateDao() {
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground">
                           <p>
-                            Once created, DAO settings can be modified through governance proposals. 
-                            Create a proposal to change settings, and if it passes the voting threshold, 
-                            the changes will be applied automatically by the smart contract.
+                            Once created, DAO settings <strong className="text-cheese">cannot be changed</strong>. 
+                            Please review all configuration options carefully before submitting. Choose wisely!
                           </p>
                         </AccordionContent>
                       </AccordionItem>

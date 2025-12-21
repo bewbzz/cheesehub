@@ -72,6 +72,21 @@ const Drops = () => {
         )}
       </main>
 
+      <div className="container pb-12 text-center text-sm text-muted-foreground">
+        <p>
+          Powered by the{" "}
+          <a 
+            href="https://wax.bloks.io/account/nfthivedrop?loadContract=true&tab=Tables&account=nfthivedrop&scope=nfthivedrop&limit=100" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-cheese hover:underline"
+          >
+            NFTHIVEDROP
+          </a>{" "}
+          smart contract.
+        </p>
+      </div>
+
       <CartDrawer />
     </div>
   );

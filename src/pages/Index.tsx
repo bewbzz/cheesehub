@@ -23,9 +23,8 @@ const Index = () => {
               </span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="text-cheese-gradient">WAX Blockchain</span>
-              <br />
-              <span className="text-foreground">DeFi Tools</span>
+              <span className="text-cheese">CHEESE</span>
+              <span className="text-foreground">Hub</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Alternative front-end for WaxDAO smart contracts. Lock tokens, buy NFT drops, and manage your WAX assets with a beautiful cheese-themed interface.

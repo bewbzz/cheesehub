@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,15 @@ import {
   buildTokenTransferProposalAction, 
   buildMultiOptionProposalAction,
   buildRankedChoiceProposalAction,
-  TokenTransferProposalData 
+  buildNFTTransferProposalAction,
+  fetchDaoTreasuryNFTs,
+  TokenTransferProposalData,
+  NFTTransferProposalData,
+  TreasuryNFT
 } from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy } from "lucide-react";
+import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy, ImageIcon, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CreateProposalProps {
   daoName: string;
@@ -22,7 +27,7 @@ interface CreateProposalProps {
   onCancel: () => void;
 }
 
-type ProposalType = "yesnoabstain" | "transfer" | "mostvotes" | "rankedchoice";
+type ProposalType = "yesnoabstain" | "transfer" | "mostvotes" | "rankedchoice" | "nfttransfer";
 
 export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalProps) {
   const { session } = useWax();
@@ -38,7 +43,40 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
     tokenSymbol: "WAX",
     tokenContract: "eosio.token",
   });
+  const [nftTransferData, setNftTransferData] = useState<NFTTransferProposalData>({
+    recipient: "",
+    assetIds: [],
+  });
+  const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
+  const [loadingNFTs, setLoadingNFTs] = useState(false);
   const [customOptions, setCustomOptions] = useState<string[]>(["", ""]);
+
+  useEffect(() => {
+    if (formData.proposalType === "nfttransfer") {
+      loadTreasuryNFTs();
+    }
+  }, [formData.proposalType]);
+
+  async function loadTreasuryNFTs() {
+    setLoadingNFTs(true);
+    try {
+      const nfts = await fetchDaoTreasuryNFTs(daoName);
+      setTreasuryNFTs(nfts);
+    } catch (error) {
+      console.error("Failed to load treasury NFTs:", error);
+    } finally {
+      setLoadingNFTs(false);
+    }
+  }
+
+  function toggleNFTSelection(assetId: string) {
+    setNftTransferData(prev => {
+      const newAssetIds = prev.assetIds.includes(assetId)
+        ? prev.assetIds.filter(id => id !== assetId)
+        : [...prev.assetIds, assetId];
+      return { ...prev, assetIds: newAssetIds };
+    });
+  }
 
   const addOption = () => {
     if (customOptions.length < 10) {
@@ -92,6 +130,18 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
       }
     }
 
+    // Validate NFT transfer fields
+    if (formData.proposalType === "nfttransfer") {
+      if (!nftTransferData.recipient.trim()) {
+        toast.error("Recipient account is required for NFT transfer");
+        return;
+      }
+      if (nftTransferData.assetIds.length === 0) {
+        toast.error("Please select at least one NFT to transfer");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       let action;
@@ -103,6 +153,14 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
             title: formData.title,
             description: formData.description,
             transfer: transferData,
+          });
+          break;
+        
+        case "nfttransfer":
+          action = buildNFTTransferProposalAction(actor, daoName, {
+            title: formData.title,
+            description: formData.description,
+            transfer: nftTransferData,
           });
           break;
         
@@ -149,6 +207,10 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
     transfer: {
       icon: <Send className="h-4 w-4 text-cheese" />,
       description: "Transfer tokens from the DAO treasury when passed",
+    },
+    nfttransfer: {
+      icon: <ImageIcon className="h-4 w-4 text-cheese" />,
+      description: "Transfer NFTs from the DAO treasury when passed",
     },
     mostvotes: {
       icon: <Trophy className="h-4 w-4 text-cheese" />,
@@ -233,6 +295,12 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
                     Token Transfer
                   </span>
                 </SelectItem>
+                <SelectItem value="nfttransfer">
+                  <span className="flex items-center gap-2">
+                    <ImageIcon className="h-3 w-3" />
+                    NFT Transfer
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground flex items-center gap-2">
@@ -303,6 +371,87 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
               <p className="text-xs text-muted-foreground">
                 When this proposal passes, {transferData.amount || "0"} {transferData.tokenSymbol} will be transferred from the DAO treasury to {transferData.recipient || "[recipient]"}
               </p>
+            </div>
+          )}
+
+          {/* NFT Transfer Fields */}
+          {formData.proposalType === "nfttransfer" && (
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-cheese" />
+                NFT Transfer Details
+              </p>
+              
+              <div className="space-y-2">
+                <Label htmlFor="nftRecipient">Recipient Account *</Label>
+                <Input
+                  id="nftRecipient"
+                  placeholder="e.g. user.wam"
+                  value={nftTransferData.recipient}
+                  onChange={(e) => setNftTransferData({ ...nftTransferData, recipient: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Select NFTs from Treasury *</Label>
+                  {loadingNFTs && <Loader2 className="h-4 w-4 animate-spin text-cheese" />}
+                </div>
+                
+                {loadingNFTs ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-cheese" />
+                  </div>
+                ) : treasuryNFTs.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground bg-muted/30 rounded-lg">
+                    <ImageIcon className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No NFTs in treasury</p>
+                    <p className="text-xs">Deposit NFTs to the treasury first</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                    {treasuryNFTs.map((nft) => (
+                      <button
+                        key={nft.asset_id}
+                        type="button"
+                        onClick={() => toggleNFTSelection(nft.asset_id)}
+                        className={cn(
+                          "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                          nftTransferData.assetIds.includes(nft.asset_id)
+                            ? "border-cheese ring-2 ring-cheese/30"
+                            : "border-border/50 hover:border-cheese/50"
+                        )}
+                      >
+                        {nft.image ? (
+                          <img
+                            src={nft.image}
+                            alt={nft.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        {nftTransferData.assetIds.includes(nft.asset_id) && (
+                          <div className="absolute inset-0 bg-cheese/20 flex items-center justify-center">
+                            <Check className="h-6 w-6 text-cheese" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                          <p className="text-[10px] text-white truncate">{nft.name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {nftTransferData.assetIds.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {nftTransferData.assetIds.length} NFT(s) selected for transfer to {nftTransferData.recipient || "[recipient]"}
+                </p>
+              )}
             </div>
           )}
 

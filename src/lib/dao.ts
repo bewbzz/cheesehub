@@ -3,17 +3,39 @@
 
 export const DAO_CONTRACT = "dao.waxdao";
 
+// DAO types from the contract
+export const DAO_TYPES: Record<number, string> = {
+  1: "Staking Farm",
+  2: "NFT Farm", 
+  3: "Token Staking",
+  4: "Token Balance",
+  5: "NFT Holding",
+};
+
+export const PROPOSER_TYPES: Record<number, string> = {
+  0: "Authors Only",
+  1: "Anyone",
+  2: "Token Holders",
+};
+
 export interface DaoInfo {
   dao_name: string;
+  creator: string;
   description: string;
   logo: string;
   token_contract: string;
   token_symbol: string;
-  custodians: string[];
-  proposal_count: number;
-  member_count: number;
-  treasury_balance: string;
-  created_at: string;
+  dao_type: number;
+  proposer_type: number;
+  threshold: number;
+  hours_per_proposal: number;
+  minimum_weight: number;
+  minimum_votes: number;
+  proposal_cost: string;
+  authors: string[];
+  gov_schemas: { collection_name: string; schema_name: string }[];
+  time_created: number;
+  status: number;
 }
 
 export interface Proposal {
@@ -46,12 +68,6 @@ export interface Vote {
   timestamp: string;
 }
 
-export interface Custodian {
-  account: string;
-  dao_name: string;
-  permissions: string[];
-}
-
 // Fetch all DAOs from the contract
 export async function fetchAllDaos(): Promise<DaoInfo[]> {
   try {
@@ -64,7 +80,7 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
           json: true,
           code: DAO_CONTRACT,
           scope: DAO_CONTRACT,
-          table: "daos", // Table name may need adjustment
+          table: "daos",
           limit: 100,
         }),
       }
@@ -73,18 +89,27 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
     const data = await response.json();
     console.log("Raw DAO data:", data);
     
-    // Map the response to our interface - field names may need adjustment
+    // Map the response to our interface based on actual contract fields
     return (data.rows || []).map((row: Record<string, unknown>) => ({
-      dao_name: row.dao_name || row.dac_id || row.name || "",
-      description: row.description || row.memo || "",
-      logo: row.logo || row.logo_url || "",
-      token_contract: row.token_contract || "",
-      token_symbol: row.token_symbol || row.symbol || "",
-      custodians: row.custodians || [],
-      proposal_count: row.proposal_count || 0,
-      member_count: row.member_count || 0,
-      treasury_balance: row.treasury_balance || "0",
-      created_at: row.created_at || "",
+      dao_name: row.daoname as string || "",
+      creator: row.creator as string || "",
+      description: "", // Not stored on-chain
+      logo: "", // Not stored on-chain - could fetch from IPFS/external source
+      token_contract: row.gov_token_contract as string || "",
+      token_symbol: row.gov_token_symbol as string || "",
+      dao_type: row.dao_type as number || 0,
+      proposer_type: row.proposer_type as number || 0,
+      threshold: parseFloat(row.threshold as string) || 0,
+      hours_per_proposal: row.hours_per_proposal as number || 0,
+      minimum_weight: typeof row.minimum_weight === 'string' 
+        ? parseInt(row.minimum_weight) 
+        : row.minimum_weight as number || 0,
+      minimum_votes: row.minimum_votes as number || 0,
+      proposal_cost: row.proposal_cost as string || "0",
+      authors: row.authors as string[] || [],
+      gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
+      time_created: row.time_created as number || 0,
+      status: row.status as number || 0,
     }));
   } catch (error) {
     console.error("Error fetching DAOs:", error);
@@ -95,40 +120,8 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
 // Fetch details for a specific DAO
 export async function fetchDaoDetails(daoName: string): Promise<DaoInfo | null> {
   try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: DAO_CONTRACT,
-          scope: daoName,
-          table: "config", // Table name may need adjustment
-          limit: 1,
-        }),
-      }
-    );
-    
-    const data = await response.json();
-    console.log("DAO details:", data);
-    
-    if (data.rows && data.rows.length > 0) {
-      const row = data.rows[0];
-      return {
-        dao_name: daoName,
-        description: row.description || "",
-        logo: row.logo || "",
-        token_contract: row.token_contract || "",
-        token_symbol: row.token_symbol || "",
-        custodians: row.custodians || [],
-        proposal_count: row.proposal_count || 0,
-        member_count: row.member_count || 0,
-        treasury_balance: row.treasury_balance || "0",
-        created_at: row.created_at || "",
-      };
-    }
-    return null;
+    const allDaos = await fetchAllDaos();
+    return allDaos.find(dao => dao.dao_name === daoName) || null;
   } catch (error) {
     console.error("Error fetching DAO details:", error);
     return null;

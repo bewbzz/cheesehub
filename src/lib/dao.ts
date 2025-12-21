@@ -407,6 +407,7 @@ export function buildCreateProposalAction(
       actions: proposal.actions || [],
       token_receivers: [],
       nft_receivers: [],
+      proof_asset_ids: [],
     },
   };
 }
@@ -435,6 +436,7 @@ export function buildMultiOptionProposalAction(
       actions: [],
       token_receivers: [],
       nft_receivers: [],
+      proof_asset_ids: [],
     },
   };
 }
@@ -463,6 +465,7 @@ export function buildRankedChoiceProposalAction(
       actions: [],
       token_receivers: [],
       nft_receivers: [],
+      proof_asset_ids: [],
     },
   };
 }

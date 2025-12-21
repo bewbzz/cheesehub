@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link } from "react-router-dom";
 import { Lock, ArrowRight, Shield, Clock, Zap, ShoppingBag } from "lucide-react";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseArmy from "@/assets/cheesearmy.png";
 
 const Index = () => {
   return (
@@ -22,10 +23,17 @@ const Index = () => {
                 <span className="text-foreground">Hub</span>
               </span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              <span className="text-cheese">CHEESE</span>
-              <span className="text-foreground">Hub</span>
-            </h1>
+            <div className="relative inline-block">
+              <img 
+                src={cheeseArmy} 
+                alt="" 
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 md:w-80 opacity-30 pointer-events-none"
+              />
+              <h1 className="relative text-4xl md:text-6xl font-bold mb-6">
+                <span className="text-cheese">CHEESE</span>
+                <span className="text-foreground">Hub</span>
+              </h1>
+            </div>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Alternative front-end for WaxDAO smart contracts. Lock tokens, buy NFT drops, and manage your WAX assets with a beautiful cheese-themed interface.
             </p>

@@ -356,7 +356,8 @@ export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance
   }
 }
 
-// Build action for creating a new DAO
+// Build action for creating a new DAO (Stake to DAO - Custodial)
+// dao_type: 3 = Token Staking, custodian: true = tokens held by DAO contract
 export function buildCreateDaoAction(
   creator: string,
   config: {
@@ -365,19 +366,32 @@ export function buildCreateDaoAction(
     logo: string;
     tokenContract: string;
     tokenSymbol: string;
+    threshold?: number;
+    hoursPerProposal?: number;
+    minimumWeight?: number;
+    minimumVotes?: number;
+    proposerType?: number;
   }
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "createdao", // Action name may need adjustment
+    name: "createdao",
     authorization: [{ actor: creator, permission: "active" }],
     data: {
       creator,
       dao_name: config.daoName,
       description: config.description,
       logo: config.logo,
-      token_contract: config.tokenContract,
-      token_symbol: config.tokenSymbol,
+      dao_type: 3, // Token Staking
+      gov_token_contract: config.tokenContract || "",
+      gov_token_symbol: config.tokenSymbol || "",
+      custodian: true, // Custodial - tokens held by DAO
+      threshold: config.threshold || 50.0,
+      hours_per_proposal: config.hoursPerProposal || 72,
+      minimum_weight: config.minimumWeight || 0,
+      minimum_votes: config.minimumVotes || 1,
+      proposer_type: config.proposerType || 1, // 1 = Anyone can propose
+      proposal_cost: "0.00000000 WAX",
     },
   };
 }

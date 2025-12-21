@@ -791,7 +791,7 @@ export function buildDepositToTreasuryActions(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       user: sender,
-      dao_name: daoName,
+      dao: daoName,
     },
   };
 

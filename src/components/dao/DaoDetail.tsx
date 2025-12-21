@@ -73,12 +73,12 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <Vote className="h-4 w-4 mx-auto text-cheese mb-1" />
-            <p className="text-lg font-bold">{dao.threshold.toFixed(0)}%</p>
+            <p className="text-lg font-bold">{(dao.threshold ?? 0).toFixed(0)}%</p>
             <p className="text-xs text-muted-foreground">Pass Threshold</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <Clock className="h-4 w-4 mx-auto text-cheese mb-1" />
-            <p className="text-lg font-bold">{dao.hours_per_proposal}h</p>
+            <p className="text-lg font-bold">{dao.hours_per_proposal ?? 0}h</p>
             <p className="text-xs text-muted-foreground">Vote Duration</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-3 text-center">
@@ -88,7 +88,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
           </div>
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <Coins className="h-4 w-4 mx-auto text-cheese mb-1" />
-            <p className="text-lg font-bold truncate text-sm">{dao.proposal_cost}</p>
+            <p className="text-lg font-bold truncate text-sm">{dao.proposal_cost ?? "0"}</p>
             <p className="text-xs text-muted-foreground">Proposal Cost</p>
           </div>
         </div>
@@ -112,15 +112,15 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Min votes required:</span>
-              <span className="font-medium">{dao.minimum_votes.toLocaleString()}</span>
+              <span className="font-medium">{(dao.minimum_votes ?? 0).toLocaleString()}</span>
             </div>
-            {dao.authors.length > 0 && (
+            {dao.authors && dao.authors.length > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Authors:</span>
                 <span className="font-medium">{dao.authors.join(", ")}</span>
               </div>
             )}
-            {dao.gov_schemas.length > 0 && (
+            {dao.gov_schemas && dao.gov_schemas.length > 0 && (
               <div className="col-span-full">
                 <span className="text-muted-foreground">NFT Collections: </span>
                 <span className="font-medium">

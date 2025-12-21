@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { DaoInfo, Proposal, fetchProposals } from "@/lib/dao";
+import { Badge } from "@/components/ui/badge";
+import { DaoInfo, Proposal, fetchProposals, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
-import { Users, FileText, Coins, Plus, Loader2 } from "lucide-react";
+import { Users, FileText, Coins, Plus, Loader2, Clock, Vote, Shield } from "lucide-react";
 
 interface DaoDetailProps {
   dao: DaoInfo;
@@ -36,6 +37,14 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     }
   }
 
+  const tokenDisplay = dao.token_symbol !== "0,NULL" 
+    ? dao.token_symbol.split(",")[1] 
+    : null;
+
+  const createdDate = dao.time_created 
+    ? new Date(dao.time_created * 1000).toLocaleDateString()
+    : "Unknown";
+
   const activeProposals = proposals.filter((p) => p.status === "active");
   const pastProposals = proposals.filter((p) => p.status !== "active" && p.status !== "pending");
 
@@ -44,60 +53,83 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-4">
-            {/* DAO Logo */}
-            <div className="h-16 w-16 rounded-xl bg-cheese/10 flex items-center justify-center overflow-hidden">
-              {dao.logo ? (
-                <img
-                  src={dao.logo}
-                  alt={dao.dao_name}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              ) : (
-                <Users className="h-8 w-8 text-cheese" />
-              )}
+            {/* DAO Icon */}
+            <div className="h-16 w-16 rounded-xl bg-cheese/10 flex items-center justify-center">
+              <Users className="h-8 w-8 text-cheese" />
             </div>
-            <div>
-              <DialogTitle className="text-2xl">{dao.dao_name}</DialogTitle>
-              <p className="text-muted-foreground">{dao.description || "No description"}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <DialogTitle className="text-2xl">{dao.dao_name}</DialogTitle>
+                <Badge variant="outline" className="text-cheese border-cheese/30">
+                  {DAO_TYPES[dao.dao_type] || "Unknown"}
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">Created by {dao.creator} on {createdDate}</p>
             </div>
           </div>
         </DialogHeader>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-3 gap-4 my-4">
-          <div className="bg-muted/50 rounded-lg p-4 text-center">
-            <Users className="h-5 w-5 mx-auto text-cheese mb-2" />
-            <p className="text-xl font-bold">{dao.member_count}</p>
-            <p className="text-sm text-muted-foreground">Members</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <Vote className="h-4 w-4 mx-auto text-cheese mb-1" />
+            <p className="text-lg font-bold">{dao.threshold.toFixed(0)}%</p>
+            <p className="text-xs text-muted-foreground">Pass Threshold</p>
           </div>
-          <div className="bg-muted/50 rounded-lg p-4 text-center">
-            <FileText className="h-5 w-5 mx-auto text-cheese mb-2" />
-            <p className="text-xl font-bold">{proposals.length}</p>
-            <p className="text-sm text-muted-foreground">Proposals</p>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <Clock className="h-4 w-4 mx-auto text-cheese mb-1" />
+            <p className="text-lg font-bold">{dao.hours_per_proposal}h</p>
+            <p className="text-xs text-muted-foreground">Vote Duration</p>
           </div>
-          <div className="bg-muted/50 rounded-lg p-4 text-center">
-            <Coins className="h-5 w-5 mx-auto text-cheese mb-2" />
-            <p className="text-xl font-bold truncate">{dao.treasury_balance || "0"}</p>
-            <p className="text-sm text-muted-foreground">Treasury</p>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <FileText className="h-4 w-4 mx-auto text-cheese mb-1" />
+            <p className="text-lg font-bold">{proposals.length}</p>
+            <p className="text-xs text-muted-foreground">Proposals</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <Coins className="h-4 w-4 mx-auto text-cheese mb-1" />
+            <p className="text-lg font-bold truncate text-sm">{dao.proposal_cost}</p>
+            <p className="text-xs text-muted-foreground">Proposal Cost</p>
           </div>
         </div>
 
-        {/* Token Info */}
-        {dao.token_symbol && (
-          <div className="bg-cheese/10 rounded-lg p-3 text-center mb-4">
-            <span className="text-cheese font-medium">
-              Governance Token: {dao.token_symbol}
-            </span>
-            {dao.token_contract && (
-              <span className="text-muted-foreground ml-2">
-                ({dao.token_contract})
-              </span>
+        {/* Governance Info */}
+        <div className="bg-muted/30 rounded-lg p-4 mb-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-cheese" />
+            <span className="font-medium">Governance Settings</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+            {tokenDisplay && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Token:</span>
+                <span className="font-medium">{tokenDisplay} ({dao.token_contract})</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Who can propose:</span>
+              <span className="font-medium">{PROPOSER_TYPES[dao.proposer_type]}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Min votes required:</span>
+              <span className="font-medium">{dao.minimum_votes.toLocaleString()}</span>
+            </div>
+            {dao.authors.length > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Authors:</span>
+                <span className="font-medium">{dao.authors.join(", ")}</span>
+              </div>
+            )}
+            {dao.gov_schemas.length > 0 && (
+              <div className="col-span-full">
+                <span className="text-muted-foreground">NFT Collections: </span>
+                <span className="font-medium">
+                  {dao.gov_schemas.map(s => `${s.collection_name}/${s.schema_name}`).join(", ")}
+                </span>
+              </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* Proposals Section */}
         <div className="space-y-4">

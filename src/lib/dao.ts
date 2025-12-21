@@ -782,7 +782,8 @@ export function buildDepositToTreasuryActions(
   sender: string,
   daoName: string,
   quantity: string,
-  tokenContract: string
+  tokenContract: string,
+  tokenSymbol: string
 ) {
   // Action 1: Announce the deposit to the DAO contract
   const announceAction = {
@@ -792,6 +793,7 @@ export function buildDepositToTreasuryActions(
     data: {
       user: sender,
       dao: daoName,
+      token_symbol: `${tokenSymbol.split(",")[0] || "8"},${tokenSymbol.split(",")[1] || tokenSymbol}`,
     },
   };
 

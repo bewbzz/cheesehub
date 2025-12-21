@@ -71,7 +71,8 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
         String(session.actor),
         daoName,
         formattedAmount,
-        selectedToken.contract
+        selectedToken.contract,
+        `${selectedToken.precision},${selectedToken.symbol}`
       );
 
       await session.transact({ actions });

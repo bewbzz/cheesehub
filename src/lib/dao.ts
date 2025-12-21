@@ -776,8 +776,42 @@ export function buildUnstakeNFTAction(
   };
 }
 
-// Build action for depositing tokens to DAO treasury
-// Tokens must be sent to the DAO contract with memo specifying the DAO name
+// Build actions for depositing tokens to DAO treasury
+// Two-step process: 1) Announce deposit via tokendeposit action, 2) Transfer tokens with correct memo
+export function buildDepositToTreasuryActions(
+  sender: string,
+  daoName: string,
+  quantity: string,
+  tokenContract: string
+) {
+  // Action 1: Announce the deposit to the DAO contract
+  const announceAction = {
+    account: DAO_CONTRACT,
+    name: "tokendeposit",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      user: sender,
+      dao_name: daoName,
+    },
+  };
+
+  // Action 2: Transfer tokens with the correct memo format
+  const transferAction = {
+    account: tokenContract,
+    name: "transfer",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      from: sender,
+      to: DAO_CONTRACT,
+      quantity: quantity,
+      memo: `|treasury_deposit|${daoName}|`,
+    },
+  };
+
+  return [announceAction, transferAction];
+}
+
+// Legacy single-action function (deprecated, use buildDepositToTreasuryActions instead)
 export function buildDepositToTreasuryAction(
   sender: string,
   daoName: string,
@@ -790,9 +824,9 @@ export function buildDepositToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: DAO_CONTRACT, // Send to dao.waxdao contract
+      to: DAO_CONTRACT,
       quantity: quantity,
-      memo: `deposit:${daoName}`, // Memo specifies which DAO treasury
+      memo: `|treasury_deposit|${daoName}|`,
     },
   };
 }
@@ -1061,7 +1095,7 @@ export async function fetchUserNFTs(userAccount: string, bustCache = true): Prom
 }
 
 // Build action for depositing NFTs to DAO treasury
-// NFTs must be sent to the DAO contract with memo specifying the DAO name
+// NFTs must be sent to the DAO contract with correct memo format
 export function buildDepositNFTToTreasuryAction(
   sender: string,
   daoName: string,
@@ -1073,9 +1107,9 @@ export function buildDepositNFTToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: DAO_CONTRACT, // Send to dao.waxdao contract
+      to: DAO_CONTRACT,
       asset_ids: assetIds,
-      memo: `deposit:${daoName}`, // Memo specifies which DAO treasury
+      memo: `|treasury_deposit|${daoName}|`,
     },
   };
 }

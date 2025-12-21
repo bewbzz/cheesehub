@@ -78,9 +78,9 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <Shield className="h-8 w-8 text-cheese" />
               </div>
-              <h2 className="text-2xl font-bold mb-4">CHEESE DAO</h2>
+              <h2 className="text-2xl font-bold mb-4">CHEESEDao</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Participate in governance and help shape the future of the CHEESE community.
+                Participate in governance and help shape the future of your token community.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/dao">

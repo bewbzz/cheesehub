@@ -76,6 +76,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       await session.transact({ actions: [action] });
       toast.success(`Successfully deposited ${formattedAmount} to treasury!`);
       setAmount("");
+      await loadUserBalance(); // Refresh user's token balance
       onSuccess();
     } catch (error) {
       console.error("Failed to deposit:", error);

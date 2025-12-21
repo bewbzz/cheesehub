@@ -405,6 +405,7 @@ export function buildCreateProposalAction(
       proposal_type: proposal.proposalType === "yesnoabs" ? 0 : proposal.proposalType === "mostvotes" ? 1 : 2,
       choices: [],
       actions: proposal.actions || [],
+      token_receivers: [],
     },
   };
 }
@@ -431,6 +432,7 @@ export function buildMultiOptionProposalAction(
       proposal_type: 1,
       choices: [],
       actions: [],
+      token_receivers: [],
     },
   };
 }
@@ -457,6 +459,7 @@ export function buildRankedChoiceProposalAction(
       proposal_type: 2,
       choices: [],
       actions: [],
+      token_receivers: [],
     },
   };
 }

@@ -2,7 +2,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Lock, ArrowRight, Shield, Clock, Zap, ShoppingBag } from "lucide-react";
+import { Lock, ArrowRight, Shield, Zap, ShoppingBag } from "lucide-react";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import cheeseArmy from "@/assets/cheesearmy.png";
 
@@ -46,50 +46,49 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* CHEESETools Section */}
       <section className="container py-16">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Why Use <span className="text-cheese">CHEESE</span><span className="text-foreground">Hub</span>?</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            A cleaner, more intuitive interface for interacting with WaxDAO's battle-tested smart contracts
-          </p>
+          <h2 className="text-2xl md:text-3xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Tools</span></h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-cheese" />
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* CHEESEFaucet CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <Zap className="h-8 w-8 text-cheese" />
               </div>
-              <CardTitle>Secure</CardTitle>
-              <CardDescription>
-                Uses WaxDAO's audited smart contracts. Your tokens never leave the blockchain.
-              </CardDescription>
-            </CardHeader>
+              <h2 className="text-2xl font-bold mb-4">CHEESEFaucet</h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Claim free CHEESE tokens daily. A simple way to get started with the CHEESE ecosystem.
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/faucet">
+                  Go to CHEESEFaucet
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
 
-          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
-                <Clock className="h-6 w-6 text-cheese" />
+          {/* CHEESE DAO CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <Shield className="h-8 w-8 text-cheese" />
               </div>
-              <CardTitle>Time-Locked</CardTitle>
-              <CardDescription>
-                Lock tokens until a specific date. Perfect for vesting, trust, or commitment.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/50 hover:border-cheese/30 transition-colors">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-cheese/10 flex items-center justify-center mb-4">
-                <Zap className="h-6 w-6 text-cheese" />
-              </div>
-              <CardTitle>Easy to Use</CardTitle>
-              <CardDescription>
-                Connect your WAX wallet and start locking in seconds. No complicated setup required.
-              </CardDescription>
-            </CardHeader>
+              <h2 className="text-2xl font-bold mb-4">CHEESE DAO</h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Participate in governance and help shape the future of the CHEESE community.
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/dao">
+                  Go to CHEESE DAO
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </section>

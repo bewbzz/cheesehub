@@ -395,7 +395,7 @@ export function buildCreateProposalAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "createprop",
+    name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
       proposer,
@@ -426,7 +426,7 @@ export function buildMultiOptionProposalAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "createprop",
+    name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
       proposer,
@@ -456,7 +456,7 @@ export function buildRankedChoiceProposalAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "createprop",
+    name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
       proposer,
@@ -797,7 +797,7 @@ export function buildTokenTransferProposalAction(
 
   return {
     account: DAO_CONTRACT,
-    name: "createprop",
+    name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
       proposer,

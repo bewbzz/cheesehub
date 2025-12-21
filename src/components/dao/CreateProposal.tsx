@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateProposalAction } from "@/lib/dao";
+import { buildCreateProposalAction, buildTokenTransferProposalAction, TokenTransferProposalData } from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, X, FileText } from "lucide-react";
+import { Loader2, X, FileText, Send } from "lucide-react";
 
 interface CreateProposalProps {
   daoName: string;
@@ -24,6 +24,12 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
     description: "",
     proposalType: "standard",
   });
+  const [transferData, setTransferData] = useState<TokenTransferProposalData>({
+    recipient: "",
+    amount: "",
+    tokenSymbol: "WAX",
+    tokenContract: "eosio.token",
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,17 +44,45 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
       return;
     }
 
+    // Validate token transfer fields if transfer proposal
+    if (formData.proposalType === "transfer") {
+      if (!transferData.recipient.trim()) {
+        toast.error("Recipient account is required for token transfer");
+        return;
+      }
+      if (!transferData.amount.trim()) {
+        toast.error("Amount is required for token transfer");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const action = buildCreateProposalAction(
-        String(session.actor),
-        daoName,
-        {
-          title: formData.title,
-          description: formData.description,
-          proposalType: formData.proposalType,
-        }
-      );
+      let action;
+      
+      if (formData.proposalType === "transfer") {
+        // Build token transfer proposal with the transfer action included
+        action = buildTokenTransferProposalAction(
+          String(session.actor),
+          daoName,
+          {
+            title: formData.title,
+            description: formData.description,
+            transfer: transferData,
+          }
+        );
+      } else {
+        // Build standard proposal
+        action = buildCreateProposalAction(
+          String(session.actor),
+          daoName,
+          {
+            title: formData.title,
+            description: formData.description,
+            proposalType: formData.proposalType,
+          }
+        );
+      }
 
       await session.transact({ actions: [action] });
       toast.success("Proposal created successfully!");
@@ -111,12 +145,83 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="transfer">
+                  <span className="flex items-center gap-2">
+                    <Send className="h-3 w-3" />
+                    Token Transfer (Treasury Withdrawal)
+                  </span>
+                </SelectItem>
                 <SelectItem value="funding">Funding Request</SelectItem>
                 <SelectItem value="governance">Governance Change</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Token Transfer Fields - shown only for transfer type */}
+          {formData.proposalType === "transfer" && (
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Send className="h-4 w-4 text-cheese" />
+                Token Transfer Details
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="recipient">Recipient Account *</Label>
+                  <Input
+                    id="recipient"
+                    placeholder="e.g. user.wam"
+                    value={transferData.recipient}
+                    onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount *</Label>
+                  <Input
+                    id="amount"
+                    placeholder="e.g. 100.00000000"
+                    value={transferData.amount}
+                    onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="tokenSymbol">Token Symbol</Label>
+                  <Select
+                    value={transferData.tokenSymbol}
+                    onValueChange={(value) => {
+                      const contract = value === "WAX" ? "eosio.token" : "token.waxdao";
+                      setTransferData({ ...transferData, tokenSymbol: value, tokenContract: contract });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="WAX">WAX</SelectItem>
+                      <SelectItem value="WAXDAO">WAXDAO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tokenContract">Token Contract</Label>
+                  <Input
+                    id="tokenContract"
+                    value={transferData.tokenContract}
+                    onChange={(e) => setTransferData({ ...transferData, tokenContract: e.target.value })}
+                    placeholder="e.g. eosio.token"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                When this proposal passes, {transferData.amount || "0"} {transferData.tokenSymbol} will be transferred from the DAO treasury to {transferData.recipient || "[recipient]"}
+              </p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2">

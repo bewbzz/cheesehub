@@ -7,6 +7,7 @@ import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, TreasuryBalance, D
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
+import { TreasuryDeposit } from "./TreasuryDeposit";
 import { 
   Users, 
   FileText, 
@@ -334,22 +335,38 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
               {/* Treasury Section */}
               {activeSection === "treasury" && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Coins className="h-5 w-5 text-cheese" />
-                    Treasury
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Coins className="h-5 w-5 text-cheese" />
+                      Treasury
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={loadTreasury}
+                      disabled={treasuryLoading}
+                    >
+                      {treasuryLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Refresh"
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Treasury Balances */}
                   {treasuryLoading ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-cheese" />
                     </div>
                   ) : treasury.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
-                      <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
+                      <Wallet className="h-10 w-10 mx-auto mb-2 opacity-30" />
                       <p className="font-medium">No Treasury Balance</p>
-                      <p className="text-sm">This DAO doesn't hold any tokens yet</p>
+                      <p className="text-sm">Deposit tokens below to fund this DAO</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {treasury.map((balance, index) => (
                         <div
                           key={index}
@@ -369,6 +386,18 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       ))}
                     </div>
                   )}
+
+                  {/* Deposit Form */}
+                  <TreasuryDeposit 
+                    daoName={dao.dao_name} 
+                    onSuccess={loadTreasury}
+                  />
+
+                  {/* Withdrawal Info */}
+                  <div className="p-3 bg-muted/20 rounded-lg border border-border/30 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">How to withdraw from treasury?</p>
+                    <p>Create a <span className="text-cheese font-medium">Token Transfer</span> proposal. Once the proposal passes, the tokens will be transferred to the specified recipient.</p>
+                  </div>
                 </div>
               )}
 

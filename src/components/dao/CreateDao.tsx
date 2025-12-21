@@ -78,13 +78,24 @@ export function CreateDao() {
   return (
     <Card className="max-w-2xl mx-auto bg-card/50 border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5 text-cheese" />
-          Create a New DAO
-        </CardTitle>
-        <CardDescription>
-          Set up your decentralized autonomous organization on the WAX blockchain.
-          Contract: <code className="text-cheese">{DAO_CONTRACT}</code>
+        <div className="flex items-center gap-3 mb-2">
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-cheese" />
+            Create a New DAO
+          </CardTitle>
+          <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
+            Stake to DAO (Custodial)
+          </span>
+        </div>
+        <CardDescription className="space-y-2">
+          <span className="block">
+            Set up your decentralized autonomous organization on the WAX blockchain.
+            Contract: <code className="text-cheese">{DAO_CONTRACT}</code>
+          </span>
+          <span className="block text-xs bg-muted/50 p-3 rounded-lg border border-border/50">
+            <strong className="text-foreground">How it works:</strong> Members stake their governance tokens to the DAO contract to gain voting power. 
+            Staked tokens are held custodially by the DAO until unstaked. Voting power equals the amount of tokens staked.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -60,6 +60,21 @@ export default function Dao() {
             <MyDaos />
           </TabsContent>
         </Tabs>
+
+        <div className="text-center mt-8 text-sm text-muted-foreground">
+          <p>
+            Powered by the{" "}
+            <a 
+              href="https://wax.bloks.io/account/dao.waxdao?loadContract=true&tab=Tables&account=dao.waxdao&scope=dao.waxdao&limit=100" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-cheese hover:underline"
+            >
+              DAO.WAXDAO
+            </a>{" "}
+            smart contract.
+          </p>
+        </div>
       </section>
     </div>
   );

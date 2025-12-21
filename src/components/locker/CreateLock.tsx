@@ -176,7 +176,11 @@ export function CreateLock() {
             </SelectTrigger>
             <SelectContent>
               {[...tokens]
-                .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+                .sort((a, b) => {
+                  const balanceDiff = parseFloat(b.amount) - parseFloat(a.amount);
+                  if (balanceDiff !== 0) return balanceDiff;
+                  return a.symbol.localeCompare(b.symbol);
+                })
                 .map((token) => (
                   <SelectItem
                     key={`${token.contract}:${token.symbol}`}

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home, ShoppingBag, ShoppingCart, Droplets } from "lucide-react";
+import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -70,6 +70,19 @@ export function Header() {
             >
               <ShoppingBag className="h-4 w-4" />
               CHEESEDrops
+            </Link>
+            {/* CHEESEDao */}
+            <Link
+              to="/dao"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/dao"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              CHEESEDao
             </Link>
           </nav>
         </div>

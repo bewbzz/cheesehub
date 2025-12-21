@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Locker from "./pages/Locker";
 import Drops from "./pages/Drops";
 import DropDetail from "./pages/DropDetail";
+import Dao from "./pages/Dao";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
                 <Route path="/locker" element={<Locker />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drops/:id" element={<DropDetail />} />
+                <Route path="/dao" element={<Dao />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

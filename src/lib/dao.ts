@@ -877,42 +877,65 @@ async function fetchFromAtomicAPI(path: string, bustCache = false): Promise<Resp
 
 export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {
-    // First, try to get NFT asset IDs from the DAO contract's treasury table
-    const treasuryResponse = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: DAO_CONTRACT,
-          scope: daoName,
-          table: "treasurynfts", // Table storing NFT asset IDs for this DAO
-          limit: 100,
-        }),
-      }
-    );
+    // First, try to get NFT asset IDs from the DAO contract's treasury table with pagination
+    let allAssetIds: string[] = [];
+    let hasMore = true;
+    let lowerBound = "";
     
-    const treasuryData = await treasuryResponse.json();
-    console.log("Treasury NFTs table for", daoName, ":", treasuryData);
-    
-    // If we have asset IDs from the table, fetch their details
-    if (treasuryData.rows && treasuryData.rows.length > 0) {
-      const assetIds = treasuryData.rows.map((row: { asset_id?: string; id?: string }) => 
-        row.asset_id || row.id
-      ).filter(Boolean);
+    while (hasMore) {
+      const treasuryResponse = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: daoName,
+            table: "treasurynfts",
+            limit: 1000,
+            lower_bound: lowerBound || undefined,
+          }),
+        }
+      );
       
-      if (assetIds.length > 0) {
-        // Fetch NFT details from AtomicAssets API
+      const treasuryData = await treasuryResponse.json();
+      
+      if (treasuryData.rows && treasuryData.rows.length > 0) {
+        const assetIds = treasuryData.rows.map((row: { asset_id?: string; id?: string }) => 
+          row.asset_id || row.id
+        ).filter(Boolean);
+        allAssetIds = [...allAssetIds, ...assetIds];
+        
+        hasMore = treasuryData.more === true;
+        if (hasMore && treasuryData.next_key) {
+          lowerBound = treasuryData.next_key;
+        } else {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    console.log("Treasury NFTs for", daoName, ":", allAssetIds.length, "NFTs");
+    
+    // If we have asset IDs from the table, fetch their details in batches
+    if (allAssetIds.length > 0) {
+      const allNFTs: TreasuryNFT[] = [];
+      const batchSize = 100; // AtomicAssets API limit per request
+      
+      for (let i = 0; i < allAssetIds.length; i += batchSize) {
+        const batch = allAssetIds.slice(i, i + batchSize);
         const response = await fetchFromAtomicAPI(
-          `/atomicassets/v1/assets?ids=${assetIds.join(',')}&limit=100`,
+          `/atomicassets/v1/assets?ids=${batch.join(',')}&limit=${batchSize}`,
           bustCache
         );
         
         const json = await response.json();
         
         if (json.success && json.data) {
-          return json.data.map((asset: Record<string, unknown>) => {
+          const nfts = json.data.map((asset: Record<string, unknown>) => {
             const data = asset.data as Record<string, string> || {};
             const collection = asset.collection as { collection_name: string } || { collection_name: "" };
             const schema = asset.schema as { schema_name: string } || { schema_name: "" };
@@ -934,52 +957,66 @@ export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): P
               template_id: template.template_id,
             };
           });
+          allNFTs.push(...nfts);
         }
       }
+      
+      return allNFTs;
     }
     
-    // Fallback: Query NFTs owned by dao.waxdao (all DAOs combined)
-    // This is less accurate but works as backup
+    // Fallback: Query NFTs owned by dao.waxdao with pagination
     console.log("No treasurynfts table found, trying fallback query");
-    const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${DAO_CONTRACT}&limit=100`,
-      bustCache
-    );
+    const allNFTs: TreasuryNFT[] = [];
+    let page = 1;
+    let hasMoreNFTs = true;
     
-    const json = await response.json();
-    
-    if (!json.success || !json.data) {
-      console.log("No treasury NFTs found for", daoName);
-      return [];
+    while (hasMoreNFTs && page <= 10) { // Limit to 1000 NFTs max (10 pages)
+      const response = await fetchFromAtomicAPI(
+        `/atomicassets/v1/assets?owner=${DAO_CONTRACT}&page=${page}&limit=100`,
+        bustCache
+      );
+      
+      const json = await response.json();
+      
+      if (!json.success || !json.data || json.data.length === 0) {
+        hasMoreNFTs = false;
+      } else {
+        const nfts = json.data.map((asset: Record<string, unknown>) => {
+          const data = asset.data as Record<string, string> || {};
+          const collection = asset.collection as { collection_name: string } || { collection_name: "" };
+          const schema = asset.schema as { schema_name: string } || { schema_name: "" };
+          const template = asset.template as { template_id: string } || { template_id: "" };
+          
+          let image = data.img || data.image || "";
+          if (image && !image.startsWith("http")) {
+            if (image.startsWith("Qm") || image.startsWith("bafy")) {
+              image = `https://ipfs.io/ipfs/${image}`;
+            }
+          }
+          
+          return {
+            asset_id: asset.asset_id as string,
+            name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
+            image,
+            collection: collection.collection_name,
+            schema: schema.schema_name,
+            template_id: template.template_id,
+          };
+        });
+        
+        allNFTs.push(...nfts);
+        hasMoreNFTs = json.data.length === 100;
+        page++;
+      }
     }
     
-    return json.data.map((asset: Record<string, unknown>) => {
-      const data = asset.data as Record<string, string> || {};
-      const collection = asset.collection as { collection_name: string } || { collection_name: "" };
-      const schema = asset.schema as { schema_name: string } || { schema_name: "" };
-      const template = asset.template as { template_id: string } || { template_id: "" };
-      
-      let image = data.img || data.image || "";
-      if (image && !image.startsWith("http")) {
-        if (image.startsWith("Qm") || image.startsWith("bafy")) {
-          image = `https://ipfs.io/ipfs/${image}`;
-        }
-      }
-      
-      return {
-        asset_id: asset.asset_id as string,
-        name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
-        image,
-        collection: collection.collection_name,
-        schema: schema.schema_name,
-        template_id: template.template_id,
-      };
-    });
+    return allNFTs;
   } catch (error) {
     console.error("Error fetching treasury NFTs:", error);
     return [];
   }
 }
+
 // Fetch user's NFTs for deposit to treasury
 export async function fetchUserNFTs(userAccount: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {

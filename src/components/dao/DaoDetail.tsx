@@ -172,16 +172,6 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     DAO Information
                   </h3>
 
-                  {/* Description */}
-                  {dao.description && (
-                    <div className="bg-muted/30 rounded-lg p-4">
-                      <p className="text-sm text-muted-foreground mb-2">Description</p>
-                      <div className="text-foreground whitespace-pre-line leading-relaxed">
-                        {dao.description}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-muted/50 rounded-lg p-3 text-center">

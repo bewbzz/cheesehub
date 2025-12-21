@@ -115,7 +115,7 @@ export function CreateLock() {
               from: accountName,
               to: WAXDAO_CONTRACT,
               quantity: formattedAmount,
-              memo: `lock:${unlockDateTime.toISOString().split(".")[0]}`,
+              memo: "deposit_v2",
             },
           },
         ],

@@ -371,8 +371,13 @@ export function buildCreateDaoAction(
     minimumWeight?: number;
     minimumVotes?: number;
     proposerType?: number;
+    authors?: string[];
+    proposalCost?: number;
   }
 ) {
+  // Format proposal cost as WAX with 8 decimal places
+  const proposalCostFormatted = `${(config.proposalCost || 0).toFixed(8)} WAX`;
+  
   return {
     account: DAO_CONTRACT,
     name: "createdao",
@@ -391,7 +396,8 @@ export function buildCreateDaoAction(
       minimum_weight: config.minimumWeight || 0,
       minimum_votes: config.minimumVotes || 1,
       proposer_type: config.proposerType || 1, // 1 = Anyone can propose
-      proposal_cost: "0.00000000 WAX",
+      authors: config.authors || [],
+      proposal_cost: proposalCostFormatted,
     },
   };
 }

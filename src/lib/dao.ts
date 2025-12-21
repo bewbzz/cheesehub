@@ -398,8 +398,8 @@ export function buildCreateProposalAction(
     name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
-      proposer,
-      dao_name: daoName,
+      user: proposer,
+      dao: daoName,
       title: proposal.title,
       description: proposal.description,
       proposal_type: proposal.proposalType,
@@ -429,8 +429,8 @@ export function buildMultiOptionProposalAction(
     name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
-      proposer,
-      dao_name: daoName,
+      user: proposer,
+      dao: daoName,
       title: proposal.title,
       description: proposal.description,
       proposal_type: "mostvotes",
@@ -459,8 +459,8 @@ export function buildRankedChoiceProposalAction(
     name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
-      proposer,
-      dao_name: daoName,
+      user: proposer,
+      dao: daoName,
       title: proposal.title,
       description: proposal.description,
       proposal_type: "rankedchoice",
@@ -800,8 +800,8 @@ export function buildTokenTransferProposalAction(
     name: "newproposal",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
-      proposer,
-      dao_name: daoName,
+      user: proposer,
+      dao: daoName,
       title: proposal.title,
       description: proposal.description,
       proposal_type: "transfer",

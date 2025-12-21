@@ -19,6 +19,21 @@ export const PROPOSER_TYPES: Record<number, string> = {
 };
 
 // Outcome codes from WaxDAO contract
+// WaxDAO proposal voting types
+export const PROPOSAL_VOTING_TYPES = {
+  YES_NO_ABSTAIN: 1,    // Standard 3-option voting
+  MOST_VOTES_WINS: 2,   // Multi-option, highest wins
+  RANKED_CHOICE: 3,     // Ranked preference voting
+  TOKEN_TRANSFER: 4,    // Treasury withdrawal
+} as const;
+
+export const VOTING_TYPE_LABELS: Record<number, string> = {
+  1: "Yes/No/Abstain",
+  2: "Most Votes Wins",
+  3: "Ranked Choice",
+  4: "Token Transfer",
+};
+
 export const OUTCOME_STATUS: Record<number, string> = {
   0: "pending",
   1: "pending",
@@ -60,10 +75,12 @@ export interface Proposal {
   title: string;
   description: string;
   proposal_type: string;
+  voting_type: number; // 1=yes/no/abstain, 2=most votes, 3=ranked choice, 4=token transfer
   status: "pending" | "active" | "passed" | "rejected" | "executed";
   yes_votes: number;
   no_votes: number;
   abstain_votes: number;
+  choices: ProposalChoice[]; // For multi-option and ranked choice
   start_time: string;
   end_time: string;
   end_time_ts: number;
@@ -242,22 +259,37 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         status = (OUTCOME_STATUS[outcome] as typeof status) || "pending";
       }
       
+      // Determine voting type based on choices or proposal_type
+      let votingType = (row.voting_type as number) || 1;
+      const proposalType = (row.proposal_type as string) || (row.type as string) || "standard";
+      
+      // If proposal has actions with transfer, it's a token transfer
+      const actions = (row.actions as ProposalAction[]) || [];
+      if (actions.some(a => a.action === "transfer")) {
+        votingType = 4;
+      } else if (choices.length > 3) {
+        // More than 3 choices suggests multi-option or ranked
+        votingType = (row.voting_type as number) || 2;
+      }
+      
       return {
         proposal_id: (row.proposal_id as number) || (row.id as number) || 0,
         dao_name: daoName,
         proposer: (row.author as string) || (row.proposer as string) || "",
         title: (row.title as string) || "",
         description: (row.description as string) || "",
-        proposal_type: (row.proposal_type as string) || (row.type as string) || "standard",
+        proposal_type: proposalType,
+        voting_type: votingType,
         status,
         yes_votes: yesVotes,
         no_votes: noVotes,
         abstain_votes: abstainVotes,
+        choices: choices,
         start_time: (row.start_time as string) || "",
         end_time: endTime.toString(),
         end_time_ts: endTime,
         total_votes: (row.total_votes as number) || 0,
-        actions: (row.actions as ProposalAction[]) || [],
+        actions: actions,
       };
     });
   } catch (error) {
@@ -350,7 +382,7 @@ export function buildCreateDaoAction(
   };
 }
 
-// Build action for creating a proposal
+// Build action for creating a Yes/No/Abstain proposal
 export function buildCreateProposalAction(
   proposer: string,
   daoName: string,
@@ -363,7 +395,7 @@ export function buildCreateProposalAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "createprop", // Action name may need adjustment
+    name: "createprop",
     authorization: [{ actor: proposer, permission: "active" }],
     data: {
       proposer,
@@ -371,12 +403,78 @@ export function buildCreateProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: proposal.proposalType,
+      voting_type: PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN,
+      choices: [
+        { choice_name: "Yes", total_votes: "0" },
+        { choice_name: "No", total_votes: "0" },
+        { choice_name: "Abstain", total_votes: "0" },
+      ],
       actions: proposal.actions || [],
     },
   };
 }
 
-// Build action for voting on a proposal
+// Build action for creating a Most Votes Wins proposal
+export function buildMultiOptionProposalAction(
+  proposer: string,
+  daoName: string,
+  proposal: {
+    title: string;
+    description: string;
+    options: string[]; // Custom voting options
+  }
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "createprop",
+    authorization: [{ actor: proposer, permission: "active" }],
+    data: {
+      proposer,
+      dao_name: daoName,
+      title: proposal.title,
+      description: proposal.description,
+      proposal_type: "mostvotes",
+      voting_type: PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS,
+      choices: proposal.options.map(opt => ({
+        choice_name: opt,
+        total_votes: "0",
+      })),
+      actions: [],
+    },
+  };
+}
+
+// Build action for creating a Ranked Choice proposal
+export function buildRankedChoiceProposalAction(
+  proposer: string,
+  daoName: string,
+  proposal: {
+    title: string;
+    description: string;
+    options: string[]; // Options to rank
+  }
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "createprop",
+    authorization: [{ actor: proposer, permission: "active" }],
+    data: {
+      proposer,
+      dao_name: daoName,
+      title: proposal.title,
+      description: proposal.description,
+      proposal_type: "rankedchoice",
+      voting_type: PROPOSAL_VOTING_TYPES.RANKED_CHOICE,
+      choices: proposal.options.map(opt => ({
+        choice_name: opt,
+        total_votes: "0",
+      })),
+      actions: [],
+    },
+  };
+}
+
+// Build action for voting on a Yes/No/Abstain proposal
 export function buildVoteAction(
   voter: string,
   daoName: string,
@@ -392,6 +490,46 @@ export function buildVoteAction(
       dao_name: daoName,
       proposal_id: proposalId,
       vote,
+    },
+  };
+}
+
+// Build action for voting on a Most Votes Wins proposal (select one option)
+export function buildMultiOptionVoteAction(
+  voter: string,
+  daoName: string,
+  proposalId: number,
+  choiceIndex: number // Index of the selected choice
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "vote",
+    authorization: [{ actor: voter, permission: "active" }],
+    data: {
+      voter,
+      dao_name: daoName,
+      proposal_id: proposalId,
+      choice: choiceIndex,
+    },
+  };
+}
+
+// Build action for voting on a Ranked Choice proposal
+export function buildRankedChoiceVoteAction(
+  voter: string,
+  daoName: string,
+  proposalId: number,
+  rankings: number[] // Array of choice indices in order of preference
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "vote",
+    authorization: [{ actor: voter, permission: "active" }],
+    data: {
+      voter,
+      dao_name: daoName,
+      proposal_id: proposalId,
+      rankings,
     },
   };
 }

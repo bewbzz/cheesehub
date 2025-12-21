@@ -56,14 +56,14 @@ export function DaoCard({ dao }: DaoCardProps) {
             <div className="bg-muted/50 rounded-lg p-2 flex items-center gap-2">
               <Vote className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="font-medium">{dao.threshold.toFixed(0)}%</p>
+                <p className="font-medium">{(dao.threshold ?? 0).toFixed(0)}%</p>
                 <p className="text-xs text-muted-foreground">Threshold</p>
               </div>
             </div>
             <div className="bg-muted/50 rounded-lg p-2 flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="font-medium">{dao.hours_per_proposal}h</p>
+                <p className="font-medium">{dao.hours_per_proposal ?? 0}h</p>
                 <p className="text-xs text-muted-foreground">Vote Duration</p>
               </div>
             </div>
@@ -77,7 +77,7 @@ export function DaoCard({ dao }: DaoCardProps) {
                 <span>Gov Token: <span className="text-foreground font-medium">{tokenDisplay}</span></span>
               </div>
             )}
-            {dao.gov_schemas.length > 0 && (
+            {dao.gov_schemas && dao.gov_schemas.length > 0 && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <span>🎨</span>
                 <span>NFT Collections: <span className="text-foreground font-medium">{dao.gov_schemas.length}</span></span>

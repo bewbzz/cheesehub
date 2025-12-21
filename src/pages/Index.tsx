@@ -61,7 +61,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEFaucet</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Claim free CHEESE tokens daily. A simple way to get started with the CHEESE ecosystem.
+                Stake and claim CHEESE tokens daily. A simple way to grow your holdings in the CHEESE ecosystem.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/faucet">

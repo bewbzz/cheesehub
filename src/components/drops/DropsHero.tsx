@@ -8,8 +8,7 @@ interface DropsHeroProps {
 
 export function DropsHero({ drops = [], isLoading = false }: DropsHeroProps) {
   const activeDrops = drops.length;
-  const totalSupply = drops.reduce((sum, drop) => sum + (drop.totalSupply || 0), 0);
-  const totalMinted = drops.reduce((sum, drop) => sum + ((drop.totalSupply || 0) - (drop.remaining || 0)), 0);
+  const totalSold = drops.reduce((sum, drop) => sum + ((drop.totalSupply || 0) - (drop.remaining || 0)), 0);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000) {
@@ -46,16 +45,9 @@ export function DropsHero({ drops = [], isLoading = false }: DropsHeroProps) {
             <div className="h-12 w-px bg-border/50" />
             <div className="flex flex-col items-center">
               <span className="font-display text-4xl font-bold text-primary">
-                {isLoading ? '—' : formatNumber(totalSupply)}
+                {isLoading ? '—' : formatNumber(totalSold)}
               </span>
-              <span className="text-sm text-muted-foreground">Total Supply</span>
-            </div>
-            <div className="h-12 w-px bg-border/50" />
-            <div className="flex flex-col items-center">
-              <span className="font-display text-4xl font-bold text-primary">
-                {isLoading ? '—' : formatNumber(totalMinted)}
-              </span>
-              <span className="text-sm text-muted-foreground">NFTs Minted</span>
+              <span className="text-sm text-muted-foreground">Total Drops Sold</span>
             </div>
           </div>
         </div>

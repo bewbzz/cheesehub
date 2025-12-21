@@ -14,12 +14,17 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <WaxProvider>
-        <CartProvider>
-          <div className="dark">
+const App = () => {
+  // Apply dark class to html element for portals (dialogs, popovers, etc.)
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.add('dark');
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WaxProvider>
+          <CartProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -33,11 +38,11 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </div>
-        </CartProvider>
-      </WaxProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+          </CartProvider>
+        </WaxProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

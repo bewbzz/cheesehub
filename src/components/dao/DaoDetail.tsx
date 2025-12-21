@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, TreasuryBalance, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
 import { TreasuryDeposit } from "./TreasuryDeposit";
+import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
 import { 
   Users, 
   FileText, 
@@ -19,7 +20,8 @@ import {
   Shield,
   History,
   ChevronRight,
-  Wallet
+  Wallet,
+  ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
   const [treasury, setTreasury] = useState<TreasuryBalance[]>([]);
+  const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
 
   useEffect(() => {
@@ -73,8 +76,12 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   async function loadTreasury() {
     setTreasuryLoading(true);
     try {
-      const data = await fetchDaoTreasury(dao.dao_name);
-      setTreasury(data);
+      const [tokenData, nftData] = await Promise.all([
+        fetchDaoTreasury(dao.dao_name),
+        fetchDaoTreasuryNFTs(dao.dao_name)
+      ]);
+      setTreasury(tokenData);
+      setTreasuryNFTs(nftData);
     } catch (error) {
       console.error("Failed to load treasury:", error);
     } finally {
@@ -387,8 +394,48 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     </div>
                   )}
 
-                  {/* Deposit Form */}
+                  {/* Treasury NFTs */}
+                  {!treasuryLoading && treasuryNFTs.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4 text-cheese" />
+                        <h4 className="font-medium text-sm">NFTs in Treasury</h4>
+                        <Badge variant="secondary" className="text-xs">{treasuryNFTs.length}</Badge>
+                      </div>
+                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 max-h-40 overflow-y-auto">
+                        {treasuryNFTs.map((nft) => (
+                          <div
+                            key={nft.asset_id}
+                            className="relative aspect-square rounded-lg overflow-hidden border border-border/50"
+                          >
+                            {nft.image ? (
+                              <img
+                                src={nft.image}
+                                alt={nft.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                              <p className="text-[8px] text-white truncate">{nft.name}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Token Deposit Form */}
                   <TreasuryDeposit 
+                    daoName={dao.dao_name} 
+                    onSuccess={loadTreasury}
+                  />
+
+                  {/* NFT Deposit Form */}
+                  <TreasuryNFTDeposit 
                     daoName={dao.dao_name} 
                     onSuccess={loadTreasury}
                   />
@@ -396,7 +443,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {/* Withdrawal Info */}
                   <div className="p-3 bg-muted/20 rounded-lg border border-border/30 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground mb-1">How to withdraw from treasury?</p>
-                    <p>Create a <span className="text-cheese font-medium">Token Transfer</span> proposal. Once the proposal passes, the tokens will be transferred to the specified recipient.</p>
+                    <p>Create a <span className="text-cheese font-medium">Token Transfer</span> or <span className="text-cheese font-medium">NFT Transfer</span> proposal. Once the proposal passes, the assets will be transferred to the specified recipient.</p>
                   </div>
                 </div>
               )}

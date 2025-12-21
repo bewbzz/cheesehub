@@ -32,6 +32,7 @@ export const VOTING_TYPE_LABELS: Record<number, string> = {
   2: "Most Votes Wins",
   3: "Ranked Choice",
   4: "Token Transfer",
+  5: "NFT Transfer",
 };
 
 export const OUTCOME_STATUS: Record<number, string> = {
@@ -109,6 +110,15 @@ export interface TreasuryBalance {
   precision: number;
 }
 
+export interface TreasuryNFT {
+  asset_id: string;
+  name: string;
+  image: string;
+  collection: string;
+  schema: string;
+  template_id: string;
+}
+
 export interface StakedToken {
   balance: string;
   weight: number;
@@ -129,6 +139,11 @@ export interface UserNFT {
   collection: string;
   schema: string;
   template_id: string;
+}
+
+export interface NFTTransferProposalData {
+  recipient: string;
+  assetIds: string[];
 }
 
 // Fetch all DAOs from the contract
@@ -822,6 +837,140 @@ export function buildTokenTransferProposalAction(
       description: proposal.description,
       proposal_type: "transfer",
       actions: [transferAction],
+    },
+  };
+}
+
+// Fetch NFTs owned by a DAO treasury
+export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
+  try {
+    const response = await fetch(
+      `https://wax.api.atomicassets.io/atomicassets/v1/assets?owner=${daoName}&limit=100`
+    );
+    
+    const json = await response.json();
+    
+    if (!json.success || !json.data) {
+      console.log("No treasury NFTs found for", daoName);
+      return [];
+    }
+    
+    return json.data.map((asset: Record<string, unknown>) => {
+      const data = asset.data as Record<string, string> || {};
+      const collection = asset.collection as { collection_name: string } || { collection_name: "" };
+      const schema = asset.schema as { schema_name: string } || { schema_name: "" };
+      const template = asset.template as { template_id: string } || { template_id: "" };
+      
+      let image = data.img || data.image || "";
+      if (image && !image.startsWith("http")) {
+        if (image.startsWith("Qm") || image.startsWith("bafy")) {
+          image = `https://ipfs.io/ipfs/${image}`;
+        }
+      }
+      
+      return {
+        asset_id: asset.asset_id as string,
+        name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
+        image,
+        collection: collection.collection_name,
+        schema: schema.schema_name,
+        template_id: template.template_id,
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching treasury NFTs:", error);
+    return [];
+  }
+}
+
+// Fetch user's NFTs for deposit to treasury
+export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]> {
+  try {
+    const response = await fetch(
+      `https://wax.api.atomicassets.io/atomicassets/v1/assets?owner=${userAccount}&limit=100`
+    );
+    
+    const json = await response.json();
+    
+    if (!json.success || !json.data) {
+      return [];
+    }
+    
+    return json.data.map((asset: Record<string, unknown>) => {
+      const data = asset.data as Record<string, string> || {};
+      const collection = asset.collection as { collection_name: string } || { collection_name: "" };
+      const schema = asset.schema as { schema_name: string } || { schema_name: "" };
+      const template = asset.template as { template_id: string } || { template_id: "" };
+      
+      let image = data.img || data.image || "";
+      if (image && !image.startsWith("http")) {
+        if (image.startsWith("Qm") || image.startsWith("bafy")) {
+          image = `https://ipfs.io/ipfs/${image}`;
+        }
+      }
+      
+      return {
+        asset_id: asset.asset_id as string,
+        name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
+        image,
+        collection: collection.collection_name,
+        schema: schema.schema_name,
+        template_id: template.template_id,
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching user NFTs:", error);
+    return [];
+  }
+}
+
+// Build action for depositing NFTs to DAO treasury
+export function buildDepositNFTToTreasuryAction(
+  sender: string,
+  daoName: string,
+  assetIds: string[]
+) {
+  return {
+    account: "atomicassets",
+    name: "transfer",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      from: sender,
+      to: daoName,
+      asset_ids: assetIds,
+      memo: "treasury deposit",
+    },
+  };
+}
+
+// Build action for creating an NFT transfer proposal
+export function buildNFTTransferProposalAction(
+  proposer: string,
+  daoName: string,
+  proposal: {
+    title: string;
+    description: string;
+    transfer: NFTTransferProposalData;
+  }
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "newproposal",
+    authorization: [{ actor: proposer, permission: "active" }],
+    data: {
+      user: proposer,
+      dao: daoName,
+      title: proposal.title,
+      description: proposal.description,
+      proposal_type: 3, // NFT transfer type
+      choices: [],
+      actions: [],
+      token_receivers: [],
+      nft_receivers: [{
+        receiver: proposal.transfer.recipient,
+        asset_ids: proposal.transfer.assetIds,
+      }],
+      proof_asset_ids: [],
     },
   };
 }

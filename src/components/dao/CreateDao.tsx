@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export function CreateDao() {
   const { session, isConnected, login } = useWax();
@@ -119,9 +122,206 @@ export function CreateDao() {
               <Plus className="h-5 w-5 text-cheese" />
               Create a New DAO
             </CardTitle>
-            <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
-              Stake to DAO (Custodial)
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
+                Stake to DAO (Custodial)
+              </span>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="p-1 h-auto hover:bg-cheese/10">
+                    <Info className="h-4 w-4 text-muted-foreground hover:text-cheese transition-colors" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[85vh]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                      <Info className="h-5 w-5 text-cheese" />
+                      DAO Creation Guide
+                    </DialogTitle>
+                  </DialogHeader>
+                  <ScrollArea className="max-h-[65vh] pr-4">
+                    <Accordion type="multiple" defaultValue={["dao-types", "settings"]} className="space-y-2">
+                      
+                      <AccordionItem value="dao-name" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          DAO Name Format
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                          <p>
+                            Your DAO name must follow the WAX account name format:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            <li>Maximum 12 characters</li>
+                            <li>Only lowercase letters <code className="text-cheese">a-z</code></li>
+                            <li>Numbers <code className="text-cheese">1-5</code> only (no 0, 6, 7, 8, 9)</li>
+                            <li>Periods <code className="text-cheese">.</code> are allowed</li>
+                            <li>No capitals, spaces, or special characters</li>
+                          </ul>
+                          <p className="text-xs bg-muted/50 p-2 rounded">
+                            Example: <code className="text-cheese">cheesedao</code>, <code className="text-cheese">my.dao.123</code>
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="dao-types" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          DAO Types Explained
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-3">
+                          <p>WaxDAO supports several DAO types. This form creates a <strong className="text-cheese">"Stake Tokens To DAO"</strong> type:</p>
+                          
+                          <div className="space-y-2">
+                            <div className="p-2 rounded border border-cheese/30 bg-cheese/10">
+                              <p className="font-medium text-foreground">Stake Tokens To DAO (Current)</p>
+                              <p className="text-xs mt-1">
+                                Members stake governance tokens to the DAO contract to gain voting power. 
+                                Tokens are held custodially until unstaked. Your voting power equals your staked amount.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Custodial NFT Farm</p>
+                              <p className="text-xs mt-1">Members stake NFTs to the DAO to gain voting power.</p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Custodial Token Pool</p>
+                              <p className="text-xs mt-1">Members deposit tokens into a shared pool for governance.</p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Non-Custodial (NFTs)</p>
+                              <p className="text-xs mt-1">Voting power based on NFT ownership without staking.</p>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="settings" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          Configuration Settings
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-4">
+                          
+                          <div>
+                            <p className="font-medium text-foreground">Threshold</p>
+                            <p className="text-xs mt-1">
+                              The percentage of "Yes" votes required for a proposal to pass. 
+                              A 51% threshold means a simple majority is needed. Higher thresholds 
+                              require broader consensus but can make it harder to pass proposals.
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="font-medium text-foreground">Minimum Votes</p>
+                            <p className="text-xs mt-1">
+                              The minimum total vote weight needed for a proposal to be valid. 
+                              This prevents proposals from passing with very few participants. 
+                              For example, if set to 1000, at least 1000 tokens worth of votes 
+                              must be cast before the result counts.
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="font-medium text-foreground">Voting Duration</p>
+                            <p className="text-xs mt-1">
+                              How long voting stays open for each proposal. Common durations are 
+                              24 hours (quick decisions), 72 hours (standard), or 168 hours (1 week for major decisions).
+                            </p>
+                          </div>
+
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="proposer-types" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          Proposer Types
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-3">
+                          <p>Control who can create proposals in your DAO:</p>
+                          
+                          <div className="space-y-2">
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Anyone</p>
+                              <p className="text-xs mt-1">
+                                Any WAX wallet can create proposals. Most democratic but may require 
+                                proposal fees to prevent spam.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Authors Only</p>
+                              <p className="text-xs mt-1">
+                                Only wallets you specifically authorize can create proposals. 
+                                Good for curated governance with trusted community members.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-foreground">Stake Weight</p>
+                              <p className="text-xs mt-1">
+                                Users must hold a minimum amount of governance tokens to create proposals. 
+                                Ensures proposers have skin in the game.
+                              </p>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="proposal-cost" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          Proposal Cost
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                          <p>
+                            An optional WAX fee required to submit a proposal. This fee goes directly 
+                            to your DAO's treasury and serves two purposes:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                            <li>Prevents spam proposals</li>
+                            <li>Generates treasury revenue</li>
+                          </ul>
+                          <p className="text-xs">
+                            Set to 0 for free proposals. Common values range from 1-100 WAX depending 
+                            on how exclusive you want proposal creation to be.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="treasury" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          Treasury & Deposits
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground space-y-2">
+                          <p>
+                            After creating your DAO, you can deposit WAX, tokens, and NFTs to the treasury. 
+                            These assets can then be distributed through governance proposals.
+                          </p>
+                          <p className="text-xs">
+                            Treasury deposits are managed separately from the creation process. 
+                            Visit your DAO's detail page after creation to make deposits.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="modify" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline">
+                          Modifying Settings Later
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-muted-foreground">
+                          <p>
+                            Once created, DAO settings can be modified through governance proposals. 
+                            Create a proposal to change settings, and if it passes the voting threshold, 
+                            the changes will be applied automatically by the smart contract.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                    </Accordion>
+                  </ScrollArea>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           <CardDescription className="space-y-2">
             <span className="block">

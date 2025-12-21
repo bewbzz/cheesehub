@@ -155,7 +155,7 @@ export async function getTokenBalances(account: string): Promise<{ symbol: strin
     const data = await response.json();
     return data.tokens?.map((t: any) => ({
       symbol: t.symbol,
-      amount: t.amount,
+      amount: String(t.amount),
       contract: t.contract,
     })) || [];
   } catch (error) {

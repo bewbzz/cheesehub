@@ -18,6 +18,16 @@ export const PROPOSER_TYPES: Record<number, string> = {
   2: "Token Holders",
 };
 
+// Outcome codes from WaxDAO contract
+export const OUTCOME_STATUS: Record<number, string> = {
+  0: "pending",
+  1: "pending",
+  2: "passed",
+  3: "rejected",
+  4: "executed",
+  5: "active",
+};
+
 export interface DaoInfo {
   dao_name: string;
   creator: string;
@@ -38,6 +48,11 @@ export interface DaoInfo {
   status: number;
 }
 
+export interface ProposalChoice {
+  choice_name: string;
+  total_votes: string;
+}
+
 export interface Proposal {
   proposal_id: number;
   dao_name: string;
@@ -51,6 +66,8 @@ export interface Proposal {
   abstain_votes: number;
   start_time: string;
   end_time: string;
+  end_time_ts: number;
+  total_votes: number;
   actions: ProposalAction[];
 }
 
@@ -148,7 +165,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
           json: true,
           code: DAO_CONTRACT,
           scope: daoName,
-          table: "proposals", // Table name may need adjustment
+          table: "proposals",
           limit: 100,
         }),
       }
@@ -157,21 +174,63 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     const data = await response.json();
     console.log("Proposals data:", data);
     
-    return (data.rows || []).map((row: Record<string, unknown>) => ({
-      proposal_id: row.proposal_id || row.id || 0,
-      dao_name: daoName,
-      proposer: row.proposer || "",
-      title: row.title || "",
-      description: row.description || "",
-      proposal_type: row.proposal_type || row.type || "standard",
-      status: row.status || "pending",
-      yes_votes: row.yes_votes || row.votes_for || 0,
-      no_votes: row.no_votes || row.votes_against || 0,
-      abstain_votes: row.abstain_votes || 0,
-      start_time: row.start_time || "",
-      end_time: row.end_time || "",
-      actions: row.actions || [],
-    }));
+    const now = Math.floor(Date.now() / 1000);
+    
+    return (data.rows || []).map((row: Record<string, unknown>) => {
+      const choices = row.choices as ProposalChoice[] || [];
+      const outcome = row.outcome as number || 0;
+      const endTime = row.end_time as number || 0;
+      
+      // Extract vote counts from choices array
+      let yesVotes = 0;
+      let noVotes = 0;
+      let abstainVotes = 0;
+      
+      choices.forEach((choice: ProposalChoice) => {
+        const votes = parseInt(choice.total_votes) || 0;
+        if (choice.choice_name?.toLowerCase() === "yes") {
+          yesVotes = votes;
+        } else if (choice.choice_name?.toLowerCase() === "no") {
+          noVotes = votes;
+        } else if (choice.choice_name?.toLowerCase() === "abstain") {
+          abstainVotes = votes;
+        }
+      });
+      
+      // Determine status based on outcome and end_time
+      let status: "pending" | "active" | "passed" | "rejected" | "executed" = "pending";
+      if (outcome === 5 && endTime > now) {
+        status = "active";
+      } else if (outcome === 5 && endTime <= now) {
+        status = "pending"; // Voting ended but not yet finalized
+      } else if (outcome === 2) {
+        status = "passed";
+      } else if (outcome === 3) {
+        status = "rejected";
+      } else if (outcome === 4) {
+        status = "executed";
+      } else {
+        status = (OUTCOME_STATUS[outcome] as typeof status) || "pending";
+      }
+      
+      return {
+        proposal_id: (row.proposal_id as number) || (row.id as number) || 0,
+        dao_name: daoName,
+        proposer: (row.author as string) || (row.proposer as string) || "",
+        title: (row.title as string) || "",
+        description: (row.description as string) || "",
+        proposal_type: (row.proposal_type as string) || (row.type as string) || "standard",
+        status,
+        yes_votes: yesVotes,
+        no_votes: noVotes,
+        abstain_votes: abstainVotes,
+        start_time: (row.start_time as string) || "",
+        end_time: endTime.toString(),
+        end_time_ts: endTime,
+        total_votes: (row.total_votes as number) || 0,
+        actions: (row.actions as ProposalAction[]) || [],
+      };
+    });
   } catch (error) {
     console.error("Error fetching proposals:", error);
     return [];

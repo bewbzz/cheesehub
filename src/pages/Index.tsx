@@ -15,26 +15,17 @@ const Index = () => {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cheese/5 via-transparent to-cheese-dark/5" />
         <div className="container relative py-20 md:py-32">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cheese/10 border border-cheese/20 mb-6">
-              <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
-              <span className="text-sm font-medium">
-                <span className="text-cheese">CHEESE</span>
-                <span className="text-foreground">Hub</span>
-              </span>
-            </div>
-            <div className="relative inline-block">
-              <img 
-                src={cheeseArmy} 
-                alt="" 
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 md:w-80 opacity-30 pointer-events-none"
-              />
-              <h1 className="relative text-4xl md:text-6xl font-bold mb-6">
-                <span className="text-cheese">CHEESE</span>
-                <span className="text-foreground">Hub</span>
-              </h1>
-            </div>
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <div className="max-w-3xl mx-auto text-center relative">
+            <img 
+              src={cheeseArmy} 
+              alt="" 
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-72 md:w-96 opacity-25 pointer-events-none"
+            />
+            <h1 className="relative text-4xl md:text-6xl font-bold mb-6">
+              <span className="text-cheese">CHEESE</span>
+              <span className="text-foreground">Hub</span>
+            </h1>
+            <p className="relative text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Alternative front-end for WaxDAO smart contracts. Lock tokens, buy NFT drops, and manage your WAX assets with a beautiful cheese-themed interface.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

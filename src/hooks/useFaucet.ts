@@ -11,6 +11,8 @@ import {
   buildRefundAction,
   buildClaimAction,
   FAUCET_CONFIG,
+  CLAIM_TOKEN_IDS,
+  ClaimTokenId,
 } from "@/lib/faucet";
 import { useToast } from "@/hooks/use-toast";
 
@@ -180,8 +182,8 @@ export function useFaucet() {
     }
   };
 
-  // Claim rewards
-  const claim = async (claimType: "cheese" | "wax" | "lswax" | "wedge") => {
+  // Claim rewards using token ID
+  const claim = async (tokenId: ClaimTokenId) => {
     if (!session || !accountName) {
       toast({
         title: "Wallet not connected",
@@ -193,13 +195,19 @@ export function useFaucet() {
 
     setIsClaiming(true);
     try {
-      const action = buildClaimAction(accountName, claimType);
+      const action = buildClaimAction(accountName, tokenId);
       await session.transact({ actions: [action] });
       
-      const tokenName = claimType === "wedge" ? "CHEESE (Wedge)" : claimType.toUpperCase();
+      const tokenNames: Record<ClaimTokenId, string> = {
+        [CLAIM_TOKEN_IDS.wedgeCheese]: "CHEESE (Wedge)",
+        [CLAIM_TOKEN_IDS.wheelCheese]: "CHEESE (Wheel APR)",
+        [CLAIM_TOKEN_IDS.wax]: "WAX",
+        [CLAIM_TOKEN_IDS.lswax]: "LSWAX",
+      };
+      
       toast({
         title: "Claim successful! 🧀",
-        description: `You claimed your ${tokenName} rewards`,
+        description: `You claimed your ${tokenNames[tokenId]} rewards`,
       });
       
       await fetchFaucetData();

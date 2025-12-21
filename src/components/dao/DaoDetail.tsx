@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, TreasuryBalance, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { 
@@ -16,7 +16,8 @@ import {
   Vote, 
   Shield,
   History,
-  ChevronRight
+  ChevronRight,
+  Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
+  const [treasury, setTreasury] = useState<TreasuryBalance[]>([]);
+  const [treasuryLoading, setTreasuryLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +49,12 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       setActiveSection("info");
     }
   }, [open, dao.dao_name]);
+
+  useEffect(() => {
+    if (activeSection === "treasury" && treasury.length === 0) {
+      loadTreasury();
+    }
+  }, [activeSection]);
 
   async function loadProposals() {
     setLoading(true);
@@ -59,6 +68,18 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     }
   }
 
+  async function loadTreasury() {
+    setTreasuryLoading(true);
+    try {
+      const data = await fetchDaoTreasury(dao.dao_name);
+      setTreasury(data);
+    } catch (error) {
+      console.error("Failed to load treasury:", error);
+    } finally {
+      setTreasuryLoading(false);
+    }
+  }
+
   const tokenDisplay = dao.token_symbol !== "0,NULL" 
     ? dao.token_symbol.split(",")[1] 
     : null;
@@ -68,7 +89,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     : "Unknown";
 
   const activeProposals = proposals.filter((p) => p.status === "active");
-  const pastProposals = proposals.filter((p) => p.status !== "active" && p.status !== "pending");
+  // Include pending (ended but not finalized), passed, rejected, executed in past proposals
+  const pastProposals = proposals.filter((p) => p.status !== "active");
 
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
@@ -302,18 +324,44 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </div>
               )}
 
-              {/* Treasury Section (Placeholder) */}
+              {/* Treasury Section */}
               {activeSection === "treasury" && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Coins className="h-5 w-5 text-cheese" />
                     Treasury
                   </h3>
-                  <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
-                    <Coins className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Coming Soon</p>
-                    <p className="text-sm">Treasury management and balance display will be available here</p>
-                  </div>
+                  {treasuryLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-cheese" />
+                    </div>
+                  ) : treasury.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
+                      <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No Treasury Balance</p>
+                      <p className="text-sm">This DAO doesn't hold any tokens yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {treasury.map((balance, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-cheese/10 flex items-center justify-center">
+                              <Coins className="h-5 w-5 text-cheese" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{balance.symbol}</p>
+                              <p className="text-xs text-muted-foreground">{balance.contract}</p>
+                            </div>
+                          </div>
+                          <p className="text-lg font-bold">{balance.amount.toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

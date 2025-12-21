@@ -870,7 +870,7 @@ async function fetchFromAtomicAPI(path: string): Promise<Response> {
 export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
   try {
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${daoName}&limit=100`
+      `/atomicassets/v1/assets?owner=${daoName}&limit=1000`
     );
     
     const json = await response.json();
@@ -912,7 +912,7 @@ export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT
 export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]> {
   try {
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${userAccount}&limit=100`
+      `/atomicassets/v1/assets?owner=${userAccount}&limit=1000`
     );
     
     const json = await response.json();

@@ -403,6 +403,7 @@ export function buildCreateProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: proposal.proposalType,
+      choices: [],
       actions: proposal.actions || [],
     },
   };
@@ -428,6 +429,7 @@ export function buildMultiOptionProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: "mostvotes",
+      choices: [],
       actions: [],
     },
   };
@@ -453,6 +455,7 @@ export function buildRankedChoiceProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: "rankedchoice",
+      choices: [],
       actions: [],
     },
   };

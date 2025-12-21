@@ -85,6 +85,13 @@ export interface Vote {
   timestamp: string;
 }
 
+export interface TreasuryBalance {
+  contract: string;
+  symbol: string;
+  amount: number;
+  precision: number;
+}
+
 // Fetch all DAOs from the contract
 export async function fetchAllDaos(): Promise<DaoInfo[]> {
   try {
@@ -233,6 +240,64 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     });
   } catch (error) {
     console.error("Error fetching proposals:", error);
+    return [];
+  }
+}
+
+// Fetch treasury balances for a DAO
+export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance[]> {
+  const balances: TreasuryBalance[] = [];
+  
+  // Common token contracts to check
+  const tokenContracts = [
+    { contract: "eosio.token", symbol: "WAX" },
+    { contract: "token.waxdao", symbol: "WAXDAO" },
+  ];
+  
+  try {
+    // Fetch WAX balance
+    for (const token of tokenContracts) {
+      try {
+        const response = await fetch(
+          `https://wax.eosusa.io/v1/chain/get_currency_balance`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code: token.contract,
+              account: daoName,
+              symbol: token.symbol,
+            }),
+          }
+        );
+        
+        const data = await response.json();
+        console.log(`Treasury ${token.symbol} for ${daoName}:`, data);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          // Parse balance string like "100.0000 WAX"
+          const balanceStr = data[0];
+          const [amountStr, symbol] = balanceStr.split(" ");
+          const amount = parseFloat(amountStr);
+          const precision = amountStr.includes(".") ? amountStr.split(".")[1].length : 0;
+          
+          if (amount > 0) {
+            balances.push({
+              contract: token.contract,
+              symbol,
+              amount,
+              precision,
+            });
+          }
+        }
+      } catch (err) {
+        console.log(`No ${token.symbol} balance for ${daoName}`);
+      }
+    }
+    
+    return balances;
+  } catch (error) {
+    console.error("Error fetching treasury:", error);
     return [];
   }
 }

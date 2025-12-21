@@ -64,10 +64,10 @@ const Index = () => {
                 Stake and claim CHEESE tokens daily. A simple way to grow your holdings in the CHEESE ecosystem.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                <Link to="/faucet">
+                <a href="https://cheeseonwax.github.io/tools/cheesefaucet.html" target="_blank" rel="noopener noreferrer">
                   Go to CHEESEFaucet
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
+                </a>
               </Button>
             </CardContent>
           </Card>

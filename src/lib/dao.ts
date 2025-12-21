@@ -777,7 +777,7 @@ export function buildUnstakeNFTAction(
 }
 
 // Build action for depositing tokens to DAO treasury
-// Tokens are sent directly to the DAO account
+// Tokens must be sent to the DAO contract with memo specifying the DAO name
 export function buildDepositToTreasuryAction(
   sender: string,
   daoName: string,
@@ -790,9 +790,9 @@ export function buildDepositToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: daoName,
+      to: DAO_CONTRACT, // Send to dao.waxdao contract
       quantity: quantity,
-      memo: "treasury deposit",
+      memo: `deposit:${daoName}`, // Memo specifies which DAO treasury
     },
   };
 }
@@ -877,9 +877,72 @@ async function fetchFromAtomicAPI(path: string, bustCache = false): Promise<Resp
 
 export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {
-    // Always bust cache for treasury to get latest data after deposits
+    // First, try to get NFT asset IDs from the DAO contract's treasury table
+    const treasuryResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: daoName,
+          table: "treasurynfts", // Table storing NFT asset IDs for this DAO
+          limit: 100,
+        }),
+      }
+    );
+    
+    const treasuryData = await treasuryResponse.json();
+    console.log("Treasury NFTs table for", daoName, ":", treasuryData);
+    
+    // If we have asset IDs from the table, fetch their details
+    if (treasuryData.rows && treasuryData.rows.length > 0) {
+      const assetIds = treasuryData.rows.map((row: { asset_id?: string; id?: string }) => 
+        row.asset_id || row.id
+      ).filter(Boolean);
+      
+      if (assetIds.length > 0) {
+        // Fetch NFT details from AtomicAssets API
+        const response = await fetchFromAtomicAPI(
+          `/atomicassets/v1/assets?ids=${assetIds.join(',')}&limit=100`,
+          bustCache
+        );
+        
+        const json = await response.json();
+        
+        if (json.success && json.data) {
+          return json.data.map((asset: Record<string, unknown>) => {
+            const data = asset.data as Record<string, string> || {};
+            const collection = asset.collection as { collection_name: string } || { collection_name: "" };
+            const schema = asset.schema as { schema_name: string } || { schema_name: "" };
+            const template = asset.template as { template_id: string } || { template_id: "" };
+            
+            let image = data.img || data.image || "";
+            if (image && !image.startsWith("http")) {
+              if (image.startsWith("Qm") || image.startsWith("bafy")) {
+                image = `https://ipfs.io/ipfs/${image}`;
+              }
+            }
+            
+            return {
+              asset_id: asset.asset_id as string,
+              name: data.name || asset.name as string || `NFT #${asset.asset_id}`,
+              image,
+              collection: collection.collection_name,
+              schema: schema.schema_name,
+              template_id: template.template_id,
+            };
+          });
+        }
+      }
+    }
+    
+    // Fallback: Query NFTs owned by dao.waxdao (all DAOs combined)
+    // This is less accurate but works as backup
+    console.log("No treasurynfts table found, trying fallback query");
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${daoName}&limit=100`,
+      `/atomicassets/v1/assets?owner=${DAO_CONTRACT}&limit=100`,
       bustCache
     );
     
@@ -917,7 +980,6 @@ export async function fetchDaoTreasuryNFTs(daoName: string, bustCache = true): P
     return [];
   }
 }
-
 // Fetch user's NFTs for deposit to treasury
 export async function fetchUserNFTs(userAccount: string, bustCache = true): Promise<TreasuryNFT[]> {
   try {
@@ -962,7 +1024,7 @@ export async function fetchUserNFTs(userAccount: string, bustCache = true): Prom
 }
 
 // Build action for depositing NFTs to DAO treasury
-// NFTs are sent directly to the DAO account
+// NFTs must be sent to the DAO contract with memo specifying the DAO name
 export function buildDepositNFTToTreasuryAction(
   sender: string,
   daoName: string,
@@ -974,9 +1036,9 @@ export function buildDepositNFTToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: daoName,
+      to: DAO_CONTRACT, // Send to dao.waxdao contract
       asset_ids: assetIds,
-      memo: "treasury deposit",
+      memo: `deposit:${daoName}`, // Memo specifies which DAO treasury
     },
   };
 }

@@ -43,6 +43,21 @@ export default function Locker() {
             <MyLocks />
           </TabsContent>
         </Tabs>
+
+        <div className="text-center mt-8 text-sm text-muted-foreground">
+          <p>
+            Powered by the{" "}
+            <a 
+              href="https://wax.bloks.io/account/waxdaolocker?loadContract=true&tab=Tables&account=waxdaolocker&scope=waxdaolocker&limit=100" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-cheese hover:underline"
+            >
+              WAXDAOLOCKER
+            </a>{" "}
+            smart contract.
+          </p>
+        </div>
       </main>
     </div>
   );

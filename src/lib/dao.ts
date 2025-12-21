@@ -403,12 +403,6 @@ export function buildCreateProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: proposal.proposalType,
-      voting_type: PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN,
-      choices: [
-        { choice_name: "Yes", total_votes: "0" },
-        { choice_name: "No", total_votes: "0" },
-        { choice_name: "Abstain", total_votes: "0" },
-      ],
       actions: proposal.actions || [],
     },
   };
@@ -434,11 +428,6 @@ export function buildMultiOptionProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: "mostvotes",
-      voting_type: PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS,
-      choices: proposal.options.map(opt => ({
-        choice_name: opt,
-        total_votes: "0",
-      })),
       actions: [],
     },
   };
@@ -464,11 +453,6 @@ export function buildRankedChoiceProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: "rankedchoice",
-      voting_type: PROPOSAL_VOTING_TYPES.RANKED_CHOICE,
-      choices: proposal.options.map(opt => ({
-        choice_name: opt,
-        total_votes: "0",
-      })),
       actions: [],
     },
   };

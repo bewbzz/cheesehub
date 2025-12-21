@@ -1,6 +1,8 @@
 // WaxDAO DAO Contract Interface
 // Contract: dao.waxdao
 
+import { getDaoProfile } from "@/data/daoProfiles";
+
 export const DAO_CONTRACT = "dao.waxdao";
 
 // DAO types from the contract
@@ -114,27 +116,32 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
     console.log("Raw DAO data:", data);
     
     // Map the response to our interface based on actual contract fields
-    return (data.rows || []).map((row: Record<string, unknown>) => ({
-      dao_name: row.daoname as string || "",
-      creator: row.creator as string || "",
-      description: row.description as string || "",
-      logo: "", // Not stored on-chain - could fetch from IPFS/external source
-      token_contract: row.gov_token_contract as string || "",
-      token_symbol: row.gov_token_symbol as string || "",
-      dao_type: row.dao_type as number || 0,
-      proposer_type: row.proposer_type as number || 0,
-      threshold: parseFloat(row.threshold as string) || 0,
-      hours_per_proposal: row.hours_per_proposal as number || 0,
-      minimum_weight: typeof row.minimum_weight === 'string' 
-        ? parseInt(row.minimum_weight) 
-        : row.minimum_weight as number || 0,
-      minimum_votes: row.minimum_votes as number || 0,
-      proposal_cost: row.proposal_cost as string || "0",
-      authors: row.authors as string[] || [],
-      gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
-      time_created: row.time_created as number || 0,
-      status: row.status as number || 0,
-    }));
+    return (data.rows || []).map((row: Record<string, unknown>) => {
+      const daoName = row.daoname as string || "";
+      const profile = getDaoProfile(daoName);
+      
+      return {
+        dao_name: daoName,
+        creator: row.creator as string || "",
+        description: profile?.description || row.description as string || "",
+        logo: profile?.logo || "",
+        token_contract: row.gov_token_contract as string || "",
+        token_symbol: row.gov_token_symbol as string || "",
+        dao_type: row.dao_type as number || 0,
+        proposer_type: row.proposer_type as number || 0,
+        threshold: parseFloat(row.threshold as string) || 0,
+        hours_per_proposal: row.hours_per_proposal as number || 0,
+        minimum_weight: typeof row.minimum_weight === 'string' 
+          ? parseInt(row.minimum_weight) 
+          : row.minimum_weight as number || 0,
+        minimum_votes: row.minimum_votes as number || 0,
+        proposal_cost: row.proposal_cost as string || "0",
+        authors: row.authors as string[] || [],
+        gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
+        time_created: row.time_created as number || 0,
+        status: row.status as number || 0,
+      };
+    });
   } catch (error) {
     console.error("Error fetching DAOs:", error);
     return [];

@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, TreasuryBalance, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
+import { DaoStaking } from "./DaoStaking";
 import { 
   Users, 
   FileText, 
@@ -27,7 +28,7 @@ interface DaoDetailProps {
   onClose: () => void;
 }
 
-type Section = "info" | "new-proposal" | "active" | "past" | "treasury" | "members";
+type Section = "info" | "stake" | "new-proposal" | "active" | "past" | "treasury" | "members";
 
 interface MenuItem {
   id: Section;
@@ -94,6 +95,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
 
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
+    { id: "stake", label: "Stake", icon: <Wallet className="h-4 w-4" /> },
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
     { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length },
     { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },
@@ -235,6 +237,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Stake Section */}
+              {activeSection === "stake" && (
+                <DaoStaking dao={dao} />
               )}
 
               {/* New Proposal Section */}

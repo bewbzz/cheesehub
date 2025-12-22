@@ -4,24 +4,18 @@
 export const DAO_CONTRACT = "dao.waxdao";
 
 // Fee constants for DAO creation
-export const WAXDAO_FEE_ACCOUNT = "dao.waxdao";
-export const DAO_CREATION_FEE_WAX = "250.00000000 WAX";
-export const DAO_CREATION_FEE_WAXDAO = "50000.00000000 WAXDAO";
+export const DAO_CREATION_FEE = "250.00000000 WAX";
 
 // Build action for paying DAO creation fee
-export function buildDaoCreationFeeAction(
-  sender: string,
-  paymentToken: "WAX" | "WAXDAO" = "WAX"
-) {
-  const isWax = paymentToken === "WAX";
+export function buildDaoCreationFeeAction(sender: string) {
   return {
-    account: isWax ? "eosio.token" : "token.waxdao",
+    account: "eosio.token",
     name: "transfer",
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: WAXDAO_FEE_ACCOUNT,
-      quantity: isWax ? DAO_CREATION_FEE_WAX : DAO_CREATION_FEE_WAXDAO,
+      to: DAO_CONTRACT,
+      quantity: DAO_CREATION_FEE,
       memo: "dao creation fee",
     },
   };

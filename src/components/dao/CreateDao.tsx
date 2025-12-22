@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDaoAction, buildDaoCreationFeeAction, DAO_CONTRACT, PROPOSER_TYPES, DAO_CREATION_FEE_WAX, DAO_CREATION_FEE_WAXDAO } from "@/lib/dao";
+import { buildCreateDaoAction, buildDaoCreationFeeAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -15,13 +15,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function CreateDao() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [feePaymentToken, setFeePaymentToken] = useState<"WAX" | "WAXDAO">("WAX");
   const [formData, setFormData] = useState({
     daoName: "",
     description: "",
@@ -65,8 +63,8 @@ export function CreateDao() {
 
     setLoading(true);
     try {
-      // Build fee payment action
-      const feeAction = buildDaoCreationFeeAction(String(session.actor), feePaymentToken);
+      // Build fee payment action (250 WAX)
+      const feeAction = buildDaoCreationFeeAction(String(session.actor));
       
       // Build DAO creation action
       const createAction = buildCreateDaoAction(
@@ -619,41 +617,14 @@ export function CreateDao() {
             </Collapsible>
 
             {/* Creation Fee Section */}
-            <div className="space-y-4 p-4 rounded-lg border border-cheese/30 bg-cheese/5">
-              <div className="flex items-center gap-2">
+            <div className="p-4 rounded-lg border border-cheese/30 bg-cheese/5">
+              <div className="flex items-center gap-2 mb-2">
                 <Coins className="h-5 w-5 text-cheese" />
                 <h3 className="text-sm font-medium text-foreground">DAO Creation Fee</h3>
               </div>
-              <p className="text-xs text-muted-foreground">
-                A one-time fee is required to create a DAO on WaxDAO. Choose your preferred payment token:
+              <p className="text-sm text-muted-foreground">
+                A one-time fee of <span className="font-semibold text-cheese">250 WAX</span> is required to create a DAO on WaxDAO.
               </p>
-              <div className="space-y-3">
-                <Label>Payment Token</Label>
-                <Select value={feePaymentToken} onValueChange={(value: "WAX" | "WAXDAO") => setFeePaymentToken(value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="WAX">
-                      <div className="flex items-center justify-between w-full">
-                        <span>WAX</span>
-                        <span className="text-muted-foreground ml-4">250 WAX</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="WAXDAO">
-                      <div className="flex items-center justify-between w-full">
-                        <span>WAXDAO</span>
-                        <span className="text-muted-foreground ml-4">50,000 WAXDAO</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Fee: <span className="font-semibold text-cheese">
-                    {feePaymentToken === "WAX" ? "250 WAX" : "50,000 WAXDAO"}
-                  </span>
-                </p>
-              </div>
             </div>
 
             {/* Submit Button */}
@@ -670,7 +641,7 @@ export function CreateDao() {
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create DAO ({feePaymentToken === "WAX" ? "250 WAX" : "50k WAXDAO"})
+                  Create DAO (250 WAX)
                 </>
               )}
             </Button>

@@ -885,16 +885,62 @@ async function fetchFromAtomicAPI(path: string): Promise<Response> {
   throw lastError || new Error('All AtomicAssets API endpoints failed');
 }
 
+// Fetch asset IDs from the dao.waxdao nftvault table
+async function fetchTreasuryAssetIds(daoName: string): Promise<string[]> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: DAO_CONTRACT,
+          scope: daoName,
+          table: "nftvault",
+          limit: 1000,
+          json: true,
+        }),
+      }
+    );
+    
+    const json = await response.json();
+    console.log("NFT vault data for", daoName, ":", json);
+    
+    if (!json.rows || json.rows.length === 0) {
+      return [];
+    }
+    
+    // Extract asset_ids from the rows (handle different possible field names)
+    return json.rows.map((row: Record<string, unknown>) => 
+      String(row.asset_id || row.assetid || row.id || "")
+    ).filter((id: string) => id !== "");
+  } catch (error) {
+    console.error("Error fetching treasury asset IDs:", error);
+    return [];
+  }
+}
+
 export async function fetchDaoTreasuryNFTs(daoName: string): Promise<TreasuryNFT[]> {
   try {
+    // Step 1: Get asset IDs from the nftvault table
+    const assetIds = await fetchTreasuryAssetIds(daoName);
+    
+    if (assetIds.length === 0) {
+      console.log("No NFTs in vault for", daoName);
+      return [];
+    }
+    
+    console.log("Found", assetIds.length, "NFTs in vault for", daoName, ":", assetIds);
+    
+    // Step 2: Fetch asset details from AtomicAssets using the IDs
     const response = await fetchFromAtomicAPI(
-      `/atomicassets/v1/assets?owner=${daoName}&limit=1000`
+      `/atomicassets/v1/assets?ids=${assetIds.join(",")}&limit=1000`
     );
     
     const json = await response.json();
     
     if (!json.success || !json.data) {
-      console.log("No treasury NFTs found for", daoName);
+      console.log("No asset details found for treasury NFTs");
       return [];
     }
     

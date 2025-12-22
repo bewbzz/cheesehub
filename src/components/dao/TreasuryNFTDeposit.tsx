@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils";
 interface TreasuryNFTDepositProps {
   daoName: string;
   onSuccess: () => void;
+  onTransactionStart?: () => void;
+  onTransactionEnd?: () => void;
 }
 
-export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositProps) {
+export function TreasuryNFTDeposit({ daoName, onSuccess, onTransactionStart, onTransactionEnd }: TreasuryNFTDepositProps) {
   const { session } = useWax();
   const [loading, setLoading] = useState(false);
   const [nfts, setNfts] = useState<TreasuryNFT[]>([]);
@@ -59,6 +61,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
     }
 
     setLoading(true);
+    onTransactionStart?.();
     try {
       const assetIds = Array.from(selectedNFTs);
       const nftDepositAction = buildNFTDepositAction(
@@ -82,6 +85,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
       toast.error(error instanceof Error ? error.message : "Failed to deposit NFTs");
     } finally {
       setLoading(false);
+      onTransactionEnd?.();
     }
   }
 

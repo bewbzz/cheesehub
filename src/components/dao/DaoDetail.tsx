@@ -47,6 +47,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [treasury, setTreasury] = useState<TreasuryBalance[]>([]);
   const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
+  const [isTransacting, setIsTransacting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -112,8 +113,12 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   ];
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isTransacting && onClose()}>
+      <DialogContent 
+        className={cn("max-w-5xl max-h-[90vh] p-0 overflow-hidden", isTransacting && "wallet-transacting")}
+        onPointerDownOutside={(e) => isTransacting && e.preventDefault()}
+        onEscapeKeyDown={(e) => isTransacting && e.preventDefault()}
+      >
         {/* Header */}
         <DialogHeader className="p-4 pb-3 border-b border-border/50">
           <div className="flex items-center gap-4">
@@ -438,6 +443,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   <TreasuryNFTDeposit 
                     daoName={dao.dao_name} 
                     onSuccess={loadTreasury}
+                    onTransactionStart={() => setIsTransacting(true)}
+                    onTransactionEnd={() => setIsTransacting(false)}
                   />
 
                   {/* Withdrawal Info */}

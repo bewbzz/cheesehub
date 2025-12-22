@@ -97,6 +97,20 @@
   }
 }
 
+/* Ensure Wharfkit wallet modals appear above all other dialogs */
+dialog[data-theme] {
+  z-index: 9999 !important;
+}
+
+dialog[data-theme]::backdrop {
+  z-index: 9998 !important;
+}
+
+/* Prevent Radix dialog overlay interactions during wallet transactions */
+.wallet-transacting [data-radix-dialog-overlay] {
+  pointer-events: none;
+}
+
 @layer utilities {
   .cheese-glow {
     box-shadow: 0 0 20px hsl(var(--cheese) / 0.3),

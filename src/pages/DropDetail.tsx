@@ -3,6 +3,7 @@ import { ArrowLeft, ShoppingCart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DropsHeader } from "@/components/drops/DropsHeader";
 import { CartDrawer } from "@/components/drops/CartDrawer";
+import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +33,8 @@ const DropDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
+        <BackgroundDecorations />
         <DropsHeader />
         <main className="container py-10">
           <Skeleton className="h-10 w-32 mb-6" />
@@ -53,7 +55,8 @@ const DropDetail = () => {
 
   if (!drop) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
+        <BackgroundDecorations />
         <DropsHeader />
         <div className="container flex flex-col items-center justify-center py-20">
           <img src={cheeseLogo} alt="Cheese" className="h-16 w-16" />
@@ -79,7 +82,8 @@ const DropDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <BackgroundDecorations />
       <DropsHeader />
 
       <main className="container py-10">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useWallet } from "@/hooks/useWallet";
+import { useWax } from "@/context/WaxContext";
 import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
-import { transact, WAXDAO_CONTRACT } from "@/lib/wax";
+import { WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,17 +10,17 @@ import { useToast } from "@/hooks/use-toast";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function MyLocks() {
-  const { session } = useWallet();
+  const { session, accountName } = useWax();
   const { toast } = useToast();
   const [locks, setLocks] = useState<TokenLock[]>([]);
   const [loading, setLoading] = useState(false);
   const [claiming, setClaiming] = useState<number | null>(null);
 
   const loadLocks = async () => {
-    if (!session) return;
+    if (!session || !accountName) return;
     setLoading(true);
     try {
-      const userLocks = await fetchUserLocks(session.account);
+      const userLocks = await fetchUserLocks(accountName);
       setLocks(userLocks);
     } catch (error) {
       console.error("Failed to load locks:", error);
@@ -43,16 +43,18 @@ export function MyLocks() {
     if (!session) return;
     setClaiming(lock.ID);
     try {
-      await transact(session, [
-        {
-          account: WAXDAO_CONTRACT,
-          name: "withdraw",
-          authorization: [{ actor: session.account, permission: "active" }],
-          data: {
-            lock_id: lock.ID,
+      await session.transact({
+        actions: [
+          {
+            account: WAXDAO_CONTRACT,
+            name: "withdraw",
+            authorization: [session.permissionLevel],
+            data: {
+              lock_id: lock.ID,
+            },
           },
-        },
-      ]);
+        ],
+      });
       toast({
         title: "Success!",
         description: "Tokens claimed successfully",

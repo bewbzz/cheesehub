@@ -967,7 +967,25 @@ export async function fetchUserNFTs(userAccount: string): Promise<TreasuryNFT[]>
   }
 }
 
-// Build action for depositing NFTs to DAO treasury
+// Build action for NFT deposit notification to DAO contract
+export function buildNFTDepositAction(
+  sender: string,
+  daoName: string,
+  assetIds: string[]
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "nftdeposit",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      user: sender,
+      dao: daoName,
+      asset_ids: assetIds,
+    },
+  };
+}
+
+// Build action for transferring NFTs to DAO treasury
 export function buildDepositNFTToTreasuryAction(
   sender: string,
   daoName: string,
@@ -979,9 +997,9 @@ export function buildDepositNFTToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: daoName,
+      to: DAO_CONTRACT,
       asset_ids: assetIds,
-      memo: "treasury deposit",
+      memo: `|treasury_deposit|${daoName}|`,
     },
   };
 }

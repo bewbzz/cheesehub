@@ -62,6 +62,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess, onTransactionStart, onT
 
     setLoading(true);
     onTransactionStart?.();
+    document.body.classList.add('wallet-transacting');
     try {
       const assetIds = Array.from(selectedNFTs);
       const nftDepositAction = buildNFTDepositAction(
@@ -85,6 +86,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess, onTransactionStart, onT
       toast.error(error instanceof Error ? error.message : "Failed to deposit NFTs");
     } finally {
       setLoading(false);
+      document.body.classList.remove('wallet-transacting');
       onTransactionEnd?.();
     }
   }

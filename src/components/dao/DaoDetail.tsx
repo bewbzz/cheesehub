@@ -115,7 +115,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isTransacting && onClose()}>
       <DialogContent 
-        className={cn("max-w-5xl max-h-[90vh] p-0 overflow-hidden", isTransacting && "wallet-transacting")}
+        className="max-w-5xl max-h-[90vh] p-0 overflow-hidden"
         onPointerDownOutside={(e) => isTransacting && e.preventDefault()}
         onEscapeKeyDown={(e) => isTransacting && e.preventDefault()}
       >

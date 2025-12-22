@@ -164,8 +164,13 @@ export interface NFTTransferProposalData {
   assetIds: string[];
 }
 
-// Fetch all DAOs from the contract
-export async function fetchAllDaos(): Promise<DaoInfo[]> {
+// Fetch DAO profiles from the daoprofiles table
+interface DaoProfile {
+  dao_name: string;
+  description: string;
+}
+
+async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
   try {
     const response = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
@@ -176,37 +181,81 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
           json: true,
           code: DAO_CONTRACT,
           scope: DAO_CONTRACT,
-          table: "daos",
+          table: "daoprofiles",
           limit: 100,
         }),
       }
     );
     
     const data = await response.json();
+    const profiles = new Map<string, DaoProfile>();
+    
+    for (const row of data.rows || []) {
+      const daoName = (row.dao_name || row.daoname) as string;
+      profiles.set(daoName, {
+        dao_name: daoName,
+        description: (row.description || "") as string,
+      });
+    }
+    
+    return profiles;
+  } catch (error) {
+    console.error("Error fetching DAO profiles:", error);
+    return new Map();
+  }
+}
+
+// Fetch all DAOs from the contract
+export async function fetchAllDaos(): Promise<DaoInfo[]> {
+  try {
+    const [daoResponse, profiles] = await Promise.all([
+      fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: DAO_CONTRACT,
+            table: "daos",
+            limit: 100,
+          }),
+        }
+      ),
+      fetchDaoProfiles()
+    ]);
+    
+    const data = await daoResponse.json();
     console.log("Raw DAO data:", data);
     
     // Map the response to our interface based on actual contract fields
-    return (data.rows || []).map((row: Record<string, unknown>) => ({
-      dao_name: row.daoname as string || "",
-      creator: row.creator as string || "",
-      description: "", // Not stored on-chain
-      logo: "", // Not stored on-chain - could fetch from IPFS/external source
-      token_contract: row.gov_token_contract as string || "",
-      token_symbol: row.gov_token_symbol as string || "",
-      dao_type: row.dao_type as number || 0,
-      proposer_type: row.proposer_type as number || 0,
-      threshold: parseFloat(row.threshold as string) || 0,
-      hours_per_proposal: row.hours_per_proposal as number || 0,
-      minimum_weight: typeof row.minimum_weight === 'string' 
-        ? parseInt(row.minimum_weight) 
-        : row.minimum_weight as number || 0,
-      minimum_votes: row.minimum_votes as number || 0,
-      proposal_cost: row.proposal_cost as string || "0",
-      authors: row.authors as string[] || [],
-      gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
-      time_created: row.time_created as number || 0,
-      status: row.status as number || 0,
-    }));
+    return (data.rows || []).map((row: Record<string, unknown>) => {
+      const daoName = row.daoname as string || "";
+      const profile = profiles.get(daoName);
+      
+      return {
+        dao_name: daoName,
+        creator: row.creator as string || "",
+        description: profile?.description || "",
+        logo: "", // Not stored on-chain - could fetch from IPFS/external source
+        token_contract: row.gov_token_contract as string || "",
+        token_symbol: row.gov_token_symbol as string || "",
+        dao_type: row.dao_type as number || 0,
+        proposer_type: row.proposer_type as number || 0,
+        threshold: parseFloat(row.threshold as string) || 0,
+        hours_per_proposal: row.hours_per_proposal as number || 0,
+        minimum_weight: typeof row.minimum_weight === 'string' 
+          ? parseInt(row.minimum_weight) 
+          : row.minimum_weight as number || 0,
+        minimum_votes: row.minimum_votes as number || 0,
+        proposal_cost: row.proposal_cost as string || "0",
+        authors: row.authors as string[] || [],
+        gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
+        time_created: row.time_created as number || 0,
+        status: row.status as number || 0,
+      };
+    });
   } catch (error) {
     console.error("Error fetching DAOs:", error);
     return [];

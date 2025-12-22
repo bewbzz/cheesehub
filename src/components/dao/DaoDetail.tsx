@@ -244,6 +244,16 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       )}
                     </div>
                   </div>
+
+                  {/* Description Section */}
+                  {dao.description && (
+                    <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                      <h4 className="font-medium">Description</h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {dao.description}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

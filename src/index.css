@@ -43,47 +43,59 @@
   }
 
   .dark {
-    --background: 30 15% 8%;
-    --foreground: 45 30% 90%;
+    --background: 30 20% 8%;
+    --foreground: 45 30% 92%;
 
-    --card: 30 20% 12%;
-    --card-foreground: 45 30% 90%;
+    --card: 30 15% 12%;
+    --card-foreground: 45 30% 92%;
 
-    --popover: 30 20% 10%;
-    --popover-foreground: 45 30% 90%;
+    --popover: 30 15% 12%;
+    --popover-foreground: 45 30% 92%;
 
-    --primary: 45 100% 50%;
+    --primary: 42 90% 50%;
     --primary-foreground: 30 20% 8%;
 
-    --secondary: 35 25% 18%;
-    --secondary-foreground: 45 30% 90%;
+    --secondary: 30 15% 18%;
+    --secondary-foreground: 45 30% 92%;
 
-    --muted: 30 20% 15%;
-    --muted-foreground: 40 15% 55%;
+    --muted: 30 12% 20%;
+    --muted-foreground: 35 15% 55%;
 
-    --accent: 38 90% 55%;
-    --accent-foreground: 30 20% 8%;
+    --accent: 32 85% 45%;
+    --accent-foreground: 45 30% 92%;
 
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 45 30% 92%;
 
-    --border: 35 20% 20%;
-    --input: 35 20% 18%;
-    --ring: 45 100% 50%;
+    --border: 30 15% 22%;
+    --input: 30 15% 18%;
+    --ring: 42 90% 50%;
 
-    --cheese: 45 100% 50%;
+    /* Custom tokens - Cheese theme */
+    --cheese: 42 90% 50%;
     --cheese-light: 48 100% 65%;
-    --cheese-dark: 40 90% 40%;
-    --cheese-glow: 45 100% 60%;
+    --cheese-dark: 38 80% 35%;
+    --cheese-glow: 45 95% 60%;
+    --cream: 45 40% 85%;
+    --cream-dark: 40 25% 70%;
+    --brown: 30 40% 25%;
+    --brown-light: 32 35% 35%;
+    --glass: 30 15% 14%;
+    --glass-border: 35 20% 28%;
 
-    --sidebar-background: 30 20% 10%;
-    --sidebar-foreground: 45 30% 90%;
-    --sidebar-primary: 45 100% 50%;
+    /* Shadows */
+    --shadow-cheese: 0 0 40px hsl(42 90% 50% / 0.3);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 60px hsl(42 90% 50% / 0.15);
+
+    --sidebar-background: 30 15% 12%;
+    --sidebar-foreground: 45 30% 92%;
+    --sidebar-primary: 42 90% 50%;
     --sidebar-primary-foreground: 30 20% 8%;
-    --sidebar-accent: 35 25% 15%;
-    --sidebar-accent-foreground: 45 30% 90%;
-    --sidebar-border: 35 20% 18%;
-    --sidebar-ring: 45 100% 50%;
+    --sidebar-accent: 30 15% 18%;
+    --sidebar-accent-foreground: 45 30% 92%;
+    --sidebar-border: 30 15% 22%;
+    --sidebar-ring: 42 90% 50%;
   }
 }
 

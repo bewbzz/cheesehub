@@ -63,6 +63,18 @@ export default {
           dark: "hsl(var(--cheese-dark))",
           glow: "hsl(var(--cheese-glow))",
         },
+        cream: {
+          DEFAULT: "hsl(var(--cream))",
+          dark: "hsl(var(--cream-dark))",
+        },
+        brown: {
+          DEFAULT: "hsl(var(--brown))",
+          light: "hsl(var(--brown-light))",
+        },
+        glass: {
+          DEFAULT: "hsl(var(--glass))",
+          border: "hsl(var(--glass-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -4,10 +4,12 @@ import { BrowseDaos } from "@/components/dao/BrowseDaos";
 import { CreateDao } from "@/components/dao/CreateDao";
 import { MyDaos } from "@/components/dao/MyDaos";
 import { Users, Plus, User } from "lucide-react";
+import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 
 export default function Dao() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <BackgroundDecorations />
       <Header />
       
       {/* Hero Section */}

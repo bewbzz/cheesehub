@@ -1,14 +1,15 @@
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Lock, ArrowRight, Shield, Zap, ShoppingBag } from "lucide-react";
-import cheeseLogo from "@/assets/cheese-logo.png";
 import cheeseArmy from "@/assets/cheesearmy.png";
+import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <BackgroundDecorations />
       <Header />
       
       {/* Hero Section */}

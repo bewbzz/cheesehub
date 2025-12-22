@@ -3,10 +3,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLock } from "@/components/locker/CreateLock";
 import { MyLocks } from "@/components/locker/MyLocks";
 import { Lock, List } from "lucide-react";
+import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 
 export default function Locker() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <BackgroundDecorations />
       <Header />
       <main className="container py-12">
         <div className="text-center mb-10">

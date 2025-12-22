@@ -192,9 +192,10 @@ async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
     
     for (const row of data.rows || []) {
       const daoName = (row.dao_name || row.daoname) as string;
+      const profile = row.profile as { description?: string } | undefined;
       profiles.set(daoName, {
         dao_name: daoName,
-        description: (row.description || "") as string,
+        description: (profile?.description || "") as string,
       });
     }
     

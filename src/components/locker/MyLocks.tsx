@@ -50,7 +50,7 @@ export function MyLocks() {
             name: "withdraw",
             authorization: [session.permissionLevel],
             data: {
-              lock_id: lock.ID,
+              lock_ID: lock.ID,
             },
           },
         ],

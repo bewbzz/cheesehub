@@ -440,13 +440,11 @@ export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance
 }
 
 // Build action for creating a new DAO (Stake to DAO - Custodial)
-// dao_type: 3 = Token Staking, custodian: true = tokens held by DAO contract
+// dao_type: 3 = Token Staking
 export function buildCreateDaoAction(
   creator: string,
   config: {
     daoName: string;
-    description: string;
-    logo: string;
     tokenContract: string;
     tokenSymbol: string;
     threshold?: number;
@@ -466,21 +464,52 @@ export function buildCreateDaoAction(
     name: "createdao",
     authorization: [{ actor: creator, permission: "active" }],
     data: {
-      creator,
-      dao_name: config.daoName,
-      description: config.description,
-      logo: config.logo,
+      user: creator,
+      daoname: config.daoName,
       dao_type: 3, // Token Staking
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
-      custodian: true, // Custodial - tokens held by DAO
+      gov_farm_name: null,
+      gov_schemas: [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,
       minimum_weight: config.minimumWeight || 0,
       minimum_votes: config.minimumVotes || 1,
-      proposer_type: config.proposerType || 1, // 1 = Anyone can propose
+      proposer_type: config.proposerType || 1,
       authors: config.authors || [],
       proposal_cost: proposalCostFormatted,
+    },
+  };
+}
+
+// Build action for setting DAO profile (description only)
+export function buildSetProfileAction(
+  user: string,
+  daoName: string,
+  description: string
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "setprofile",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      profile: {
+        avatar: "",
+        cover_image: "",
+        description: description || "",
+        socials: {
+          atomichub: "",
+          discord: "",
+          medium: "",
+          telegram: "",
+          twitter: "",
+          waxdao: "",
+          website: "",
+          youtube: "",
+        },
+      },
     },
   };
 }

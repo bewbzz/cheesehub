@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDaoAction, buildDaoCreationFeeAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
+import { buildCreateDaoAction, buildDaoCreationFeeAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -23,7 +23,6 @@ export function CreateDao() {
   const [formData, setFormData] = useState({
     daoName: "",
     description: "",
-    logo: "",
     tokenContract: "",
     tokenSymbol: "",
     // Advanced settings
@@ -70,19 +69,40 @@ export function CreateDao() {
       const createAction = buildCreateDaoAction(
         String(session.actor),
         {
-          ...formData,
+          daoName: formData.daoName,
+          tokenContract: formData.tokenContract,
+          tokenSymbol: formData.tokenSymbol,
+          threshold: formData.threshold,
+          hoursPerProposal: formData.hoursPerProposal,
+          minimumWeight: formData.minimumWeight,
+          minimumVotes: formData.minimumVotes,
+          proposerType: formData.proposerType,
           authors: authorsArray,
+          proposalCost: formData.proposalCost,
         }
       );
 
-      // Execute both actions in a single transaction
-      await session.transact({ actions: [feeAction, createAction] });
+      // Build actions array - fee + create, optionally + profile
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const actions: any[] = [feeAction, createAction];
+      
+      // Add profile action if description is provided
+      if (formData.description.trim()) {
+        const profileAction = buildSetProfileAction(
+          String(session.actor),
+          formData.daoName,
+          formData.description.trim()
+        );
+        actions.push(profileAction);
+      }
+
+      // Execute all actions in a single transaction
+      await session.transact({ actions });
       
       toast.success("DAO created successfully!");
       setFormData({
         daoName: "",
         description: "",
-        logo: "",
         tokenContract: "",
         tokenSymbol: "",
         threshold: 51,

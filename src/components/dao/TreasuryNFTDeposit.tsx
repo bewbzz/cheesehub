@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildDepositNFTToTreasuryAction, fetchUserNFTs, TreasuryNFT } from "@/lib/dao";
+import { buildNFTDepositAction, buildDepositNFTToTreasuryAction, fetchUserNFTs, TreasuryNFT } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -60,13 +60,19 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
 
     setLoading(true);
     try {
-      const action = buildDepositNFTToTreasuryAction(
+      const assetIds = Array.from(selectedNFTs);
+      const nftDepositAction = buildNFTDepositAction(
         String(session.actor),
         daoName,
-        Array.from(selectedNFTs)
+        assetIds
+      );
+      const transferAction = buildDepositNFTToTreasuryAction(
+        String(session.actor),
+        daoName,
+        assetIds
       );
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [nftDepositAction, transferAction] });
       toast.success(`Successfully deposited ${selectedNFTs.size} NFT(s) to treasury!`);
       setSelectedNFTs(new Set());
       await loadUserNFTs();

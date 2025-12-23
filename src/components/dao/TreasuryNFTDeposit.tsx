@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useWax } from "@/context/WaxContext";
 import { buildNFTDepositAction, buildDepositNFTToTreasuryAction, fetchUserNFTs, TreasuryNFT } from "@/lib/dao";
 import { toast } from "sonner";
-import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check } from "lucide-react";
+import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TreasuryNFTDepositProps {
@@ -17,6 +18,16 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
   const [nfts, setNfts] = useState<TreasuryNFT[]>([]);
   const [loadingNFTs, setLoadingNFTs] = useState(false);
   const [selectedNFTs, setSelectedNFTs] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredNFTs = useMemo(() => {
+    if (!searchQuery.trim()) return nfts;
+    const query = searchQuery.toLowerCase();
+    return nfts.filter((nft) =>
+      nft.name.toLowerCase().includes(query) ||
+      nft.collection.toLowerCase().includes(query)
+    );
+  }, [nfts, searchQuery]);
 
   useEffect(() => {
     if (session) {
@@ -126,8 +137,24 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto">
-            {nfts.map((nft) => (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by name or collection..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {filteredNFTs.length === 0 && searchQuery.trim() ? (
+            <div className="text-center py-4 text-muted-foreground">
+              <p className="text-sm">No NFTs matching "{searchQuery}"</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto">
+              {filteredNFTs.map((nft) => (
               <button
                 key={nft.asset_id}
                 onClick={() => toggleNFT(nft.asset_id)}
@@ -158,12 +185,15 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
                   <p className="text-[10px] text-white truncate">{nft.name}</p>
                 </div>
               </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Selected:</span>
-            <span className="font-medium">{selectedNFTs.size} NFT(s)</span>
+            <span className="text-muted-foreground">
+              {searchQuery ? `Showing ${filteredNFTs.length} of ${nfts.length}` : `${nfts.length} available`}
+            </span>
+            <span className="font-medium">{selectedNFTs.size} selected</span>
           </div>
 
           <Button

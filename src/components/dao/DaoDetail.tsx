@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -117,8 +117,19 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
         {/* Header */}
         <DialogHeader className="p-4 pb-3 border-b border-border/50">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-cheese/10 flex items-center justify-center shrink-0">
-              <Users className="h-6 w-6 text-cheese" />
+            <div className="h-12 w-12 rounded-xl bg-cheese/10 flex items-center justify-center shrink-0 overflow-hidden">
+              {dao.logo ? (
+                <img 
+                  src={getIpfsUrl(dao.logo)} 
+                  alt={dao.dao_name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <Users className={cn("h-6 w-6 text-cheese", dao.logo && "hidden")} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -252,6 +263,26 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {dao.description}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Cover Image Section */}
+                  {dao.cover_image && (
+                    <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4 text-cheese" />
+                        Cover Image
+                      </h4>
+                      <div className="rounded-lg overflow-hidden">
+                        <img 
+                          src={getIpfsUrl(dao.cover_image)} 
+                          alt={`${dao.dao_name} cover`}
+                          className="w-full h-auto max-h-64 object-cover"
+                          onError={(e) => {
+                            (e.currentTarget.parentElement?.parentElement as HTMLElement)?.classList.add('hidden');
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

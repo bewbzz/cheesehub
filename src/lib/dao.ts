@@ -67,6 +67,7 @@ export interface DaoInfo {
   creator: string;
   description: string;
   logo: string;
+  cover_image: string;
   token_contract: string;
   token_symbol: string;
   dao_type: number;
@@ -80,6 +81,16 @@ export interface DaoInfo {
   gov_schemas: { collection_name: string; schema_name: string }[];
   time_created: number;
   status: number;
+}
+
+// Convert IPFS hash to full URL
+export function getIpfsUrl(hash: string): string {
+  if (!hash) return "";
+  if (hash.startsWith("http")) return hash;
+  if (hash.startsWith("Qm") || hash.startsWith("bafy")) {
+    return `https://ipfs.io/ipfs/${hash}`;
+  }
+  return hash;
 }
 
 export interface ProposalChoice {
@@ -168,6 +179,8 @@ export interface NFTTransferProposalData {
 interface DaoProfile {
   dao_name: string;
   description: string;
+  avatar: string;
+  cover_image: string;
 }
 
 async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
@@ -192,10 +205,12 @@ async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
     
     for (const row of data.rows || []) {
       const daoName = (row.dao_name || row.daoname) as string;
-      const profile = row.profile as { description?: string } | undefined;
+      const profile = row.profile as { description?: string; avatar?: string; cover_image?: string } | undefined;
       profiles.set(daoName, {
         dao_name: daoName,
         description: (profile?.description || "") as string,
+        avatar: (profile?.avatar || "") as string,
+        cover_image: (profile?.cover_image || "") as string,
       });
     }
     
@@ -239,7 +254,8 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
         dao_name: daoName,
         creator: row.creator as string || "",
         description: profile?.description || "",
-        logo: "", // Not stored on-chain - could fetch from IPFS/external source
+        logo: profile?.avatar || "",
+        cover_image: profile?.cover_image || "",
         token_contract: row.gov_token_contract as string || "",
         token_symbol: row.gov_token_symbol as string || "",
         dao_type: row.dao_type as number || 0,

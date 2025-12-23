@@ -1,10 +1,11 @@
-import { DaoInfo, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
+import { DaoInfo, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl } from "@/lib/dao";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, ExternalLink, Clock, Coins, Vote } from "lucide-react";
 import { useState } from "react";
 import { DaoDetail } from "./DaoDetail";
+import { cn } from "@/lib/utils";
 
 interface DaoCardProps {
   dao: DaoInfo;
@@ -31,8 +32,19 @@ export function DaoCard({ dao }: DaoCardProps) {
             {/* DAO Name & Type */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <div className="h-10 w-10 rounded-lg bg-cheese/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-cheese" />
+                <div className="h-10 w-10 rounded-lg bg-cheese/10 flex items-center justify-center overflow-hidden">
+                  {dao.logo ? (
+                    <img 
+                      src={getIpfsUrl(dao.logo)} 
+                      alt={dao.dao_name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <Users className={cn("h-5 w-5 text-cheese", dao.logo && "hidden")} />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-foreground truncate">

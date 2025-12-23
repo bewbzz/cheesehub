@@ -23,6 +23,8 @@ export function CreateDao() {
   const [formData, setFormData] = useState({
     daoName: "",
     description: "",
+    avatar: "",
+    coverImage: "",
     tokenContract: "",
     tokenSymbol: "",
     // Advanced settings
@@ -86,12 +88,14 @@ export function CreateDao() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const actions: any[] = [feeAction, createAction];
       
-      // Add profile action if description is provided
-      if (formData.description.trim()) {
+      // Add profile action if description, avatar, or cover image is provided
+      if (formData.description.trim() || formData.avatar.trim() || formData.coverImage.trim()) {
         const profileAction = buildSetProfileAction(
           String(session.actor),
           formData.daoName,
-          formData.description.trim()
+          formData.description.trim(),
+          formData.avatar.trim(),
+          formData.coverImage.trim()
         );
         actions.push(profileAction);
       }
@@ -103,6 +107,8 @@ export function CreateDao() {
       setFormData({
         daoName: "",
         description: "",
+        avatar: "",
+        coverImage: "",
         tokenContract: "",
         tokenSymbol: "",
         threshold: 51,
@@ -308,6 +314,27 @@ export function CreateDao() {
                             Treasury deposits are managed separately from the creation process. 
                             Visit your DAO's detail page after creation to make deposits.
                           </p>
+                      </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="ipfs" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                          IPFS Hash (Avatar & Cover Image)
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-foreground space-y-2">
+                          <p>
+                            These are your DAO's logos - the <strong className="text-cheese">cover image</strong> is a large background pic, 
+                            and the <strong className="text-cheese">avatar</strong> should be a small (e.g. 300 x 300) pic.
+                          </p>
+                          <p>
+                            Both should be <strong className="text-cheese">IPFS hash only</strong>, do NOT put the full URL.
+                          </p>
+                          <p className="text-xs bg-muted/50 p-2 rounded">
+                            Example hash: <code className="text-cheese">QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco</code>
+                          </p>
+                          <p className="text-xs">
+                            Supported formats: <code className="text-cheese">jpeg</code> and <code className="text-cheese">png</code>
+                          </p>
                         </AccordionContent>
                       </AccordionItem>
 
@@ -372,6 +399,34 @@ export function CreateDao() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
                 />
+              </div>
+
+              {/* IPFS Images */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="avatar">Avatar (IPFS Hash)</Label>
+                  <Input
+                    id="avatar"
+                    placeholder="e.g., QmXoypiz..."
+                    value={formData.avatar}
+                    onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Small image (300x300), IPFS hash only
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="coverImage">Cover Image (IPFS Hash)</Label>
+                  <Input
+                    id="coverImage"
+                    placeholder="e.g., QmXoypiz..."
+                    value={formData.coverImage}
+                    onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Large background image, IPFS hash only
+                  </p>
+                </div>
               </div>
             </div>
 

@@ -498,11 +498,13 @@ export function buildCreateDaoAction(
   };
 }
 
-// Build action for setting DAO profile (description only)
+// Build action for setting DAO profile (description + optional IPFS images)
 export function buildSetProfileAction(
   user: string,
   daoName: string,
-  description: string
+  description: string,
+  avatar: string = "",
+  coverImage: string = ""
 ) {
   return {
     account: DAO_CONTRACT,
@@ -512,8 +514,8 @@ export function buildSetProfileAction(
       user: user,
       dao: daoName,
       profile: {
-        avatar: "",
-        cover_image: "",
+        avatar: avatar || "",
+        cover_image: coverImage || "",
         description: description || "",
         socials: {
           atomichub: "",

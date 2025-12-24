@@ -144,8 +144,9 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
       return item?.value?.[1] || '';
     };
 
-    // Map all drops to NFTDrop format (no currency filter)
-    return drops.map((drop): NFTDrop => {
+    // Map all drops to NFTDrop format and enrich with template data if needed
+    const enrichedDrops = await Promise.all(
+      drops.map(async (drop): Promise<NFTDrop> => {
         const template = drop.templatesToMint?.[0];
         const immutableData = template?.immutableData || [];
 
@@ -164,7 +165,34 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
           .slice(0, 6);
 
         const maxClaimable = drop.maxClaimable || 0;
-        const numClaimed = drop.numClaimed || 0;
+        
+        // Get numClaimed with fallbacks for accurate sold out status
+        let numClaimed = drop.numClaimed;
+        
+        // Fallback 1: Use template stats.numMinted from NFTHive response
+        if (numClaimed === null || numClaimed === undefined) {
+          const templateStats = (template as any)?.stats;
+          if (templateStats?.numMinted !== undefined) {
+            numClaimed = templateStats.numMinted;
+          }
+        }
+        
+        // Fallback 2: Fetch issuedSupply from AtomicAssets API
+        if ((numClaimed === null || numClaimed === undefined) && template?.templateId) {
+          try {
+            const templateData = await fetchTemplateById(
+              String(template.templateId),
+              drop.collection?.collectionName
+            );
+            if (templateData) {
+              numClaimed = templateData.issuedSupply;
+            }
+          } catch (e) {
+            console.warn('Could not fetch template supply:', e);
+          }
+        }
+        
+        const claimCount = numClaimed || 0;
 
         return {
           id: `nfthive-${drop.dropId}`,
@@ -177,7 +205,7 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
           image: getImageUrl(img),
           price: drop.price,
           totalSupply: maxClaimable,
-          remaining: Math.max(0, maxClaimable - numClaimed),
+          remaining: Math.max(0, maxClaimable - claimCount),
           attributes: attributes.length > 0 ? attributes : [{ trait: 'Rarity', value: 'Common' }],
           endDate: drop.endTime > 0 ? new Date(drop.endTime * 1000).toISOString() : undefined,
           dropSource: 'nfthive',
@@ -186,7 +214,10 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
           currency: drop.currency,
           tokenContract: drop.contract,
         };
-      });
+      })
+    );
+
+    return enrichedDrops;
   } catch (error) {
     console.error('Error fetching NFT Hive drops:', error);
     return [];
@@ -322,7 +353,34 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
         .slice(0, 6);
 
       const maxClaimable = drop.maxClaimable || 0;
-      const numClaimed = drop.numClaimed || 0;
+      
+      // Get numClaimed with fallbacks for accurate sold out status
+      let numClaimed = drop.numClaimed;
+      
+      // Fallback 1: Use template stats.numMinted from NFTHive response
+      if (numClaimed === null || numClaimed === undefined) {
+        const templateStats = (template as any)?.stats;
+        if (templateStats?.numMinted !== undefined) {
+          numClaimed = templateStats.numMinted;
+        }
+      }
+      
+      // Fallback 2: Fetch issuedSupply from AtomicAssets API
+      if ((numClaimed === null || numClaimed === undefined) && template?.templateId) {
+        try {
+          const templateData = await fetchTemplateById(
+            String(template.templateId),
+            drop.collection?.collectionName
+          );
+          if (templateData) {
+            numClaimed = templateData.issuedSupply;
+          }
+        } catch (e) {
+          console.warn('Could not fetch template supply:', e);
+        }
+      }
+      
+      const claimCount = numClaimed || 0;
 
       return {
         id: `nfthive-${drop.dropId}`,
@@ -335,7 +393,7 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
         image: getImageUrl(img),
         price: drop.price,
         totalSupply: maxClaimable,
-        remaining: Math.max(0, maxClaimable - numClaimed),
+        remaining: Math.max(0, maxClaimable - claimCount),
         attributes: attributes.length > 0 ? attributes : [{ trait: 'Rarity', value: 'Common' }],
         endDate: drop.endTime > 0 ? new Date(drop.endTime * 1000).toISOString() : undefined,
         dropSource: 'nfthive',

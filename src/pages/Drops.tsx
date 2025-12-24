@@ -6,7 +6,7 @@ import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations"
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllDrops } from "@/services/atomicApi";
+import { fetchAllDrops, fetchNFTHiveDrops } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { NFTDrop } from "@/types/drop";
@@ -14,6 +14,7 @@ import { Package, Plus, Grid, Sandwich } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 
 const Drops = () => {
+  // Fetch all drops for Browse tab
   const { data: drops, isLoading, error } = useQuery({
     queryKey: ['drops'],
     queryFn: fetchAllDrops,
@@ -21,11 +22,15 @@ const Drops = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  // Fetch cheesenftwax drops directly for CHEESE tab
+  const { data: cheeseDrops = [], isLoading: isLoadingCheese } = useQuery({
+    queryKey: ['cheese-drops', CHEESE_CONFIG.collectionName],
+    queryFn: () => fetchNFTHiveDrops(CHEESE_CONFIG.collectionName),
+    staleTime: 1000 * 60 * 2,
+    refetchInterval: 1000 * 60 * 5,
+  });
+
   const displayDrops: NFTDrop[] = drops || [];
-  // Filter by collection to show only cheesenftwax drops
-  const cheeseDrops: NFTDrop[] = displayDrops.filter(
-    drop => drop.collectionName === CHEESE_CONFIG.collectionName
-  );
 
   return (
     <div className="min-h-screen bg-background grid-pattern relative">
@@ -113,7 +118,7 @@ const Drops = () => {
               <p className="text-muted-foreground mt-2">Drops purchasable with $CHEESE token</p>
             </div>
 
-            {isLoading ? (
+            {isLoadingCheese ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">

@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
-import { buildDropCreationActions, validateDropFormData, DropFormData, DropType } from "@/lib/drops";
+import { buildDropCreationActions, validateDropFormData, DropFormData, DropType, TokenBacking } from "@/lib/drops";
 import { toast } from "sonner";
-import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check } from "lucide-react";
+import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,6 +57,7 @@ export function CreateDrop() {
     isHidden: false,
     priceRecipient: "",
     assetIds: [],
+    tokensToBack: [],
   });
 
   // Fetch user's NFTs for pre-mint when collection is selected
@@ -140,6 +141,7 @@ export function CreateDrop() {
         isHidden: false,
         priceRecipient: "",
         assetIds: [],
+        tokensToBack: [],
       });
       setTemplatePreview(null);
     } catch (error) {
@@ -285,6 +287,29 @@ export function CreateDrop() {
                           Useful for exclusive drops shared via direct link.
                         </p>
                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="backing" className="border border-border/50 rounded-lg px-4">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                      Token Backing
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm text-foreground space-y-2">
+                      <p>
+                        Token backing allows you to lock WAX or CHEESE tokens inside each NFT. 
+                        When the NFT is burned, the backed tokens are released to the burner.
+                      </p>
+                      <p className="font-medium text-cheese mt-3">Use cases:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                        <li>Give your NFTs intrinsic value</li>
+                        <li>Create "treasure" NFTs with hidden rewards</li>
+                        <li>Incentivize burning for token recycling</li>
+                        <li>Build deflationary mechanics</li>
+                      </ul>
+                      <p className="text-xs bg-muted/50 p-2 rounded mt-2">
+                        <strong>Note:</strong> Only available for Mint-on-Demand drops. 
+                        The tokens are locked when each NFT is minted.
+                      </p>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -743,6 +768,98 @@ export function CreateDrop() {
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isHidden: checked }))}
                 />
               </div>
+
+              {/* Token Backing - Only for Mint-on-Demand */}
+              {formData.dropType === 'mint-on-demand' && (
+                <div className="space-y-3 rounded-lg border border-border/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4 text-cheese" />
+                      <Label>Token Backing</Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        tokensToBack: [...prev.tokensToBack, { symbol: 'CHEESE', amount: '' }]
+                      }))}
+                      className="h-7 text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Token
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Lock tokens inside each NFT. Released when burned.
+                  </p>
+                  
+                  {formData.tokensToBack.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-2">
+                      No token backing configured
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.tokensToBack.map((token, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Select
+                            value={token.symbol}
+                            onValueChange={(value) => {
+                              const updated = [...formData.tokensToBack];
+                              updated[index] = { ...updated[index], symbol: value };
+                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
+                            }}
+                          >
+                            <SelectTrigger className="w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="CHEESE">CHEESE</SelectItem>
+                              <SelectItem value="WAX">WAX</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.0001"
+                            placeholder="Amount per NFT"
+                            value={token.amount}
+                            onChange={(e) => {
+                              const updated = [...formData.tokensToBack];
+                              updated[index] = { ...updated[index], amount: e.target.value };
+                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const updated = formData.tokensToBack.filter((_, i) => i !== index);
+                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
+                            }}
+                            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {formData.tokensToBack.length > 0 && formData.maxClaimable > 0 && (
+                    <div className="text-xs bg-cheese/10 text-cheese p-2 rounded">
+                      Total tokens needed: {formData.tokensToBack.map(t => {
+                        const amount = parseFloat(t.amount) || 0;
+                        const total = amount * formData.maxClaimable;
+                        return `${total.toLocaleString()} ${t.symbol}`;
+                      }).join(' + ')}
+                    </div>
+                  )}
+                </div>
+              )}
             </CollapsibleContent>
           </Collapsible>
 

@@ -20,6 +20,7 @@ export interface NFTDrop {
   settlementSymbol?: string;
   listingPrice?: string;
   currency?: string;
+  tokenContract?: string;
 }
 
 export interface AtomicSale {

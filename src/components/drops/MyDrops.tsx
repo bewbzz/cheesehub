@@ -69,7 +69,7 @@ export function MyDrops() {
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Drops Yet</h3>
           <p className="text-muted-foreground mb-6">
-            You haven't created any drops. Create your first drop to start selling NFTs!
+            You haven't created any drops. To create drops, you need to be an authorized account on a WAX NFT collection.
           </p>
         </CardContent>
       </Card>
@@ -120,7 +120,7 @@ export function MyDrops() {
                 <div>
                   <h3 className="font-semibold truncate">{drop.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {drop.price.toLocaleString()} CHEESE
+                    {drop.price.toLocaleString()} {drop.currency}
                   </p>
                 </div>
 

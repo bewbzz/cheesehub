@@ -50,13 +50,13 @@ export function CreateDrop() {
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
-  // Find CHEESE token or use first available as default
-  const getDefaultPriceToken = () => {
-    const cheese = whitelistedTokens.find(t => t.symbol === 'CHEESE');
+  // Get CHEESE token or first available as default
+  const getDefaultPriceToken = (tokens: typeof DEFAULT_TOKENS) => {
+    const cheese = tokens.find(t => t.symbol === 'CHEESE');
     if (cheese) {
       return { contract: cheese.token_contract, symbol: cheese.symbol, precision: cheese.precision };
     }
-    const first = whitelistedTokens[0] || DEFAULT_TOKENS[0];
+    const first = tokens[0] || DEFAULT_TOKENS[0];
     return { contract: first.token_contract, symbol: first.symbol, precision: first.precision };
   };
 
@@ -67,7 +67,7 @@ export function CreateDrop() {
     name: "",
     description: "",
     price: 0,
-    priceToken: getDefaultPriceToken(),
+    priceToken: getDefaultPriceToken(DEFAULT_TOKENS),
     maxClaimable: 100,
     accountLimit: 1,
     startTime: new Date(),
@@ -77,6 +77,21 @@ export function CreateDrop() {
     assetIds: [],
     tokensToBack: [],
   });
+
+  // Update default price token when whitelist loads (ensure CHEESE is selected)
+  useEffect(() => {
+    const cheeseToken = whitelistedTokens.find(t => t.symbol === 'CHEESE');
+    if (cheeseToken && formData.priceToken.symbol !== 'CHEESE') {
+      setFormData(prev => ({
+        ...prev,
+        priceToken: {
+          contract: cheeseToken.token_contract,
+          symbol: cheeseToken.symbol,
+          precision: cheeseToken.precision,
+        },
+      }));
+    }
+  }, [whitelistedTokens]);
 
   // Fetch user's NFTs for pre-mint when collection is selected
   const { data: userAssets = [], isLoading: assetsLoading } = useQuery({
@@ -152,7 +167,7 @@ export function CreateDrop() {
         name: "",
         description: "",
         price: 0,
-        priceToken: getDefaultPriceToken(),
+        priceToken: getDefaultPriceToken(whitelistedTokens),
         maxClaimable: 100,
         accountLimit: 1,
         startTime: new Date(),

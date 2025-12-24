@@ -44,11 +44,23 @@ export interface DropFormData {
   tokensToBack: TokenBacking[];
 }
 
-// Default tokens as fallback
+// Default tokens as fallback - CHEESE first as the default
 export const DEFAULT_TOKENS: WhitelistedToken[] = [
+  { token_contract: 'token.cheese', token_symbol: '4,CHEESE', symbol: 'CHEESE', precision: 4 },
   { token_contract: 'eosio.token', token_symbol: '8,WAX', symbol: 'WAX', precision: 8 },
   { token_contract: 'token.nefty', token_symbol: '8,NEFTY', symbol: 'NEFTY', precision: 8 },
 ];
+
+/**
+ * Sort tokens to ensure CHEESE is always first
+ */
+function sortTokensWithCheeseFirst(tokens: WhitelistedToken[]): WhitelistedToken[] {
+  return [...tokens].sort((a, b) => {
+    if (a.symbol === 'CHEESE') return -1;
+    if (b.symbol === 'CHEESE') return 1;
+    return a.symbol.localeCompare(b.symbol);
+  });
+}
 
 /**
  * Fetch whitelisted tokens from nfthivedrops contract
@@ -71,7 +83,7 @@ export async function fetchWhitelistedTokens(): Promise<WhitelistedToken[]> {
     console.log('🧀 Whitelist response:', data);
 
     if (data.rows && data.rows.length > 0) {
-      return data.rows.map((row: { token_contract: string; token_symbol: string }) => {
+      const tokens = data.rows.map((row: { token_contract: string; token_symbol: string }) => {
         // Parse "8,WAX" format to extract precision and symbol
         const [precisionStr, symbol] = row.token_symbol.split(',');
         return {
@@ -81,6 +93,7 @@ export async function fetchWhitelistedTokens(): Promise<WhitelistedToken[]> {
           precision: parseInt(precisionStr) || 8,
         };
       });
+      return sortTokensWithCheeseFirst(tokens);
     }
 
     console.log('🧀 No whitelist rows found, using defaults');

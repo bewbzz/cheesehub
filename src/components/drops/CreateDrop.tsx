@@ -736,9 +736,9 @@ export function CreateDrop() {
           {/* Advanced Settings */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" type="button" className="w-full justify-between">
+              <Button variant="ghost" type="button" className="w-full justify-between bg-cheese/20 hover:bg-cheese/30 text-cheese border border-cheese/30">
                 Advanced Settings
-                <span className="text-xs text-muted-foreground">{showAdvanced ? '▲' : '▼'}</span>
+                <span className="text-xs">{showAdvanced ? '▲' : '▼'}</span>
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 pt-4">

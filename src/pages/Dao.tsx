@@ -5,6 +5,7 @@ import { CreateDao } from "@/components/dao/CreateDao";
 import { MyDaos } from "@/components/dao/MyDaos";
 import { Users, Plus, User } from "lucide-react";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
+import cheeseLogo from "@/assets/cheese-logo.png";
 
 export default function Dao() {
   return (
@@ -13,15 +14,19 @@ export default function Dao() {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-cheese/5 to-transparent" />
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              <span className="text-cheese">CHEESE</span>
+          <div className="flex flex-col items-center text-center">
+            <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
+              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+            </div>
+
+            <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+              <span className="text-primary cheese-text-glow">CHEESE</span>
               <span className="text-foreground">Dao</span>
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
               Create and manage decentralized autonomous organizations on WAX.
               Propose, vote, and govern your community with on-chain transparency.
             </p>

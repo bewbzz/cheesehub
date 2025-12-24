@@ -5,15 +5,20 @@ import { CartDrawer } from "@/components/drops/CartDrawer";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllDrops, fetchNFTHiveDrops } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import type { NFTDrop } from "@/types/drop";
-import { Package, Plus, Grid, Sandwich } from "lucide-react";
+import { Package, Plus, Grid, Sandwich, RefreshCw } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
+import { useState } from "react";
 
 const Drops = () => {
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Fetch all drops for Browse tab
   const { data: drops, isLoading, error } = useQuery({
     queryKey: ['drops'],
@@ -32,6 +37,15 @@ const Drops = () => {
 
   const displayDrops: NFTDrop[] = drops || [];
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['drops'] }),
+      queryClient.invalidateQueries({ queryKey: ['cheese-drops'] }),
+    ]);
+    setIsRefreshing(false);
+  };
+
   return (
     <div className="min-h-screen bg-background grid-pattern relative">
       <BackgroundDecorations />
@@ -40,25 +54,35 @@ const Drops = () => {
 
       <main className="container pb-20">
         <Tabs defaultValue="cheese" className="w-full">
-          <TabsList className="mb-8 grid w-full max-w-lg grid-cols-4 mx-auto">
-            <TabsTrigger value="browse" className="flex items-center gap-2">
-              <Grid className="h-4 w-4" />
-              <span className="hidden sm:inline">Browse</span>
-            </TabsTrigger>
-            <TabsTrigger value="cheese" className="flex items-center gap-2">
-              <Sandwich className="h-4 w-4" />
-              <span className="hidden sm:inline">CHEESE</span>
-            </TabsTrigger>
-            <TabsTrigger value="my-drops" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">My Drops</span>
-            </TabsTrigger>
-            <TabsTrigger value="create" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Create</span>
-            </TabsTrigger>
-          </TabsList>
-
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <TabsList className="grid w-full max-w-lg grid-cols-4">
+              <TabsTrigger value="browse" className="flex items-center gap-2">
+                <Grid className="h-4 w-4" />
+                <span className="hidden sm:inline">Browse</span>
+              </TabsTrigger>
+              <TabsTrigger value="cheese" className="flex items-center gap-2">
+                <Sandwich className="h-4 w-4" />
+                <span className="hidden sm:inline">CHEESE</span>
+              </TabsTrigger>
+              <TabsTrigger value="my-drops" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">My Drops</span>
+              </TabsTrigger>
+              <TabsTrigger value="create" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Create</span>
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing || isLoading || isLoadingCheese}
+              className="shrink-0"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <TabsContent value="browse">
             <div className="mb-8 flex items-center justify-between">
               <h2 className="font-display text-3xl font-bold text-foreground">

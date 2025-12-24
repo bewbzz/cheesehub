@@ -30,7 +30,7 @@ const Drops = () => {
       <DropsHero drops={displayDrops} isLoading={isLoading} />
 
       <main className="container pb-20">
-        <Tabs defaultValue="browse" className="w-full">
+        <Tabs defaultValue="cheese" className="w-full">
           <TabsList className="mb-8 grid w-full max-w-lg grid-cols-4 mx-auto">
             <TabsTrigger value="browse" className="flex items-center gap-2">
               <Grid className="h-4 w-4" />
@@ -38,7 +38,7 @@ const Drops = () => {
             </TabsTrigger>
             <TabsTrigger value="cheese" className="flex items-center gap-2">
               <Sandwich className="h-4 w-4" />
-              <span className="hidden sm:inline">Cheese</span>
+              <span className="hidden sm:inline">CHEESE</span>
             </TabsTrigger>
             <TabsTrigger value="my-drops" className="flex items-center gap-2">
               <Package className="h-4 w-4" />

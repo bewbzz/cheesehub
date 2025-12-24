@@ -404,3 +404,104 @@ export async function fetchUserNFTsBySchema(
     return [];
   }
 }
+
+// Fetch collections the user is authorized to create drops for
+export async function fetchUserCollections(account: string): Promise<string[]> {
+  try {
+    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.collections}`);
+    url.searchParams.set('authorized_account', account);
+    url.searchParams.set('limit', '100');
+
+    const response = await fetch(url.toString());
+    const json = await response.json();
+
+    if (!json.success || !json.data) {
+      return [];
+    }
+
+    return json.data.map((c: { collection_name: string }) => c.collection_name);
+  } catch (error) {
+    console.error('Error fetching user collections:', error);
+    return [];
+  }
+}
+
+// Fetch template by ID for preview
+export async function fetchTemplateById(
+  templateId: string,
+  collectionName?: string
+): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number } | null> {
+  try {
+    let url = `${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.templates}/${templateId}`;
+    if (collectionName) {
+      url = `${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.templates}/${collectionName}/${templateId}`;
+    }
+
+    const response = await fetch(url);
+    const json = await response.json();
+
+    if (!json.success || !json.data) {
+      return null;
+    }
+
+    const template = json.data;
+    const data = template.immutable_data || {};
+
+    return {
+      name: data.name || template.name || `Template #${templateId}`,
+      image: getImageUrl(data.img || data.image),
+      maxSupply: parseInt(template.max_supply) || 0,
+      issuedSupply: parseInt(template.issued_supply) || 0,
+    };
+  } catch (error) {
+    console.error('Error fetching template:', error);
+    return null;
+  }
+}
+
+// Fetch drops created by a specific user
+export async function fetchUserDrops(account: string): Promise<Array<{
+  dropId: number;
+  name: string;
+  image: string;
+  price: number;
+  maxClaimable: number;
+  numClaimed: number;
+  startTime: number;
+  endTime: number;
+}>> {
+  try {
+    // Use NFT Hive API to fetch drops by authorized account
+    const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops?authorized_account=${account}`;
+
+    const response = await fetch(url);
+    const drops = await response.json() as NFTHiveDrop[];
+
+    return drops.map((drop) => {
+      const template = drop.templatesToMint?.[0];
+      const immutableData = template?.immutableData || [];
+      
+      const getData = (data: Array<{ key: string; value: [string, string] }>, key: string): string => {
+        const item = data.find(d => d.key === key);
+        return item?.value?.[1] || '';
+      };
+
+      const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
+      const img = getData(immutableData, 'img') || getData(immutableData, 'image');
+
+      return {
+        dropId: drop.dropId,
+        name,
+        image: getImageUrl(img),
+        price: drop.price,
+        maxClaimable: drop.maxClaimable || 0,
+        numClaimed: drop.numClaimed || 0,
+        startTime: drop.startTime,
+        endTime: drop.endTime,
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching user drops:', error);
+    return [];
+  }
+}

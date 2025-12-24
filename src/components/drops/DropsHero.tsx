@@ -28,7 +28,7 @@ export function DropsHero({ drops = [], isLoading = false }: DropsHeroProps) {
           </div>
 
           <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            <span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Drops</span>
+            <span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Drop</span>
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">

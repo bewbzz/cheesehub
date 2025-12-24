@@ -182,6 +182,7 @@ export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
           settlementSymbol: `4,${drop.currency}`,
           listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
           currency: drop.currency,
+          tokenContract: drop.contract,
         };
       });
   } catch (error) {
@@ -526,47 +527,53 @@ export async function fetchUserAssets(
   }
 }
 
-// Fetch drops created by a specific user
+// Fetch drops created by a specific user (based on their authorized collections)
 export async function fetchUserDrops(account: string): Promise<Array<{
   dropId: number;
   name: string;
   image: string;
   price: number;
+  currency: string;
   maxClaimable: number;
   numClaimed: number;
   startTime: number;
   endTime: number;
+  collectionName: string;
 }>> {
   try {
-    // Use NFT Hive API to fetch drops by authorized account
-    const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops?authorized_account=${account}`;
-
-    const response = await fetch(url);
-    const drops = await response.json() as NFTHiveDrop[];
-
-    return drops.map((drop) => {
-      const template = drop.templatesToMint?.[0];
-      const immutableData = template?.immutableData || [];
-      
-      const getData = (data: Array<{ key: string; value: [string, string] }>, key: string): string => {
-        const item = data.find(d => d.key === key);
-        return item?.value?.[1] || '';
-      };
-
-      const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
-      const img = getData(immutableData, 'img') || getData(immutableData, 'image');
-
-      return {
-        dropId: drop.dropId,
-        name,
-        image: getImageUrl(img),
-        price: drop.price,
-        maxClaimable: drop.maxClaimable || 0,
-        numClaimed: drop.numClaimed || 0,
-        startTime: drop.startTime,
-        endTime: drop.endTime,
-      };
-    });
+    // Step 1: Get collections where user is an authorized account
+    const userCollections = await fetchUserCollections(account);
+    
+    if (userCollections.length === 0) {
+      console.log('User has no authorized collections');
+      return [];
+    }
+    
+    console.log('User authorized for collections:', userCollections);
+    
+    // Step 2: Fetch all NFTHive drops
+    const allDrops = await fetchNFTHiveDrops();
+    
+    // Step 3: Filter to only drops from user's collections
+    const userDrops = allDrops.filter(drop => 
+      userCollections.includes(drop.collectionName)
+    );
+    
+    console.log('Found', userDrops.length, 'drops from user collections');
+    
+    // Step 4: Map to the expected return format
+    return userDrops.map(drop => ({
+      dropId: parseInt(drop.dropId || drop.id.replace('nfthive-', '')),
+      name: drop.name,
+      image: drop.image,
+      price: drop.price,
+      currency: drop.currency || 'WAX',
+      maxClaimable: drop.totalSupply || 0,
+      numClaimed: (drop.totalSupply || 0) - (drop.remaining || 0),
+      startTime: 0,
+      endTime: drop.endDate ? Math.floor(new Date(drop.endDate).getTime() / 1000) : 0,
+      collectionName: drop.collectionName,
+    }));
   } catch (error) {
     console.error('Error fetching user drops:', error);
     return [];

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { NFTDrop } from "@/types/drop";
 import { Package, Plus, Grid, Sandwich } from "lucide-react";
+import { CHEESE_CONFIG } from "@/lib/waxConfig";
 
 const Drops = () => {
   const { data: drops, isLoading, error } = useQuery({
@@ -21,8 +22,9 @@ const Drops = () => {
   });
 
   const displayDrops: NFTDrop[] = drops || [];
+  // Filter by token contract (cheeseburger) to show only CHEESE purchasable drops
   const cheeseDrops: NFTDrop[] = displayDrops.filter(
-    drop => drop.collectionName === 'cheesenftwax' || drop.currency === 'CHEESE'
+    drop => drop.tokenContract === CHEESE_CONFIG.tokenContract
   );
 
   return (
@@ -108,7 +110,7 @@ const Drops = () => {
               <h2 className="font-display text-3xl font-bold text-foreground">
                 $CHEESE Drops
               </h2>
-              <p className="text-muted-foreground mt-2">Official drops from the cheesenftwax collection</p>
+              <p className="text-muted-foreground mt-2">Drops purchasable with $CHEESE token</p>
             </div>
 
             {isLoading ? (

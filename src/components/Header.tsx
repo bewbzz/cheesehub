@@ -58,7 +58,7 @@ export function Header() {
               <Lock className="h-4 w-4" />
               CHEESELock
             </Link>
-            {/* CHEESEDrops */}
+            {/* CHEESEDrop */}
             <Link
               to="/drops"
               className={cn(
@@ -69,7 +69,7 @@ export function Header() {
               )}
             >
               <ShoppingBag className="h-4 w-4" />
-              CHEESEDrops
+              CHEESEDrop
             </Link>
             {/* CHEESEDao */}
             <Link

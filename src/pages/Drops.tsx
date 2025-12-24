@@ -47,7 +47,7 @@ const Drops = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background grid-pattern relative">
+    <div className="min-h-screen bg-background relative">
       <BackgroundDecorations />
       <Header />
       <DropsHero drops={displayDrops} isLoading={isLoading} />

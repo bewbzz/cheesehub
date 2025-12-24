@@ -1,6 +1,9 @@
 import { NFTHIVE_CONFIG, CHEESE_CONFIG } from './waxConfig';
 
+export type DropType = 'mint-on-demand' | 'premint';
+
 export interface DropFormData {
+  dropType: DropType;
   collectionName: string;
   templateId: string;
   name: string;
@@ -12,6 +15,8 @@ export interface DropFormData {
   endTime: Date;
   isHidden: boolean;
   priceRecipient: string;
+  // Pre-mint specific
+  assetIds: string[];
 }
 
 export interface PriceRecipient {
@@ -36,6 +41,23 @@ export function buildBoostAction(account: string) {
 }
 
 /**
+ * Build transfer action to deposit NFTs to nfthivedrops for pre-mint drops
+ */
+export function buildTransferAction(account: string, assetIds: string[]) {
+  return {
+    account: 'atomicassets',
+    name: 'transfer',
+    authorization: [{ actor: account, permission: 'active' }],
+    data: {
+      from: account,
+      to: NFTHIVE_CONFIG.dropContract,
+      asset_ids: assetIds,
+      memo: 'deposit',
+    },
+  };
+}
+
+/**
  * Build the createdrop action for nfthivedrops contract
  * Based on transaction: 2961df8064cb302b47751d7e5f7bf4cf2b62d00f0036249a8fca9a8e36366783
  */
@@ -53,6 +75,12 @@ export function buildCreateDropAction(
     }
   ];
 
+  // For pre-mint drops: template_id = -1, assets_to_mint contains the asset IDs
+  // For mint-on-demand: template_id = actual ID, assets_to_mint is empty
+  const isPremint = data.dropType === 'premint';
+  const templateId = isPremint ? -1 : parseInt(data.templateId);
+  const assetsToMint = isPremint ? data.assetIds : [];
+
   return {
     account: NFTHIVE_CONFIG.dropContract,
     name: 'createdrop',
@@ -60,7 +88,7 @@ export function buildCreateDropAction(
     data: {
       authorized_account: account,
       collection_name: data.collectionName,
-      template_id: parseInt(data.templateId),
+      template_id: templateId,
       listing_prices: [listingPrice],
       settlement_symbol: settlementSymbol,
       price_recipients: priceRecipients,
@@ -76,19 +104,28 @@ export function buildCreateDropAction(
       is_hidden: data.isHidden ? 1 : 0,
       auth_required: 0,
       pool_id: 0,
-      assets_to_mint: [],
+      assets_to_mint: assetsToMint,
       tokens_to_back: [],
     },
   };
 }
 
 /**
- * Build both actions needed for a complete drop creation
+ * Build all actions needed for a complete drop creation
+ * - Mint-on-demand: boost + createdrop
+ * - Pre-mint: transfer + createdrop
  */
 export function buildDropCreationActions(
   account: string,
   data: DropFormData
 ) {
+  if (data.dropType === 'premint') {
+    return [
+      buildTransferAction(account, data.assetIds), // Action 1: Transfer NFTs to contract
+      buildCreateDropAction(account, data)          // Action 2: Create drop
+    ];
+  }
+  
   return [
     buildBoostAction(account),           // Action 1: Reserve RAM
     buildCreateDropAction(account, data) // Action 2: Create drop
@@ -103,13 +140,23 @@ export function validateDropFormData(data: DropFormData): string | null {
     return 'Collection name is required';
   }
   
-  if (!data.templateId.trim()) {
-    return 'Template ID is required';
+  // Template ID only required for mint-on-demand
+  if (data.dropType === 'mint-on-demand') {
+    if (!data.templateId.trim()) {
+      return 'Template ID is required for mint-on-demand drops';
+    }
+    
+    const templateIdNum = parseInt(data.templateId);
+    if (isNaN(templateIdNum) || templateIdNum <= 0) {
+      return 'Template ID must be a positive number';
+    }
   }
   
-  const templateIdNum = parseInt(data.templateId);
-  if (isNaN(templateIdNum) || templateIdNum <= 0) {
-    return 'Template ID must be a positive number';
+  // Asset IDs required for pre-mint
+  if (data.dropType === 'premint') {
+    if (!data.assetIds || data.assetIds.length === 0) {
+      return 'Please select at least one NFT for pre-mint drop';
+    }
   }
   
   if (!data.name.trim()) {

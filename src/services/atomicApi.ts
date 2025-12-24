@@ -459,6 +459,56 @@ export async function fetchTemplateById(
   }
 }
 
+// Fetch user's owned NFTs for pre-mint drops
+export async function fetchUserAssets(
+  account: string,
+  collectionName?: string
+): Promise<Array<{
+  asset_id: string;
+  name: string;
+  image: string;
+  collection: string;
+  template_id: string;
+  mint: string;
+}>> {
+  try {
+    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.assets || '/atomicassets/v1/assets'}`);
+    url.searchParams.set('owner', account);
+    if (collectionName) {
+      url.searchParams.set('collection_name', collectionName);
+    }
+    url.searchParams.set('limit', '100');
+    url.searchParams.set('order', 'desc');
+    url.searchParams.set('sort', 'asset_id');
+
+    const response = await fetch(url.toString());
+    const json = await response.json();
+
+    if (!json.success || !json.data) {
+      return [];
+    }
+
+    return json.data.map((asset: {
+      asset_id: string;
+      name?: string;
+      data?: { name?: string; img?: string; image?: string };
+      collection?: { collection_name?: string };
+      template?: { template_id?: string };
+      template_mint?: string;
+    }) => ({
+      asset_id: asset.asset_id,
+      name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+      image: getImageUrl(asset.data?.img || asset.data?.image),
+      collection: asset.collection?.collection_name || '',
+      template_id: asset.template?.template_id || '',
+      mint: asset.template_mint || '',
+    }));
+  } catch (error) {
+    console.error('Error fetching user assets:', error);
+    return [];
+  }
+}
+
 // Fetch drops created by a specific user
 export async function fetchUserDrops(account: string): Promise<Array<{
   dropId: number;

@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
-import { buildDropCreationActions, validateDropFormData, DropFormData } from "@/lib/drops";
+import { buildDropCreationActions, validateDropFormData, DropFormData, DropType } from "@/lib/drops";
 import { toast } from "sonner";
-import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,8 +18,9 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchUserCollections, fetchTemplateById } from "@/services/atomicApi";
+import { fetchUserCollections, fetchTemplateById, fetchUserAssets } from "@/services/atomicApi";
 import { useQuery } from "@tanstack/react-query";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
@@ -43,6 +44,7 @@ export function CreateDrop() {
   });
 
   const [formData, setFormData] = useState<DropFormData>({
+    dropType: 'mint-on-demand',
     collectionName: "",
     templateId: "",
     name: "",
@@ -54,6 +56,14 @@ export function CreateDrop() {
     endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
     isHidden: false,
     priceRecipient: "",
+    assetIds: [],
+  });
+
+  // Fetch user's NFTs for pre-mint when collection is selected
+  const { data: userAssets = [], isLoading: assetsLoading } = useQuery({
+    queryKey: ['userAssets', accountName, formData.collectionName],
+    queryFn: () => fetchUserAssets(accountName, formData.collectionName || undefined),
+    enabled: !!accountName && formData.dropType === 'premint',
   });
 
   // Fetch template preview when templateId changes
@@ -98,16 +108,23 @@ export function CreateDrop() {
       return;
     }
 
+    // For pre-mint, set maxClaimable to asset count
+    const submissionData = {
+      ...formData,
+      maxClaimable: formData.dropType === 'premint' ? formData.assetIds.length : formData.maxClaimable,
+    };
+
     setLoading(true);
     try {
-      const actions = buildDropCreationActions(String(session.actor), formData);
+      const actions = buildDropCreationActions(String(session.actor), submissionData);
 
       await session.transact({ actions });
-      
+
       toast.success("Drop created successfully!");
       
       // Reset form
       setFormData({
+        dropType: 'mint-on-demand',
         collectionName: "",
         templateId: "",
         name: "",
@@ -119,6 +136,7 @@ export function CreateDrop() {
         endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         isHidden: false,
         priceRecipient: "",
+        assetIds: [],
       });
       setTemplatePreview(null);
     } catch (error) {
@@ -269,19 +287,27 @@ export function CreateDrop() {
 
                   <AccordionItem value="ram" className="border border-border/50 rounded-lg px-4">
                     <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                      RAM & Boost Requirements
+                      Mint-on-Demand vs Pre-mint
                     </AccordionTrigger>
-                    <AccordionContent className="text-sm text-foreground space-y-2">
-                      <p>
-                        Drops on NFT Hive use "mint-on-demand" - NFTs are minted when claimed, not upfront.
-                      </p>
-                      <p>
-                        When you create a drop, we automatically send a <strong className="text-cheese">boost</strong> action 
-                        to the <code className="text-cheese">nft.hive</code> contract which reserves RAM for future minting.
-                      </p>
-                      <p className="text-xs bg-muted/50 p-2 rounded">
-                        💡 This is handled automatically - no extra steps needed on your part!
-                      </p>
+                    <AccordionContent className="text-sm text-foreground space-y-4">
+                      <div>
+                        <p className="font-medium text-cheese">Mint-on-Demand (Recommended)</p>
+                        <ul className="text-xs mt-1 list-disc list-inside space-y-1 ml-2">
+                          <li>NFTs are created automatically when buyers claim</li>
+                          <li>Requires WAX RAM (handled automatically via boost action)</li>
+                          <li>Just specify a template ID and max supply</li>
+                          <li>Best for: Most drops, especially large supplies</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="font-medium text-cheese">Pre-mint</p>
+                        <ul className="text-xs mt-1 list-disc list-inside space-y-1 ml-2">
+                          <li>Use NFTs you've already minted</li>
+                          <li>No RAM required - NFTs already exist</li>
+                          <li>Full control over exact mint numbers</li>
+                          <li>Best for: Specific serialized NFTs, backed NFTs, rare 1/1s</li>
+                        </ul>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
@@ -291,72 +317,242 @@ export function CreateDrop() {
           </Dialog>
         </div>
         <CardDescription>
-          Create an NFT drop priced in CHEESE on NFT Hive. You must have an existing template to create a drop.
+          Create an NFT drop priced in CHEESE on NFT Hive.
         </CardDescription>
       </CardHeader>
 
       <CardContent>
         <form onSubmit={handleCreate} className="space-y-6">
-          {/* Collection & Template */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="collectionName">Collection Name *</Label>
-              {userCollections.length > 0 ? (
-                <Select
-                  value={formData.collectionName}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, collectionName: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select collection" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userCollections.map((collection) => (
-                      <SelectItem key={collection} value={collection}>
-                        {collection}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id="collectionName"
-                  placeholder="e.g. cheesenftwax"
-                  value={formData.collectionName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, collectionName: e.target.value.toLowerCase() }))}
-                />
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="templateId">Template ID *</Label>
-              <Input
-                id="templateId"
-                placeholder="e.g. 894299"
-                value={formData.templateId}
-                onChange={(e) => setFormData(prev => ({ ...prev, templateId: e.target.value.replace(/\D/g, '') }))}
-              />
+          {/* Drop Type Selector */}
+          <div className="space-y-3">
+            <Label>Drop Type</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, dropType: 'mint-on-demand', assetIds: [] }))}
+                className={cn(
+                  "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all",
+                  formData.dropType === 'mint-on-demand'
+                    ? "border-cheese bg-cheese/10"
+                    : "border-border/50 hover:border-cheese/50"
+                )}
+              >
+                <div className={cn(
+                  "rounded-full p-2",
+                  formData.dropType === 'mint-on-demand' ? "bg-cheese/20" : "bg-muted"
+                )}>
+                  <Zap className={cn(
+                    "h-5 w-5",
+                    formData.dropType === 'mint-on-demand' ? "text-cheese" : "text-muted-foreground"
+                  )} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Mint-on-Demand</span>
+                    <span className="text-[10px] bg-cheese/20 text-cheese px-1.5 py-0.5 rounded">Recommended</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    NFTs are created when buyers claim. Just specify a template.
+                  </p>
+                </div>
+                {formData.dropType === 'mint-on-demand' && (
+                  <Check className="h-5 w-5 text-cheese" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, dropType: 'premint', templateId: '' }))}
+                className={cn(
+                  "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all",
+                  formData.dropType === 'premint'
+                    ? "border-cheese bg-cheese/10"
+                    : "border-border/50 hover:border-cheese/50"
+                )}
+              >
+                <div className={cn(
+                  "rounded-full p-2",
+                  formData.dropType === 'premint' ? "bg-cheese/20" : "bg-muted"
+                )}>
+                  <Package className={cn(
+                    "h-5 w-5",
+                    formData.dropType === 'premint' ? "text-cheese" : "text-muted-foreground"
+                  )} />
+                </div>
+                <div className="flex-1">
+                  <span className="font-medium">Pre-mint</span>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use existing NFTs from your wallet. No RAM needed.
+                  </p>
+                </div>
+                {formData.dropType === 'premint' && (
+                  <Check className="h-5 w-5 text-cheese" />
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Template Preview */}
-          {templatePreview && (
-            <div className="flex items-center gap-4 p-4 rounded-lg border border-cheese/30 bg-cheese/5">
-              <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted">
-                <img 
-                  src={templatePreview.image} 
-                  alt={templatePreview.name}
-                  className="h-full w-full object-cover"
+          {/* Collection Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="collectionName">Collection Name *</Label>
+            {userCollections.length > 0 ? (
+              <Select
+                value={formData.collectionName}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, collectionName: value, assetIds: [] }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select collection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {userCollections.map((collection) => (
+                    <SelectItem key={collection} value={collection}>
+                      {collection}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="collectionName"
+                placeholder="e.g. cheesenftwax"
+                value={formData.collectionName}
+                onChange={(e) => setFormData(prev => ({ ...prev, collectionName: e.target.value.toLowerCase(), assetIds: [] }))}
+              />
+            )}
+          </div>
+
+          {/* Template ID - Only for Mint-on-Demand */}
+          {formData.dropType === 'mint-on-demand' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="templateId">Template ID *</Label>
+                <Input
+                  id="templateId"
+                  placeholder="e.g. 894299"
+                  value={formData.templateId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, templateId: e.target.value.replace(/\D/g, '') }))}
                 />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="h-4 w-4 text-cheese" />
-                  <span className="font-medium">{templatePreview.name}</span>
+
+              {/* Template Preview */}
+              {templatePreview && (
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-cheese/30 bg-cheese/5">
+                  <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted">
+                    <img 
+                      src={templatePreview.image} 
+                      alt={templatePreview.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4 text-cheese" />
+                      <span className="font-medium">{templatePreview.name}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Supply: {templatePreview.issuedSupply} / {templatePreview.maxSupply === 0 ? '∞' : templatePreview.maxSupply}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Supply: {templatePreview.issuedSupply} / {templatePreview.maxSupply === 0 ? '∞' : templatePreview.maxSupply}
-                </p>
-              </div>
+              )}
+            </>
+          )}
+
+          {/* NFT Picker - Only for Pre-mint */}
+          {formData.dropType === 'premint' && (
+            <div className="space-y-3">
+              <Label>Select NFTs to Drop *</Label>
+              {!formData.collectionName ? (
+                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
+                  <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Select a collection first to see your NFTs
+                  </p>
+                </div>
+              ) : assetsLoading ? (
+                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
+                  <Loader2 className="h-8 w-8 mx-auto text-cheese animate-spin mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading your NFTs...</p>
+                </div>
+              ) : userAssets.length === 0 ? (
+                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
+                  <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    No NFTs found in this collection
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">
+                      {formData.assetIds.length} of {userAssets.length} selected
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.assetIds.length === userAssets.length) {
+                          setFormData(prev => ({ ...prev, assetIds: [] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, assetIds: userAssets.map(a => a.asset_id) }));
+                        }
+                      }}
+                    >
+                      {formData.assetIds.length === userAssets.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-64 border border-border/50 rounded-lg">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2">
+                      {userAssets.map((asset) => {
+                        const isSelected = formData.assetIds.includes(asset.asset_id);
+                        return (
+                          <button
+                            key={asset.asset_id}
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                assetIds: isSelected
+                                  ? prev.assetIds.filter(id => id !== asset.asset_id)
+                                  : [...prev.assetIds, asset.asset_id],
+                              }));
+                            }}
+                            className={cn(
+                              "relative flex flex-col items-center p-2 rounded-lg border-2 transition-all",
+                              isSelected
+                                ? "border-cheese bg-cheese/10"
+                                : "border-transparent bg-muted/50 hover:border-cheese/50"
+                            )}
+                          >
+                            <div className="relative w-full aspect-square rounded overflow-hidden mb-2">
+                              <img
+                                src={asset.image}
+                                alt={asset.name}
+                                className="w-full h-full object-cover"
+                              />
+                              {isSelected && (
+                                <div className="absolute inset-0 bg-cheese/20 flex items-center justify-center">
+                                  <Check className="h-8 w-8 text-cheese" />
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-medium truncate w-full text-center">
+                              {asset.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              #{asset.mint || asset.asset_id}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                  <p className="text-xs text-muted-foreground">
+                    These NFTs will be transferred to the drop contract when you create the drop.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -404,9 +600,15 @@ export function CreateDrop() {
                 type="number"
                 min="1"
                 placeholder="e.g. 100"
-                value={formData.maxClaimable}
+                value={formData.dropType === 'premint' ? formData.assetIds.length : formData.maxClaimable}
+                disabled={formData.dropType === 'premint'}
                 onChange={(e) => setFormData(prev => ({ ...prev, maxClaimable: parseInt(e.target.value) || 1 }))}
               />
+              {formData.dropType === 'premint' && (
+                <p className="text-xs text-muted-foreground">
+                  Auto-set based on selected NFTs
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -561,7 +763,10 @@ export function CreateDrop() {
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Creating a drop requires WAX for RAM. The drop will be live on NFT Hive.
+            {formData.dropType === 'premint' 
+              ? 'Your NFTs will be transferred to the drop contract. The drop will be live on NFT Hive.'
+              : 'Creating a drop requires WAX for RAM. The drop will be live on NFT Hive.'
+            }
           </p>
         </form>
       </CardContent>

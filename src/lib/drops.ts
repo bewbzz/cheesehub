@@ -2,6 +2,11 @@ import { NFTHIVE_CONFIG, CHEESE_CONFIG } from './waxConfig';
 
 export type DropType = 'mint-on-demand' | 'premint';
 
+export interface TokenBacking {
+  symbol: string;
+  amount: string;
+}
+
 export interface DropFormData {
   dropType: DropType;
   collectionName: string;
@@ -17,6 +22,8 @@ export interface DropFormData {
   priceRecipient: string;
   // Pre-mint specific
   assetIds: string[];
+  // Token backing
+  tokensToBack: TokenBacking[];
 }
 
 export interface PriceRecipient {
@@ -80,13 +87,24 @@ export function buildCreateDropAction(
   const isPremint = data.dropType === 'premint';
   const templateId = isPremint ? -1 : parseInt(data.templateId);
   
+  // Format tokens_to_back from form data
+  const tokensToBack = data.tokensToBack
+    .filter(t => t.symbol && t.amount && parseFloat(t.amount) > 0)
+    .map(t => ({
+      token_contract: t.symbol === 'WAX' ? 'eosio.token' : 'cheesewaxdao',
+      token_symbol: t.symbol === 'WAX' ? '8,WAX' : '4,CHEESE',
+      token_amount: t.symbol === 'WAX' 
+        ? `${parseFloat(t.amount).toFixed(8)} WAX`
+        : `${parseFloat(t.amount).toFixed(4)} CHEESE`
+    }));
+
   // Build assets_to_mint with nested template info for mint-on-demand
   const assetsToMint = isPremint 
     ? [] 
     : [{ 
         template_id: templateId,
         pool_id: 0,
-        tokens_to_back: []
+        tokens_to_back: tokensToBack
       }];
 
   // Debug logging to verify action structure
@@ -96,6 +114,7 @@ export function buildCreateDropAction(
     collectionName: data.collectionName,
     isPremint,
     assetsToMint,
+    tokensToBack,
     price: listingPrice,
   });
 

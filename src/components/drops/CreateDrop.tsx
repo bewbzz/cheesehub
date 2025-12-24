@@ -118,6 +118,9 @@ export function CreateDrop() {
     try {
       const actions = buildDropCreationActions(String(session.actor), submissionData);
 
+      // Debug: Log the complete actions array before submitting
+      console.log('🧀 Submitting drop creation with actions:', JSON.stringify(actions, null, 2));
+
       await session.transact({ actions });
 
       toast.success("Drop created successfully!");

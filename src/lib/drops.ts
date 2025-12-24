@@ -81,6 +81,18 @@ export function buildCreateDropAction(
   const templateId = isPremint ? -1 : parseInt(data.templateId);
   const assetsToMint = isPremint ? data.assetIds : [];
 
+  // Debug logging to verify action structure
+  console.log('🧀 Building drop action:', {
+    dropType: data.dropType,
+    templateIdRaw: data.templateId,
+    templateIdParsed: templateId,
+    collectionName: data.collectionName,
+    isPremint,
+    assetsToMint: assetsToMint.length,
+    price: listingPrice,
+    maxClaimable: data.maxClaimable,
+  });
+
   return {
     account: NFTHIVE_CONFIG.dropContract,
     name: 'createdrop',

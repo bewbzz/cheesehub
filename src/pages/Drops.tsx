@@ -31,13 +31,13 @@ const Drops = () => {
       <main className="container pb-20">
         <Tabs defaultValue="browse" className="w-full">
           <TabsList className="mb-8 grid w-full max-w-md grid-cols-3 mx-auto">
-            <TabsTrigger value="my-drops" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">My Drops</span>
-            </TabsTrigger>
             <TabsTrigger value="browse" className="flex items-center gap-2">
               <Grid className="h-4 w-4" />
               <span className="hidden sm:inline">Browse</span>
+            </TabsTrigger>
+            <TabsTrigger value="my-drops" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              <span className="hidden sm:inline">My Drops</span>
             </TabsTrigger>
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -45,7 +45,7 @@ const Drops = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="browse">
+          <TabsContent value="my-drops">
             <div className="mb-8 flex items-center justify-between">
               <h2 className="font-display text-3xl font-bold text-foreground">
                 Active Drops
@@ -92,7 +92,7 @@ const Drops = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="my-drops">
+          <TabsContent value="browse">
             <MyDrops />
           </TabsContent>
 

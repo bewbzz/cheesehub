@@ -76,15 +76,17 @@ export function MyDrops() {
     );
   }
 
+  // Filter to only show active or upcoming drops
+  const now = Date.now();
+  const filteredDrops = drops.filter((drop) => {
+    const endTime = drop.endTime * 1000;
+    return now < endTime; // Only show if not ended
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Your Drops ({drops.length})</h2>
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {drops.map((drop) => {
-          const now = Date.now();
+        {filteredDrops.map((drop) => {
           const startTime = drop.startTime * 1000;
           const endTime = drop.endTime * 1000;
           const isActive = now >= startTime && now < endTime;

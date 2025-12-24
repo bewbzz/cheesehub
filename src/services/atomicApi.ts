@@ -127,11 +127,11 @@ export async function fetchTemplates(): Promise<NFTDrop[]> {
   }
 }
 
-// Fetch NFT Hive drops that accept CHEESE
+// Fetch NFT Hive drops - all collections and currencies
 export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
   try {
-    // Use NFT Hive's own API endpoint
-    const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${CHEESE_CONFIG.collectionName}`;
+    // Fetch all drops from NFT Hive (no collection filter)
+    const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
 
     const response = await fetch(url);
     const drops = await response.json() as NFTHiveDrop[];
@@ -142,10 +142,8 @@ export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
       return item?.value?.[1] || '';
     };
 
-    // Filter drops that accept CHEESE and map to NFTDrop format
-    return drops
-      .filter((drop) => drop.currency === 'CHEESE')
-      .map((drop): NFTDrop => {
+    // Map all drops to NFTDrop format (no currency filter)
+    return drops.map((drop): NFTDrop => {
         const template = drop.templatesToMint?.[0];
         const immutableData = template?.immutableData || [];
 
@@ -170,7 +168,7 @@ export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
           id: `nfthive-${drop.dropId}`,
           dropId: String(drop.dropId),
           templateId: template?.templateId ? String(template.templateId) : undefined,
-          collectionName: drop.collection?.collectionName || CHEESE_CONFIG.collectionName,
+          collectionName: drop.collection?.collectionName || 'unknown',
           name,
           description,
           templateDescription,
@@ -183,6 +181,7 @@ export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
           dropSource: 'nfthive',
           settlementSymbol: `4,${drop.currency}`,
           listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
+          currency: drop.currency,
         };
       });
   } catch (error) {
@@ -290,7 +289,7 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
     // Handle NFT Hive drops
     if (dropId.startsWith('nfthive-')) {
       const nfthiveDropId = dropId.replace('nfthive-', '');
-      const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${CHEESE_CONFIG.collectionName}`;
+      const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
 
       const response = await fetch(url);
       const drops = await response.json() as NFTHiveDrop[];
@@ -326,7 +325,7 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
         id: `nfthive-${drop.dropId}`,
         dropId: String(drop.dropId),
         templateId: template?.templateId ? String(template.templateId) : undefined,
-        collectionName: drop.collection?.collectionName || CHEESE_CONFIG.collectionName,
+        collectionName: drop.collection?.collectionName || 'unknown',
         name,
         description,
         templateDescription,
@@ -339,6 +338,7 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
         dropSource: 'nfthive',
         settlementSymbol: `4,${drop.currency}`,
         listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
+        currency: drop.currency,
       };
     }
 

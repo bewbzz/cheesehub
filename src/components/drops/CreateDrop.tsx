@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDropAction, validateDropFormData, DropFormData } from "@/lib/drops";
+import { buildDropCreationActions, validateDropFormData, DropFormData } from "@/lib/drops";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -100,9 +100,9 @@ export function CreateDrop() {
 
     setLoading(true);
     try {
-      const createAction = buildCreateDropAction(String(session.actor), formData);
+      const actions = buildDropCreationActions(String(session.actor), formData);
 
-      await session.transact({ actions: [createAction] });
+      await session.transact({ actions });
       
       toast.success("Drop created successfully!");
       
@@ -264,6 +264,24 @@ export function CreateDrop() {
                           Useful for exclusive drops shared via direct link.
                         </p>
                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="ram" className="border border-border/50 rounded-lg px-4">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                      RAM & Boost Requirements
+                    </AccordionTrigger>
+                    <AccordionContent className="text-sm text-foreground space-y-2">
+                      <p>
+                        Drops on NFT Hive use "mint-on-demand" - NFTs are minted when claimed, not upfront.
+                      </p>
+                      <p>
+                        When you create a drop, we automatically send a <strong className="text-cheese">boost</strong> action 
+                        to the <code className="text-cheese">nft.hive</code> contract which reserves RAM for future minting.
+                      </p>
+                      <p className="text-xs bg-muted/50 p-2 rounded">
+                        💡 This is handled automatically - no extra steps needed on your part!
+                      </p>
                     </AccordionContent>
                   </AccordionItem>
 

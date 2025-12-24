@@ -16,6 +16,7 @@ export const CHEESE_CONFIG = {
 // NFT Hive Drop Contract Configuration
 export const NFTHIVE_CONFIG = {
   dropContract: 'nfthivedrops',
+  boostContract: 'nft.hive',
   apiUrl: 'https://wax-api.hivebp.io', // NFT Hive's own API
 };
 

@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
-import { buildDropCreationActions, validateDropFormData, DropFormData, DropType, TokenBacking } from "@/lib/drops";
+import { buildDropCreationActions, validateDropFormData, DropFormData, DropType, TokenBacking, fetchWhitelistedTokens, WhitelistedToken, DEFAULT_TOKENS } from "@/lib/drops";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -43,6 +43,23 @@ export function CreateDrop() {
     enabled: !!accountName,
   });
 
+  // Fetch whitelisted tokens from nfthivedrops contract
+  const { data: whitelistedTokens = DEFAULT_TOKENS } = useQuery({
+    queryKey: ['nfthive-whitelist'],
+    queryFn: fetchWhitelistedTokens,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Find CHEESE token or use first available as default
+  const getDefaultPriceToken = () => {
+    const cheese = whitelistedTokens.find(t => t.symbol === 'CHEESE');
+    if (cheese) {
+      return { contract: cheese.token_contract, symbol: cheese.symbol, precision: cheese.precision };
+    }
+    const first = whitelistedTokens[0] || DEFAULT_TOKENS[0];
+    return { contract: first.token_contract, symbol: first.symbol, precision: first.precision };
+  };
+
   const [formData, setFormData] = useState<DropFormData>({
     dropType: 'mint-on-demand',
     collectionName: "",
@@ -50,6 +67,7 @@ export function CreateDrop() {
     name: "",
     description: "",
     price: 0,
+    priceToken: getDefaultPriceToken(),
     maxClaimable: 100,
     accountLimit: 1,
     startTime: new Date(),
@@ -134,6 +152,7 @@ export function CreateDrop() {
         name: "",
         description: "",
         price: 0,
+        priceToken: getDefaultPriceToken(),
         maxClaimable: 100,
         accountLimit: 1,
         startTime: new Date(),
@@ -345,7 +364,7 @@ export function CreateDrop() {
           </Dialog>
         </div>
         <CardDescription>
-          Create an NFT drop priced in CHEESE on NFT Hive.
+          Create an NFT drop on NFT Hive. Price in any supported token.
         </CardDescription>
       </CardHeader>
 
@@ -609,16 +628,46 @@ export function CreateDrop() {
           {/* Price & Supply */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="price">Price (CHEESE) *</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.0001"
-                placeholder="e.g. 1500"
-                value={formData.price || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-              />
+              <Label htmlFor="price">Price *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  placeholder="e.g. 1500"
+                  value={formData.price || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                  className="flex-1"
+                />
+                <Select
+                  value={formData.priceToken.symbol}
+                  onValueChange={(value) => {
+                    const token = whitelistedTokens.find(t => t.symbol === value);
+                    if (token) {
+                      setFormData(prev => ({
+                        ...prev,
+                        priceToken: {
+                          contract: token.token_contract,
+                          symbol: token.symbol,
+                          precision: token.precision,
+                        },
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {whitelistedTokens.map((token) => (
+                      <SelectItem key={token.symbol} value={token.symbol}>
+                        {token.symbol}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -751,7 +800,7 @@ export function CreateDrop() {
                   onChange={(e) => setFormData(prev => ({ ...prev, priceRecipient: e.target.value.toLowerCase() }))}
                 />
                 <p className="text-xs text-muted-foreground">
-                  WAX account that receives the CHEESE payments
+                  WAX account that receives the payments
                 </p>
               </div>
 
@@ -781,10 +830,18 @@ export function CreateDrop() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        tokensToBack: [...prev.tokensToBack, { symbol: 'CHEESE', amount: '' }]
-                      }))}
+                      onClick={() => {
+                        const defaultToken = whitelistedTokens[0] || DEFAULT_TOKENS[0];
+                        setFormData(prev => ({
+                          ...prev,
+                          tokensToBack: [...prev.tokensToBack, { 
+                            contract: defaultToken.token_contract,
+                            symbol: defaultToken.symbol, 
+                            precision: defaultToken.precision,
+                            amount: '' 
+                          }]
+                        }));
+                      }}
                       className="h-7 text-xs"
                     >
                       <Plus className="h-3 w-3 mr-1" />
@@ -806,17 +863,28 @@ export function CreateDrop() {
                           <Select
                             value={token.symbol}
                             onValueChange={(value) => {
-                              const updated = [...formData.tokensToBack];
-                              updated[index] = { ...updated[index], symbol: value };
-                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
+                              const selectedToken = whitelistedTokens.find(t => t.symbol === value);
+                              if (selectedToken) {
+                                const updated = [...formData.tokensToBack];
+                                updated[index] = { 
+                                  ...updated[index], 
+                                  symbol: selectedToken.symbol,
+                                  contract: selectedToken.token_contract,
+                                  precision: selectedToken.precision,
+                                };
+                                setFormData(prev => ({ ...prev, tokensToBack: updated }));
+                              }
                             }}
                           >
                             <SelectTrigger className="w-28">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="CHEESE">CHEESE</SelectItem>
-                              <SelectItem value="WAX">WAX</SelectItem>
+                              {whitelistedTokens.map((t) => (
+                                <SelectItem key={t.symbol} value={t.symbol}>
+                                  {t.symbol}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <Input

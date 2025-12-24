@@ -22,9 +22,9 @@ const Drops = () => {
   });
 
   const displayDrops: NFTDrop[] = drops || [];
-  // Filter by currency to show only CHEESE purchasable drops
+  // Filter by collection to show only cheesenftwax drops
   const cheeseDrops: NFTDrop[] = displayDrops.filter(
-    drop => drop.currency === 'CHEESE'
+    drop => drop.collectionName === CHEESE_CONFIG.collectionName
   );
 
   return (

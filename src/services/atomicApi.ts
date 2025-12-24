@@ -127,11 +127,13 @@ export async function fetchTemplates(): Promise<NFTDrop[]> {
   }
 }
 
-// Fetch NFT Hive drops - all collections and currencies
-export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
+// Fetch NFT Hive drops - optionally filter by collection
+export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]> {
   try {
-    // Fetch all drops from NFT Hive (no collection filter)
-    const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
+    // Fetch drops from NFT Hive, optionally filtered by collection
+    const url = collection 
+      ? `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${collection}`
+      : `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
 
     const response = await fetch(url);
     const drops = await response.json() as NFTHiveDrop[];
@@ -353,14 +355,15 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
 
 // Combined fetch for all available NFTs - prioritizes NFT Hive CHEESE drops
 export async function fetchAllDrops(): Promise<NFTDrop[]> {
-  const [nfthiveDrops, sales, otherDrops] = await Promise.all([
+  const [nfthiveDrops, cheeseDrops, sales, otherDrops] = await Promise.all([
     fetchNFTHiveDrops(),
+    fetchNFTHiveDrops(CHEESE_CONFIG.collectionName), // Explicitly fetch cheesenftwax drops
     fetchActiveSales(),
     fetchDrops(),
   ]);
 
-  // Prioritize NFT Hive CHEESE drops, then other drops, then sales
-  const combined = [...nfthiveDrops, ...otherDrops, ...sales];
+  // Prioritize cheese collection drops, then other NFT Hive drops, then other drops, then sales
+  const combined = [...cheeseDrops, ...nfthiveDrops, ...otherDrops, ...sales];
   const seen = new Set<string>();
 
   return combined.filter((drop) => {

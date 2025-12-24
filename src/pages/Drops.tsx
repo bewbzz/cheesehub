@@ -21,7 +21,9 @@ const Drops = () => {
   });
 
   const displayDrops: NFTDrop[] = drops || [];
-  const cheeseDrops: NFTDrop[] = displayDrops.filter(drop => drop.collectionName === 'cheesenftwax');
+  const cheeseDrops: NFTDrop[] = displayDrops.filter(
+    drop => drop.collectionName === 'cheesenftwax' || drop.currency === 'CHEESE'
+  );
 
   return (
     <div className="min-h-screen bg-background grid-pattern relative">
@@ -50,10 +52,10 @@ const Drops = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="my-drops">
+          <TabsContent value="browse">
             <div className="mb-8 flex items-center justify-between">
               <h2 className="font-display text-3xl font-bold text-foreground">
-                Active Drops
+                All Drops
               </h2>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>Sort by:</span>
@@ -97,7 +99,7 @@ const Drops = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="browse">
+          <TabsContent value="my-drops">
             <MyDrops />
           </TabsContent>
 

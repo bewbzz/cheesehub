@@ -19,6 +19,7 @@ export interface NFTDrop {
   dropId?: string;
   settlementSymbol?: string;
   listingPrice?: string;
+  currency?: string;
 }
 
 export interface AtomicSale {

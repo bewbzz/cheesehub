@@ -20,9 +20,25 @@ export const NFTHIVE_CONFIG = {
   apiUrl: 'https://wax-api.hivebp.io', // NFT Hive's own API
 };
 
-// AtomicAssets API endpoints
+// AtomicAssets API endpoints with fallbacks for reliability
 export const ATOMIC_API = {
+  // Multiple endpoints for fallback when primary is down
+  baseUrls: [
+    'https://wax.api.atomicassets.io',
+    'https://aa.wax.blacklusion.io',
+    'https://wax-aa.eu.eosamsterdam.net',
+    'https://atomic.wax.eosrio.io',
+  ],
+  // Keep legacy baseUrl for backward compatibility
   baseUrl: 'https://wax.api.atomicassets.io',
+  paths: {
+    sales: '/atomicmarket/v1/sales',
+    templates: '/atomicassets/v1/templates',
+    assets: '/atomicassets/v1/assets',
+    collections: '/atomicassets/v1/collections',
+    drops: '/atomicmarket/v2/drops',
+  },
+  // Legacy endpoints for backward compatibility
   endpoints: {
     sales: '/atomicmarket/v1/sales',
     templates: '/atomicassets/v1/templates',

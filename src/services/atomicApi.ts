@@ -1,4 +1,5 @@
 import { ATOMIC_API, CHEESE_CONFIG, NFTHIVE_CONFIG } from '@/lib/waxConfig';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop } from '@/types/drop';
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
@@ -31,14 +32,16 @@ function buildAttributes(data: Record<string, string>): { trait: string; value: 
 // Fetch active sales for your collection (marketplace listings)
 export async function fetchActiveSales(): Promise<NFTDrop[]> {
   try {
-    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.sales}`);
-    url.searchParams.set('collection_name', CHEESE_CONFIG.collectionName);
-    url.searchParams.set('state', '1'); // Active sales
-    url.searchParams.set('order', 'desc');
-    url.searchParams.set('sort', 'created');
-    url.searchParams.set('limit', '50');
+    const params = new URLSearchParams({
+      collection_name: CHEESE_CONFIG.collectionName,
+      state: '1',
+      order: 'desc',
+      sort: 'created',
+      limit: '50',
+    });
+    const path = `${ATOMIC_API.paths.sales}?${params.toString()}`;
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -79,14 +82,16 @@ export async function fetchActiveSales(): Promise<NFTDrop[]> {
 // Fetch templates for your collection (for drops created via AtomicHub drops)
 export async function fetchTemplates(): Promise<NFTDrop[]> {
   try {
-    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.templates}`);
-    url.searchParams.set('collection_name', CHEESE_CONFIG.collectionName);
-    url.searchParams.set('has_assets', 'true');
-    url.searchParams.set('order', 'desc');
-    url.searchParams.set('sort', 'created');
-    url.searchParams.set('limit', '50');
+    const params = new URLSearchParams({
+      collection_name: CHEESE_CONFIG.collectionName,
+      has_assets: 'true',
+      order: 'desc',
+      sort: 'created',
+      limit: '50',
+    });
+    const path = `${ATOMIC_API.paths.templates}?${params.toString()}`;
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -106,7 +111,7 @@ export async function fetchTemplates(): Promise<NFTDrop[]> {
         name: data.name || template.name || `Template #${template.template_id}`,
         description: data.description || 'A unique NFT from the Cheese collection',
         image: getImageUrl(data.img || data.image),
-        price: 0, // Templates don't have prices, need to check drops
+        price: 0,
         totalSupply: maxSupply,
         remaining: maxSupply > 0 ? Math.max(0, maxSupply - issuedSupply) : 0,
         attributes: [
@@ -189,9 +194,16 @@ export async function fetchNFTHiveDrops(): Promise<NFTDrop[]> {
 // Fetch NeftyBlocks/AtomicHub drops (WAX only, for reference)
 export async function fetchDrops(): Promise<NFTDrop[]> {
   try {
-    const url = `https://wax.api.atomicassets.io/atomicmarket/v2/drops?collection_name=${CHEESE_CONFIG.collectionName}&state=1&order=desc&sort=created&limit=50`;
+    const params = new URLSearchParams({
+      collection_name: CHEESE_CONFIG.collectionName,
+      state: '1',
+      order: 'desc',
+      sort: 'created',
+      limit: '50',
+    });
+    const path = `${ATOMIC_API.paths.drops}?${params.toString()}`;
 
-    const response = await fetch(url);
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -235,8 +247,8 @@ export async function fetchDrops(): Promise<NFTDrop[]> {
 // Fetch a single sale by ID
 export async function fetchSaleById(saleId: string): Promise<NFTDrop | null> {
   try {
-    const url = `${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.sales}/${saleId}`;
-    const response = await fetch(url);
+    const path = `${ATOMIC_API.paths.sales}/${saleId}`;
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -373,15 +385,17 @@ export async function fetchUserNFTsBySchema(
       const collection = collections[i];
       const schema = schemas[i];
       
-      const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.assets || '/atomicassets/v1/assets'}`);
-      url.searchParams.set('owner', account);
-      url.searchParams.set('collection_name', collection);
+      const params = new URLSearchParams({
+        owner: account,
+        collection_name: collection,
+        limit: '100',
+      });
       if (schema) {
-        url.searchParams.set('schema_name', schema);
+        params.set('schema_name', schema);
       }
-      url.searchParams.set('limit', '100');
+      const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
       
-      const response = await fetch(url.toString());
+      const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
       const json = await response.json();
       
       if (json.success && json.data) {
@@ -408,11 +422,13 @@ export async function fetchUserNFTsBySchema(
 // Fetch collections the user is authorized to create drops for
 export async function fetchUserCollections(account: string): Promise<string[]> {
   try {
-    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.collections}`);
-    url.searchParams.set('authorized_account', account);
-    url.searchParams.set('limit', '100');
+    const params = new URLSearchParams({
+      authorized_account: account,
+      limit: '100',
+    });
+    const path = `${ATOMIC_API.paths.collections}?${params.toString()}`;
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -432,12 +448,11 @@ export async function fetchTemplateById(
   collectionName?: string
 ): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number } | null> {
   try {
-    let url = `${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.templates}/${templateId}`;
-    if (collectionName) {
-      url = `${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.templates}/${collectionName}/${templateId}`;
-    }
+    const path = collectionName 
+      ? `${ATOMIC_API.paths.templates}/${collectionName}/${templateId}`
+      : `${ATOMIC_API.paths.templates}/${templateId}`;
 
-    const response = await fetch(url);
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -472,16 +487,18 @@ export async function fetchUserAssets(
   mint: string;
 }>> {
   try {
-    const url = new URL(`${ATOMIC_API.baseUrl}${ATOMIC_API.endpoints.assets || '/atomicassets/v1/assets'}`);
-    url.searchParams.set('owner', account);
+    const params = new URLSearchParams({
+      owner: account,
+      limit: '100',
+      order: 'desc',
+      sort: 'asset_id',
+    });
     if (collectionName) {
-      url.searchParams.set('collection_name', collectionName);
+      params.set('collection_name', collectionName);
     }
-    url.searchParams.set('limit', '100');
-    url.searchParams.set('order', 'desc');
-    url.searchParams.set('sort', 'asset_id');
+    const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await response.json();
 
     if (!json.success || !json.data) {

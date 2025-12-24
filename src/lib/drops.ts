@@ -1,27 +1,10 @@
-import { NFTHIVE_CONFIG, WAX_CHAIN } from './waxConfig';
+import { NFTHIVE_CONFIG, CHEESE_CONFIG } from './waxConfig';
 
 export type DropType = 'mint-on-demand' | 'premint';
 
-// Whitelisted token from nfthivedrops contract
-export interface WhitelistedToken {
-  token_contract: string;  // e.g., "eosio.token"
-  token_symbol: string;    // e.g., "8,WAX" (precision,symbol format)
-  symbol: string;          // Parsed: "WAX"
-  precision: number;       // Parsed: 8
-}
-
 export interface TokenBacking {
-  contract: string;
   symbol: string;
-  precision: number;
   amount: string;
-}
-
-// Price token selection
-export interface PriceToken {
-  contract: string;
-  symbol: string;
-  precision: number;
 }
 
 export interface DropFormData {
@@ -31,7 +14,6 @@ export interface DropFormData {
   name: string;
   description: string;
   price: number;
-  priceToken: PriceToken;
   maxClaimable: number;
   accountLimit: number;
   startTime: Date;
@@ -44,67 +26,7 @@ export interface DropFormData {
   tokensToBack: TokenBacking[];
 }
 
-// Default tokens as fallback - CHEESE first as the default
-export const DEFAULT_TOKENS: WhitelistedToken[] = [
-  { token_contract: 'token.cheese', token_symbol: '4,CHEESE', symbol: 'CHEESE', precision: 4 },
-  { token_contract: 'eosio.token', token_symbol: '8,WAX', symbol: 'WAX', precision: 8 },
-  { token_contract: 'token.nefty', token_symbol: '8,NEFTY', symbol: 'NEFTY', precision: 8 },
-];
-
-/**
- * Sort tokens to ensure CHEESE is always first
- */
-function sortTokensWithCheeseFirst(tokens: WhitelistedToken[]): WhitelistedToken[] {
-  return [...tokens].sort((a, b) => {
-    if (a.symbol === 'CHEESE') return -1;
-    if (b.symbol === 'CHEESE') return 1;
-    return a.symbol.localeCompare(b.symbol);
-  });
-}
-
-/**
- * Fetch whitelisted tokens from nfthivedrops contract
- */
-export async function fetchWhitelistedTokens(): Promise<WhitelistedToken[]> {
-  try {
-    const response = await fetch(`${WAX_CHAIN.url}/v1/chain/get_table_rows`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: NFTHIVE_CONFIG.dropContract,
-        scope: NFTHIVE_CONFIG.dropContract,
-        table: 'whitelist',
-        limit: 100,
-        json: true,
-      }),
-    });
-
-    const data = await response.json();
-    console.log('🧀 Whitelist response:', data);
-
-    if (data.rows && data.rows.length > 0) {
-      const tokens = data.rows.map((row: { token_contract: string; token_symbol: string }) => {
-        // Parse "8,WAX" format to extract precision and symbol
-        const [precisionStr, symbol] = row.token_symbol.split(',');
-        return {
-          token_contract: row.token_contract,
-          token_symbol: row.token_symbol,
-          symbol: symbol || row.token_symbol,
-          precision: parseInt(precisionStr) || 8,
-        };
-      });
-      return sortTokensWithCheeseFirst(tokens);
-    }
-
-    console.log('🧀 No whitelist rows found, using defaults');
-    return DEFAULT_TOKENS;
-  } catch (error) {
-    console.error('🧀 Failed to fetch whitelist:', error);
-    return DEFAULT_TOKENS;
-  }
-}
-
-export interface PriceRecipientData {
+export interface PriceRecipient {
   account: string;
   share: number;
 }
@@ -150,12 +72,10 @@ export function buildCreateDropAction(
   account: string,
   data: DropFormData
 ) {
-  // Use dynamic price token from form data
-  const { priceToken } = data;
-  const listingPrice = `${data.price.toFixed(priceToken.precision)} ${priceToken.symbol}`;
-  const settlementSymbol = `${priceToken.precision},${priceToken.symbol}`;
+  const listingPrice = `${data.price.toFixed(CHEESE_CONFIG.tokenPrecision)} ${CHEESE_CONFIG.tokenSymbol}`;
+  const settlementSymbol = `${CHEESE_CONFIG.tokenPrecision},${CHEESE_CONFIG.tokenSymbol}`;
   
-  const priceRecipients: PriceRecipientData[] = [
+  const priceRecipients: PriceRecipient[] = [
     { 
       account: data.priceRecipient || account, 
       share: 1 
@@ -167,13 +87,15 @@ export function buildCreateDropAction(
   const isPremint = data.dropType === 'premint';
   const templateId = isPremint ? -1 : parseInt(data.templateId);
   
-  // Format tokens_to_back from form data using full token info
+  // Format tokens_to_back from form data
   const tokensToBack = data.tokensToBack
     .filter(t => t.symbol && t.amount && parseFloat(t.amount) > 0)
     .map(t => ({
-      token_contract: t.contract,
-      token_symbol: `${t.precision},${t.symbol}`,
-      token_amount: `${parseFloat(t.amount).toFixed(t.precision)} ${t.symbol}`
+      token_contract: t.symbol === 'WAX' ? 'eosio.token' : 'cheesewaxdao',
+      token_symbol: t.symbol === 'WAX' ? '8,WAX' : '4,CHEESE',
+      token_amount: t.symbol === 'WAX' 
+        ? `${parseFloat(t.amount).toFixed(8)} WAX`
+        : `${parseFloat(t.amount).toFixed(4)} CHEESE`
     }));
 
   // Build assets_to_mint with nested template info for mint-on-demand
@@ -194,7 +116,6 @@ export function buildCreateDropAction(
     assetsToMint,
     tokensToBack,
     price: listingPrice,
-    priceToken,
   });
 
   return {

@@ -75,22 +75,28 @@ export function buildCreateDropAction(
     }
   ];
 
-  // For pre-mint drops: template_id = -1, assets_to_mint contains the asset IDs
-  // For mint-on-demand: template_id = actual ID, assets_to_mint is empty
+  // For pre-mint drops: assets_to_mint is empty (NFTs already transferred)
+  // For mint-on-demand: assets_to_mint contains the template info as an object
   const isPremint = data.dropType === 'premint';
   const templateId = isPremint ? -1 : parseInt(data.templateId);
-  const assetsToMint = isPremint ? data.assetIds : [];
+  
+  // Build assets_to_mint with nested template info for mint-on-demand
+  const assetsToMint = isPremint 
+    ? [] 
+    : [{ 
+        template_id: templateId,
+        pool_id: 0,
+        tokens_to_back: []
+      }];
 
   // Debug logging to verify action structure
   console.log('🧀 Building drop action:', {
     dropType: data.dropType,
-    templateIdRaw: data.templateId,
-    templateIdParsed: templateId,
+    templateId,
     collectionName: data.collectionName,
     isPremint,
-    assetsToMint: assetsToMint.length,
+    assetsToMint,
     price: listingPrice,
-    maxClaimable: data.maxClaimable,
   });
 
   return {
@@ -100,10 +106,11 @@ export function buildCreateDropAction(
     data: {
       authorized_account: account,
       collection_name: data.collectionName,
-      template_id: templateId,
+      assets_to_mint: assetsToMint,
       listing_prices: [listingPrice],
       settlement_symbol: settlementSymbol,
       price_recipients: priceRecipients,
+      auth_required: false,
       max_claimable: data.maxClaimable,
       account_limit: data.accountLimit,
       account_limit_cooldown: 0,
@@ -113,11 +120,7 @@ export function buildCreateDropAction(
         name: data.name,
         description: data.description,
       }),
-      is_hidden: data.isHidden ? 1 : 0,
-      auth_required: 0,
-      pool_id: 0,
-      assets_to_mint: assetsToMint,
-      tokens_to_back: [],
+      is_hidden: data.isHidden,
     },
   };
 }

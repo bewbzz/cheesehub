@@ -20,6 +20,22 @@ export interface PriceRecipient {
 }
 
 /**
+ * Build the boost action for nft.hive contract
+ * This reserves RAM for mint-on-demand drops
+ * Required before createdrop action
+ */
+export function buildBoostAction(account: string) {
+  return {
+    account: NFTHIVE_CONFIG.boostContract,
+    name: 'boost',
+    authorization: [{ actor: account, permission: 'active' }],
+    data: {
+      booster: account,
+    },
+  };
+}
+
+/**
  * Build the createdrop action for nfthivedrops contract
  * Based on transaction: 2961df8064cb302b47751d7e5f7bf4cf2b62d00f0036249a8fca9a8e36366783
  */
@@ -64,6 +80,19 @@ export function buildCreateDropAction(
       tokens_to_back: [],
     },
   };
+}
+
+/**
+ * Build both actions needed for a complete drop creation
+ */
+export function buildDropCreationActions(
+  account: string,
+  data: DropFormData
+) {
+  return [
+    buildBoostAction(account),           // Action 1: Reserve RAM
+    buildCreateDropAction(account, data) // Action 2: Create drop
+  ];
 }
 
 /**

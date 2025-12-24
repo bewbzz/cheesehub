@@ -22,9 +22,9 @@ const Drops = () => {
   });
 
   const displayDrops: NFTDrop[] = drops || [];
-  // Filter by token contract (cheeseburger) to show only CHEESE purchasable drops
+  // Filter by currency to show only CHEESE purchasable drops
   const cheeseDrops: NFTDrop[] = displayDrops.filter(
-    drop => drop.tokenContract === CHEESE_CONFIG.tokenContract
+    drop => drop.currency === 'CHEESE'
   );
 
   return (

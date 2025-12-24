@@ -551,29 +551,63 @@ export async function fetchUserDrops(account: string): Promise<Array<{
     
     console.log('User authorized for collections:', userCollections);
     
-    // Step 2: Fetch all NFTHive drops
-    const allDrops = await fetchNFTHiveDrops();
+    // Helper to extract data from NFT Hive's immutableData array format
+    const getData = (immutableData: Array<{ key: string; value: [string, string] }>, key: string): string => {
+      const item = immutableData.find(d => d.key === key);
+      return item?.value?.[1] || '';
+    };
     
-    // Step 3: Filter to only drops from user's collections
-    const userDrops = allDrops.filter(drop => 
-      userCollections.includes(drop.collectionName)
-    );
+    // Step 2: Fetch drops for EACH user collection from NFTHive API
+    const allUserDrops: Array<{
+      dropId: number;
+      name: string;
+      image: string;
+      price: number;
+      currency: string;
+      maxClaimable: number;
+      numClaimed: number;
+      startTime: number;
+      endTime: number;
+      collectionName: string;
+    }> = [];
     
-    console.log('Found', userDrops.length, 'drops from user collections');
+    for (const collectionName of userCollections) {
+      try {
+        const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${collectionName}`;
+        console.log('Fetching drops for collection:', collectionName, url);
+        
+        const response = await fetch(url);
+        const drops = await response.json() as NFTHiveDrop[];
+        
+        console.log(`Found ${drops.length} drops for collection ${collectionName}`);
+        
+        // Map each drop to the expected format
+        for (const drop of drops) {
+          const template = drop.templatesToMint?.[0];
+          const immutableData = template?.immutableData || [];
+          const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
+          const img = getData(immutableData, 'img') || getData(immutableData, 'image');
+          
+          allUserDrops.push({
+            dropId: drop.dropId,
+            name,
+            image: getImageUrl(img),
+            price: drop.price,
+            currency: drop.currency || 'WAX',
+            maxClaimable: drop.maxClaimable || 0,
+            numClaimed: drop.numClaimed || 0,
+            startTime: drop.startTime || 0,
+            endTime: drop.endTime || 0,
+            collectionName: drop.collection?.collectionName || collectionName,
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching drops for collection ${collectionName}:`, error);
+      }
+    }
     
-    // Step 4: Map to the expected return format
-    return userDrops.map(drop => ({
-      dropId: parseInt(drop.dropId || drop.id.replace('nfthive-', '')),
-      name: drop.name,
-      image: drop.image,
-      price: drop.price,
-      currency: drop.currency || 'WAX',
-      maxClaimable: drop.totalSupply || 0,
-      numClaimed: (drop.totalSupply || 0) - (drop.remaining || 0),
-      startTime: 0,
-      endTime: drop.endDate ? Math.floor(new Date(drop.endDate).getTime() / 1000) : 0,
-      collectionName: drop.collectionName,
-    }));
+    console.log('Total user drops found:', allUserDrops.length);
+    return allUserDrops;
   } catch (error) {
     console.error('Error fetching user drops:', error);
     return [];

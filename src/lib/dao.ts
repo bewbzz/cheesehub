@@ -749,6 +749,7 @@ export function buildRankedChoiceVoteAction(
 }
 
 // Fetch user's staked tokens in a DAO
+// The stakedtokens table is scoped by USER with DAO as the primary key
 export async function fetchUserStakedTokens(
   daoName: string,
   userAccount: string
@@ -762,10 +763,10 @@ export async function fetchUserStakedTokens(
         body: JSON.stringify({
           json: true,
           code: DAO_CONTRACT,
-          scope: daoName,
+          scope: userAccount,  // Scope by USER
           table: "stakedtokens",
-          lower_bound: userAccount,
-          upper_bound: userAccount,
+          lower_bound: daoName,  // Filter by DAO name
+          upper_bound: daoName,
           limit: 1,
         }),
       }
@@ -776,9 +777,17 @@ export async function fetchUserStakedTokens(
     
     if (data.rows && data.rows.length > 0) {
       const row = data.rows[0];
+      // Parse balance to get weight (integer representation)
+      const balanceStr = row.balance || "0";
+      const balanceParts = balanceStr.split(" ");
+      const amount = parseFloat(balanceParts[0]) || 0;
+      // Calculate weight based on precision (e.g., 8 decimals for WAX)
+      const precision = balanceParts[0].includes(".") ? balanceParts[0].split(".")[1].length : 0;
+      const weight = Math.floor(amount * Math.pow(10, precision));
+      
       return {
-        balance: row.balance || "0",
-        weight: parseInt(row.weight) || 0,
+        balance: balanceStr,
+        weight: weight,
       };
     }
     return null;

@@ -48,15 +48,22 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         const symbolParts = dao.token_symbol.split(",");
         const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
         
-        // Fetch balance and check stakers table for Type 4 registration in parallel
-        const [balance, staked] = await Promise.all([
-          fetchUserTokenBalance(dao.token_contract, symbol, accountName),
-          fetchUserStakedTokens(dao.dao_name, accountName)
-        ]);
-        
+        // Fetch balance
+        const balance = await fetchUserTokenBalance(dao.token_contract, symbol, accountName);
         setTokenBalance(balance);
-        // User is registered if they have a record in the stakers table
-        setIsRegistered(staked !== null);
+        
+        // For Type 4 DAOs, also try to check stakers table (but don't block voting if it fails)
+        try {
+          const staked = await fetchUserStakedTokens(dao.dao_name, accountName);
+          // User is registered if they have a record in the stakers table
+          setIsRegistered(staked !== null);
+          console.log(`Type 4 stakers check: ${staked !== null ? 'registered' : 'not registered or table unavailable'}`);
+        } catch {
+          // If stakers table check fails (e.g., ABI error), allow voting if user has balance
+          // Type 4 DAOs may calculate weight from wallet balance directly
+          console.log("Stakers table check failed, allowing vote attempt based on token balance");
+          setIsRegistered(true);
+        }
       } catch (error) {
         console.error("Failed to load token balance:", error);
         setTokenBalance(null);

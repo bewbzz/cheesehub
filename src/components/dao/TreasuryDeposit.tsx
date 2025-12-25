@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,44 +7,88 @@ import { useWax } from "@/context/WaxContext";
 import { buildDepositToTreasuryAction, fetchUserTokenBalance } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
-import { useEffect } from "react";
 
 interface TreasuryDepositProps {
   daoName: string;
   onSuccess: () => void;
 }
 
-const COMMON_TOKENS = [
+interface TokenInfo {
+  symbol: string;
+  contract: string;
+  precision: number;
+}
+
+const COMMON_TOKENS: TokenInfo[] = [
   { symbol: "WAX", contract: "eosio.token", precision: 8 },
   { symbol: "WAXDAO", contract: "token.waxdao", precision: 8 },
+  { symbol: "CHEESE", contract: "cheese.gm", precision: 4 },
+  { symbol: "TLM", contract: "alien.worlds", precision: 4 },
+  { symbol: "DUST", contract: "nftdust.gm", precision: 4 },
+  { symbol: "NEFTY", contract: "token.nefty", precision: 8 },
 ];
+
+const CUSTOM_TOKEN_VALUE = "__custom__";
 
 export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
   const { session } = useWax();
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState(COMMON_TOKENS[0]);
+  const [selectedTokenValue, setSelectedTokenValue] = useState(COMMON_TOKENS[0].symbol);
   const [userBalance, setUserBalance] = useState<string>("0");
   const [loadingBalance, setLoadingBalance] = useState(false);
+  
+  // Custom token fields
+  const [customContract, setCustomContract] = useState("");
+  const [customSymbol, setCustomSymbol] = useState("");
+  const [detectedPrecision, setDetectedPrecision] = useState<number>(8);
+
+  const isCustomToken = selectedTokenValue === CUSTOM_TOKEN_VALUE;
+  
+  // Get the actual token info to use
+  const getActiveToken = (): TokenInfo | null => {
+    if (isCustomToken) {
+      if (!customContract || !customSymbol) return null;
+      return {
+        symbol: customSymbol.toUpperCase(),
+        contract: customContract.toLowerCase(),
+        precision: detectedPrecision,
+      };
+    }
+    return COMMON_TOKENS.find(t => t.symbol === selectedTokenValue) || null;
+  };
+
+  const activeToken = getActiveToken();
 
   useEffect(() => {
-    if (session) {
+    if (session && activeToken) {
       loadUserBalance();
+    } else if (!activeToken) {
+      setUserBalance("0");
     }
-  }, [session, selectedToken]);
+  }, [session, selectedTokenValue, customContract, customSymbol]);
 
   async function loadUserBalance() {
-    if (!session) return;
+    if (!session || !activeToken) return;
     setLoadingBalance(true);
     try {
       const balance = await fetchUserTokenBalance(
-        selectedToken.contract,
-        selectedToken.symbol,
+        activeToken.contract,
+        activeToken.symbol,
         String(session.actor)
       );
       setUserBalance(balance);
+      
+      // Auto-detect precision from balance string (e.g., "100.00000000 WAX" = 8 decimals)
+      if (isCustomToken && balance && balance !== "0") {
+        const parts = balance.split(" ")[0].split(".");
+        if (parts.length === 2) {
+          setDetectedPrecision(parts[1].length);
+        }
+      }
     } catch (error) {
       console.error("Failed to load balance:", error);
+      setUserBalance("0");
     } finally {
       setLoadingBalance(false);
     }
@@ -56,6 +100,11 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       return;
     }
 
+    if (!activeToken) {
+      toast.error("Please select or enter a valid token");
+      return;
+    }
+
     if (!amount || parseFloat(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
@@ -64,19 +113,19 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
     setLoading(true);
     try {
       // Format amount with correct precision
-      const formattedAmount = `${parseFloat(amount).toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
+      const formattedAmount = `${parseFloat(amount).toFixed(activeToken.precision)} ${activeToken.symbol}`;
       
       const action = buildDepositToTreasuryAction(
         String(session.actor),
         daoName,
         formattedAmount,
-        selectedToken.contract
+        activeToken.contract
       );
 
       await session.transact({ actions: [action] });
       toast.success(`Successfully deposited ${formattedAmount} to treasury!`);
       setAmount("");
-      await loadUserBalance(); // Refresh user's token balance
+      await loadUserBalance();
       onSuccess();
     } catch (error) {
       console.error("Failed to deposit:", error);
@@ -102,14 +151,17 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
         <h4 className="font-medium">Deposit to Treasury</h4>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-3">
         <div className="space-y-2">
           <Label>Token</Label>
           <Select
-            value={selectedToken.symbol}
+            value={selectedTokenValue}
             onValueChange={(value) => {
-              const token = COMMON_TOKENS.find(t => t.symbol === value);
-              if (token) setSelectedToken(token);
+              setSelectedTokenValue(value);
+              if (value !== CUSTOM_TOKEN_VALUE) {
+                setCustomContract("");
+                setCustomSymbol("");
+              }
             }}
           >
             <SelectTrigger>
@@ -121,9 +173,35 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
                   {token.symbol}
                 </SelectItem>
               ))}
+              <SelectItem value={CUSTOM_TOKEN_VALUE}>
+                Custom Token...
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
+
+        {isCustomToken && (
+          <div className="grid grid-cols-2 gap-3 p-3 bg-background/50 rounded-md border border-border/30">
+            <div className="space-y-2">
+              <Label className="text-xs">Contract</Label>
+              <Input
+                placeholder="e.g. eosio.token"
+                value={customContract}
+                onChange={(e) => setCustomContract(e.target.value.trim())}
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Symbol</Label>
+              <Input
+                placeholder="e.g. WAX"
+                value={customSymbol}
+                onChange={(e) => setCustomSymbol(e.target.value.toUpperCase().trim())}
+                className="h-9"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Amount</Label>
@@ -151,7 +229,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
 
       <Button
         onClick={handleDeposit}
-        disabled={loading || !amount || parseFloat(amount) <= 0}
+        disabled={loading || !amount || parseFloat(amount) <= 0 || !activeToken}
         className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
       >
         {loading ? (
@@ -162,7 +240,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
         ) : (
           <>
             <ArrowDownToLine className="h-4 w-4 mr-2" />
-            Deposit {amount ? `${amount} ${selectedToken.symbol}` : ""}
+            Deposit {amount && activeToken ? `${amount} ${activeToken.symbol}` : ""}
           </>
         )}
       </Button>

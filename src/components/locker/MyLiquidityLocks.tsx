@@ -10,7 +10,10 @@ import {
   getLiqLockStatus, 
   LIQ_LOCK_STATUS,
   LIQLOCKER_CONTRACT,
-  getDexDisplayName 
+  getDexDisplayName,
+  getDexFromContract,
+  LP_CONTRACTS,
+  DEX 
 } from "@/lib/liqlocker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -132,11 +135,12 @@ export function MyLiquidityLocks() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {locks.map((lock) => {
-            const { amount, symbol } = parseLPAsset(lock.lp_token);
+            const { amount, symbol } = parseLPAsset(lock.amount);
             const claimable = isLiqClaimable(lock);
             const timeRemaining = getLiqTimeRemaining(lock.unlock_time);
             const isWithdrawn = lock.status === LIQ_LOCK_STATUS.WITHDRAWN;
             const status = getLiqLockStatus(lock);
+            const dex = getDexFromContract(lock.token_contract);
 
             return (
               <Card
@@ -161,7 +165,7 @@ export function MyLiquidityLocks() {
                   <CardDescription className="font-mono text-xs flex items-center justify-between">
                     <span>ID: {lock.ID}</span>
                     <Badge variant="outline" className="text-xs">
-                      {lock.dex === "defibox" ? "📦" : "🌮"} {getDexDisplayName(lock.dex)}
+                      {lock.token_contract === LP_CONTRACTS[DEX.DEFIBOX] ? "📦" : "🌮"} {dex ? getDexDisplayName(dex) : lock.token_contract}
                     </Badge>
                   </CardDescription>
                 </CardHeader>

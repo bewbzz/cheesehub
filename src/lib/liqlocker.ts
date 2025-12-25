@@ -1,7 +1,7 @@
-import { fetchTable } from "@/lib/wax";
+import { fetchTable, WAXDAO_CONTRACT } from "@/lib/wax";
 
-// Liquidity Locker contract
-export const LIQLOCKER_CONTRACT = "liqlocker.gm";
+// Liquidity Locker uses the SAME contract as token locker
+export const LIQLOCKER_CONTRACT = WAXDAO_CONTRACT; // "waxdaolocker"
 
 // DEX Types
 export const DEX = {
@@ -24,15 +24,14 @@ export const LIQ_LOCK_STATUS = {
   WITHDRAWN: 2,
 } as const;
 
-// Liquidity lock table structure
+// Liquidity lock uses the same table structure as token locks
+// The only difference is that token_contract is lptoken.box or swap.taco
 export interface LiquidityLock {
   ID: number;
   creator: string;
   receiver: string;
-  lp_token: string;        // e.g., "100.00000000 BOXABC"
-  token_contract: string;  // lptoken.box or swap.taco
-  pair_id: number;
-  dex: string;             // "defibox" or "taco"
+  amount: string;           // e.g., "100.00000000 BOXABC" or "100.0000 CHEWAX"
+  token_contract: string;   // lptoken.box or swap.taco for LP tokens
   time_of_creation: number;
   time_of_deposit: number;
   unlock_time: number;
@@ -108,10 +107,11 @@ export async function fetchAllLPTokens(account: string): Promise<LPTokenBalance[
   return [...defibox, ...taco];
 }
 
-// Fetch liquidity locks for a specific user
+// Fetch liquidity locks for a specific user (only LP token locks)
 export async function fetchUserLiquidityLocks(account: string): Promise<LiquidityLock[]> {
   try {
-    const locks = await fetchTable<LiquidityLock>(
+    // Fetch all locks for this user
+    const allLocks = await fetchTable<LiquidityLock>(
       LIQLOCKER_CONTRACT,
       LIQLOCKER_CONTRACT,
       "locks",
@@ -124,13 +124,25 @@ export async function fetchUserLiquidityLocks(account: string): Promise<Liquidit
       }
     );
     
-    console.log("Raw liquidity locks data:", locks);
-    // Ensure we always return an array
-    return Array.isArray(locks) ? locks : [];
+    // Filter to only show LP token locks (from lptoken.box or swap.taco)
+    const lpContracts: string[] = [LP_CONTRACTS[DEX.DEFIBOX], LP_CONTRACTS[DEX.TACO]];
+    const lpLocks = Array.isArray(allLocks) 
+      ? allLocks.filter(lock => lpContracts.includes(lock.token_contract))
+      : [];
+    
+    console.log("Filtered LP locks:", lpLocks);
+    return lpLocks;
   } catch (error) {
     console.error("Failed to fetch liquidity locks:", error);
     return [];
   }
+}
+
+// Get DEX type from token contract
+export function getDexFromContract(contract: string): DexType | null {
+  if (contract === LP_CONTRACTS[DEX.DEFIBOX]) return DEX.DEFIBOX;
+  if (contract === LP_CONTRACTS[DEX.TACO]) return DEX.TACO;
+  return null;
 }
 
 // Parse LP asset string

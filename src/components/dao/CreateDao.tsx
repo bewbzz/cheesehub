@@ -147,7 +147,7 @@ export function CreateDao() {
             </CardTitle>
             <div className="flex items-center gap-1.5">
               <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
-                Token Balance (Non-Custodial)
+                Token Staking (Custodial)
               </span>
               <Dialog>
                 <DialogTrigger asChild>
@@ -189,16 +189,16 @@ export function CreateDao() {
 
                       <AccordionItem value="dao-types" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          DAO Type: Token Balance
+                          DAO Type: Token Staking
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
-                            This form creates a <strong className="text-cheese">"Token Balance"</strong> (non-custodial) type DAO.
+                            This form creates a <strong className="text-cheese">"Token Staking"</strong> (custodial) type DAO.
                           </p>
                           <p>
-                            Voting power is based on how many governance tokens you hold in your wallet. 
-                            No staking required - simply hold the tokens to participate in governance. 
-                            Your tokens stay in your wallet at all times.
+                            To participate in governance, members must stake their tokens to the DAO contract. 
+                            Voting power is based on the amount of tokens staked. 
+                            Staked tokens can be unstaked when you wish to withdraw from participation.
                           </p>
                         </AccordionContent>
                       </AccordionItem>

@@ -683,7 +683,7 @@ export function buildVoteAction(
     authorization: [{ actor: voter, permission: "active" }],
     data: {
       user: voter,
-      dao_name: daoName,
+      dao: daoName,
       proposal_id: proposalId,
       choice: choiceMap[vote],
     },
@@ -703,7 +703,7 @@ export function buildMultiOptionVoteAction(
     authorization: [{ actor: voter, permission: "active" }],
     data: {
       user: voter,
-      dao_name: daoName,
+      dao: daoName,
       proposal_id: proposalId,
       choice: choiceIndex,
     },
@@ -723,7 +723,7 @@ export function buildRankedChoiceVoteAction(
     authorization: [{ actor: voter, permission: "active" }],
     data: {
       user: voter,
-      dao_name: daoName,
+      dao: daoName,
       proposal_id: proposalId,
       rankings,
     },

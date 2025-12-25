@@ -35,11 +35,11 @@ export function buildAssertPointAction(user: string) {
 
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
-  1: "Staking Farm",
-  2: "NFT Farm", 
-  3: "Token Staking",
-  4: "Token Balance",
-  5: "NFT Holding",
+  1: "Custodial NFT Farm",      // Requires gov_farm_name (waxdaofarmer)
+  2: "Custodial Token Pool",    // Requires gov_farm_name (waxdaofarmer)
+  3: "Stake Tokens To DAO",     // Stakes directly to dao.waxdao - no external farm
+  4: "Token Balance",           // Voting power from wallet balance
+  5: "Non-Custodial NFTs",      // Hold NFTs in wallet
 };
 
 export const PROPOSER_TYPES: Record<number, string> = {
@@ -494,10 +494,10 @@ export function buildCreateDaoAction(
     data: {
       user: creator,
       daoname: config.daoName,
-      dao_type: 4, // Token Balance (voting power based on token holdings)
+      dao_type: 3, // Stake Tokens To DAO (stakes directly to dao.waxdao)
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
-      gov_farm_name: "",
+      gov_farm_name: "", // Empty for direct staking DAOs
       gov_schemas: [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,
@@ -843,7 +843,7 @@ export function buildStakeTokenAction(
       from: staker,
       to: DAO_CONTRACT,
       quantity: amount,
-      memo: `stake|${daoName}`,
+      memo: `|stake_tokens|${daoName}|`,
     },
   };
 }

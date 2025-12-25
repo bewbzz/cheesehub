@@ -482,8 +482,8 @@ export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance
           const amount = parseFloat(amountStr);
           const precision = amountStr.includes(".") ? amountStr.split(".")[1].length : 0;
           
-          // Determine contract from extended_asset or default
-          const contract = row.balance?.contract || 
+          // Determine contract from row.contract field or extended_asset format
+          const contract = row.contract || row.balance?.contract || 
             (symbol === 'WAX' ? 'eosio.token' : 
              symbol === 'WAXDAO' ? 'token.waxdao' : 'unknown');
           

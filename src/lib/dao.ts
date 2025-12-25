@@ -674,7 +674,7 @@ export function buildVoteAction(
   daoName: string,
   proposalId: number,
   vote: "yes" | "no" | "abstain",
-  weight?: number // Optional vote weight for Type 4 DAOs
+  voteWeight?: string // Token quantity string for Type 4 DAOs (e.g., "540.14048487 WAX")
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
@@ -687,8 +687,8 @@ export function buildVoteAction(
   };
   
   // Add weight for Type 4 Token Balance DAOs
-  if (weight !== undefined) {
-    data.weight = weight;
+  if (voteWeight) {
+    data.weight = voteWeight;
   }
   
   return {
@@ -705,7 +705,7 @@ export function buildMultiOptionVoteAction(
   daoName: string,
   proposalId: number,
   choiceIndex: number,
-  weight?: number // Optional vote weight for Type 4 DAOs
+  voteWeight?: string
 ) {
   const data: Record<string, unknown> = {
     user: voter,
@@ -715,8 +715,8 @@ export function buildMultiOptionVoteAction(
     asset_ids: [],
   };
   
-  if (weight !== undefined) {
-    data.weight = weight;
+  if (voteWeight) {
+    data.weight = voteWeight;
   }
   
   return {

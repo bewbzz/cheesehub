@@ -592,8 +592,8 @@ export function buildCreateProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: proposal.proposalType === "yesnoabs" ? 0 : proposal.proposalType === "mostvotes" ? 1 : 2,
-      choices: [],
+      proposal_type: 0, // Yes/No/Abstain
+      choices: ["yes", "no", "abstain"],
       actions: proposal.actions || [],
       token_receivers: [],
       nft_receivers: [],
@@ -621,8 +621,8 @@ export function buildMultiOptionProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 1,
-      choices: [],
+      proposal_type: 1, // Most Votes Wins
+      choices: proposal.options,
       actions: [],
       token_receivers: [],
       nft_receivers: [],
@@ -650,8 +650,8 @@ export function buildRankedChoiceProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 2,
-      choices: [],
+      proposal_type: 2, // Ranked Choice
+      choices: proposal.options,
       actions: [],
       token_receivers: [],
       nft_receivers: [],

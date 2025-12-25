@@ -447,54 +447,55 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
   }
 }
 
-// Fetch treasury balances for a DAO
+// Fetch treasury balances for a DAO from the dao.waxdao contract's accounts table
 export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance[]> {
   const balances: TreasuryBalance[] = [];
   
-  // Common token contracts to check
-  const tokenContracts = [
-    { contract: "eosio.token", symbol: "WAX" },
-    { contract: "token.waxdao", symbol: "WAXDAO" },
-  ];
-  
   try {
-    // Fetch WAX balance
-    for (const token of tokenContracts) {
-      try {
-        const response = await fetch(
-          `https://wax.eosusa.io/v1/chain/get_currency_balance`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code: token.contract,
-              account: daoName,
-              symbol: token.symbol,
-            }),
-          }
-        );
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: DAO_CONTRACT,
+          table: "accounts",
+          scope: daoName,
+          limit: 100,
+          json: true,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    console.log(`Treasury balances for ${daoName}:`, data);
+    
+    if (data.rows && Array.isArray(data.rows)) {
+      for (const row of data.rows) {
+        // Each row has a balance field like "100.0000 WAX" or extended_asset format
+        const balanceStr = typeof row.balance === 'string' 
+          ? row.balance 
+          : row.balance?.quantity || '';
         
-        const data = await response.json();
-        console.log(`Treasury ${token.symbol} for ${daoName}:`, data);
-        
-        if (Array.isArray(data) && data.length > 0) {
-          // Parse balance string like "100.0000 WAX"
-          const balanceStr = data[0];
+        if (balanceStr) {
           const [amountStr, symbol] = balanceStr.split(" ");
           const amount = parseFloat(amountStr);
           const precision = amountStr.includes(".") ? amountStr.split(".")[1].length : 0;
           
+          // Determine contract from extended_asset or default
+          const contract = row.balance?.contract || 
+            (symbol === 'WAX' ? 'eosio.token' : 
+             symbol === 'WAXDAO' ? 'token.waxdao' : 'unknown');
+          
           if (amount > 0) {
             balances.push({
-              contract: token.contract,
+              contract,
               symbol,
               amount,
               precision,
             });
           }
         }
-      } catch (err) {
-        console.log(`No ${token.symbol} balance for ${daoName}`);
       }
     }
     
@@ -1196,9 +1197,9 @@ export function buildDepositToTreasuryAction(
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
-      to: daoName,
+      to: DAO_CONTRACT,
       quantity: quantity,
-      memo: "treasury deposit",
+      memo: `|treasury_deposit|${daoName}|`,
     },
   };
 }

@@ -459,7 +459,7 @@ export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: DAO_CONTRACT,
-          table: "accounts",
+          table: "tokenvault",
           scope: daoName,
           limit: 100,
           json: true,

@@ -337,12 +337,80 @@ export async function fetchDaoDetails(daoName: string): Promise<DaoInfo | null> 
   }
 }
 
-// Fetch DAOs where user is a member or custodian
+// Fetch DAOs where user is a member (has staked tokens/NFTs)
 export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
-  // This will need to query membership tables
-  // For now, return empty and we'll implement once we know the table structure
   console.log("Fetching DAOs for user:", account);
-  return [];
+  
+  try {
+    // Query the stakedtokens table scoped by the user to find all DAOs they've staked to
+    const stakedResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: account,
+          table: "stakedtokens",
+          limit: 100,
+        }),
+      }
+    );
+    
+    const stakedData = await stakedResponse.json();
+    console.log("User staked tokens data:", stakedData);
+    
+    // Also check stakedassets table for NFT staking
+    const stakedNftResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: account,
+          table: "stakedassets",
+          limit: 100,
+        }),
+      }
+    );
+    
+    const stakedNftData = await stakedNftResponse.json();
+    console.log("User staked NFTs data:", stakedNftData);
+    
+    // Collect unique DAO names from both tables
+    const daoNames = new Set<string>();
+    
+    // From stakedtokens - each row has dao_name field
+    for (const row of stakedData.rows || []) {
+      const daoName = row.dao_name || row.daoname || row.dao;
+      if (daoName) {
+        daoNames.add(daoName);
+      }
+    }
+    
+    // From stakedassets - each row has dao_name field
+    for (const row of stakedNftData.rows || []) {
+      const daoName = row.dao_name || row.daoname || row.dao;
+      if (daoName) {
+        daoNames.add(daoName);
+      }
+    }
+    
+    if (daoNames.size === 0) {
+      return [];
+    }
+    
+    // Fetch full DAO info for each DAO the user is a member of
+    const allDaos = await fetchAllDaos();
+    return allDaos.filter(dao => daoNames.has(dao.dao_name));
+    
+  } catch (error) {
+    console.error("Error fetching user DAOs:", error);
+    return [];
+  }
 }
 
 // Fetch proposals for a DAO

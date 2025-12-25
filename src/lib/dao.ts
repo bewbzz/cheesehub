@@ -675,15 +675,17 @@ export function buildVoteAction(
   proposalId: number,
   vote: "yes" | "no" | "abstain"
 ) {
+  // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
+  const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
     data: {
-      voter,
+      user: voter,
       dao_name: daoName,
       proposal_id: proposalId,
-      vote,
+      choice: choiceMap[vote],
     },
   };
 }
@@ -700,7 +702,7 @@ export function buildMultiOptionVoteAction(
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
     data: {
-      voter,
+      user: voter,
       dao_name: daoName,
       proposal_id: proposalId,
       choice: choiceIndex,
@@ -720,7 +722,7 @@ export function buildRankedChoiceVoteAction(
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
     data: {
-      voter,
+      user: voter,
       dao_name: daoName,
       proposal_id: proposalId,
       rankings,

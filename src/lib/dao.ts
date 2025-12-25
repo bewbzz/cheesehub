@@ -763,7 +763,7 @@ export async function fetchUserStakedTokens(
           json: true,
           code: DAO_CONTRACT,
           scope: daoName,
-          table: "stakers",
+          table: "stakedtokens",
           lower_bound: userAccount,
           upper_bound: userAccount,
           limit: 1,

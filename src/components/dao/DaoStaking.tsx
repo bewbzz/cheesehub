@@ -14,6 +14,7 @@ import {
   fetchUserStakedTokens,
   fetchUserStakedNFTs,
   fetchUserTokenBalance,
+  checkType4Registration,
   buildStakeTokenAction,
   buildUnstakeTokenAction,
   buildStakeNFTAction,
@@ -87,13 +88,12 @@ export function DaoStaking({ dao }: DaoStakingProps) {
     try {
       // For Token Balance DAOs, check registration and wallet balance
       if (isTokenBalanceDao && tokenSymbol && accountName) {
-        const [staked, balance] = await Promise.all([
-          fetchUserStakedTokens(dao.dao_name, accountName),
+        const [registered, balance] = await Promise.all([
+          checkType4Registration(dao.dao_name, accountName),
           fetchUserTokenBalance(dao.token_contract, tokenSymbol, accountName),
         ]);
-        setStakedTokens(staked);
         setAvailableBalance(balance);
-        setIsRegistered(staked !== null);
+        setIsRegistered(registered);
       }
       
       // For Token Staking DAOs

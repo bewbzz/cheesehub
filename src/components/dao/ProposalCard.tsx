@@ -11,7 +11,7 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   fetchUserTokenBalance,
-  fetchUserStakedTokens,
+  checkType4Registration,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
@@ -48,14 +48,14 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         const symbolParts = dao.token_symbol.split(",");
         const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
         
-        // Fetch both balance and registration status in parallel
-        const [balance, stakedRecord] = await Promise.all([
+        // Fetch balance and check Type 4 registration in parallel
+        const [balance, registered] = await Promise.all([
           fetchUserTokenBalance(dao.token_contract, symbol, accountName),
-          fetchUserStakedTokens(dao.dao_name, accountName)
+          checkType4Registration(dao.dao_name, accountName)
         ]);
         
         setTokenBalance(balance);
-        setIsRegistered(stakedRecord !== null);
+        setIsRegistered(registered);
       } catch (error) {
         console.error("Failed to load token balance:", error);
         setTokenBalance(null);

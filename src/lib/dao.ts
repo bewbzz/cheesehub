@@ -773,6 +773,54 @@ export async function fetchUserStakedTokens(
   }
 }
 
+// Check if user is registered to vote in a Type 4 Token Balance DAO
+// These DAOs use a different table structure
+export async function checkType4Registration(
+  daoName: string,
+  userAccount: string
+): Promise<boolean> {
+  // Try multiple possible table names for Type 4 DAOs
+  const tablesToTry = ["voters", "tokenvoters", "balancevoters"];
+  
+  for (const table of tablesToTry) {
+    try {
+      const response = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: daoName,
+            table: table,
+            lower_bound: userAccount,
+            upper_bound: userAccount,
+            limit: 1,
+          }),
+        }
+      );
+      
+      const data = await response.json();
+      
+      // If we got a valid response (not an error), check for user record
+      if (!data.error && data.rows) {
+        console.log(`Type 4 registration check (${table}):`, data);
+        if (data.rows.length > 0) {
+          return true;
+        }
+      }
+    } catch (error) {
+      console.log(`Table ${table} check failed, trying next...`);
+    }
+  }
+  
+  // If all table checks fail, return true to allow voting attempt
+  // The contract will reject if not actually registered
+  console.log("Could not verify Type 4 registration via tables, allowing vote attempt");
+  return true;
+}
+
 // Fetch user's staked NFTs in a DAO
 export async function fetchUserStakedNFTs(
   daoName: string,

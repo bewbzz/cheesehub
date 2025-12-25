@@ -16,7 +16,7 @@ export function buildDaoCreationFeeAction(sender: string) {
       from: sender,
       to: DAO_CONTRACT,
       quantity: DAO_CREATION_FEE,
-      memo: "dao creation fee",
+      memo: "|dao_payment|",
     },
   };
 }

@@ -41,6 +41,11 @@ export function DropCard({ drop }: DropCardProps) {
       </Link>
 
       <CardContent className="p-4">
+        {drop.collectionName && (
+          <span className="mb-2 inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            {drop.collectionName}
+          </span>
+        )}
         <Link to={`/drops/${drop.id}`}>
           <h3 className="font-display text-lg font-semibold text-foreground transition-colors hover:text-primary">
             {drop.name}

@@ -105,6 +105,11 @@ const DropDetail = () => {
           </div>
 
           <div className="flex flex-col">
+            {drop.collectionName && (
+              <span className="inline-block self-start rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                {drop.collectionName}
+              </span>
+            )}
             <h1 className="mt-4 font-display text-4xl font-bold text-foreground lg:text-5xl">
               {drop.name}
             </h1>

@@ -173,6 +173,12 @@ export interface Vote {
   timestamp: string;
 }
 
+export interface UserVote {
+  choice_index: number;  // Index of the choice voted for
+  weight: number;        // Vote weight
+  rankings?: number[];   // For ranked choice voting
+}
+
 export interface TreasuryBalance {
   contract: string;
   symbol: string;
@@ -793,6 +799,115 @@ export async function fetchUserStakedTokens(
     return null;
   } catch (error) {
     console.error("Error fetching staked tokens:", error);
+    return null;
+  }
+}
+
+// Fetch user's vote for a specific proposal
+// The propvotes table is scoped by proposal_id with voter as primary key
+export async function fetchUserVote(
+  daoName: string,
+  proposalId: number,
+  userAccount: string
+): Promise<UserVote | null> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: `${daoName}:${proposalId}`,  // Scope format: daoname:proposal_id
+          table: "propvotes",
+          lower_bound: userAccount,
+          upper_bound: userAccount,
+          limit: 1,
+        }),
+      }
+    );
+
+    const data = await response.json();
+    console.log("User vote data:", data);
+
+    // If not found with combined scope, try just proposal_id as scope
+    if (!data.rows || data.rows.length === 0) {
+      const response2 = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: proposalId.toString(),
+            table: "propvotes",
+            lower_bound: userAccount,
+            upper_bound: userAccount,
+            limit: 1,
+          }),
+        }
+      );
+
+      const data2 = await response2.json();
+      console.log("User vote data (proposal scope):", data2);
+
+      if (data2.rows && data2.rows.length > 0) {
+        const row = data2.rows[0];
+        return {
+          choice_index: row.choice_index ?? row.vote_option ?? 0,
+          weight: parseInt(row.weight) || parseInt(row.vote_weight) || 0,
+          rankings: row.rankings || row.ranked_choices || undefined,
+        };
+      }
+
+      // Try with DAO name as scope
+      const response3 = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: daoName,
+            table: "propvotes",
+            lower_bound: userAccount,
+            upper_bound: userAccount,
+            limit: 100,  // Get all votes for this user in this DAO
+          }),
+        }
+      );
+
+      const data3 = await response3.json();
+      console.log("User vote data (DAO scope):", data3);
+
+      if (data3.rows && data3.rows.length > 0) {
+        // Find the vote for this specific proposal
+        const vote = data3.rows.find((row: Record<string, unknown>) => 
+          row.proposal_id === proposalId || row.prop_id === proposalId
+        );
+        if (vote) {
+          return {
+            choice_index: vote.choice_index ?? vote.vote_option ?? 0,
+            weight: parseInt(vote.weight as string) || parseInt(vote.vote_weight as string) || 0,
+            rankings: (vote.rankings as number[]) || (vote.ranked_choices as number[]) || undefined,
+          };
+        }
+      }
+
+      return null;
+    }
+
+    const row = data.rows[0];
+    return {
+      choice_index: row.choice_index ?? row.vote_option ?? 0,
+      weight: parseInt(row.weight) || parseInt(row.vote_weight) || 0,
+      rankings: row.rankings || row.ranked_choices || undefined,
+    };
+  } catch (error) {
+    console.error("Error fetching user vote:", error);
     return null;
   }
 }

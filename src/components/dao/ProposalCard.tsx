@@ -7,16 +7,18 @@ import { Label } from "@/components/ui/label";
 import { 
   Proposal, 
   DaoInfo,
+  UserVote,
   buildVoteAction, 
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   fetchUserStakedTokens,
+  fetchUserVote,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2 } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -32,6 +34,8 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const [stakedWeight, setStakedWeight] = useState<number | null>(null);
   const [stakedBalance, setStakedBalance] = useState<string | null>(null);
   const [loadingStake, setLoadingStake] = useState(false);
+  const [userVote, setUserVote] = useState<UserVote | null>(null);
+  const [loadingVote, setLoadingVote] = useState(false);
 
   // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
   const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
@@ -63,6 +67,38 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     
     loadStakedTokens();
   }, [requiresStaking, accountName, dao?.dao_name]);
+
+  // Fetch user's existing vote for this proposal
+  useEffect(() => {
+    async function loadUserVote() {
+      if (!accountName || !dao?.dao_name) return;
+      
+      setLoadingVote(true);
+      try {
+        const vote = await fetchUserVote(dao.dao_name, proposal.proposal_id, accountName);
+        setUserVote(vote);
+      } catch (error) {
+        console.error("Failed to load user vote:", error);
+        setUserVote(null);
+      } finally {
+        setLoadingVote(false);
+      }
+    }
+    
+    loadUserVote();
+  }, [accountName, dao?.dao_name, proposal.proposal_id]);
+
+  // Check if user has already voted
+  const hasVoted = (): boolean => {
+    return userVote !== null;
+  };
+
+  // Get the user's vote choice label
+  const getVoteLabel = (): string => {
+    if (!userVote || !proposal.choices) return "";
+    const choice = proposal.choices[userVote.choice_index];
+    return choice?.description || "";
+  };
 
   // Check if user has staked tokens for voting
   const hasVotingPower = (): boolean => {
@@ -108,6 +144,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       );
 
       await session.transact({ actions: [action] });
+      
+      // Map vote to choice index (Yes=0, No=1, Abstain=2)
+      const choiceIndex = vote === "yes" ? 0 : vote === "no" ? 1 : 2;
+      setUserVote({ choice_index: choiceIndex, weight: stakedWeight || 0 });
+      
       toast.success(`Voted ${vote} successfully!`);
       onVote?.();
     } catch (error) {
@@ -140,6 +181,10 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       );
 
       await session.transact({ actions: [action] });
+      
+      // Set local vote state
+      setUserVote({ choice_index: selectedChoice, weight: stakedWeight || 0 });
+      
       toast.success("Vote submitted successfully!");
       onVote?.();
     } catch (error) {
@@ -171,6 +216,10 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       );
 
       await session.transact({ actions: [action] });
+      
+      // Set local vote state with rankings
+      setUserVote({ choice_index: rankings[0], weight: stakedWeight || 0, rankings });
+      
       toast.success("Vote submitted successfully!");
       onVote?.();
     } catch (error) {
@@ -266,6 +315,63 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     // For staking DAOs, check if user can vote (staked + has enough weight)
     if (requiresStaking && !canVote()) {
       return null; // Don't show voting buttons if not eligible
+    }
+
+    // If user has already voted, show their vote with disabled buttons
+    if (hasVoted()) {
+      const voteLabel = getVoteLabel();
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-green-500 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>You voted: <strong>{voteLabel}</strong></span>
+          </div>
+          {(proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN ||
+            proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) && (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className={`flex-1 opacity-40 cursor-not-allowed ${
+                  userVote?.choice_index === 0 
+                    ? "border-green-500 bg-green-500/20 text-green-500" 
+                    : "border-muted-foreground/30 text-muted-foreground"
+                }`}
+                disabled
+              >
+                <ThumbsUp className="h-4 w-4 mr-1" />
+                Yes
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={`flex-1 opacity-40 cursor-not-allowed ${
+                  userVote?.choice_index === 1 
+                    ? "border-red-500 bg-red-500/20 text-red-500" 
+                    : "border-muted-foreground/30 text-muted-foreground"
+                }`}
+                disabled
+              >
+                <ThumbsDown className="h-4 w-4 mr-1" />
+                No
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={`flex-1 opacity-40 cursor-not-allowed ${
+                  userVote?.choice_index === 2 
+                    ? "border-muted-foreground bg-muted text-muted-foreground" 
+                    : "border-muted-foreground/30 text-muted-foreground"
+                }`}
+                disabled
+              >
+                <Minus className="h-4 w-4 mr-1" />
+                Abstain
+              </Button>
+            </div>
+          )}
+        </div>
+      );
     }
 
     switch (proposal.voting_type) {

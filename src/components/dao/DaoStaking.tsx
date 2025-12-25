@@ -59,13 +59,9 @@ export function DaoStaking({ dao }: DaoStakingProps) {
   const [selectedToUnstake, setSelectedToUnstake] = useState<string[]>([]);
   
   // Determine DAO type
-  const isTokenBalanceDao = dao.dao_type === 4; // Token Balance DAO - uses wallet balance for voting
-  const isTokenStakingDao = [1, 3].includes(dao.dao_type); // Token staking DAOs
-  const isTokenDao = isTokenStakingDao; // Only show full staking UI for actual staking DAOs
+  // Type 4 "Token Balance" DAOs actually require staking tokens to the DAO for voting weight
+  const isTokenStakingDao = [1, 3, 4].includes(dao.dao_type); // All token staking DAOs including Type 4
   const isNFTDao = [2, 5].includes(dao.dao_type);
-  
-  // For Token Balance DAOs, check if user is registered (has a stakers record)
-  const [isRegistered, setIsRegistered] = useState(false);
   
   // Parse token info
   const tokenSymbol = dao.token_symbol !== "0,NULL" 
@@ -86,17 +82,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
   async function loadStakingData() {
     setLoading(true);
     try {
-      // For Token Balance DAOs, check registration and wallet balance
-      if (isTokenBalanceDao && tokenSymbol && accountName) {
-        const [registered, balance] = await Promise.all([
-          checkType4Registration(dao.dao_name, accountName),
-          fetchUserTokenBalance(dao.token_contract, tokenSymbol, accountName),
-        ]);
-        setAvailableBalance(balance);
-        setIsRegistered(registered);
-      }
-      
-      // For Token Staking DAOs
+      // For Token Staking DAOs (Type 1, 3, 4)
       if (isTokenStakingDao && tokenSymbol && accountName) {
         const [staked, balance] = await Promise.all([
           fetchUserStakedTokens(dao.dao_name, accountName),
@@ -331,12 +317,10 @@ export function DaoStaking({ dao }: DaoStakingProps) {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Wallet className="h-5 w-5 text-cheese" />
-            {isTokenBalanceDao ? "Voting Registration" : "Staking"}
+            Staking
           </h3>
           <p className="text-sm text-muted-foreground">
-            {DAO_TYPES[dao.dao_type]} - {isTokenBalanceDao 
-              ? "Voting power based on wallet balance" 
-              : "Stake to gain voting power"}
+            {DAO_TYPES[dao.dao_type]} - Stake to gain voting power
           </p>
         </div>
         <Button
@@ -350,75 +334,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
         </Button>
       </div>
 
-      {/* Token Balance DAO Registration UI */}
-      {isTokenBalanceDao && tokenSymbol && (
-        <div className="space-y-4">
-          {/* Wallet Balance Info */}
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="h-4 w-4 text-cheese" />
-              <span className="text-sm text-muted-foreground">Your Wallet Balance (Voting Power)</span>
-            </div>
-            <p className="text-xl font-bold">{availableBalance}</p>
-            {dao.minimum_weight > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Minimum required to vote: {dao.minimum_weight} {tokenSymbol}
-              </p>
-            )}
-          </div>
-
-          {/* Registration Status */}
-          {isRegistered ? (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-8 w-8 text-green-500" />
-                <div>
-                  <p className="font-medium text-green-500">Registered to Vote</p>
-                  <p className="text-sm text-muted-foreground">
-                    You can now vote on proposals. Your voting power is your wallet balance: {availableBalance}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-cheese/10 border border-cheese/20 rounded-lg p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <UserPlus className="h-8 w-8 text-cheese shrink-0" />
-                <div>
-                  <p className="font-medium text-cheese">Registration Required</p>
-                  <p className="text-sm text-muted-foreground">
-                    To vote in this DAO, you need to register first. This is a one-time action that 
-                    stakes a minimal amount of tokens to activate your voting ability.
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={handleRegisterForVoting}
-                disabled={staking}
-                className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-              >
-                {staking ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <UserPlus className="h-4 w-4 mr-2" />
-                )}
-                Register to Vote
-              </Button>
-            </div>
-          )}
-
-          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
-            <p className="font-medium mb-1">How Token Balance DAOs work:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Your voting power equals your wallet token balance</li>
-              <li>No need to stake tokens - just hold them in your wallet</li>
-              <li>One-time registration required to enable voting</li>
-            </ul>
-          </div>
-        </div>
-      )}
-
-      {/* Token Staking UI (for Type 1, 3 DAOs) */}
+      {/* Token Staking UI (for Type 1, 3, 4 DAOs) */}
       {isTokenStakingDao && tokenSymbol && (
         <div className="space-y-4">
           {/* Current Stake Info */}
@@ -622,7 +538,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       )}
 
       {/* Unknown DAO Type */}
-      {!isTokenDao && !isNFTDao && (
+      {!isTokenStakingDao && !isNFTDao && (
         <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
           <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="font-medium">Unknown DAO Type</p>

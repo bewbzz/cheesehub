@@ -1026,12 +1026,13 @@ export async function fetchUserStakedNFTs(
   }
 }
 
-// Fetch user's token balance
+// Fetch user's token balance with fallback for non-standard contracts
 export async function fetchUserTokenBalance(
   contract: string,
   symbol: string,
   userAccount: string
 ): Promise<string> {
+  // Try get_currency_balance first (works for most standard token contracts)
   try {
     const response = await fetch(
       `https://wax.eosusa.io/v1/chain/get_currency_balance`,
@@ -1047,12 +1048,60 @@ export async function fetchUserTokenBalance(
     );
     
     const data = await response.json();
+    
+    // Check if it's an error response
+    if (data.error || data.code === 500) {
+      // Fallback to get_table_rows
+      return await fetchUserTokenBalanceFromTable(contract, symbol, userAccount);
+    }
+    
     if (Array.isArray(data) && data.length > 0) {
       return data[0];
     }
     return `0 ${symbol}`;
   } catch (error) {
-    console.error("Error fetching token balance:", error);
+    console.error("Error fetching token balance, trying fallback:", error);
+    // Fallback to get_table_rows
+    return await fetchUserTokenBalanceFromTable(contract, symbol, userAccount);
+  }
+}
+
+// Fallback: fetch balance directly from contract's accounts table
+async function fetchUserTokenBalanceFromTable(
+  contract: string,
+  symbol: string,
+  userAccount: string
+): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: contract,
+          scope: userAccount,
+          table: "accounts",
+          limit: 100,
+          json: true,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (data.rows && data.rows.length > 0) {
+      // Find the balance matching the symbol
+      for (const row of data.rows) {
+        const balance = row.balance || row.quantity;
+        if (balance && balance.includes(symbol)) {
+          return balance;
+        }
+      }
+    }
+    return `0 ${symbol}`;
+  } catch (error) {
+    console.error("Error fetching token balance from table:", error);
     return `0 ${symbol}`;
   }
 }

@@ -24,11 +24,15 @@ import { Lock, Calendar, AlertCircle, Droplets } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function CreateLiquidityLock() {
-  const { session, accountName, isConnected } = useWax();
+  const waxContext = useWax();
   const { toast } = useToast();
   const [lpTokens, setLpTokens] = useState<LPTokenBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const session = waxContext?.session ?? null;
+  const accountName = waxContext?.accountName ?? null;
+  const isConnected = waxContext?.isConnected ?? false;
 
   // Form state
   const [selectedDex, setSelectedDex] = useState<DexType>(DEX.DEFIBOX);

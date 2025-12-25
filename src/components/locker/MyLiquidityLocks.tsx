@@ -19,11 +19,14 @@ import { Lock, Unlock, RefreshCw, Clock, Droplets } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function MyLiquidityLocks() {
-  const { session, accountName } = useWax();
+  const waxContext = useWax();
   const { toast } = useToast();
   const [locks, setLocks] = useState<LiquidityLock[]>([]);
   const [loading, setLoading] = useState(false);
   const [claiming, setClaiming] = useState<number | null>(null);
+
+  const session = waxContext?.session ?? null;
+  const accountName = waxContext?.accountName ?? null;
 
   const loadLocks = async () => {
     if (!session || !accountName) return;

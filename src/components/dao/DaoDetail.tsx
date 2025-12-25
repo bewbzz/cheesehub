@@ -177,12 +177,13 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   // Include pending (ended but not finalized), passed, rejected, executed in past proposals
   const pastProposals = proposals.filter((p) => p.status !== "active");
 
-  // Token Balance DAOs (type 4) don't require staking
-  const requiresStaking = dao.dao_type !== 4 && dao.dao_type !== 5;
+  // Type 5 (Non-Custodial NFTs) don't require staking UI
+  // Type 4 (Token Balance) needs the tab for registration
+  const showStakingTab = dao.dao_type !== 5;
 
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
-    ...(requiresStaking ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
+    ...(showStakingTab ? [{ id: "stake" as Section, label: dao.dao_type === 4 ? "Register" : "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
     { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length },
     { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },
@@ -416,7 +417,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
               )}
 
               {/* Stake Section */}
-              {activeSection === "stake" && requiresStaking && (
+              {activeSection === "stake" && showStakingTab && (
                 <DaoStaking dao={dao} />
               )}
 

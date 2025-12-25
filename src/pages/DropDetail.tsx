@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { DropsHeader } from "@/components/drops/DropsHeader";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -16,6 +17,7 @@ import type { NFTDrop } from "@/types/drop";
 const DropDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
+  const [imageError, setImageError] = useState(false);
 
   const { data: drop, isLoading } = useQuery({
     queryKey: ['drop', id],
@@ -96,11 +98,18 @@ const DropDetail = () => {
 
         <div className="grid gap-10 lg:grid-cols-2">
           <div className="relative aspect-square overflow-hidden rounded-2xl border border-border/50 bg-card/50">
-            <img
-              src={drop.image}
-              alt={drop.name}
-              className="h-full w-full object-cover"
-            />
+            {imageError ? (
+              <div className="flex h-full w-full items-center justify-center bg-muted/50">
+                <ImageOff className="h-16 w-16 text-muted-foreground/50" />
+              </div>
+            ) : (
+              <img
+                src={drop.image}
+                alt={drop.name}
+                className="h-full w-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
           </div>
 

@@ -118,16 +118,7 @@ export default function Locker() {
             >
               WAXDAOLOCKER
             </a>{" "}
-            and{" "}
-            <a 
-              href="https://wax.bloks.io/account/liqlocker.gm?loadContract=true&tab=Tables&account=liqlocker.gm&scope=liqlocker.gm&limit=100" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-cheese hover:underline"
-            >
-              LIQLOCKER.GM
-            </a>{" "}
-            smart contracts.
+            smart contract.
           </p>
         </div>
       </main>

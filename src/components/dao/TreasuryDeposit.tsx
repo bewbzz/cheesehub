@@ -123,6 +123,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
           String(session.actor),
           daoName,
           activeToken.symbol,
+          activeToken.precision,
           activeToken.contract
         ));
       }

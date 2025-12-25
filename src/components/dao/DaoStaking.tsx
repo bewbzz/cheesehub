@@ -126,15 +126,13 @@ export function DaoStaking({ dao }: DaoStakingProps) {
 
   // Handler for registering to vote in Token Balance DAOs
   async function handleRegisterForVoting() {
-    if (!session || !tokenSymbol) return;
+    if (!session) return;
     
     setStaking(true);
     try {
       const action = buildRegisterForBalanceVotingAction(
         session.actor.toString(),
-        dao.dao_name,
-        dao.token_contract,
-        dao.token_symbol
+        dao.dao_name
       );
       
       await session.transact({ actions: [action] });

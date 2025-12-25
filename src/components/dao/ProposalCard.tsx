@@ -22,10 +22,11 @@ import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, 
 interface ProposalCardProps {
   proposal: Proposal;
   dao?: DaoInfo;
-  onVote?: () => void;
+  initialVote?: UserVote | null;
+  onVote?: (proposalId: number, vote: UserVote) => void;
 }
 
-export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
+export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCardProps) {
   const { session, isConnected, accountName } = useWax();
   const [voting, setVoting] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
@@ -33,7 +34,7 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const [stakedWeight, setStakedWeight] = useState<number | null>(null);
   const [stakedBalance, setStakedBalance] = useState<string | null>(null);
   const [loadingStake, setLoadingStake] = useState(false);
-  const [userVote, setUserVote] = useState<UserVote | null>(null);
+  const [userVote, setUserVote] = useState<UserVote | null>(initialVote || null);
 
   // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
   const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
@@ -115,6 +116,7 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       return;
     }
 
+    console.log("Starting vote:", vote);
     setVoting(true);
     try {
       // Don't pass weight - the contract will use the staked weight from stakers table
@@ -125,14 +127,19 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         vote
       );
 
+      console.log("Sending vote transaction...");
       await session.transact({ actions: [action] });
+      console.log("Vote transaction successful!");
       
       // Map vote to choice index (Yes=0, No=1, Abstain=2)
       const choiceIndex = vote === "yes" ? 0 : vote === "no" ? 1 : 2;
-      setUserVote({ choice_index: choiceIndex, weight: stakedWeight || 0 });
+      const voteData = { choice_index: choiceIndex, weight: stakedWeight || 0 };
+      console.log("Setting userVote state with choice_index:", choiceIndex);
+      setUserVote(voteData);
       
       toast.success(`Voted ${vote} successfully!`);
-      onVote?.();
+      // Call onVote with the vote data so parent can track it
+      setTimeout(() => onVote?.(proposal.proposal_id, voteData), 500);
     } catch (error) {
       console.error("Vote failed:", error);
       toast.error(error instanceof Error ? error.message : "Vote failed");
@@ -165,10 +172,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       await session.transact({ actions: [action] });
       
       // Set local vote state
-      setUserVote({ choice_index: selectedChoice, weight: stakedWeight || 0 });
+      const voteData = { choice_index: selectedChoice, weight: stakedWeight || 0 };
+      setUserVote(voteData);
       
       toast.success("Vote submitted successfully!");
-      onVote?.();
+      onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
       toast.error(error instanceof Error ? error.message : "Vote failed");
@@ -200,10 +208,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       await session.transact({ actions: [action] });
       
       // Set local vote state with rankings
-      setUserVote({ choice_index: rankings[0], weight: stakedWeight || 0, rankings });
+      const voteData = { choice_index: rankings[0], weight: stakedWeight || 0, rankings };
+      setUserVote(voteData);
       
       toast.success("Vote submitted successfully!");
-      onVote?.();
+      onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
       toast.error(error instanceof Error ? error.message : "Vote failed");

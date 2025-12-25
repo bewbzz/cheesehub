@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -56,6 +56,15 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [members, setMembers] = useState<DaoMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  // Track which proposals the user has voted on (persists across proposal reloads)
+  const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
+
+  // Function to record a vote
+  const handleVote = (proposalId: number, vote: UserVote) => {
+    setVotedProposals(prev => ({ ...prev, [proposalId]: vote }));
+    // Reload proposals to get updated vote counts
+    loadProposals();
+  };
 
   // Token Balance DAOs (type 4) don't require explicit joining
   const isTokenBalanceDao = dao.dao_type === 4;
@@ -476,7 +485,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                           key={proposal.proposal_id}
                           proposal={proposal}
                           dao={dao}
-                          onVote={loadProposals}
+                          initialVote={votedProposals[proposal.proposal_id] || null}
+                          onVote={handleVote}
                         />
                       ))}
                     </div>
@@ -503,7 +513,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                           key={proposal.proposal_id}
                           proposal={proposal}
                           dao={dao}
-                          onVote={loadProposals}
+                          initialVote={votedProposals[proposal.proposal_id] || null}
+                          onVote={handleVote}
                         />
                       ))}
                     </div>

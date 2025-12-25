@@ -14,12 +14,10 @@ import {
   fetchUserStakedTokens,
   fetchUserStakedNFTs,
   fetchUserTokenBalance,
-  checkType4Registration,
-  buildStakeTokenAction,
+  buildStakeTokenActions,
   buildUnstakeTokenAction,
   buildStakeNFTAction,
   buildUnstakeNFTAction,
-  buildRegisterForBalanceVotingAction,
 } from "@/lib/dao";
 import { fetchUserNFTsBySchema } from "@/services/atomicApi";
 import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, UserPlus } from "lucide-react";
@@ -110,37 +108,6 @@ export function DaoStaking({ dao }: DaoStakingProps) {
     }
   }
 
-  // Handler for registering to vote in Token Balance DAOs
-  async function handleRegisterForVoting() {
-    if (!session) return;
-    
-    setStaking(true);
-    try {
-      const action = buildRegisterForBalanceVotingAction(
-        session.actor.toString(),
-        dao.dao_name
-      );
-      
-      await session.transact({ actions: [action] });
-      
-      toast({
-        title: "Registration Successful",
-        description: `You are now registered to vote in ${dao.dao_name}`,
-      });
-      
-      await loadStakingData();
-    } catch (error) {
-      console.error("Registration failed:", error);
-      toast({
-        title: "Registration Failed",
-        description: error instanceof Error ? error.message : "Failed to register for voting",
-        variant: "destructive",
-      });
-    } finally {
-      setStaking(false);
-    }
-  }
-
   async function handleStakeTokens() {
     if (!session || !stakeAmount || !tokenSymbol) return;
     
@@ -149,14 +116,15 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       const amount = parseFloat(stakeAmount);
       const quantity = `${amount.toFixed(tokenPrecision)} ${tokenSymbol}`;
       
-      const action = buildStakeTokenAction(
+      // Use the new combined actions (staketokens + transfer in same tx)
+      const actions = buildStakeTokenActions(
         session.actor.toString(),
         dao.dao_name,
         quantity,
         dao.token_contract
       );
       
-      await session.transact({ actions: [action] });
+      await session.transact({ actions });
       
       toast({
         title: "Tokens Staked",

@@ -494,10 +494,10 @@ export function buildCreateDaoAction(
     data: {
       user: creator,
       daoname: config.daoName,
-      dao_type: 3, // Token Staking
+      dao_type: 4, // Token Balance (voting power based on token holdings)
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
-      gov_farm_name: null,
+      gov_farm_name: "",
       gov_schemas: [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,

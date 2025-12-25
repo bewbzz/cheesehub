@@ -237,7 +237,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="p-4 pb-3 border-b border-border/50">
+        <DialogHeader className="p-4 pb-3 border-b border-border/50 pr-12">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-cheese/10 flex items-center justify-center shrink-0 overflow-hidden">
               {dao.logo ? (

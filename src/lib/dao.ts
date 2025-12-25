@@ -686,6 +686,7 @@ export function buildVoteAction(
       dao: daoName,
       proposal_id: proposalId,
       choice: choiceMap[vote],
+      asset_ids: [],
     },
   };
 }
@@ -706,6 +707,7 @@ export function buildMultiOptionVoteAction(
       dao: daoName,
       proposal_id: proposalId,
       choice: choiceIndex,
+      asset_ids: [],
     },
   };
 }
@@ -726,6 +728,7 @@ export function buildRankedChoiceVoteAction(
       dao: daoName,
       proposal_id: proposalId,
       rankings,
+      asset_ids: [],
     },
   };
 }

@@ -12,7 +12,6 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   fetchUserStakedTokens,
-  fetchUserVote,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
@@ -35,7 +34,6 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const [stakedBalance, setStakedBalance] = useState<string | null>(null);
   const [loadingStake, setLoadingStake] = useState(false);
   const [userVote, setUserVote] = useState<UserVote | null>(null);
-  const [loadingVote, setLoadingVote] = useState(false);
 
   // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
   const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
@@ -68,27 +66,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     loadStakedTokens();
   }, [requiresStaking, accountName, dao?.dao_name]);
 
-  // Fetch user's existing vote for this proposal
-  useEffect(() => {
-    async function loadUserVote() {
-      if (!accountName || !dao?.dao_name) return;
-      
-      setLoadingVote(true);
-      try {
-        const vote = await fetchUserVote(dao.dao_name, proposal.proposal_id, accountName);
-        setUserVote(vote);
-      } catch (error) {
-        console.error("Failed to load user vote:", error);
-        setUserVote(null);
-      } finally {
-        setLoadingVote(false);
-      }
-    }
-    
-    loadUserVote();
-  }, [accountName, dao?.dao_name, proposal.proposal_id]);
+  // Note: WaxDAO contract doesn't have a table to track individual votes
+  // so we can only show the voted state for the current session after voting
+  // The userVote state is set locally after a successful vote transaction
 
-  // Check if user has already voted
+  // Check if user has already voted (current session only)
   const hasVoted = (): boolean => {
     return userVote !== null;
   };

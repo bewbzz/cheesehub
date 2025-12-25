@@ -84,21 +84,10 @@ export function CreateDao() {
         }
       );
 
-      // Build actions array - fee + create, optionally + profile
+      // Build actions array - fee + create only
+      // Profile will be set in a separate transaction after DAO creation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const actions: any[] = [feeAction, createAction];
-      
-      // Add profile action if description, avatar, or cover image is provided
-      if (formData.description.trim() || formData.avatar.trim() || formData.coverImage.trim()) {
-        const profileAction = buildSetProfileAction(
-          String(session.actor),
-          formData.daoName,
-          formData.description.trim(),
-          formData.avatar.trim(),
-          formData.coverImage.trim()
-        );
-        actions.push(profileAction);
-      }
 
       // Execute all actions in a single transaction
       await session.transact({ actions });

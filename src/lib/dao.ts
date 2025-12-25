@@ -94,12 +94,12 @@ export const VOTING_TYPE_LABELS: Record<number, string> = {
 };
 
 export const OUTCOME_STATUS: Record<number, string> = {
-  0: "pending",
-  1: "pending",
+  0: "active",   // Initial/voting state
+  1: "active",   // Voting in progress
   2: "passed",
   3: "rejected",
   4: "executed",
-  5: "active",
+  5: "pending",  // Finalization pending
 };
 
 export interface DaoInfo {
@@ -388,9 +388,9 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       
       // Determine status based on outcome and end_time
       let status: "pending" | "active" | "passed" | "rejected" | "executed" = "pending";
-      if (outcome === 5 && endTime > now) {
-        status = "active";
-      } else if (outcome === 5 && endTime <= now) {
+      if ((outcome === 0 || outcome === 1) && endTime > now) {
+        status = "active";  // Voting in progress
+      } else if ((outcome === 0 || outcome === 1) && endTime <= now) {
         status = "pending"; // Voting ended but not yet finalized
       } else if (outcome === 2) {
         status = "passed";

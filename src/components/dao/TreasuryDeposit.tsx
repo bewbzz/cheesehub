@@ -122,7 +122,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
         actions.push(buildTokenDepositAction(
           String(session.actor),
           daoName,
-          formattedAmount,
+          activeToken.symbol,
           activeToken.contract
         ));
       }

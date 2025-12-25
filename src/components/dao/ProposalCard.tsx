@@ -499,7 +499,14 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
           {proposal.end_time && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              <span>Ends: {new Date(parseInt(proposal.end_time) * 1000).toLocaleDateString()}</span>
+              <span>Ends: {new Date(parseInt(proposal.end_time) * 1000).toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+              })}</span>
             </div>
           )}
         </div>

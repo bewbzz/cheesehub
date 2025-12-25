@@ -183,7 +183,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
 
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
-    ...(showStakingTab ? [{ id: "stake" as Section, label: dao.dao_type === 4 ? "Register" : "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
+    ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
     { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length },
     { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },

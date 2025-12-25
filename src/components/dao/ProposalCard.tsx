@@ -10,8 +10,7 @@ import {
   buildVoteAction, 
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
-  fetchUserTokenBalance,
-  checkType4Registration,
+  fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
@@ -30,59 +29,59 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const [voting, setVoting] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [rankings, setRankings] = useState<number[]>([]);
-  const [tokenBalance, setTokenBalance] = useState<string | null>(null);
-  const [loadingBalance, setLoadingBalance] = useState(false);
-  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const [stakedWeight, setStakedWeight] = useState<number | null>(null);
+  const [stakedBalance, setStakedBalance] = useState<string | null>(null);
+  const [loadingStake, setLoadingStake] = useState(false);
 
-  // Check if this is a Token Balance DAO (type 4)
-  const isTokenBalanceDao = dao?.dao_type === 4;
+  // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
+  const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
 
-  // Fetch user's token balance and registration status for Token Balance DAOs
+  // Fetch user's staked tokens for staking DAOs
   useEffect(() => {
-    async function loadTokenBalanceAndRegistration() {
-      if (!isTokenBalanceDao || !accountName || !dao?.token_contract || !dao?.token_symbol) return;
+    async function loadStakedTokens() {
+      if (!requiresStaking || !accountName || !dao?.dao_name) return;
       
-      setLoadingBalance(true);
+      setLoadingStake(true);
       try {
-        // Parse symbol from "8,CHEESE" format
-        const symbolParts = dao.token_symbol.split(",");
-        const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
+        const staked = await fetchUserStakedTokens(dao.dao_name, accountName);
         
-        // Fetch balance and check Type 4 registration in parallel
-        const [balance, registered] = await Promise.all([
-          fetchUserTokenBalance(dao.token_contract, symbol, accountName),
-          checkType4Registration(dao.dao_name, accountName)
-        ]);
-        
-        setTokenBalance(balance);
-        setIsRegistered(registered);
+        if (staked) {
+          setStakedWeight(staked.weight);
+          setStakedBalance(staked.balance);
+        } else {
+          setStakedWeight(0);
+          setStakedBalance(null);
+        }
       } catch (error) {
-        console.error("Failed to load token balance:", error);
-        setTokenBalance(null);
-        setIsRegistered(null);
+        console.error("Failed to load staked tokens:", error);
+        setStakedWeight(null);
+        setStakedBalance(null);
       } finally {
-        setLoadingBalance(false);
+        setLoadingStake(false);
       }
     }
     
-    loadTokenBalanceAndRegistration();
-  }, [isTokenBalanceDao, accountName, dao?.token_contract, dao?.token_symbol, dao?.dao_name]);
+    loadStakedTokens();
+  }, [requiresStaking, accountName, dao?.dao_name]);
 
-  // Parse token balance to check if user has enough tokens
+  // Check if user has staked tokens for voting
   const hasVotingPower = (): boolean => {
-    if (!isTokenBalanceDao) return true; // Non-token-balance DAOs use staking
-    if (!tokenBalance) return false;
+    if (!requiresStaking) return true; // NFT DAOs use different mechanism
+    if (stakedWeight === null) return false;
     
-    const balanceNum = parseFloat(tokenBalance.split(" ")[0]) || 0;
     const minWeight = dao?.minimum_weight || 0;
-    
-    return balanceNum >= minWeight;
+    return stakedWeight >= minWeight;
   };
 
-  // Check if user can vote (must be registered for Token Balance DAOs)
+  // Check if user is staked (has a record in stakers table)
+  const isStaked = (): boolean => {
+    return stakedWeight !== null && stakedWeight > 0;
+  };
+
+  // Check if user can vote (must have staked tokens for staking DAOs)
   const canVote = (): boolean => {
-    if (!isTokenBalanceDao) return true;
-    return isRegistered === true && hasVotingPower();
+    if (!requiresStaking) return true;
+    return isStaked() && hasVotingPower();
   };
 
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
@@ -100,15 +99,12 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      // For Type 4 DAOs, pass the token balance as vote weight
-      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
-      
+      // Don't pass weight - the contract will use the staked weight from stakers table
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote,
-        voteWeight
+        vote
       );
 
       await session.transact({ actions: [action] });
@@ -135,15 +131,12 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      // For Type 4 DAOs, pass the token balance as vote weight
-      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
-      
+      // Don't pass weight - the contract will use the staked weight from stakers table
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice,
-        voteWeight
+        selectedChoice
       );
 
       await session.transact({ actions: [action] });
@@ -220,9 +213,9 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   };
 
   const renderVotingPowerInfo = () => {
-    if (!isTokenBalanceDao || !isConnected) return null;
+    if (!requiresStaking || !isConnected) return null;
     
-    if (loadingBalance) {
+    if (loadingStake) {
       return (
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 p-2 bg-muted/30 rounded-lg">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -231,13 +224,13 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       );
     }
 
-    // Check if user is registered
-    if (isRegistered === false) {
+    // Check if user has staked tokens
+    if (!isStaked()) {
       return (
         <div className="flex items-center gap-2 text-sm text-amber-500 mb-3 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
           <UserPlus className="h-4 w-4 shrink-0" />
           <span>
-            You need to register to vote. Go to the "Stake" tab to register.
+            You need to stake tokens to vote. Go to the "Stake" tab to stake.
           </span>
         </div>
       );
@@ -252,8 +245,8 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         <div className="flex items-center gap-2 text-sm text-destructive mb-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>
-            You need at least {minWeight} {symbol} to vote. 
-            Current balance: {tokenBalance || "0"}
+            You need at least {minWeight} {symbol} staked to vote. 
+            Current staked: {stakedBalance || "0"}
           </span>
         </div>
       );
@@ -262,7 +255,7 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     return (
       <div className="flex items-center gap-2 text-sm text-cheese mb-3 p-2 bg-cheese/10 rounded-lg border border-cheese/20">
         <Coins className="h-4 w-4 shrink-0" />
-        <span>Your voting power: {tokenBalance} (wallet balance)</span>
+        <span>Your voting power: {stakedBalance} (staked balance)</span>
       </div>
     );
   };
@@ -270,8 +263,8 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const renderVotingUI = () => {
     if (proposal.status !== "active" || !isConnected) return null;
     
-    // For Token Balance DAOs, check if user can vote (registered + has tokens)
-    if (isTokenBalanceDao && !canVote()) {
+    // For staking DAOs, check if user can vote (staked + has enough weight)
+    if (requiresStaking && !canVote()) {
       return null; // Don't show voting buttons if not eligible
     }
 

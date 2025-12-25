@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,26 +6,69 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { 
   Proposal, 
+  DaoInfo,
   buildVoteAction, 
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
+  fetchUserTokenBalance,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
+  dao?: DaoInfo;
   onVote?: () => void;
 }
 
-export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
-  const { session, isConnected } = useWax();
+export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
+  const { session, isConnected, accountName } = useWax();
   const [voting, setVoting] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [rankings, setRankings] = useState<number[]>([]);
+  const [tokenBalance, setTokenBalance] = useState<string | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // Check if this is a Token Balance DAO (type 4)
+  const isTokenBalanceDao = dao?.dao_type === 4;
+
+  // Fetch user's token balance for Token Balance DAOs
+  useEffect(() => {
+    async function loadTokenBalance() {
+      if (!isTokenBalanceDao || !accountName || !dao?.token_contract || !dao?.token_symbol) return;
+      
+      setLoadingBalance(true);
+      try {
+        // Parse symbol from "8,CHEESE" format
+        const symbolParts = dao.token_symbol.split(",");
+        const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
+        
+        const balance = await fetchUserTokenBalance(dao.token_contract, symbol, accountName);
+        setTokenBalance(balance);
+      } catch (error) {
+        console.error("Failed to load token balance:", error);
+        setTokenBalance(null);
+      } finally {
+        setLoadingBalance(false);
+      }
+    }
+    
+    loadTokenBalance();
+  }, [isTokenBalanceDao, accountName, dao?.token_contract, dao?.token_symbol]);
+
+  // Parse token balance to check if user has enough tokens
+  const hasVotingPower = (): boolean => {
+    if (!isTokenBalanceDao) return true; // Non-token-balance DAOs use staking
+    if (!tokenBalance) return false;
+    
+    const balanceNum = parseFloat(tokenBalance.split(" ")[0]) || 0;
+    const minWeight = dao?.minimum_weight || 0;
+    
+    return balanceNum >= minWeight;
+  };
 
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
   const yesPercent = totalVotes > 0 ? (proposal.yes_votes / totalVotes) * 100 : 0;
@@ -153,8 +196,49 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
     [PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER]: <Send className="h-3 w-3" />,
   };
 
+  const renderVotingPowerInfo = () => {
+    if (!isTokenBalanceDao || !isConnected) return null;
+    
+    if (loadingBalance) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 p-2 bg-muted/30 rounded-lg">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading voting power...</span>
+        </div>
+      );
+    }
+    
+    if (!hasVotingPower()) {
+      const minWeight = dao?.minimum_weight || 0;
+      const symbolParts = dao?.token_symbol?.split(",") || [];
+      const symbol = symbolParts.length > 1 ? symbolParts[1] : "tokens";
+      
+      return (
+        <div className="flex items-center gap-2 text-sm text-destructive mb-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            You need at least {minWeight} {symbol} to vote. 
+            Current balance: {tokenBalance || "0"}
+          </span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center gap-2 text-sm text-cheese mb-3 p-2 bg-cheese/10 rounded-lg border border-cheese/20">
+        <Coins className="h-4 w-4 shrink-0" />
+        <span>Your voting power: {tokenBalance} (wallet balance)</span>
+      </div>
+    );
+  };
+
   const renderVotingUI = () => {
     if (proposal.status !== "active" || !isConnected) return null;
+    
+    // For Token Balance DAOs, check if user has enough tokens
+    if (isTokenBalanceDao && !hasVotingPower()) {
+      return null; // Don't show voting buttons if no voting power
+    }
 
     switch (proposal.voting_type) {
       case PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN:
@@ -391,6 +475,9 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
 
         {/* Vote Results */}
         {renderVoteResults()}
+
+        {/* Voting Power Info (for Token Balance DAOs) */}
+        {renderVotingPowerInfo()}
 
         {/* Voting UI */}
         {renderVotingUI()}

@@ -22,7 +22,7 @@ interface TokenInfo {
 const COMMON_TOKENS: TokenInfo[] = [
   { symbol: "WAX", contract: "eosio.token", precision: 8 },
   { symbol: "WAXDAO", contract: "token.waxdao", precision: 8 },
-  { symbol: "CHEESE", contract: "cheese.gm", precision: 4 },
+  { symbol: "CHEESE", contract: "cheeseburger", precision: 4 },
   { symbol: "TLM", contract: "alien.worlds", precision: 4 },
   { symbol: "DUST", contract: "nftdust.gm", precision: 4 },
   { symbol: "NEFTY", contract: "token.nefty", precision: 8 },

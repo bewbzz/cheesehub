@@ -124,43 +124,24 @@ export function DaoStaking({ dao }: DaoStakingProps) {
     }
   }
 
-  // State for Type 4 DAO stake amount
-  const [type4StakeAmount, setType4StakeAmount] = useState("");
-
   // Handler for registering to vote in Token Balance DAOs
   async function handleRegisterForVoting() {
-    if (!session || !tokenSymbol || !type4StakeAmount) return;
-    
-    const amount = parseFloat(type4StakeAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid stake amount",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!session) return;
     
     setStaking(true);
     try {
-      const quantity = `${amount.toFixed(tokenPrecision)} ${tokenSymbol}`;
-      
       const action = buildRegisterForBalanceVotingAction(
         session.actor.toString(),
-        dao.dao_name,
-        dao.token_contract,
-        dao.token_symbol,
-        quantity
+        dao.dao_name
       );
       
       await session.transact({ actions: [action] });
       
       toast({
         title: "Registration Successful",
-        description: `Successfully staked ${quantity} to ${dao.dao_name}. You can now vote!`,
+        description: `You are now registered to vote in ${dao.dao_name}`,
       });
       
-      setType4StakeAmount("");
       await loadStakingData();
     } catch (error) {
       console.error("Registration failed:", error);
@@ -386,7 +367,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
             )}
           </div>
 
-          {/* Registration/Staking Status */}
+          {/* Registration Status */}
           {isRegistered ? (
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
               <div className="flex items-center gap-3">
@@ -394,7 +375,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
                 <div>
                   <p className="font-medium text-green-500">Registered to Vote</p>
                   <p className="text-sm text-muted-foreground">
-                    You can now vote on proposals. Your staked tokens give you voting power.
+                    You can now vote on proposals. Your voting power is your wallet balance: {availableBalance}
                   </p>
                 </div>
               </div>
@@ -404,42 +385,34 @@ export function DaoStaking({ dao }: DaoStakingProps) {
               <div className="flex items-start gap-3">
                 <UserPlus className="h-8 w-8 text-cheese shrink-0" />
                 <div>
-                  <p className="font-medium text-cheese">Stake Tokens to Vote</p>
+                  <p className="font-medium text-cheese">Registration Required</p>
                   <p className="text-sm text-muted-foreground">
-                    To vote in this DAO, you need to stake {tokenSymbol} tokens. 
-                    Your staked amount determines your voting power.
+                    To vote in this DAO, you need to register first. This is a one-time action that 
+                    stakes a minimal amount of tokens to activate your voting ability.
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder={`Amount to stake`}
-                  value={type4StakeAmount}
-                  onChange={(e) => setType4StakeAmount(e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleRegisterForVoting}
-                  disabled={staking || !type4StakeAmount}
-                  className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                >
-                  {staking ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Stake"
-                  )}
-                </Button>
-              </div>
+              <Button
+                onClick={handleRegisterForVoting}
+                disabled={staking}
+                className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+              >
+                {staking ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                Register to Vote
+              </Button>
             </div>
           )}
 
           <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
             <p className="font-medium mb-1">How Token Balance DAOs work:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>Stake tokens to gain voting power</li>
-              <li>Your voting power equals your staked token amount</li>
-              <li>You can unstake tokens after voting</li>
+              <li>Your voting power equals your wallet token balance</li>
+              <li>No need to stake tokens - just hold them in your wallet</li>
+              <li>One-time registration required to enable voting</li>
             </ul>
           </div>
         </div>

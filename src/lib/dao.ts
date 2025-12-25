@@ -673,21 +673,29 @@ export function buildVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  vote: "yes" | "no" | "abstain"
+  vote: "yes" | "no" | "abstain",
+  voteWeight?: string // Token quantity string for Type 4 DAOs (e.g., "540.14048487 WAX")
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceMap[vote],
+    asset_ids: [],
+  };
+  
+  // Add weight for Type 4 Token Balance DAOs
+  if (voteWeight) {
+    data.weight = voteWeight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceMap[vote],
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -696,19 +704,26 @@ export function buildMultiOptionVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  choiceIndex: number
+  choiceIndex: number,
+  voteWeight?: string
 ) {
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceIndex,
+    asset_ids: [],
+  };
+  
+  if (voteWeight) {
+    data.weight = voteWeight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceIndex,
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -938,25 +953,19 @@ export function buildStakeTokenAction(
 }
 
 // Build action for registering to vote in a Token Balance DAO (Type 4)
-// For Type 4 DAOs, users must stake tokens first (transfer with memo) to create a staker record
+// This calls the staketokens action to create a record in the stakers table
 export function buildRegisterForBalanceVotingAction(
   user: string,
   daoName: string,
-  tokenContract: string,
-  tokenSymbol: string, // Format: "8,WAX"
-  stakeAmount: string // The amount to stake, e.g., "1.00000000 WAX"
 ) {
-  // Transfer tokens to the DAO contract with stake memo
-  // This will trigger the staketokens inline action
+  // For Type 4 DAOs, call staketokens action to register (no actual tokens needed)
   return {
-    account: tokenContract,
-    name: "transfer",
+    account: DAO_CONTRACT,
+    name: "staketokens",
     authorization: [{ actor: user, permission: "active" }],
     data: {
-      from: user,
-      to: DAO_CONTRACT,
-      quantity: stakeAmount,
-      memo: `|stake_tokens|${daoName}|`,
+      user: user,
+      dao: daoName,
     },
   };
 }

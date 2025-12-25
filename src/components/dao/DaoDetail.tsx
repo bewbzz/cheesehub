@@ -154,13 +154,32 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       
       // Fetch existing votes from blockchain for connected user
       if (accountName) {
+        console.log("Fetching votes for user:", accountName, "dao:", dao.dao_name);
         const existingVotes: Record<number, UserVote> = {};
-        for (const proposal of data) {
-          const vote = await fetchUserVote(dao.dao_name, proposal.proposal_id, accountName);
-          if (vote) {
-            existingVotes[proposal.proposal_id] = vote;
+        
+        // Fetch votes in parallel for better performance
+        const votePromises = data.map(async (proposal) => {
+          try {
+            console.log("Checking vote for proposal:", proposal.proposal_id);
+            const vote = await fetchUserVote(dao.dao_name, proposal.proposal_id, accountName);
+            console.log("Vote result for proposal", proposal.proposal_id, ":", vote);
+            if (vote) {
+              return { proposalId: proposal.proposal_id, vote };
+            }
+          } catch (err) {
+            console.error("Error fetching vote for proposal", proposal.proposal_id, ":", err);
           }
-        }
+          return null;
+        });
+        
+        const votes = await Promise.all(votePromises);
+        votes.forEach((result) => {
+          if (result) {
+            existingVotes[result.proposalId] = result.vote;
+          }
+        });
+        
+        console.log("Existing votes found:", existingVotes);
         if (Object.keys(existingVotes).length > 0) {
           setVotedProposals(prev => ({ ...prev, ...existingVotes }));
         }

@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
 import { TreasuryDeposit } from "./TreasuryDeposit";
 import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
+import { useWax } from "@/context/WaxContext";
 import { 
   Users, 
   FileText, 
@@ -21,7 +22,10 @@ import {
   History,
   ChevronRight,
   Wallet,
-  ImageIcon
+  ImageIcon,
+  UserPlus,
+  UserMinus,
+  CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,25 +45,91 @@ interface MenuItem {
 }
 
 export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
+  const { isConnected, accountName, joinDao, leaveDao } = useWax();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
   const [treasury, setTreasury] = useState<TreasuryBalance[]>([]);
   const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
+  const [isMember, setIsMember] = useState(false);
+  const [membershipLoading, setMembershipLoading] = useState(false);
+  const [members, setMembers] = useState<DaoMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadProposals();
       setActiveSection("info");
+      checkMembership();
     }
-  }, [open, dao.dao_name]);
+  }, [open, dao.dao_name, accountName]);
 
   useEffect(() => {
     if (activeSection === "treasury" && treasury.length === 0) {
       loadTreasury();
     }
   }, [activeSection]);
+
+  useEffect(() => {
+    if (activeSection === "members" && members.length === 0) {
+      loadMembers();
+    }
+  }, [activeSection]);
+
+  async function checkMembership() {
+    if (!accountName) {
+      setIsMember(false);
+      return;
+    }
+    setMembershipLoading(true);
+    try {
+      const result = await checkDaoMembership(dao.dao_name, accountName);
+      setIsMember(result);
+    } catch (error) {
+      console.error("Failed to check membership:", error);
+    } finally {
+      setMembershipLoading(false);
+    }
+  }
+
+  async function loadMembers() {
+    setMembersLoading(true);
+    try {
+      const data = await fetchDaoMembers(dao.dao_name);
+      setMembers(data);
+    } catch (error) {
+      console.error("Failed to load members:", error);
+    } finally {
+      setMembersLoading(false);
+    }
+  }
+
+  async function handleJoinDao() {
+    setMembershipLoading(true);
+    try {
+      const result = await joinDao(dao.dao_name);
+      if (result) {
+        setIsMember(true);
+        loadMembers();
+      }
+    } finally {
+      setMembershipLoading(false);
+    }
+  }
+
+  async function handleLeaveDao() {
+    setMembershipLoading(true);
+    try {
+      const result = await leaveDao(dao.dao_name);
+      if (result) {
+        setIsMember(false);
+        loadMembers();
+      }
+    } finally {
+      setMembershipLoading(false);
+    }
+  }
 
   async function loadProposals() {
     setLoading(true);
@@ -137,11 +207,54 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 <Badge variant="outline" className="text-cheese border-cheese/30 shrink-0">
                   {DAO_TYPES[dao.dao_type] || "Unknown"}
                 </Badge>
+                {isConnected && (
+                  isMember ? (
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30 shrink-0">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Member
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="shrink-0">
+                      Not a Member
+                    </Badge>
+                  )
+                )}
               </div>
-              <p className="text-sm text-muted-foreground truncate">
-                Created by {dao.creator} on {createdDate}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-muted-foreground truncate">
+                  Created by {dao.creator} on {createdDate}
+                </p>
+              </div>
             </div>
+            {/* Join/Leave Button */}
+            {isConnected && (
+              <div className="shrink-0">
+                {membershipLoading ? (
+                  <Button size="sm" disabled>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </Button>
+                ) : isMember ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleLeaveDao}
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <UserMinus className="h-4 w-4 mr-1" />
+                    Leave
+                  </Button>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    onClick={handleJoinDao}
+                    className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+                  >
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    Join DAO
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </DialogHeader>
 
@@ -489,37 +602,114 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </div>
               )}
 
-              {/* Members Section (Placeholder) */}
+              {/* Members Section */}
               {activeSection === "members" && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Users className="h-5 w-5 text-cheese" />
-                    Members
-                  </h3>
-                  {dao.authors && dao.authors.length > 0 ? (
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Users className="h-5 w-5 text-cheese" />
+                      Members
+                      {members.length > 0 && (
+                        <Badge variant="secondary">{members.length}</Badge>
+                      )}
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={loadMembers}
+                      disabled={membersLoading}
+                    >
+                      {membersLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Refresh"
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* DAO Authors Section */}
+                  {dao.authors && dao.authors.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">DAO Authors (can create proposals)</p>
+                      <p className="text-sm text-muted-foreground font-medium">DAO Authors (can create proposals)</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {dao.authors.map((author) => (
                           <div
                             key={author}
-                            className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg"
+                            className="flex items-center gap-2 p-3 bg-cheese/10 rounded-lg border border-cheese/20"
                           >
-                            <div className="h-8 w-8 rounded-full bg-cheese/10 flex items-center justify-center">
-                              <Users className="h-4 w-4 text-cheese" />
+                            <div className="h-8 w-8 rounded-full bg-cheese/20 flex items-center justify-center">
+                              <Shield className="h-4 w-4 text-cheese" />
                             </div>
                             <span className="font-medium truncate">{author}</span>
+                            <Badge variant="outline" className="ml-auto text-xs border-cheese/30 text-cheese">Author</Badge>
                           </div>
                         ))}
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
-                      <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p className="font-medium">Open Membership</p>
-                      <p className="text-sm">This DAO doesn't have a restricted author list</p>
-                    </div>
                   )}
+
+                  {/* Joined Members Section */}
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground font-medium">
+                      Joined Members {members.length > 0 && `(${members.length})`}
+                    </p>
+                    {membersLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-cheese" />
+                      </div>
+                    ) : members.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
+                        <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p className="font-medium">No Members Yet</p>
+                        <p className="text-sm">Be the first to join this DAO!</p>
+                        {isConnected && !isMember && (
+                          <Button
+                            size="sm"
+                            onClick={handleJoinDao}
+                            className="mt-3 bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+                            disabled={membershipLoading}
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            Join DAO
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {members.map((member) => (
+                          <div
+                            key={member.user}
+                            className={cn(
+                              "flex items-center gap-2 p-3 rounded-lg",
+                              member.user === accountName 
+                                ? "bg-green-500/10 border border-green-500/20" 
+                                : "bg-muted/50"
+                            )}
+                          >
+                            <div className={cn(
+                              "h-8 w-8 rounded-full flex items-center justify-center",
+                              member.user === accountName ? "bg-green-500/20" : "bg-muted"
+                            )}>
+                              <Users className={cn(
+                                "h-4 w-4",
+                                member.user === accountName ? "text-green-500" : "text-muted-foreground"
+                              )} />
+                            </div>
+                            <span className="font-medium truncate">{member.user}</span>
+                            {member.user === accountName && (
+                              <Badge className="ml-auto bg-green-500/20 text-green-500 text-xs">You</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info about Token Balance voting */}
+                  <div className="p-3 bg-muted/20 rounded-lg border border-border/30 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">Token Balance Voting</p>
+                    <p>Members must join this DAO to vote on proposals. Voting power is based on the governance token balance in your wallet at the time of voting - no staking required.</p>
+                  </div>
                 </div>
               )}
             </div>

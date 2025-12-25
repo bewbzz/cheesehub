@@ -134,8 +134,9 @@ export function getIpfsUrl(hash: string): string {
 }
 
 export interface ProposalChoice {
-  choice_name: string;
-  total_votes: string;
+  choice: number;
+  description: string;
+  total_votes: number | string;
 }
 
 export interface Proposal {
@@ -372,12 +373,15 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       let abstainVotes = 0;
       
       choices.forEach((choice: ProposalChoice) => {
-        const votes = parseInt(choice.total_votes) || 0;
-        if (choice.choice_name?.toLowerCase() === "yes") {
+        const votes = typeof choice.total_votes === 'string' 
+          ? parseInt(choice.total_votes) || 0 
+          : choice.total_votes || 0;
+        const choiceDesc = choice.description?.toLowerCase();
+        if (choiceDesc === "yes") {
           yesVotes = votes;
-        } else if (choice.choice_name?.toLowerCase() === "no") {
+        } else if (choiceDesc === "no") {
           noVotes = votes;
-        } else if (choice.choice_name?.toLowerCase() === "abstain") {
+        } else if (choiceDesc === "abstain") {
           abstainVotes = votes;
         }
       });

@@ -32,7 +32,7 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
   const noPercent = totalVotes > 0 ? (proposal.no_votes / totalVotes) * 100 : 0;
 
   // Calculate total votes from choices for multi-option proposals
-  const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (parseInt(c.total_votes) || 0), 0) || 0;
+  const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
@@ -220,7 +220,7 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
                 <div key={index} className="flex items-center space-x-2">
                   <RadioGroupItem value={index.toString()} id={`choice-${index}`} />
                   <Label htmlFor={`choice-${index}`} className="flex-1 cursor-pointer">
-                    {choice.choice_name}
+                    {choice.description}
                   </Label>
                   <span className="text-xs text-muted-foreground">
                     {choice.total_votes} votes
@@ -253,7 +253,7 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
                   <span className="text-xs font-medium text-cheese w-6">#{rankPosition + 1}</span>
                   <GripVertical className="h-4 w-4 text-muted-foreground" />
                   <span className="flex-1 text-sm">
-                    {proposal.choices[choiceIndex]?.choice_name}
+                    {proposal.choices[choiceIndex]?.description}
                   </span>
                   <div className="flex gap-1">
                     <Button
@@ -328,12 +328,12 @@ export function ProposalCard({ proposal, onVote }: ProposalCardProps) {
       return (
         <div className="space-y-2">
           {proposal.choices.map((choice, index) => {
-            const votes = parseInt(choice.total_votes) || 0;
+            const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
             const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
             return (
               <div key={index} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-foreground">{choice.choice_name}</span>
+                  <span className="text-foreground">{choice.description}</span>
                   <span className="text-muted-foreground">{votes} votes</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">

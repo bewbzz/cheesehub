@@ -497,7 +497,7 @@ export function buildCreateDaoAction(
       dao_type: 3, // Token Staking
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
-      gov_farm_name: "",
+      gov_farm_name: null,
       gov_schemas: [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,

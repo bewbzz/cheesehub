@@ -2,7 +2,9 @@ import { Header } from "@/components/Header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLock } from "@/components/locker/CreateLock";
 import { MyLocks } from "@/components/locker/MyLocks";
-import { Lock, List } from "lucide-react";
+import { CreateLiquidityLock } from "@/components/locker/CreateLiquidityLock";
+import { MyLiquidityLocks } from "@/components/locker/MyLiquidityLocks";
+import { Lock, List, Coins, Droplets } from "lucide-react";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
@@ -26,36 +28,82 @@ export default function Locker() {
               <span className="text-foreground">Lock</span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Lock your tokens securely on the WAX blockchain using WaxDAO smart contracts
+              Lock your tokens and LP tokens securely on the WAX blockchain using WaxDAO smart contracts
             </p>
           </div>
         </div>
       </section>
 
       <main className="container pb-12">
-
-        <Tabs defaultValue="create" className="space-y-8">
+        {/* Outer Tabs: Token Lock vs Liquidity Lock */}
+        <Tabs defaultValue="token" className="space-y-8">
           <div className="flex justify-center">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="create" className="gap-2">
-                <Lock className="h-4 w-4" />
-                Create Lock
+            <TabsList className="grid w-full max-w-lg grid-cols-2 h-14">
+              <TabsTrigger value="token" className="gap-2 text-base font-semibold h-12">
+                <Coins className="h-5 w-5" />
+                Token Lock
               </TabsTrigger>
-              <TabsTrigger value="my-locks" className="gap-2">
-                <List className="h-4 w-4" />
-                My Locks
+              <TabsTrigger value="liquidity" className="gap-2 text-base font-semibold h-12">
+                <Droplets className="h-5 w-5" />
+                Liquidity Lock
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="create" className="flex justify-center">
-            <div className="w-full max-w-2xl">
-              <CreateLock />
-            </div>
+          {/* Token Lock Content */}
+          <TabsContent value="token" className="space-y-8">
+            <Tabs defaultValue="create" className="space-y-8">
+              <div className="flex justify-center">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="create" className="gap-2">
+                    <Lock className="h-4 w-4" />
+                    Create Lock
+                  </TabsTrigger>
+                  <TabsTrigger value="my-locks" className="gap-2">
+                    <List className="h-4 w-4" />
+                    My Locks
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="create" className="flex justify-center">
+                <div className="w-full max-w-2xl">
+                  <CreateLock />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="my-locks">
+                <MyLocks />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
-          <TabsContent value="my-locks">
-            <MyLocks />
+          {/* Liquidity Lock Content */}
+          <TabsContent value="liquidity" className="space-y-8">
+            <Tabs defaultValue="create" className="space-y-8">
+              <div className="flex justify-center">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="create" className="gap-2">
+                    <Lock className="h-4 w-4" />
+                    Create Lock
+                  </TabsTrigger>
+                  <TabsTrigger value="my-locks" className="gap-2">
+                    <List className="h-4 w-4" />
+                    My Locks
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="create" className="flex justify-center">
+                <div className="w-full max-w-2xl">
+                  <CreateLiquidityLock />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="my-locks">
+                <MyLiquidityLocks />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
 
@@ -70,7 +118,16 @@ export default function Locker() {
             >
               WAXDAOLOCKER
             </a>{" "}
-            smart contract.
+            and{" "}
+            <a 
+              href="https://wax.bloks.io/account/liqlocker.gm?loadContract=true&tab=Tables&account=liqlocker.gm&scope=liqlocker.gm&limit=100" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-cheese hover:underline"
+            >
+              LIQLOCKER.GM
+            </a>{" "}
+            smart contracts.
           </p>
         </div>
       </main>

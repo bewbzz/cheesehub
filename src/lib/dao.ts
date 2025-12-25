@@ -494,10 +494,10 @@ export function buildCreateDaoAction(
     data: {
       user: creator,
       daoname: config.daoName,
-      dao_type: 3, // Stake Tokens To DAO (stakes directly to dao.waxdao)
+      dao_type: 4, // Token Balance (voting power based on wallet holdings, non-custodial)
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
-      gov_farm_name: "", // Empty for direct staking DAOs
+      gov_farm_name: "", // Not needed for Token Balance DAOs
       gov_schemas: [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,

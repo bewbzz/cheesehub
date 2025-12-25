@@ -902,7 +902,7 @@ export function buildRegisterForBalanceVotingAction(
     authorization: [{ actor: user, permission: "active" }],
     data: {
       user: user,
-      daoname: daoName,
+      dao: daoName,
     },
   };
 }

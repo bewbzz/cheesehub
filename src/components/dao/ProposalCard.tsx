@@ -315,14 +315,17 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
             <Button
               size="sm"
               variant="outline"
-              className="border-muted-foreground/50 text-muted-foreground hover:bg-muted"
+              className="flex-1 border-muted-foreground/50 text-muted-foreground hover:bg-muted"
               onClick={() => handleYesNoVote("abstain")}
               disabled={voting}
             >
               {voting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Minus className="h-4 w-4" />
+                <>
+                  <Minus className="h-4 w-4 mr-1" />
+                  Abstain
+                </>
               )}
             </Button>
           </div>

@@ -87,15 +87,27 @@ export function DaoStaking({ dao }: DaoStakingProps) {
     try {
       // For Token Balance DAOs (Type 4), check staked tokens (for registration) and wallet balance
       if (isTokenBalanceDao && tokenSymbol && accountName) {
-        const [staked, balance] = await Promise.all([
-          fetchUserStakedTokens(dao.dao_name, accountName),
-          fetchUserTokenBalance(dao.token_contract, tokenSymbol, accountName),
-        ]);
-        setStakedTokens(staked);
+        // Fetch balance first
+        const balance = await fetchUserTokenBalance(dao.token_contract, tokenSymbol, accountName);
         setAvailableBalance(balance);
-        // Registration is based on having staked tokens
-        setIsRegistered(staked !== null);
-        console.log(`Type 4 DAO staking data for ${accountName}:`, { staked, balance });
+        
+        // Try to check stakers table, but don't block if it fails (API may have ABI issues)
+        try {
+          const staked = await fetchUserStakedTokens(dao.dao_name, accountName);
+          setStakedTokens(staked);
+          setIsRegistered(staked !== null);
+          console.log(`Type 4 DAO staking data for ${accountName}:`, { staked, balance });
+        } catch (stakersError) {
+          console.warn("Stakers table query failed (ABI issue?), checking balance for voting eligibility");
+          // If stakers table fails but user has token balance, allow voting
+          const balanceNum = parseFloat(balance.split(" ")[0]) || 0;
+          if (balanceNum > 0) {
+            setIsRegistered(true);
+            console.log("User has token balance, allowing voting attempt");
+          } else {
+            setIsRegistered(false);
+          }
+        }
       }
       
       // For Token Staking DAOs (Type 1, 3)

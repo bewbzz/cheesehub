@@ -12,6 +12,7 @@ import {
   buildMultiOptionProposalAction,
   buildRankedChoiceProposalAction,
   buildNFTTransferProposalAction,
+  buildProposalCostAction,
   fetchDaoTreasuryNFTs,
   TokenTransferProposalData,
   NFTTransferProposalData,
@@ -23,13 +24,14 @@ import { cn } from "@/lib/utils";
 
 interface CreateProposalProps {
   daoName: string;
+  proposalCost: string; // e.g. "100.00000000 WAX"
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 type ProposalType = "yesnoabstain" | "transfer" | "mostvotes" | "rankedchoice" | "nfttransfer";
 
-export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalProps) {
+export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: CreateProposalProps) {
   const { session } = useWax();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -144,12 +146,12 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
 
     setLoading(true);
     try {
-      let action;
+      let proposalAction;
       const actor = String(session.actor);
       
       switch (formData.proposalType) {
         case "transfer":
-          action = buildTokenTransferProposalAction(actor, daoName, {
+          proposalAction = buildTokenTransferProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             transfer: transferData,
@@ -157,7 +159,7 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
           break;
         
         case "nfttransfer":
-          action = buildNFTTransferProposalAction(actor, daoName, {
+          proposalAction = buildNFTTransferProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             transfer: nftTransferData,
@@ -165,7 +167,7 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
           break;
         
         case "mostvotes":
-          action = buildMultiOptionProposalAction(actor, daoName, {
+          proposalAction = buildMultiOptionProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             options: customOptions.filter(opt => opt.trim()),
@@ -173,7 +175,7 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
           break;
         
         case "rankedchoice":
-          action = buildRankedChoiceProposalAction(actor, daoName, {
+          proposalAction = buildRankedChoiceProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             options: customOptions.filter(opt => opt.trim()),
@@ -181,14 +183,24 @@ export function CreateProposal({ daoName, onSuccess, onCancel }: CreateProposalP
           break;
         
         default: // yesnoabstain
-          action = buildCreateProposalAction(actor, daoName, {
+          proposalAction = buildCreateProposalAction(actor, daoName, {
             title: formData.title,
             description: formData.description,
             proposalType: "standard",
           });
       }
 
-      await session.transact({ actions: [action] });
+      // Build actions array - include payment if proposalCost > 0
+      const actions = [];
+      
+      // Parse proposal cost to check if payment is required
+      const costAmount = parseFloat(proposalCost.split(" ")[0]);
+      if (costAmount > 0) {
+        actions.push(buildProposalCostAction(actor, daoName, proposalCost));
+      }
+      actions.push(proposalAction);
+
+      await session.transact({ actions });
       toast.success("Proposal created successfully!");
       onSuccess();
     } catch (error) {

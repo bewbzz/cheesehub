@@ -429,6 +429,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   </h3>
                   <CreateProposal
                     daoName={dao.dao_name}
+                    proposalCost={dao.proposal_cost}
                     onSuccess={() => {
                       loadProposals();
                       setActiveSection("active");

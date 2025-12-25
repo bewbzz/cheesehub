@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -151,6 +151,20 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     try {
       const data = await fetchProposals(dao.dao_name);
       setProposals(data);
+      
+      // Fetch existing votes from blockchain for connected user
+      if (accountName) {
+        const existingVotes: Record<number, UserVote> = {};
+        for (const proposal of data) {
+          const vote = await fetchUserVote(dao.dao_name, proposal.proposal_id, accountName);
+          if (vote) {
+            existingVotes[proposal.proposal_id] = vote;
+          }
+        }
+        if (Object.keys(existingVotes).length > 0) {
+          setVotedProposals(prev => ({ ...prev, ...existingVotes }));
+        }
+      }
     } catch (error) {
       console.error("Failed to load proposals:", error);
     } finally {

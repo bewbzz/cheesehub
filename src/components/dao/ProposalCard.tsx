@@ -85,6 +85,20 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     return isRegistered === true && hasVotingPower();
   };
 
+  // Calculate vote weight for Type 4 DAOs (convert token balance to integer)
+  const getVoteWeight = (): number | undefined => {
+    if (!isTokenBalanceDao || !tokenBalance) return undefined;
+    
+    // Parse balance like "540.14048487 WAX" to get the numeric value
+    const balanceNum = parseFloat(tokenBalance.split(" ")[0]) || 0;
+    
+    // Get precision from dao.token_symbol (format: "8,WAX")
+    const precision = dao?.token_symbol ? parseInt(dao.token_symbol.split(",")[0]) || 8 : 8;
+    
+    // Convert to integer based on precision (e.g., 540.14048487 * 10^8)
+    return Math.floor(balanceNum * Math.pow(10, precision));
+  };
+
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
   const yesPercent = totalVotes > 0 ? (proposal.yes_votes / totalVotes) * 100 : 0;
   const noPercent = totalVotes > 0 ? (proposal.no_votes / totalVotes) * 100 : 0;
@@ -100,11 +114,13 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
+      const weight = getVoteWeight();
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote
+        vote,
+        weight
       );
 
       await session.transact({ actions: [action] });
@@ -131,11 +147,13 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
+      const weight = getVoteWeight();
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice
+        selectedChoice,
+        weight
       );
 
       await session.transact({ actions: [action] });

@@ -33,7 +33,8 @@ export function MyLiquidityLocks() {
     setLoading(true);
     try {
       const userLocks = await fetchUserLiquidityLocks(accountName);
-      setLocks(userLocks);
+      // Ensure we always set an array
+      setLocks(Array.isArray(userLocks) ? userLocks : []);
     } catch (error) {
       console.error("Failed to load liquidity locks:", error);
       toast({

@@ -125,7 +125,8 @@ export async function fetchUserLiquidityLocks(account: string): Promise<Liquidit
     );
     
     console.log("Raw liquidity locks data:", locks);
-    return locks;
+    // Ensure we always return an array
+    return Array.isArray(locks) ? locks : [];
   } catch (error) {
     console.error("Failed to fetch liquidity locks:", error);
     return [];

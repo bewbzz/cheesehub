@@ -447,7 +447,9 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         <img 
                           src={getIpfsUrl(dao.cover_image)} 
                           alt={`${dao.dao_name} cover`}
-                          className="w-full h-auto max-h-64 object-cover"
+                          className="w-full h-auto object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(getIpfsUrl(dao.cover_image), '_blank')}
+                          title="Click to view full size"
                           onError={(e) => {
                             (e.currentTarget.parentElement?.parentElement as HTMLElement)?.classList.add('hidden');
                           }}

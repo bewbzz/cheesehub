@@ -114,10 +114,19 @@ export function CreateLiquidityLock() {
 
     setCreating(true);
     try {
-      // Format amount with correct precision
-      const precision = tokenInfo.amount.split(".")[1]?.length || 8;
+      // Format amount with correct precision from the original balance
+      // tokenInfo.amount is like "100.00000000" - get precision from decimal places
+      const decimalPart = tokenInfo.amount.split(".")[1];
+      const precision = decimalPart ? decimalPart.length : 0;
       const formattedAmount = `${parseFloat(amount).toFixed(precision)} ${tokenInfo.symbol}`;
       const unlockTimestamp = Math.floor(unlockDateTime.getTime() / 1000);
+      
+      console.log("LP Lock Debug:", { 
+        originalAmount: tokenInfo.amount, 
+        precision, 
+        formattedAmount,
+        symbol: tokenInfo.symbol 
+      });
 
       await session.transact({
         actions: [

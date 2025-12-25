@@ -147,7 +147,7 @@ export function CreateDao() {
             </CardTitle>
             <div className="flex items-center gap-1.5">
               <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
-                Stake to DAO (Custodial)
+                Token Balance (Non-Custodial)
               </span>
               <Dialog>
                 <DialogTrigger asChild>
@@ -189,15 +189,16 @@ export function CreateDao() {
 
                       <AccordionItem value="dao-types" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          DAO Type: Stake Tokens To DAO
+                          DAO Type: Token Balance
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
-                            This form creates a <strong className="text-cheese">"Stake Tokens To DAO"</strong> (custodial) type DAO.
+                            This form creates a <strong className="text-cheese">"Token Balance"</strong> (non-custodial) type DAO.
                           </p>
                           <p>
-                            Members stake governance tokens to the DAO contract to gain voting power. 
-                            Tokens are held custodially until unstaked. Your voting power equals your staked amount.
+                            Voting power is based on how many governance tokens you hold in your wallet. 
+                            No staking required - simply hold the tokens to participate in governance. 
+                            Your tokens stay in your wallet at all times.
                           </p>
                         </AccordionContent>
                       </AccordionItem>
@@ -222,8 +223,8 @@ export function CreateDao() {
                             <p className="text-xs mt-1">
                               The minimum total vote weight needed for a proposal to be valid. 
                               This prevents proposals from passing with very few participants. 
-                              For example, if set to 1000, at least 1000 tokens worth of votes 
-                              must be cast before the result counts.
+                              Vote weight equals token balance in wallets. For example, if set to 1000, 
+                              at least 1000 tokens worth of votes must be cast before the result counts.
                             </p>
                           </div>
 
@@ -263,9 +264,9 @@ export function CreateDao() {
                             </div>
                             
                             <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-cheese">Stake Weight</p>
+                              <p className="font-medium text-cheese">Token Balance</p>
                               <p className="text-xs mt-1">
-                                Users must hold a minimum amount of governance tokens to create proposals. 
+                                Users must hold a minimum token balance in their wallet to create proposals. 
                                 Ensures proposers have skin in the game.
                               </p>
                             </div>

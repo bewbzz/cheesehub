@@ -1233,6 +1233,26 @@ export function buildUnstakeNFTAction(
   };
 }
 
+// Build action for announcing token deposit (required before non-WAX token deposits)
+export function buildTokenDepositAction(
+  user: string,
+  daoName: string,
+  quantity: string,
+  tokenContract: string
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "tokendeposit",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      quantity: quantity,
+      daoname: daoName,
+      contract: tokenContract,
+    },
+  };
+}
+
 // Build action for depositing tokens to DAO treasury
 export function buildDepositToTreasuryAction(
   sender: string,

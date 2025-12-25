@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWax } from "@/context/WaxContext";
-import { buildDepositToTreasuryAction, fetchUserTokenBalance } from "@/lib/dao";
+import { buildDepositToTreasuryAction, buildTokenDepositAction, fetchUserTokenBalance } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
 
@@ -115,14 +115,27 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       // Format amount with correct precision
       const formattedAmount = `${parseFloat(amount).toFixed(activeToken.precision)} ${activeToken.symbol}`;
       
-      const action = buildDepositToTreasuryAction(
+      const actions = [];
+      
+      // For non-WAX tokens, need to call tokendeposit first
+      if (activeToken.contract !== "eosio.token") {
+        actions.push(buildTokenDepositAction(
+          String(session.actor),
+          daoName,
+          formattedAmount,
+          activeToken.contract
+        ));
+      }
+      
+      // Then the actual transfer
+      actions.push(buildDepositToTreasuryAction(
         String(session.actor),
         daoName,
         formattedAmount,
         activeToken.contract
-      );
+      ));
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions });
       toast.success(`Successfully deposited ${formattedAmount} to treasury!`);
       setAmount("");
       await loadUserBalance();

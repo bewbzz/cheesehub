@@ -1207,7 +1207,7 @@ export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
         json: true,
         code: DAO_CONTRACT,
         scope: daoName,
-        table: "members",
+        table: "users",
         limit: 1000,
       }),
     });
@@ -1229,7 +1229,7 @@ export async function checkDaoMembership(daoName: string, user: string): Promise
         json: true,
         code: DAO_CONTRACT,
         scope: daoName,
-        table: "members",
+        table: "users",
         lower_bound: user,
         upper_bound: user,
         limit: 1,

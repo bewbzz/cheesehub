@@ -21,6 +21,18 @@ export function buildDaoCreationFeeAction(sender: string) {
   };
 }
 
+// Build action for asserting payment (required before createdao)
+export function buildAssertPointAction(user: string) {
+  return {
+    account: DAO_CONTRACT,
+    name: "assertpoint",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+    },
+  };
+}
+
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
   1: "Staking Farm",

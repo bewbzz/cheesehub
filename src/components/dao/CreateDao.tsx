@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDaoAction, buildDaoCreationFeeAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
+import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -64,6 +64,9 @@ export function CreateDao() {
 
     setLoading(true);
     try {
+      // Build assertpoint action (required before createdao)
+      const assertAction = buildAssertPointAction(String(session.actor));
+      
       // Build fee payment action (250 WAX)
       const feeAction = buildDaoCreationFeeAction(String(session.actor));
       
@@ -84,10 +87,10 @@ export function CreateDao() {
         }
       );
 
-      // Build actions array - fee + create only
+      // Build actions array - assertpoint + fee + create
       // Profile will be set in a separate transaction after DAO creation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const actions: any[] = [feeAction, createAction];
+      const actions: any[] = [assertAction, feeAction, createAction];
 
       // Execute all actions in a single transaction
       await session.transact({ actions });

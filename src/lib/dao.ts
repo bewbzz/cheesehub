@@ -1237,7 +1237,7 @@ export function buildUnstakeNFTAction(
 export function buildTokenDepositAction(
   user: string,
   daoName: string,
-  quantity: string,
+  tokenSymbol: string,
   tokenContract: string
 ) {
   return {
@@ -1246,9 +1246,9 @@ export function buildTokenDepositAction(
     authorization: [{ actor: user, permission: "active" }],
     data: {
       user: user,
-      quantity: quantity,
-      daoname: daoName,
-      contract: tokenContract,
+      dao: daoName,
+      token_symbol: tokenSymbol,
+      token_contract: tokenContract,
     },
   };
 }

@@ -932,7 +932,41 @@ export async function fetchUserTokenBalance(
   }
 }
 
-// Build action for staking tokens
+// Build actions for staking tokens (requires both staketokens action AND transfer in same tx)
+export function buildStakeTokenActions(
+  staker: string,
+  daoName: string,
+  amount: string,
+  tokenContract: string
+) {
+  // Both actions must be in the same transaction
+  return [
+    // First: call staketokens to register/prepare the stake
+    {
+      account: DAO_CONTRACT,
+      name: "staketokens",
+      authorization: [{ actor: staker, permission: "active" }],
+      data: {
+        user: staker,
+        dao: daoName,
+      },
+    },
+    // Second: transfer the tokens
+    {
+      account: tokenContract,
+      name: "transfer",
+      authorization: [{ actor: staker, permission: "active" }],
+      data: {
+        from: staker,
+        to: DAO_CONTRACT,
+        quantity: amount,
+        memo: `|stake_tokens|${daoName}|`,
+      },
+    },
+  ];
+}
+
+// Legacy single action (deprecated - use buildStakeTokenActions instead)
 export function buildStakeTokenAction(
   staker: string,
   daoName: string,

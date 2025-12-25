@@ -474,6 +474,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         <ProposalCard
                           key={proposal.proposal_id}
                           proposal={proposal}
+                          dao={dao}
                           onVote={loadProposals}
                         />
                       ))}
@@ -500,6 +501,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         <ProposalCard
                           key={proposal.proposal_id}
                           proposal={proposal}
+                          dao={dao}
                           onVote={loadProposals}
                         />
                       ))}

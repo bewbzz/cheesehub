@@ -1222,6 +1222,7 @@ export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
 // Check if a user is a member of a DAO
 export async function checkDaoMembership(daoName: string, user: string): Promise<boolean> {
   try {
+    // First fetch all users to debug the table structure
     const response = await fetch("https://wax.eosphere.io/v1/chain/get_table_rows", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1230,13 +1231,22 @@ export async function checkDaoMembership(daoName: string, user: string): Promise
         code: DAO_CONTRACT,
         scope: daoName,
         table: "users",
-        lower_bound: user,
-        upper_bound: user,
-        limit: 1,
+        limit: 100,
       }),
     });
     const data = await response.json();
-    return data.rows && data.rows.length > 0;
+    console.log("Users table data for DAO", daoName, ":", data);
+    
+    // Check if user exists in any row (checking common field names)
+    if (data.rows && data.rows.length > 0) {
+      return data.rows.some((row: any) => 
+        row.user === user || 
+        row.account === user || 
+        row.wallet === user ||
+        row.name === user
+      );
+    }
+    return false;
   } catch (error) {
     console.error("Failed to check DAO membership:", error);
     return false;

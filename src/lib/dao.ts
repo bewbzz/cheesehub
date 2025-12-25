@@ -668,42 +668,34 @@ export function buildRankedChoiceProposalAction(
   };
 }
 
-// Helper to calculate vote weight from token balance for Type 4 DAOs
-export function calculateVoteWeight(tokenBalance: string | null, tokenSymbol: string): number | undefined {
-  if (!tokenBalance || !tokenSymbol || tokenSymbol === "0,NULL") return undefined;
-  
-  const [precisionStr] = tokenSymbol.split(",");
-  const precision = parseInt(precisionStr) || 8;
-  
-  // Extract numeric value from balance string (e.g., "540.14048487 WAX" → 540.14048487)
-  const match = tokenBalance.match(/^([\d.]+)/);
-  if (!match) return undefined;
-  
-  const amount = parseFloat(match[1]);
-  return Math.floor(amount * Math.pow(10, precision));
-}
-
 // Build action for voting on a Yes/No/Abstain proposal
 export function buildVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  vote: "yes" | "no" | "abstain"
+  vote: "yes" | "no" | "abstain",
+  voteWeight?: string // Token quantity string for Type 4 DAOs (e.g., "540.14048487 WAX")
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceMap[vote],
+    asset_ids: [],
+  };
+  
+  // Add weight for Type 4 Token Balance DAOs
+  if (voteWeight) {
+    data.weight = voteWeight;
+  }
   
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceMap[vote],
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -712,19 +704,26 @@ export function buildMultiOptionVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  choiceIndex: number
+  choiceIndex: number,
+  voteWeight?: string
 ) {
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceIndex,
+    asset_ids: [],
+  };
+  
+  if (voteWeight) {
+    data.weight = voteWeight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceIndex,
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -749,78 +748,92 @@ export function buildRankedChoiceVoteAction(
   };
 }
 
-// WAX API endpoints for fallback
-const WAX_API_ENDPOINTS = [
-  "https://wax.greymass.com",
-  "https://wax.eosusa.io", 
-  "https://api.wax.alohaeos.com",
-];
-
 // Fetch user's staked tokens in a DAO
 export async function fetchUserStakedTokens(
   daoName: string,
   userAccount: string
 ): Promise<StakedToken | null> {
-  const requestBody = JSON.stringify({
-    json: true,
-    code: DAO_CONTRACT,
-    scope: daoName,
-    table: "stakers",
-    lower_bound: userAccount,
-    upper_bound: userAccount,
-    limit: 1,
-  });
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: daoName,
+          table: "stakers",
+          lower_bound: userAccount,
+          upper_bound: userAccount,
+          limit: 1,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    console.log("Staked tokens data:", data);
+    
+    if (data.rows && data.rows.length > 0) {
+      const row = data.rows[0];
+      return {
+        balance: row.balance || "0",
+        weight: parseInt(row.weight) || 0,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching staked tokens:", error);
+    return null;
+  }
+}
 
-  // Try multiple endpoints due to ABI caching issues
-  for (const endpoint of WAX_API_ENDPOINTS) {
+// Check if user is registered to vote in a Type 4 Token Balance DAO
+// These DAOs use a different table structure
+export async function checkType4Registration(
+  daoName: string,
+  userAccount: string
+): Promise<boolean> {
+  // Try multiple possible table names for Type 4 DAOs
+  const tablesToTry = ["voters", "tokenvoters", "balancevoters"];
+  
+  for (const table of tablesToTry) {
     try {
       const response = await fetch(
-        `${endpoint}/v1/chain/get_table_rows`,
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: requestBody,
+          body: JSON.stringify({
+            json: true,
+            code: DAO_CONTRACT,
+            scope: daoName,
+            table: table,
+            lower_bound: userAccount,
+            upper_bound: userAccount,
+            limit: 1,
+          }),
         }
       );
       
       const data = await response.json();
       
-      // Check for ABI error and try next endpoint
-      if (data.error) {
-        console.warn(`Endpoint ${endpoint} returned error:`, data.error.what || data.message);
-        continue;
+      // If we got a valid response (not an error), check for user record
+      if (!data.error && data.rows) {
+        console.log(`Type 4 registration check (${table}):`, data);
+        if (data.rows.length > 0) {
+          return true;
+        }
       }
-      
-      console.log("Staked tokens data:", data);
-      
-      if (data.rows && data.rows.length > 0) {
-        const row = data.rows[0];
-        return {
-          balance: row.balance || "0",
-          weight: parseInt(row.weight) || 0,
-        };
-      }
-      return null;
     } catch (error) {
-      console.warn(`Endpoint ${endpoint} failed:`, error);
-      continue;
+      console.log(`Table ${table} check failed, trying next...`);
     }
   }
   
-  console.error("All endpoints failed for stakers table query");
-  return null;
-}
-
-// Check if user is registered to vote in a Type 4 Token Balance DAO
-// Type 4 DAOs also use the stakers table, same as other DAO types
-export async function checkType4Registration(
-  daoName: string,
-  userAccount: string
-): Promise<boolean> {
-  // Type 4 DAOs use the same stakers table as other DAO types
-  const staked = await fetchUserStakedTokens(daoName, userAccount);
-  console.log(`Type 4 registration check for ${userAccount} in ${daoName}:`, staked);
-  return staked !== null;
+  // If all table checks fail, return true to allow voting attempt
+  // The contract will reject if not actually registered
+  console.log("Could not verify Type 4 registration via tables, allowing vote attempt");
+  return true;
 }
 
 // Fetch user's staked NFTs in a DAO

@@ -11,7 +11,7 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   fetchUserTokenBalance,
-  fetchUserStakedTokens,
+  checkType4Registration,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
@@ -48,22 +48,14 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         const symbolParts = dao.token_symbol.split(",");
         const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
         
-        // Fetch balance
-        const balance = await fetchUserTokenBalance(dao.token_contract, symbol, accountName);
-        setTokenBalance(balance);
+        // Fetch balance and check Type 4 registration in parallel
+        const [balance, registered] = await Promise.all([
+          fetchUserTokenBalance(dao.token_contract, symbol, accountName),
+          checkType4Registration(dao.dao_name, accountName)
+        ]);
         
-        // For Type 4 DAOs, also try to check stakers table (but don't block voting if it fails)
-        try {
-          const staked = await fetchUserStakedTokens(dao.dao_name, accountName);
-          // User is registered if they have a record in the stakers table
-          setIsRegistered(staked !== null);
-          console.log(`Type 4 stakers check: ${staked !== null ? 'registered' : 'not registered or table unavailable'}`);
-        } catch {
-          // If stakers table check fails (e.g., ABI error), allow voting if user has balance
-          // Type 4 DAOs may calculate weight from wallet balance directly
-          console.log("Stakers table check failed, allowing vote attempt based on token balance");
-          setIsRegistered(true);
-        }
+        setTokenBalance(balance);
+        setIsRegistered(registered);
       } catch (error) {
         console.error("Failed to load token balance:", error);
         setTokenBalance(null);
@@ -100,7 +92,6 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   // Calculate total votes from choices for multi-option proposals
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
-
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
       toast.error("Please connect your wallet");
@@ -109,14 +100,17 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
+      // For Type 4 DAOs, pass the token balance as vote weight
+      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
+      
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote
+        vote,
+        voteWeight
       );
 
-      console.log("Vote action:", JSON.stringify(action, null, 2));
       await session.transact({ actions: [action] });
       toast.success(`Voted ${vote} successfully!`);
       onVote?.();
@@ -141,14 +135,17 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
+      // For Type 4 DAOs, pass the token balance as vote weight
+      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
+      
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice
+        selectedChoice,
+        voteWeight
       );
 
-      console.log("Vote action:", JSON.stringify(action, null, 2));
       await session.transact({ actions: [action] });
       toast.success("Vote submitted successfully!");
       onVote?.();

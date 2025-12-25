@@ -1190,3 +1190,81 @@ export function buildNFTTransferProposalAction(
     },
   };
 }
+
+// DAO Member interface
+export interface DaoMember {
+  user: string;
+  dao: string;
+}
+
+// Fetch DAO members to check membership
+export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
+  try {
+    const response = await fetch("https://wax.eosphere.io/v1/chain/get_table_rows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: DAO_CONTRACT,
+        scope: daoName,
+        table: "members",
+        limit: 1000,
+      }),
+    });
+    const data = await response.json();
+    return data.rows || [];
+  } catch (error) {
+    console.error("Failed to fetch DAO members:", error);
+    return [];
+  }
+}
+
+// Check if a user is a member of a DAO
+export async function checkDaoMembership(daoName: string, user: string): Promise<boolean> {
+  try {
+    const response = await fetch("https://wax.eosphere.io/v1/chain/get_table_rows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: DAO_CONTRACT,
+        scope: daoName,
+        table: "members",
+        lower_bound: user,
+        upper_bound: user,
+        limit: 1,
+      }),
+    });
+    const data = await response.json();
+    return data.rows && data.rows.length > 0;
+  } catch (error) {
+    console.error("Failed to check DAO membership:", error);
+    return false;
+  }
+}
+
+// Build action for joining a DAO
+export function buildJoinDaoAction(user: string, daoName: string) {
+  return {
+    account: DAO_CONTRACT,
+    name: "joindao",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      dao: daoName,
+    },
+  };
+}
+
+// Build action for leaving a DAO
+export function buildLeaveDaoAction(user: string, daoName: string) {
+  return {
+    account: DAO_CONTRACT,
+    name: "leavedao",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      dao: daoName,
+    },
+  };
+}

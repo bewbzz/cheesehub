@@ -594,9 +594,9 @@ export function buildCreateProposalAction(
       description: proposal.description,
       proposal_type: 0, // Yes/No/Abstain
       choices: [
-        { choice_name: "yes", total_votes: "0" },
-        { choice_name: "no", total_votes: "0" },
-        { choice_name: "abstain", total_votes: "0" },
+        { choice: 0, description: "Yes", total_votes: 0 },
+        { choice: 1, description: "No", total_votes: 0 },
+        { choice: 2, description: "Abstain", total_votes: 0 },
       ],
       actions: proposal.actions || [],
       token_receivers: [],
@@ -626,7 +626,7 @@ export function buildMultiOptionProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: 1, // Most Votes Wins
-      choices: proposal.options.map(opt => ({ choice_name: opt, total_votes: "0" })),
+      choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],
       nft_receivers: [],
@@ -655,7 +655,7 @@ export function buildRankedChoiceProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: 2, // Ranked Choice
-      choices: proposal.options.map(opt => ({ choice_name: opt, total_votes: "0" })),
+      choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],
       nft_receivers: [],

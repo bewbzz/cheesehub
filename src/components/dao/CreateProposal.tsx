@@ -12,6 +12,7 @@ import {
   buildMultiOptionProposalAction,
   buildRankedChoiceProposalAction,
   buildNFTTransferProposalAction,
+  buildAnnounceDepoAction,
   buildProposalCostAction,
   fetchDaoTreasuryNFTs,
   TokenTransferProposalData,
@@ -196,7 +197,9 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
       // Parse proposal cost to check if payment is required
       const costAmount = parseFloat(proposalCost.split(" ")[0]);
       if (costAmount > 0) {
-        actions.push(buildProposalCostAction(actor, daoName, proposalCost));
+        // Order: 1. announcedepo, 2. transfer payment, 3. newproposal
+        actions.push(buildAnnounceDepoAction(actor));
+        actions.push(buildProposalCostAction(actor, proposalCost));
       }
       actions.push(proposalAction);
 

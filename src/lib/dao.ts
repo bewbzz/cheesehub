@@ -6,8 +6,20 @@ export const DAO_CONTRACT = "dao.waxdao";
 // Fee constants for DAO creation
 export const DAO_CREATION_FEE = "250.00000000 WAX";
 
+// Build action for announcing deposit (required before proposal payment)
+export function buildAnnounceDepoAction(user: string) {
+  return {
+    account: DAO_CONTRACT,
+    name: "announcedepo",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+    },
+  };
+}
+
 // Build action for paying proposal cost
-export function buildProposalCostAction(sender: string, daoName: string, proposalCost: string) {
+export function buildProposalCostAction(sender: string, proposalCost: string) {
   // proposalCost comes from DAO config like "100.00000000 WAX"
   return {
     account: "eosio.token",
@@ -17,7 +29,7 @@ export function buildProposalCostAction(sender: string, daoName: string, proposa
       from: sender,
       to: DAO_CONTRACT,
       quantity: proposalCost,
-      memo: `|proposal_payment|${daoName}|`,
+      memo: "|proposal_payment|",
     },
   };
 }

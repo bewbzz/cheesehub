@@ -2,15 +2,20 @@ import { ATOMIC_API, CHEESE_CONFIG, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop } from '@/types/drop';
 
-const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+// Use a faster, more reliable IPFS gateway
+const IPFS_GATEWAY = 'https://cloudflare-ipfs.com/ipfs/';
+const IPFS_FALLBACK = 'https://ipfs.io/ipfs/';
 
 function getImageUrl(img: string | undefined): string {
   if (!img) return '/placeholder.svg';
+  // Handle direct URLs
   if (img.startsWith('http')) return img;
+  // Handle IPFS hashes (both CIDv0 starting with Qm and CIDv1 starting with bafy)
   if (img.startsWith('Qm') || img.startsWith('bafy')) {
     return `${IPFS_GATEWAY}${img}`;
   }
-  return img;
+  // Fallback for any other format
+  return img || '/placeholder.svg';
 }
 
 function extractRarity(data: Record<string, string>): string {

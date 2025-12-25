@@ -100,15 +100,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      // For Type 4 DAOs, pass the token balance as vote weight
-      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
-      
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote,
-        voteWeight
+        vote
       );
 
       await session.transact({ actions: [action] });
@@ -135,15 +131,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      // For Type 4 DAOs, pass the token balance as vote weight
-      const voteWeight = isTokenBalanceDao ? tokenBalance || undefined : undefined;
-      
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice,
-        voteWeight
+        selectedChoice
       );
 
       await session.transact({ actions: [action] });

@@ -11,12 +11,13 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   fetchUserTokenBalance,
+  fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -31,13 +32,14 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const [rankings, setRankings] = useState<number[]>([]);
   const [tokenBalance, setTokenBalance] = useState<string | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
 
   // Check if this is a Token Balance DAO (type 4)
   const isTokenBalanceDao = dao?.dao_type === 4;
 
-  // Fetch user's token balance for Token Balance DAOs
+  // Fetch user's token balance and registration status for Token Balance DAOs
   useEffect(() => {
-    async function loadTokenBalance() {
+    async function loadTokenBalanceAndRegistration() {
       if (!isTokenBalanceDao || !accountName || !dao?.token_contract || !dao?.token_symbol) return;
       
       setLoadingBalance(true);
@@ -46,18 +48,25 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
         const symbolParts = dao.token_symbol.split(",");
         const symbol = symbolParts.length > 1 ? symbolParts[1] : dao.token_symbol;
         
-        const balance = await fetchUserTokenBalance(dao.token_contract, symbol, accountName);
+        // Fetch both balance and registration status in parallel
+        const [balance, stakedRecord] = await Promise.all([
+          fetchUserTokenBalance(dao.token_contract, symbol, accountName),
+          fetchUserStakedTokens(dao.dao_name, accountName)
+        ]);
+        
         setTokenBalance(balance);
+        setIsRegistered(stakedRecord !== null);
       } catch (error) {
         console.error("Failed to load token balance:", error);
         setTokenBalance(null);
+        setIsRegistered(null);
       } finally {
         setLoadingBalance(false);
       }
     }
     
-    loadTokenBalance();
-  }, [isTokenBalanceDao, accountName, dao?.token_contract, dao?.token_symbol]);
+    loadTokenBalanceAndRegistration();
+  }, [isTokenBalanceDao, accountName, dao?.token_contract, dao?.token_symbol, dao?.dao_name]);
 
   // Parse token balance to check if user has enough tokens
   const hasVotingPower = (): boolean => {
@@ -68,6 +77,12 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
     const minWeight = dao?.minimum_weight || 0;
     
     return balanceNum >= minWeight;
+  };
+
+  // Check if user can vote (must be registered for Token Balance DAOs)
+  const canVote = (): boolean => {
+    if (!isTokenBalanceDao) return true;
+    return isRegistered === true && hasVotingPower();
   };
 
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
@@ -203,7 +218,19 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
       return (
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 p-2 bg-muted/30 rounded-lg">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Loading voting power...</span>
+          <span>Loading voting status...</span>
+        </div>
+      );
+    }
+
+    // Check if user is registered
+    if (isRegistered === false) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-amber-500 mb-3 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+          <UserPlus className="h-4 w-4 shrink-0" />
+          <span>
+            You need to register to vote. Go to the "Stake" tab to register.
+          </span>
         </div>
       );
     }
@@ -235,9 +262,9 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   const renderVotingUI = () => {
     if (proposal.status !== "active" || !isConnected) return null;
     
-    // For Token Balance DAOs, check if user has enough tokens
-    if (isTokenBalanceDao && !hasVotingPower()) {
-      return null; // Don't show voting buttons if no voting power
+    // For Token Balance DAOs, check if user can vote (registered + has tokens)
+    if (isTokenBalanceDao && !canVote()) {
+      return null; // Don't show voting buttons if not eligible
     }
 
     switch (proposal.voting_type) {

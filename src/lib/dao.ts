@@ -805,7 +805,7 @@ export async function fetchUserStakedTokens(
 }
 
 // Fetch user's vote for a specific proposal
-// The propvotes table structure varies - we try multiple scope formats
+// Uses the votesbyprop table, scoped by proposal ID
 export async function fetchUserVote(
   daoName: string,
   proposalId: number,
@@ -814,45 +814,8 @@ export async function fetchUserVote(
   console.log(`fetchUserVote called: dao=${daoName}, proposal=${proposalId}, user=${userAccount}`);
   
   try {
-    // First try: scope = daoName, then filter by proposal_id and voter
-    const response1 = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: DAO_CONTRACT,
-          scope: daoName,
-          table: "propvotes",
-          limit: 500, // Get more rows and filter client-side
-        }),
-      }
-    );
-
-    const data1 = await response1.json();
-    console.log("propvotes with DAO scope:", daoName, data1);
-
-    if (data1.rows && data1.rows.length > 0) {
-      // Find the vote for this specific proposal and user
-      const vote = data1.rows.find((row: Record<string, unknown>) => {
-        const rowProposalId = row.proposal_id ?? row.prop_id;
-        const rowVoter = row.voter ?? row.user;
-        return rowProposalId === proposalId && rowVoter === userAccount;
-      });
-      
-      if (vote) {
-        console.log("Found user vote:", vote);
-        return {
-          choice_index: (vote.choice ?? vote.choice_index ?? vote.vote_option ?? 0) as number,
-          weight: parseInt(String(vote.weight || vote.vote_weight || 0)) || 0,
-          rankings: (vote.rankings || vote.ranked_choices) as number[] | undefined,
-        };
-      }
-    }
-
-    // Second try: scope = proposal_id
-    const response2 = await fetch(
+    // Query votesbyprop table with proposal ID as scope and user account as key
+    const response = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
         method: "POST",
@@ -861,7 +824,7 @@ export async function fetchUserVote(
           json: true,
           code: DAO_CONTRACT,
           scope: proposalId.toString(),
-          table: "propvotes",
+          table: "votesbyprop",
           lower_bound: userAccount,
           upper_bound: userAccount,
           limit: 1,
@@ -869,11 +832,12 @@ export async function fetchUserVote(
       }
     );
 
-    const data2 = await response2.json();
-    console.log("propvotes with proposal scope:", proposalId, data2);
+    const data = await response.json();
+    console.log("votesbyprop query result:", { scope: proposalId, user: userAccount, data });
 
-    if (data2.rows && data2.rows.length > 0) {
-      const row = data2.rows[0];
+    if (data.rows && data.rows.length > 0) {
+      const row = data.rows[0];
+      console.log("Found user vote in votesbyprop:", row);
       return {
         choice_index: (row.choice ?? row.choice_index ?? row.vote_option ?? 0) as number,
         weight: parseInt(String(row.weight || row.vote_weight || 0)) || 0,
@@ -881,37 +845,7 @@ export async function fetchUserVote(
       };
     }
 
-    // Third try: scope = "daoname.proposalid" format
-    const response3 = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: DAO_CONTRACT,
-          scope: `${daoName}.${proposalId}`,
-          table: "propvotes",
-          lower_bound: userAccount,
-          upper_bound: userAccount,
-          limit: 1,
-        }),
-      }
-    );
-
-    const data3 = await response3.json();
-    console.log("propvotes with combined scope:", `${daoName}.${proposalId}`, data3);
-
-    if (data3.rows && data3.rows.length > 0) {
-      const row = data3.rows[0];
-      return {
-        choice_index: (row.choice ?? row.choice_index ?? row.vote_option ?? 0) as number,
-        weight: parseInt(String(row.weight || row.vote_weight || 0)) || 0,
-        rankings: (row.rankings || row.ranked_choices) as number[] | undefined,
-      };
-    }
-
-    console.log("No vote found for user");
+    console.log("No vote found for user in votesbyprop");
     return null;
   } catch (error) {
     console.error("Error fetching user vote:", error);

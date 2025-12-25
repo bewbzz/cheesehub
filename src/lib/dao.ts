@@ -673,21 +673,29 @@ export function buildVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  vote: "yes" | "no" | "abstain"
+  vote: "yes" | "no" | "abstain",
+  weight?: number // Optional vote weight for Type 4 DAOs
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceMap[vote],
+    asset_ids: [],
+  };
+  
+  // Add weight for Type 4 Token Balance DAOs
+  if (weight !== undefined) {
+    data.weight = weight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceMap[vote],
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -696,19 +704,26 @@ export function buildMultiOptionVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  choiceIndex: number // Index of the selected choice
+  choiceIndex: number,
+  weight?: number // Optional vote weight for Type 4 DAOs
 ) {
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceIndex,
+    asset_ids: [],
+  };
+  
+  if (weight !== undefined) {
+    data.weight = weight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceIndex,
-      asset_ids: [],
-    },
+    data,
   };
 }
 

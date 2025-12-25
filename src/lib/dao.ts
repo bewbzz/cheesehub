@@ -890,30 +890,19 @@ export function buildStakeTokenAction(
 }
 
 // Build action for registering to vote in a Token Balance DAO (Type 4)
-// This stakes a minimal amount to create a record in the stakers table
+// This calls the staketokens action to create a record in the stakers table
 export function buildRegisterForBalanceVotingAction(
   user: string,
   daoName: string,
-  tokenContract: string,
-  tokenSymbol: string, // Format: "8,CHEESE"
 ) {
-  // Parse precision from symbol format "8,CHEESE" -> 8
-  const parts = tokenSymbol.split(",");
-  const precision = parseInt(parts[0]) || 8;
-  const symbol = parts[1] || "TOKEN";
-  
-  // Create minimal amount with correct precision (e.g., "0.00000001 CHEESE")
-  const minAmount = `${(1 / Math.pow(10, precision)).toFixed(precision)} ${symbol}`;
-  
+  // For Type 4 DAOs, call staketokens action to register (no actual tokens needed)
   return {
-    account: tokenContract,
-    name: "transfer",
+    account: DAO_CONTRACT,
+    name: "staketokens",
     authorization: [{ actor: user, permission: "active" }],
     data: {
-      from: user,
-      to: DAO_CONTRACT,
-      quantity: minAmount,
-      memo: `|stake_tokens|${daoName}|`,
+      user: user,
+      daoname: daoName,
     },
   };
 }

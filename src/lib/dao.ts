@@ -668,27 +668,50 @@ export function buildRankedChoiceProposalAction(
   };
 }
 
+// Helper to calculate vote weight from token balance for Type 4 DAOs
+export function calculateVoteWeight(tokenBalance: string | null, tokenSymbol: string): number | undefined {
+  if (!tokenBalance || !tokenSymbol || tokenSymbol === "0,NULL") return undefined;
+  
+  const [precisionStr] = tokenSymbol.split(",");
+  const precision = parseInt(precisionStr) || 8;
+  
+  // Extract numeric value from balance string (e.g., "540.14048487 WAX" → 540.14048487)
+  const match = tokenBalance.match(/^([\d.]+)/);
+  if (!match) return undefined;
+  
+  const amount = parseFloat(match[1]);
+  return Math.floor(amount * Math.pow(10, precision));
+}
+
 // Build action for voting on a Yes/No/Abstain proposal
 export function buildVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  vote: "yes" | "no" | "abstain"
+  vote: "yes" | "no" | "abstain",
+  weight?: number // Integer weight for Type 4 Token Balance DAOs
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
+  
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceMap[vote],
+    asset_ids: [],
+  };
+  
+  // Add weight for Type 4 Token Balance DAOs
+  if (weight !== undefined) {
+    data.weight = weight;
+  }
   
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceMap[vote],
-      asset_ids: [],
-    },
+    data,
   };
 }
 
@@ -697,19 +720,27 @@ export function buildMultiOptionVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  choiceIndex: number
+  choiceIndex: number,
+  weight?: number // Integer weight for Type 4 Token Balance DAOs
 ) {
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceIndex,
+    asset_ids: [],
+  };
+  
+  // Add weight for Type 4 Token Balance DAOs
+  if (weight !== undefined) {
+    data.weight = weight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      choice: choiceIndex,
-      asset_ids: [],
-    },
+    data,
   };
 }
 

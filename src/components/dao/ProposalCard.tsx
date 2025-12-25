@@ -36,6 +36,13 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const [loadingStake, setLoadingStake] = useState(false);
   const [userVote, setUserVote] = useState<UserVote | null>(initialVote || null);
 
+  // Sync userVote with initialVote when it changes (e.g., after fetching from blockchain)
+  useEffect(() => {
+    if (initialVote) {
+      setUserVote(initialVote);
+    }
+  }, [initialVote]);
+
   // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
   const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
 

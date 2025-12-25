@@ -805,14 +805,17 @@ export async function fetchUserStakedTokens(
 }
 
 // Fetch user's vote for a specific proposal
-// The propvotes table is scoped by proposal_id with voter as primary key
+// The propvotes table structure varies - we try multiple scope formats
 export async function fetchUserVote(
   daoName: string,
   proposalId: number,
   userAccount: string
 ): Promise<UserVote | null> {
+  console.log(`fetchUserVote called: dao=${daoName}, proposal=${proposalId}, user=${userAccount}`);
+  
   try {
-    const response = await fetch(
+    // First try: scope = daoName, then filter by proposal_id and voter
+    const response1 = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
         method: "POST",
@@ -820,7 +823,44 @@ export async function fetchUserVote(
         body: JSON.stringify({
           json: true,
           code: DAO_CONTRACT,
-          scope: `${daoName}:${proposalId}`,  // Scope format: daoname:proposal_id
+          scope: daoName,
+          table: "propvotes",
+          limit: 500, // Get more rows and filter client-side
+        }),
+      }
+    );
+
+    const data1 = await response1.json();
+    console.log("propvotes with DAO scope:", daoName, data1);
+
+    if (data1.rows && data1.rows.length > 0) {
+      // Find the vote for this specific proposal and user
+      const vote = data1.rows.find((row: Record<string, unknown>) => {
+        const rowProposalId = row.proposal_id ?? row.prop_id;
+        const rowVoter = row.voter ?? row.user;
+        return rowProposalId === proposalId && rowVoter === userAccount;
+      });
+      
+      if (vote) {
+        console.log("Found user vote:", vote);
+        return {
+          choice_index: (vote.choice ?? vote.choice_index ?? vote.vote_option ?? 0) as number,
+          weight: parseInt(String(vote.weight || vote.vote_weight || 0)) || 0,
+          rankings: (vote.rankings || vote.ranked_choices) as number[] | undefined,
+        };
+      }
+    }
+
+    // Second try: scope = proposal_id
+    const response2 = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: proposalId.toString(),
           table: "propvotes",
           lower_bound: userAccount,
           upper_bound: userAccount,
@@ -829,84 +869,50 @@ export async function fetchUserVote(
       }
     );
 
-    const data = await response.json();
-    console.log("User vote data:", data);
+    const data2 = await response2.json();
+    console.log("propvotes with proposal scope:", proposalId, data2);
 
-    // If not found with combined scope, try just proposal_id as scope
-    if (!data.rows || data.rows.length === 0) {
-      const response2 = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: DAO_CONTRACT,
-            scope: proposalId.toString(),
-            table: "propvotes",
-            lower_bound: userAccount,
-            upper_bound: userAccount,
-            limit: 1,
-          }),
-        }
-      );
-
-      const data2 = await response2.json();
-      console.log("User vote data (proposal scope):", data2);
-
-      if (data2.rows && data2.rows.length > 0) {
-        const row = data2.rows[0];
-        return {
-          choice_index: row.choice_index ?? row.vote_option ?? 0,
-          weight: parseInt(row.weight) || parseInt(row.vote_weight) || 0,
-          rankings: row.rankings || row.ranked_choices || undefined,
-        };
-      }
-
-      // Try with DAO name as scope
-      const response3 = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: DAO_CONTRACT,
-            scope: daoName,
-            table: "propvotes",
-            lower_bound: userAccount,
-            upper_bound: userAccount,
-            limit: 100,  // Get all votes for this user in this DAO
-          }),
-        }
-      );
-
-      const data3 = await response3.json();
-      console.log("User vote data (DAO scope):", data3);
-
-      if (data3.rows && data3.rows.length > 0) {
-        // Find the vote for this specific proposal
-        const vote = data3.rows.find((row: Record<string, unknown>) => 
-          row.proposal_id === proposalId || row.prop_id === proposalId
-        );
-        if (vote) {
-          return {
-            choice_index: vote.choice_index ?? vote.vote_option ?? 0,
-            weight: parseInt(vote.weight as string) || parseInt(vote.vote_weight as string) || 0,
-            rankings: (vote.rankings as number[]) || (vote.ranked_choices as number[]) || undefined,
-          };
-        }
-      }
-
-      return null;
+    if (data2.rows && data2.rows.length > 0) {
+      const row = data2.rows[0];
+      return {
+        choice_index: (row.choice ?? row.choice_index ?? row.vote_option ?? 0) as number,
+        weight: parseInt(String(row.weight || row.vote_weight || 0)) || 0,
+        rankings: (row.rankings || row.ranked_choices) as number[] | undefined,
+      };
     }
 
-    const row = data.rows[0];
-    return {
-      choice_index: row.choice_index ?? row.vote_option ?? 0,
-      weight: parseInt(row.weight) || parseInt(row.vote_weight) || 0,
-      rankings: row.rankings || row.ranked_choices || undefined,
-    };
+    // Third try: scope = "daoname.proposalid" format
+    const response3 = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: `${daoName}.${proposalId}`,
+          table: "propvotes",
+          lower_bound: userAccount,
+          upper_bound: userAccount,
+          limit: 1,
+        }),
+      }
+    );
+
+    const data3 = await response3.json();
+    console.log("propvotes with combined scope:", `${daoName}.${proposalId}`, data3);
+
+    if (data3.rows && data3.rows.length > 0) {
+      const row = data3.rows[0];
+      return {
+        choice_index: (row.choice ?? row.choice_index ?? row.vote_option ?? 0) as number,
+        weight: parseInt(String(row.weight || row.vote_weight || 0)) || 0,
+        rankings: (row.rankings || row.ranked_choices) as number[] | undefined,
+      };
+    }
+
+    console.log("No vote found for user");
+    return null;
   } catch (error) {
     console.error("Error fetching user vote:", error);
     return null;

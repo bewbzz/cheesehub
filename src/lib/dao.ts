@@ -749,44 +749,66 @@ export function buildRankedChoiceVoteAction(
   };
 }
 
+// WAX API endpoints for fallback
+const WAX_API_ENDPOINTS = [
+  "https://wax.greymass.com",
+  "https://wax.eosusa.io", 
+  "https://api.wax.alohaeos.com",
+];
+
 // Fetch user's staked tokens in a DAO
 export async function fetchUserStakedTokens(
   daoName: string,
   userAccount: string
 ): Promise<StakedToken | null> {
-  try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: DAO_CONTRACT,
-          scope: daoName,
-          table: "stakers",
-          lower_bound: userAccount,
-          upper_bound: userAccount,
-          limit: 1,
-        }),
+  const requestBody = JSON.stringify({
+    json: true,
+    code: DAO_CONTRACT,
+    scope: daoName,
+    table: "stakers",
+    lower_bound: userAccount,
+    upper_bound: userAccount,
+    limit: 1,
+  });
+
+  // Try multiple endpoints due to ABI caching issues
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const response = await fetch(
+        `${endpoint}/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        }
+      );
+      
+      const data = await response.json();
+      
+      // Check for ABI error and try next endpoint
+      if (data.error) {
+        console.warn(`Endpoint ${endpoint} returned error:`, data.error.what || data.message);
+        continue;
       }
-    );
-    
-    const data = await response.json();
-    console.log("Staked tokens data:", data);
-    
-    if (data.rows && data.rows.length > 0) {
-      const row = data.rows[0];
-      return {
-        balance: row.balance || "0",
-        weight: parseInt(row.weight) || 0,
-      };
+      
+      console.log("Staked tokens data:", data);
+      
+      if (data.rows && data.rows.length > 0) {
+        const row = data.rows[0];
+        return {
+          balance: row.balance || "0",
+          weight: parseInt(row.weight) || 0,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.warn(`Endpoint ${endpoint} failed:`, error);
+      continue;
     }
-    return null;
-  } catch (error) {
-    console.error("Error fetching staked tokens:", error);
-    return null;
   }
+  
+  console.error("All endpoints failed for stakers table query");
+  return null;
 }
 
 // Check if user is registered to vote in a Type 4 Token Balance DAO

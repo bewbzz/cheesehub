@@ -12,7 +12,6 @@ import {
   buildRankedChoiceVoteAction,
   fetchUserTokenBalance,
   checkType4Registration,
-  calculateVoteWeight,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
 } from "@/lib/dao";
@@ -93,11 +92,6 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
   // Calculate total votes from choices for multi-option proposals
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
-  // Calculate vote weight for Type 4 DAOs
-  function getVoteWeight(): number | undefined {
-    if (dao.dao_type !== 4) return undefined;
-    return calculateVoteWeight(tokenBalance, dao.token_symbol);
-  }
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
@@ -107,13 +101,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      const weight = getVoteWeight();
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote,
-        weight
+        vote
       );
 
       console.log("Vote action:", JSON.stringify(action, null, 2));
@@ -141,13 +133,11 @@ export function ProposalCard({ proposal, dao, onVote }: ProposalCardProps) {
 
     setVoting(true);
     try {
-      const weight = getVoteWeight();
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice,
-        weight
+        selectedChoice
       );
 
       console.log("Vote action:", JSON.stringify(action, null, 2));

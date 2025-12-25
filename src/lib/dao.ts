@@ -1238,8 +1238,11 @@ export function buildTokenDepositAction(
   user: string,
   daoName: string,
   tokenSymbol: string,
+  tokenPrecision: number,
   tokenContract: string
 ) {
+  // EOSIO symbol format: "precision,SYMBOL" e.g. "4,CHEESE"
+  const formattedSymbol = `${tokenPrecision},${tokenSymbol}`;
   return {
     account: DAO_CONTRACT,
     name: "tokendeposit",
@@ -1247,7 +1250,7 @@ export function buildTokenDepositAction(
     data: {
       user: user,
       dao: daoName,
-      token_symbol: tokenSymbol,
+      token_symbol: formattedSymbol,
       token_contract: tokenContract,
     },
   };

@@ -43,6 +43,7 @@ interface MenuItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  hasUnvoted?: boolean;
 }
 
 export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
@@ -263,11 +264,16 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   // Type 4 (Token Balance) needs the tab for registration
   const showStakingTab = dao.dao_type !== 5;
 
+  // Count unvoted active proposals
+  const unvotedActiveProposals = activeProposals.filter(
+    (p) => !votedProposals[p.proposal_id]
+  ).length;
+
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
     ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
-    { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length },
+    { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length, hasUnvoted: unvotedActiveProposals > 0 },
     { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },
     { id: "treasury", label: "Treasury", icon: <Coins className="h-4 w-4" /> },
     { id: "members", label: "Members", icon: <Users className="h-4 w-4" /> },
@@ -373,7 +379,13 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {item.icon}
                   <span className="flex-1 truncate">{item.label}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "h-5 min-w-5 px-1.5 text-xs",
+                        item.hasUnvoted && "bg-cheese text-cheese-foreground animate-pulse"
+                      )}
+                    >
                       {item.badge}
                     </Badge>
                   )}

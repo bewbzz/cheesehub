@@ -1367,7 +1367,7 @@ export function buildTokenTransferProposalAction(
       token_receivers: [{
         wax_account: proposal.transfer.recipient,
         quantity: quantity,
-        token_contract: proposal.transfer.tokenContract,
+        contract: proposal.transfer.tokenContract,
       }],
       nft_receivers: [],
       proof_asset_ids: [],

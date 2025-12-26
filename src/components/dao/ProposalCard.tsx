@@ -477,12 +477,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     // For Yes/No/Abstain and Token Transfer proposals
     if (isYesNoAbstain || proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
       return (
-        <div className="space-y-2">
+        <div className="space-y-2 w-full max-w-full overflow-hidden">
           <div className="flex justify-between text-sm">
             <span className="text-green-500">Yes: {proposal.yes_votes}</span>
             <span className="text-red-500">No: {proposal.no_votes}</span>
           </div>
-          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+          <div className="relative h-2 bg-muted rounded-full overflow-hidden w-full">
             <div
               className="absolute left-0 top-0 h-full bg-green-500 transition-all"
               style={{ width: `${yesPercent}%` }}
@@ -511,20 +511,20 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       });
       
       return (
-        <div className="space-y-2">
+        <div className="space-y-2 w-full max-w-full overflow-hidden">
           {sortedChoices.map((choice, index) => {
             const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
             const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
             const isLeading = index === 0 && votes > 0;
             return (
-              <div key={choice.description} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className={`${isLeading ? 'text-cheese font-medium' : 'text-foreground'}`}>
+              <div key={choice.description} className="space-y-1 w-full overflow-hidden">
+                <div className="flex justify-between text-sm gap-2">
+                  <span className={`${isLeading ? 'text-cheese font-medium' : 'text-foreground'} truncate flex-1 min-w-0`}>
                     {isLeading && '🏆 '}{choice.description}
                   </span>
-                  <span className="text-muted-foreground">{votes} votes ({percent.toFixed(1)}%)</span>
+                  <span className="text-muted-foreground shrink-0">{votes} ({percent.toFixed(0)}%)</span>
                 </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
                   <div
                     className={`h-full transition-all ${isLeading ? 'bg-cheese' : 'bg-muted-foreground/50'}`}
                     style={{ width: `${percent}%` }}
@@ -541,16 +541,16 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   return (
-    <Card className="bg-card/50 border-border/50 overflow-hidden">
+    <Card className="bg-card/50 border-border/50 w-full max-w-full overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-foreground">{proposal.title}</h4>
-            <p className="text-sm text-muted-foreground line-clamp-2">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h4 className="font-semibold text-foreground truncate">{proposal.title}</h4>
+            <p className="text-sm text-muted-foreground line-clamp-2 break-words">
               {proposal.description}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-1 shrink-0">
             <Badge className={statusColors[proposal.status] || "bg-muted"}>
               {proposal.status}
             </Badge>
@@ -562,7 +562,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 overflow-hidden">
+      <CardContent className="space-y-4 overflow-hidden max-w-full">
         {/* Proposal Meta */}
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">

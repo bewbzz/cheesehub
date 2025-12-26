@@ -50,7 +50,7 @@ const Drops = () => {
     <div className="min-h-screen bg-background relative">
       <BackgroundDecorations />
       <Header />
-      <DropsHero drops={displayDrops} isLoading={isLoading} />
+      <DropsHero drops={cheeseDrops} isLoading={isLoadingCheese} />
 
       <main className="container pb-20">
         <Tabs defaultValue="cheese" className="w-full">

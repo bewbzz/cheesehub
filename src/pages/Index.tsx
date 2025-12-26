@@ -27,7 +27,7 @@ const Index = () => {
               <span className="text-foreground">Hub</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Facilitating Front-End access to a range of tools on the WAX Blockchain
+              Unlocking Meme-Fi on the WAX Blockchain
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">

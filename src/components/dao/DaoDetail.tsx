@@ -63,18 +63,25 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
 
   // Update dao when initialDao changes AND fetch total staked weight
   useEffect(() => {
+    console.log("[DEBUG] DaoDetail useEffect triggered - open:", open, "dao_name:", initialDao.dao_name);
+    
     async function initializeDao() {
       if (open && initialDao.dao_name) {
         console.log("[DEBUG] Fetching total staked weight for:", initialDao.dao_name);
-        const totalWeight = await fetchDaoTotalStakedWeight(initialDao.dao_name);
-        console.log("[DEBUG] Total staked weight result:", totalWeight);
-        setDao({ ...initialDao, total_staked_weight: totalWeight });
+        try {
+          const totalWeight = await fetchDaoTotalStakedWeight(initialDao.dao_name);
+          console.log("[DEBUG] Total staked weight result:", totalWeight);
+          setDao({ ...initialDao, total_staked_weight: totalWeight });
+        } catch (error) {
+          console.error("[DEBUG] Error fetching total staked weight:", error);
+          setDao(initialDao);
+        }
       } else {
         setDao(initialDao);
       }
     }
     initializeDao();
-  }, [open, initialDao]);
+  }, [open, initialDao.dao_name]);
 
   // Load votes from localStorage when account changes
   useEffect(() => {

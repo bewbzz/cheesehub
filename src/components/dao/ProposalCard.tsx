@@ -342,6 +342,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       );
     }
 
+    // Token Transfer and NFT Transfer proposals only have Yes/No options (no Abstain)
+    const isTransferProposal = proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
+                               proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+
     switch (proposal.voting_type) {
       case PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN:
       case PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER:
@@ -380,22 +384,25 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
                 </>
               )}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 border-muted-foreground/50 text-muted-foreground hover:bg-muted"
-              onClick={() => handleYesNoVote("abstain")}
-              disabled={voting}
-            >
-              {voting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Minus className="h-4 w-4 mr-1" />
-                  Abstain
-                </>
-              )}
-            </Button>
+            {/* Only show Abstain for Yes/No/Abstain proposals, not transfer proposals */}
+            {!isTransferProposal && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-muted-foreground/50 text-muted-foreground hover:bg-muted"
+                onClick={() => handleYesNoVote("abstain")}
+                disabled={voting}
+              >
+                {voting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Minus className="h-4 w-4 mr-1" />
+                    Abstain
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         );
 

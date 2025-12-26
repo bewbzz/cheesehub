@@ -629,7 +629,34 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
           </div>
         )}
 
-        {/* Proposal Meta */}
+        {/* NFT Transfer Details */}
+        {proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER && proposal.nft_receivers && proposal.nft_receivers.length > 0 && (
+          <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+            <p className="text-xs font-medium text-purple-400 mb-2 flex items-center gap-1">
+              <Image className="h-3 w-3" />
+              NFT Transfer Details
+            </p>
+            {proposal.nft_receivers.map((receiver, idx) => (
+              <div key={idx} className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Recipient:</span>
+                  <span className="font-medium">{receiver.wax_account}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm flex-wrap">
+                  <Image className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Asset IDs:</span>
+                  {receiver.asset_ids.map((assetId, assetIdx) => (
+                    <span key={assetIdx} className="font-mono text-xs bg-purple-500/20 px-1.5 py-0.5 rounded">
+                      {assetId}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <User className="h-3 w-3" />

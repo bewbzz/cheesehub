@@ -65,11 +65,11 @@ export function buildAssertPointAction(user: string) {
 
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
-  1: "Custodial NFT Farm",      // Requires gov_farm_name (waxdaofarmer)
-  2: "Custodial Token Pool",    // Requires gov_farm_name (waxdaofarmer)
-  3: "Stake Tokens To DAO",     // Stakes directly to dao.waxdao - no external farm
-  4: "Token Balance",           // Voting power from wallet balance
-  5: "Non-Custodial NFTs",      // Hold NFTs in wallet
+  1: "Custodial NFT Farm",        // Requires gov_farm_name (waxdaofarmer)
+  2: "Custodial Token Pool",      // Requires gov_farm_name (waxdaofarmer)
+  3: "Stake to WaxDAO Pool",      // Stakes to external waxdaofarmer pool
+  4: "Stake Tokens (Custodial)",  // Stakes directly to dao.waxdao contract
+  5: "Hold NFTs (Non-Custodial)", // NFTs stay in wallet, no staking required
 };
 
 export const PROPOSER_TYPES: Record<number, string> = {
@@ -649,7 +649,7 @@ export function buildCreateDaoAction(
     data: {
       user: creator,
       daoname: config.daoName,
-      dao_type: 4, // Token Balance (voting power based on wallet holdings, non-custodial)
+      dao_type: 4, // Stake Tokens (Custodial) - tokens transferred to dao.waxdao contract
       gov_token_contract: config.tokenContract || "",
       gov_token_symbol: config.tokenSymbol || "",
       gov_farm_name: "", // Not needed for Token Balance DAOs

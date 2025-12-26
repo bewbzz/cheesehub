@@ -1,6 +1,8 @@
 // WaxDAO DAO Contract Interface
 // Contract: dao.waxdao
 
+import { getTokenConfig } from "@/lib/tokenRegistry";
+
 export const DAO_CONTRACT = "dao.waxdao";
 
 // Fee constants for DAO creation
@@ -1345,8 +1347,18 @@ export function buildTokenTransferProposalAction(
   }
 ) {
   // Token transfer proposals use the token_receivers field, not actions
-  // Format the quantity with proper precision
-  const quantity = `${proposal.transfer.amount} ${proposal.transfer.tokenSymbol}`;
+  // Format the quantity with proper precision based on token registry
+  const tokenConfig = getTokenConfig(proposal.transfer.tokenSymbol);
+  
+  // Format amount with correct precision
+  let quantity: string;
+  if (tokenConfig) {
+    const amount = parseFloat(proposal.transfer.amount);
+    quantity = `${amount.toFixed(tokenConfig.precision)} ${proposal.transfer.tokenSymbol}`;
+  } else {
+    // Fallback: assume the user provided the full formatted amount
+    quantity = `${proposal.transfer.amount} ${proposal.transfer.tokenSymbol}`;
+  }
   
   return {
     account: DAO_CONTRACT,

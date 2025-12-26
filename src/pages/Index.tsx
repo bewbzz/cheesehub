@@ -20,7 +20,7 @@ const Index = () => {
           <div className="flex flex-col items-center text-center">
             {/* Floating Bubble - same pattern as DropsHero, just bigger */}
             <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
-              <img src={cheeseArmy} alt="CHEESE Army" className="w-48 md:w-64 object-contain" />
+              <img src={cheeseArmy} alt="CHEESE Army" className="w-56 md:w-72 object-contain" />
             </div>
 
             <h1 className="mt-8 text-4xl md:text-6xl font-bold mb-6">

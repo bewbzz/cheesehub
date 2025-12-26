@@ -1356,6 +1356,7 @@ export function buildTokenTransferProposalAction(
     },
   };
 
+  // Token transfer proposals use Yes/No/Abstain voting (proposal_type 0)
   return {
     account: DAO_CONTRACT,
     name: "newproposal",
@@ -1365,8 +1366,16 @@ export function buildTokenTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: "transfer",
+      proposal_type: 0, // Yes/No/Abstain for token transfers
+      choices: [
+        { choice: 0, description: "Yes", total_votes: 0 },
+        { choice: 1, description: "No", total_votes: 0 },
+        { choice: 2, description: "Abstain", total_votes: 0 },
+      ],
       actions: [transferAction],
+      token_receivers: [],
+      nft_receivers: [],
+      proof_asset_ids: [],
     },
   };
 }

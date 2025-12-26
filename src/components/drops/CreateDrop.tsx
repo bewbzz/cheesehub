@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchUserCollections, fetchTemplateById, fetchUserAssets } from "@/services/atomicApi";
 import { useQuery } from "@tanstack/react-query";
-import { Checkbox } from "@/components/ui/checkbox";
+import { TokenPriceInput, PriceOption } from "./TokenPriceInput";
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
@@ -49,7 +49,7 @@ export function CreateDrop() {
     templateId: "",
     name: "",
     description: "",
-    price: 0,
+    prices: [{ token: 'CHEESE', amount: 0 }],
     maxClaimable: 100,
     accountLimit: 1,
     startTime: new Date(),
@@ -133,7 +133,7 @@ export function CreateDrop() {
         templateId: "",
         name: "",
         description: "",
-        price: 0,
+        prices: [{ token: 'CHEESE', amount: 0 }],
         maxClaimable: 100,
         accountLimit: 1,
         startTime: new Date(),
@@ -606,21 +606,16 @@ export function CreateDrop() {
             />
           </div>
 
-          {/* Price & Supply */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price (CHEESE) *</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.0001"
-                placeholder="e.g. 1500"
-                value={formData.price || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
-            
+          {/* Pricing */}
+          <TokenPriceInput
+            prices={formData.prices}
+            onChange={(prices) => setFormData(prev => ({ ...prev, prices }))}
+            minPrices={1}
+            maxPrices={10}
+          />
+
+          {/* Supply Settings */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="maxClaimable">Max Claimable *</Label>
               <Input

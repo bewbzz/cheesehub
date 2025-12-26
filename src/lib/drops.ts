@@ -1,4 +1,5 @@
-import { NFTHIVE_CONFIG, CHEESE_CONFIG } from './waxConfig';
+import { NFTHIVE_CONFIG } from './waxConfig';
+import { getTokenConfig, formatTokenAmount, getSettlementSymbol, WAX_TOKENS } from './tokenRegistry';
 
 export type DropType = 'mint-on-demand' | 'premint';
 
@@ -7,13 +8,18 @@ export interface TokenBacking {
   amount: string;
 }
 
+export interface PriceOption {
+  token: string;
+  amount: number;
+}
+
 export interface DropFormData {
   dropType: DropType;
   collectionName: string;
   templateId: string;
   name: string;
   description: string;
-  price: number;
+  prices: PriceOption[];
   maxClaimable: number;
   accountLimit: number;
   startTime: Date;
@@ -30,6 +36,9 @@ export interface PriceRecipient {
   account: string;
   share: number;
 }
+
+// Re-export for convenience
+export { WAX_TOKENS, getTokenConfig } from './tokenRegistry';
 
 /**
  * Build the boost action for nft.hive contract
@@ -72,8 +81,14 @@ export function buildCreateDropAction(
   account: string,
   data: DropFormData
 ) {
-  const listingPrice = `${data.price.toFixed(CHEESE_CONFIG.tokenPrecision)} ${CHEESE_CONFIG.tokenSymbol}`;
-  const settlementSymbol = `${CHEESE_CONFIG.tokenPrecision},${CHEESE_CONFIG.tokenSymbol}`;
+  // Build listing prices from all price options
+  const listingPrices = data.prices
+    .filter(p => p.amount > 0)
+    .map(p => formatTokenAmount(p.amount, p.token));
+  
+  // Settlement symbol uses the first (primary) token
+  const primaryPrice = data.prices[0];
+  const settlementSymbol = getSettlementSymbol(primaryPrice.token);
   
   const priceRecipients: PriceRecipient[] = [
     { 
@@ -90,13 +105,15 @@ export function buildCreateDropAction(
   // Format tokens_to_back from form data
   const tokensToBack = data.tokensToBack
     .filter(t => t.symbol && t.amount && parseFloat(t.amount) > 0)
-    .map(t => ({
-      token_contract: t.symbol === 'WAX' ? 'eosio.token' : 'cheesewaxdao',
-      token_symbol: t.symbol === 'WAX' ? '8,WAX' : '4,CHEESE',
-      token_amount: t.symbol === 'WAX' 
-        ? `${parseFloat(t.amount).toFixed(8)} WAX`
-        : `${parseFloat(t.amount).toFixed(4)} CHEESE`
-    }));
+    .map(t => {
+      const config = getTokenConfig(t.symbol);
+      if (!config) throw new Error(`Unknown token: ${t.symbol}`);
+      return {
+        token_contract: config.contract,
+        token_symbol: `${config.precision},${t.symbol}`,
+        token_amount: formatTokenAmount(parseFloat(t.amount), t.symbol)
+      };
+    });
 
   // Build assets_to_mint with nested template info for mint-on-demand
   const assetsToMint = isPremint 
@@ -115,7 +132,7 @@ export function buildCreateDropAction(
     isPremint,
     assetsToMint,
     tokensToBack,
-    price: listingPrice,
+    prices: listingPrices,
   });
 
   return {
@@ -126,7 +143,7 @@ export function buildCreateDropAction(
       authorized_account: account,
       collection_name: data.collectionName,
       assets_to_mint: assetsToMint,
-      listing_prices: [listingPrice],
+      listing_prices: listingPrices,
       settlement_symbol: settlementSymbol,
       price_recipients: priceRecipients,
       auth_required: false,
@@ -197,8 +214,21 @@ export function validateDropFormData(data: DropFormData): string | null {
     return 'Drop name is required';
   }
   
-  if (data.price <= 0) {
-    return 'Price must be greater than 0';
+  if (!data.prices || data.prices.length === 0) {
+    return 'At least one price is required';
+  }
+  
+  const validPrices = data.prices.filter(p => p.amount > 0);
+  if (validPrices.length === 0) {
+    return 'At least one price must be greater than 0';
+  }
+  
+  // Validate each price has a valid token
+  for (const price of validPrices) {
+    const config = getTokenConfig(price.token);
+    if (!config) {
+      return `Unknown token: ${price.token}`;
+    }
   }
   
   if (data.maxClaimable <= 0) {

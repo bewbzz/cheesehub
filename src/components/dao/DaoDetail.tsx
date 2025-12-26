@@ -10,6 +10,7 @@ import { DaoStaking } from "./DaoStaking";
 import { TreasuryDeposit } from "./TreasuryDeposit";
 import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
 import { useWax } from "@/context/WaxContext";
+import { saveVote, getVotesForDao } from "@/lib/voteStorage";
 import { 
   Users, 
   FileText, 
@@ -56,17 +57,30 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [members, setMembers] = useState<DaoMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  // Track which proposals the user has voted on (persists across proposal reloads, but resets on account change)
+  // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
 
-  // Clear voted proposals when account changes (different user = different votes)
+  // Load votes from localStorage when account changes
   useEffect(() => {
-    setVotedProposals({});
-  }, [accountName]);
+    if (accountName) {
+      const storedVotes = getVotesForDao(accountName, dao.dao_name);
+      console.log("Loaded votes from localStorage:", storedVotes);
+      setVotedProposals(storedVotes);
+    } else {
+      setVotedProposals({});
+    }
+  }, [accountName, dao.dao_name]);
 
   // Function to record a vote and refresh proposals
   const handleVote = async (proposalId: number, vote: UserVote) => {
+    // Save to state
     setVotedProposals(prev => ({ ...prev, [proposalId]: vote }));
+    
+    // Persist to localStorage
+    if (accountName) {
+      saveVote(accountName, dao.dao_name, proposalId, vote);
+    }
+    
     // Wait a bit for blockchain to process, then reload proposals to get updated vote counts
     await new Promise(resolve => setTimeout(resolve, 2000));
     loadProposals();
@@ -161,6 +175,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       // Fetch existing votes from blockchain for connected user
       if (accountName) {
         console.log("Fetching votes for user:", accountName, "dao:", dao.dao_name);
+        
+        // First, load any locally stored votes (these have complete choice_index info)
+        const localVotes = getVotesForDao(accountName, dao.dao_name);
+        console.log("Loaded local votes:", localVotes);
+        
         const existingVotes: Record<number, UserVote> = {};
         
         // Fetch votes in parallel for better performance
@@ -181,11 +200,26 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
         const votes = await Promise.all(votePromises);
         votes.forEach((result) => {
           if (result) {
-            existingVotes[result.proposalId] = result.vote;
+            const proposalId = result.proposalId;
+            const blockchainVote = result.vote;
+            
+            // Check if we have a locally stored vote with complete choice info
+            const localVote = localVotes[proposalId];
+            if (localVote && localVote.choice_index !== -1) {
+              // Prefer local vote as it has the complete choice_index
+              // But use blockchain weight as it's authoritative
+              existingVotes[proposalId] = {
+                ...localVote,
+                weight: blockchainVote.weight, // Use blockchain weight as truth
+              };
+              console.log(`Using local vote for proposal ${proposalId}:`, existingVotes[proposalId]);
+            } else {
+              existingVotes[proposalId] = blockchainVote;
+            }
           }
         });
         
-        console.log("Existing votes found:", existingVotes);
+        console.log("Merged votes (local + blockchain):", existingVotes);
         if (Object.keys(existingVotes).length > 0) {
           setVotedProposals(prev => ({ ...prev, ...existingVotes }));
         }

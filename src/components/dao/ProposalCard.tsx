@@ -269,6 +269,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     passed: "bg-green-500/20 text-green-500",
     rejected: "bg-red-500/20 text-red-500",
     executed: "bg-purple-500/20 text-purple-500",
+    expired: "bg-gray-500/20 text-gray-400",
   };
 
   const votingTypeIcons: Record<number, React.ReactNode> = {

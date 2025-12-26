@@ -12,7 +12,7 @@ export interface TokenConfig {
 // Token registry with all supported WAX tokens from NFTHive
 export const WAX_TOKENS: TokenConfig[] = [
   { symbol: 'WAX', contract: 'eosio.token', precision: 8, displayName: 'WAX' },
-  { symbol: 'CHEESE', contract: 'cheesewaxdao', precision: 4, displayName: 'CHEESE' },
+  { symbol: 'CHEESE', contract: 'cheeseburger', precision: 4, displayName: 'CHEESE' },
   { symbol: 'AQUA', contract: 'aquariuswax1', precision: 4, displayName: 'AQUA' },
   { symbol: 'HONEY', contract: 'hloweentoken', precision: 4, displayName: 'HONEY' },
   { symbol: 'AETHER', contract: 'aabormarket', precision: 8, displayName: 'AETHER' },

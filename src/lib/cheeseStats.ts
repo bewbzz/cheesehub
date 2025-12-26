@@ -1,5 +1,5 @@
 // CHEESE Token Stats Fetching Utilities
-import { WAX_CHAIN, CHEESE_CONFIG } from './waxConfig';
+import { CHEESE_CONFIG } from './waxConfig';
 
 // WAX API endpoints for fallback
 const WAX_API_ENDPOINTS = [
@@ -8,6 +8,9 @@ const WAX_API_ENDPOINTS = [
   'https://wax.eosrio.io',
   'https://api.waxsweden.org',
 ];
+
+// WaxDAO locker contract
+const WAXDAO_LOCKER = 'waxdaolocker';
 
 interface TokenStat {
   supply: string;
@@ -31,10 +34,20 @@ interface AccountInfo {
   permissions: AccountPermission[];
 }
 
+interface TokenLock {
+  ID: number;
+  creator: string;
+  receiver: string;
+  amount: string;
+  token_contract: string;
+  status: number; // 1 = funded/active
+}
+
 export interface CheeseStats {
   totalSupply: number;
   circulatingSupply: number;
   maxSupply: number;
+  lockedSupply: number;
   isNulled: boolean;
   ownerNulled: boolean;
   activeNulled: boolean;
@@ -117,12 +130,62 @@ function parseTokenAmount(amountStr: string): number {
   return parseFloat(parts[0]);
 }
 
+// Fetch locked CHEESE from waxdaolocker contract
+async function fetchLockedCheese(): Promise<number> {
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      let lockedAmount = 0;
+      let more = true;
+      let lowerBound = '';
+      
+      // Paginate through all locks
+      while (more) {
+        const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: WAXDAO_LOCKER,
+            scope: WAXDAO_LOCKER,
+            table: 'locks',
+            json: true,
+            limit: 1000,
+            lower_bound: lowerBound,
+          }),
+        });
+
+        if (!response.ok) break;
+
+        const data = await response.json();
+        const locks = data.rows as TokenLock[];
+        
+        // Sum up CHEESE locks that are funded (status = 1)
+        for (const lock of locks) {
+          if (lock.token_contract === CHEESE_CONFIG.tokenContract && lock.status === 1) {
+            lockedAmount += parseTokenAmount(lock.amount);
+          }
+        }
+        
+        more = data.more;
+        if (more && locks.length > 0) {
+          lowerBound = String(locks[locks.length - 1].ID + 1);
+        }
+      }
+      
+      return lockedAmount;
+    } catch (error) {
+      console.warn(`Failed to fetch locked CHEESE from ${endpoint}:`, error);
+    }
+  }
+  return 0;
+}
+
 // Get combined CHEESE stats
 export async function getCheeseStats(): Promise<CheeseStats> {
-  // Fetch both in parallel
-  const [tokenStats, accountInfo] = await Promise.all([
+  // Fetch all in parallel
+  const [tokenStats, accountInfo, lockedSupply] = await Promise.all([
     fetchTokenStats(),
     fetchAccountInfo(CHEESE_CONFIG.tokenContract),
+    fetchLockedCheese(),
   ]);
 
   // Default values
@@ -158,6 +221,7 @@ export async function getCheeseStats(): Promise<CheeseStats> {
     totalSupply,
     circulatingSupply,
     maxSupply,
+    lockedSupply,
     isNulled,
     ownerNulled,
     activeNulled,

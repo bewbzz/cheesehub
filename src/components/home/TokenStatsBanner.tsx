@@ -2,7 +2,7 @@ import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Coins, TrendingUp, Shield, ExternalLink } from 'lucide-react';
+import { Coins, Lock, Shield, ExternalLink } from 'lucide-react';
 import { CHEESE_CONFIG } from '@/lib/waxConfig';
 
 // Format large numbers with abbreviations
@@ -38,13 +38,13 @@ export function TokenStatsBanner() {
         
         <div className="relative p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Total Supply */}
+            {/* Total and Max Supply */}
             <div className="flex items-center gap-4 justify-center md:justify-start">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
                 <Coins className="h-6 w-6 text-cheese" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Supply</p>
+                <p className="text-sm text-muted-foreground font-medium">Total and Max Supply</p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-24 mt-1" />
                 ) : isError ? (
@@ -52,21 +52,21 @@ export function TokenStatsBanner() {
                 ) : (
                   <p 
                     className="text-xl font-bold text-foreground" 
-                    title={`${formatFullNumber(stats?.totalSupply ?? 0)} CHEESE`}
+                    title={`${formatFullNumber(stats?.maxSupply ?? 0)} CHEESE`}
                   >
-                    {formatLargeNumber(stats?.totalSupply ?? 0)} <span className="text-cheese">CHEESE</span>
+                    {formatLargeNumber(stats?.maxSupply ?? 0)} <span className="text-cheese">CHEESE</span>
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Max Supply */}
+            {/* Locked Supply */}
             <div className="flex items-center gap-4 justify-center">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-6 w-6 text-cheese" />
+                <Lock className="h-6 w-6 text-cheese" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Max Supply</p>
+                <p className="text-sm text-muted-foreground font-medium">Locked Supply</p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-28 mt-1" />
                 ) : isError ? (
@@ -74,9 +74,9 @@ export function TokenStatsBanner() {
                 ) : (
                   <p 
                     className="text-xl font-bold text-foreground"
-                    title={`${formatFullNumber(stats?.maxSupply ?? 0)} CHEESE`}
+                    title={`${formatFullNumber(stats?.lockedSupply ?? 0)} CHEESE`}
                   >
-                    {formatLargeNumber(stats?.maxSupply ?? 0)} <span className="text-cheese">CHEESE</span>
+                    {formatLargeNumber(stats?.lockedSupply ?? 0)} <span className="text-cheese">CHEESE</span>
                   </p>
                 )}
               </div>

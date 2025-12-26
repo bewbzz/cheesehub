@@ -17,7 +17,7 @@ import {
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -265,6 +265,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     [PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS]: <Trophy className="h-3 w-3" />,
     [PROPOSAL_VOTING_TYPES.RANKED_CHOICE]: <ListOrdered className="h-3 w-3" />,
     [PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER]: <Send className="h-3 w-3" />,
+    [PROPOSAL_VOTING_TYPES.NFT_TRANSFER]: <Image className="h-3 w-3" />,
   };
 
   const renderVotingPowerInfo = () => {
@@ -337,6 +338,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     switch (proposal.voting_type) {
       case PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN:
       case PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER:
+      case PROPOSAL_VOTING_TYPES.NFT_TRANSFER:
         return (
           <div className="flex gap-2">
             <Button
@@ -466,7 +468,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       proposal.choices.some(c => c.description?.toLowerCase() === "abstain");
     
     // For Yes/No/Abstain and Token Transfer proposals
-    if (isYesNoAbstain || proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
+    if (isYesNoAbstain || proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER) {
       return (
         <div className="space-y-2 w-full max-w-full overflow-hidden">
           <div className="flex justify-between text-sm">

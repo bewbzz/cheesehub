@@ -54,6 +54,7 @@ export interface CheeseStats {
   circulatingSupply: number;
   maxSupply: number;
   lockedSupply: number;
+  nulledBalance: number;
   isNulled: boolean;
   ownerNulled: boolean;
   activeNulled: boolean;
@@ -208,13 +209,42 @@ async function fetchLockedCheese(): Promise<{ lockedAmount: number; nextUnlock: 
   return { lockedAmount: 0, nextUnlock: null };
 }
 
+// Fetch CHEESE balance of eosio.null account
+async function fetchNulledBalance(): Promise<number> {
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const response = await fetch(`${endpoint}/v1/chain/get_currency_balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: CHEESE_CONFIG.tokenContract,
+          account: 'eosio.null',
+          symbol: CHEESE_CONFIG.tokenSymbol,
+        }),
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return parseTokenAmount(data[0]);
+      }
+      return 0; // Account has no CHEESE balance
+    } catch (error) {
+      console.warn(`Failed to fetch nulled balance from ${endpoint}:`, error);
+    }
+  }
+  return 0;
+}
+
 // Get combined CHEESE stats
 export async function getCheeseStats(): Promise<CheeseStats> {
   // Fetch all in parallel
-  const [tokenStats, accountInfo, lockedData] = await Promise.all([
+  const [tokenStats, accountInfo, lockedData, nulledBalance] = await Promise.all([
     fetchTokenStats(),
     fetchAccountInfo(CHEESE_CONFIG.tokenContract),
     fetchLockedCheese(),
+    fetchNulledBalance(),
   ]);
 
   // Default values
@@ -251,6 +281,7 @@ export async function getCheeseStats(): Promise<CheeseStats> {
     circulatingSupply,
     maxSupply,
     lockedSupply: lockedData.lockedAmount,
+    nulledBalance,
     isNulled,
     ownerNulled,
     activeNulled,

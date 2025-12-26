@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote, fetchDaoTotalStakedWeight } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -45,8 +45,9 @@ interface MenuItem {
   badge?: number;
 }
 
-export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
+export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   const { isConnected, accountName, joinDao, leaveDao } = useWax();
+  const [dao, setDao] = useState<DaoInfo>(initialDao);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
@@ -59,6 +60,22 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [membersLoading, setMembersLoading] = useState(false);
   // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
+
+  // Update dao when initialDao changes
+  useEffect(() => {
+    setDao(initialDao);
+  }, [initialDao]);
+
+  // Fetch total staked weight for the DAO
+  useEffect(() => {
+    async function loadTotalStakedWeight() {
+      if (open && dao.dao_name) {
+        const totalWeight = await fetchDaoTotalStakedWeight(dao.dao_name);
+        setDao(prev => ({ ...prev, total_staked_weight: totalWeight }));
+      }
+    }
+    loadTotalStakedWeight();
+  }, [open, dao.dao_name]);
 
   // Load votes from localStorage when account changes
   useEffect(() => {

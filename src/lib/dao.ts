@@ -124,6 +124,7 @@ export interface DaoInfo {
   gov_schemas: { collection_name: string; schema_name: string }[];
   time_created: number;
   status: number;
+  total_staked_weight?: number; // Total staked weight in the DAO (for threshold calculations)
 }
 
 // Convert IPFS hash to full URL
@@ -1716,4 +1717,39 @@ export function buildLeaveDaoAction(user: string, daoName: string) {
       dao: daoName,
     },
   };
+}
+
+// Fetch total staked weight for a DAO
+// This sums up all staked weights from the users table
+export async function fetchDaoTotalStakedWeight(daoName: string): Promise<number> {
+  try {
+    const response = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: DAO_CONTRACT,
+        scope: daoName,
+        table: "users",
+        limit: 1000,
+      }),
+    });
+    const data = await response.json();
+    
+    if (data.rows && data.rows.length > 0) {
+      // Sum up all weights from users
+      const totalWeight = data.rows.reduce((sum: number, row: any) => {
+        const weight = typeof row.weight === 'string' 
+          ? parseInt(row.weight) || 0 
+          : row.weight || 0;
+        return sum + weight;
+      }, 0);
+      console.log(`Total staked weight for ${daoName}:`, totalWeight);
+      return totalWeight;
+    }
+    return 0;
+  } catch (error) {
+    console.error("Failed to fetch DAO total staked weight:", error);
+    return 0;
+  }
 }

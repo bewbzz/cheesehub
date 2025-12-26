@@ -1,0 +1,104 @@
+import { useCheesePriceData } from '@/hooks/useCheesePriceData';
+import { useCheeseStats } from '@/hooks/useCheeseStats';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ExternalLink } from 'lucide-react';
+
+function formatPrice(price: number, decimals: number = 8): string {
+  return price.toFixed(decimals);
+}
+
+function formatUsdPrice(price: number): string {
+  if (price < 0.0001) {
+    return price.toFixed(8);
+  } else if (price < 0.01) {
+    return price.toFixed(6);
+  } else if (price < 1) {
+    return price.toFixed(4);
+  }
+  return price.toFixed(2);
+}
+
+function formatMarketCap(value: number): string {
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(2)}M`;
+  } else if (value >= 1_000) {
+    return `$${(value / 1_000).toFixed(2)}K`;
+  }
+  return `$${value.toFixed(2)}`;
+}
+
+export function CheesePriceBar() {
+  const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
+  const { data: stats, isLoading: statsLoading } = useCheeseStats();
+
+  const isLoading = priceLoading || statsLoading;
+
+  const marketCap = priceData && stats 
+    ? stats.circulatingSupply * priceData.usdPrice 
+    : 0;
+
+  if (priceError) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
+      {/* CHEESE/WAX Price */}
+      <a
+        href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2 hover:bg-card/70 transition-colors group"
+      >
+        <span className="text-lg">💱</span>
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">CHEESE/WAX</span>
+          {isLoading ? (
+            <Skeleton className="h-5 w-24" />
+          ) : (
+            <span className="font-semibold text-foreground">
+              {formatPrice(priceData?.waxPrice ?? 0)} WAX
+            </span>
+          )}
+        </div>
+        <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </a>
+
+      {/* CHEESE/USD Price */}
+      <a
+        href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2 hover:bg-card/70 transition-colors group"
+      >
+        <span className="text-lg">💵</span>
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">CHEESE/USD</span>
+          {isLoading ? (
+            <Skeleton className="h-5 w-20" />
+          ) : (
+            <span className="font-semibold text-foreground">
+              ${formatUsdPrice(priceData?.usdPrice ?? 0)}
+            </span>
+          )}
+        </div>
+        <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </a>
+
+      {/* Market Cap */}
+      <div className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2">
+        <span className="text-lg">📊</span>
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">Market Cap</span>
+          {isLoading ? (
+            <Skeleton className="h-5 w-20" />
+          ) : (
+            <span className="font-semibold text-foreground">
+              {formatMarketCap(marketCap)}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

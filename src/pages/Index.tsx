@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import cheeseArmy from "@/assets/cheesearmy.png";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
+import { CheesePriceBar } from "@/components/home/CheesePriceBar";
 const Index = () => {
   return (
     <div className="min-h-screen bg-background relative">
@@ -43,6 +44,9 @@ const Index = () => {
                 </a>
               </Button>
             </div>
+            
+            {/* Price Bar */}
+            <CheesePriceBar />
           </div>
         </div>
       </section>

@@ -41,6 +41,12 @@ interface TokenLock {
   amount: string;
   token_contract: string;
   status: number; // 1 = funded/active
+  unlock_time: number; // Unix timestamp
+}
+
+export interface NextUnlock {
+  year: number;
+  amount: number;
 }
 
 export interface CheeseStats {
@@ -53,6 +59,7 @@ export interface CheeseStats {
   activeNulled: boolean;
   status: 'Immutable' | 'Active';
   issuer: string;
+  nextUnlock: NextUnlock | null;
 }
 
 // Fetch token stats from the stat table
@@ -131,10 +138,13 @@ function parseTokenAmount(amountStr: string): number {
 }
 
 // Fetch locked CHEESE from waxdaolocker contract
-async function fetchLockedCheese(): Promise<number> {
+async function fetchLockedCheese(): Promise<{ lockedAmount: number; nextUnlock: NextUnlock | null }> {
+  const now = Math.floor(Date.now() / 1000);
+  
   for (const endpoint of WAX_API_ENDPOINTS) {
     try {
       let lockedAmount = 0;
+      let nextUnlock: NextUnlock | null = null;
       let more = true;
       let lowerBound = '';
       
@@ -161,7 +171,21 @@ async function fetchLockedCheese(): Promise<number> {
         // Sum up CHEESE locks that are funded (status = 1)
         for (const lock of locks) {
           if (lock.token_contract === CHEESE_CONFIG.tokenContract && lock.status === 1) {
-            lockedAmount += parseTokenAmount(lock.amount);
+            const amount = parseTokenAmount(lock.amount);
+            lockedAmount += amount;
+            
+            // Find the next unlock (unlock_time in the future, closest to now)
+            if (lock.unlock_time > now) {
+              const unlockYear = new Date(lock.unlock_time * 1000).getFullYear();
+              
+              if (!nextUnlock || lock.unlock_time < nextUnlock.year) {
+                // Store the timestamp temporarily in year field to compare
+                nextUnlock = { year: lock.unlock_time, amount };
+              } else if (lock.unlock_time === nextUnlock.year) {
+                // Same unlock time, accumulate amount
+                nextUnlock.amount += amount;
+              }
+            }
           }
         }
         
@@ -171,18 +195,23 @@ async function fetchLockedCheese(): Promise<number> {
         }
       }
       
-      return lockedAmount;
+      // Convert timestamp to year
+      if (nextUnlock) {
+        nextUnlock.year = new Date(nextUnlock.year * 1000).getFullYear();
+      }
+      
+      return { lockedAmount, nextUnlock };
     } catch (error) {
       console.warn(`Failed to fetch locked CHEESE from ${endpoint}:`, error);
     }
   }
-  return 0;
+  return { lockedAmount: 0, nextUnlock: null };
 }
 
 // Get combined CHEESE stats
 export async function getCheeseStats(): Promise<CheeseStats> {
   // Fetch all in parallel
-  const [tokenStats, accountInfo, lockedSupply] = await Promise.all([
+  const [tokenStats, accountInfo, lockedData] = await Promise.all([
     fetchTokenStats(),
     fetchAccountInfo(CHEESE_CONFIG.tokenContract),
     fetchLockedCheese(),
@@ -221,11 +250,12 @@ export async function getCheeseStats(): Promise<CheeseStats> {
     totalSupply,
     circulatingSupply,
     maxSupply,
-    lockedSupply,
+    lockedSupply: lockedData.lockedAmount,
     isNulled,
     ownerNulled,
     activeNulled,
     status: isNulled ? 'Immutable' : 'Active',
     issuer,
+    nextUnlock: lockedData.nextUnlock,
   };
 }

@@ -2,7 +2,7 @@ import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Lock, Shield, ExternalLink, RefreshCw } from 'lucide-react';
+import { Coins, Lock, Shield, ExternalLink, RefreshCw, Calendar } from 'lucide-react';
 import { CHEESE_CONFIG } from '@/lib/waxConfig';
 
 // Format large numbers with abbreviations
@@ -37,7 +37,7 @@ export function TokenStatsBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cheese/5 to-transparent animate-pulse" />
         
         <div className="relative p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {/* Total and Max Supply */}
             <div className="flex items-center gap-4 justify-center md:justify-start">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
@@ -120,6 +120,40 @@ export function TokenStatsBanner() {
                   >
                     {formatLargeNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0))} <span className="text-cheese">CHEESE</span>
                   </p>
+                )}
+              </div>
+            </div>
+
+            {/* Next Unlock */}
+            <div className="flex items-center gap-4 justify-center">
+              <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
+                <Calendar className="h-6 w-6 text-cheese" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Next Unlock</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-24 mt-1" />
+                ) : isError ? (
+                  <p className="text-lg font-bold text-destructive">Error</p>
+                ) : stats?.nextUnlock ? (
+                  <div className="flex flex-col gap-1">
+                    <p 
+                      className="text-xl font-bold text-foreground"
+                      title={`${formatFullNumber(stats.nextUnlock.amount)} CHEESE unlocking in ${stats.nextUnlock.year}`}
+                    >
+                      {stats.nextUnlock.year} <span className="text-cheese">({formatLargeNumber(stats.nextUnlock.amount)})</span>
+                    </p>
+                    <a
+                      href="https://waxblock.io/account/waxdaolocker?code=waxdaolocker&scope=waxdaolocker&table=locks&lower_bound=249&upper_bound=259&limit=10&reverse=false#contract-tables"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
+                    >
+                      proof
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xl font-bold text-muted-foreground">None</p>
                 )}
               </div>
             </div>

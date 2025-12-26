@@ -1,14 +1,13 @@
 import cheeseLogo from "@/assets/cheese-logo.png";
-import type { NFTDrop } from "@/types/drop";
 
 interface DropsHeroProps {
-  drops?: NFTDrop[];
+  stats?: { activeDrops: number; totalSold: number };
   isLoading?: boolean;
 }
 
-export function DropsHero({ drops = [], isLoading = false }: DropsHeroProps) {
-  const activeDrops = drops.length;
-  const totalSold = drops.reduce((sum, drop) => sum + ((drop.totalSupply || 0) - (drop.remaining || 0)), 0);
+export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
+  const activeDrops = stats?.activeDrops || 0;
+  const totalSold = stats?.totalSold || 0;
 
   const formatNumber = (num: number): string => {
     if (num >= 1000) {

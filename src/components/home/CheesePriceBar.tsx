@@ -1,5 +1,6 @@
 import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
+import { useCheeseLiquidity } from '@/hooks/useCheeseLiquidity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
@@ -31,6 +32,7 @@ function formatMarketCap(value: number): string {
 export function CheesePriceBar() {
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
+  const { data: liquidityData, isLoading: liquidityLoading } = useCheeseLiquidity();
 
   const isLoading = priceLoading || statsLoading;
 
@@ -100,6 +102,27 @@ export function CheesePriceBar() {
           )}
         </div>
       </div>
+
+      {/* Total Liquidity */}
+      <a
+        href="https://wax.alcor.exchange/swap?input=WAX-eosio.token&output=CHEESE-cheeseburger"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
+      >
+        <span className="text-lg">💧</span>
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">Total Liquidity</span>
+          {liquidityLoading || !liquidityData ? (
+            <Skeleton className="h-5 w-20" />
+          ) : (
+            <span className="font-semibold text-foreground">
+              {formatMarketCap(liquidityData.totalLiquidityUsd)}
+            </span>
+          )}
+        </div>
+        <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </a>
     </div>
   );
 }

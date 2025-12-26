@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,7 +21,7 @@ import {
   buildUnstakeNFTAction,
 } from "@/lib/dao";
 import { fetchUserNFTsBySchema } from "@/services/atomicApi";
-import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, UserPlus } from "lucide-react";
+import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, UserPlus, AlertCircle, Lock } from "lucide-react";
 
 interface DaoStakingProps {
   dao: DaoInfo;
@@ -359,6 +360,15 @@ export function DaoStaking({ dao }: DaoStakingProps) {
               <h4 className="font-medium flex items-center gap-2">
                 <Minus className="h-4 w-4" /> Unstake Tokens
               </h4>
+              
+              {/* Vote Lock Warning */}
+              <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                <Lock className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-sm text-amber-200">
+                  <strong>Note:</strong> Tokens used as voting weight on open proposals cannot be unstaked until those proposals end.
+                </AlertDescription>
+              </Alert>
+              
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -413,6 +423,17 @@ export function DaoStaking({ dao }: DaoStakingProps) {
                 </Button>
               )}
             </div>
+            
+            {/* Vote Lock Warning for NFTs */}
+            {stakedNFTs.length > 0 && (
+              <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                <Lock className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-sm text-amber-200">
+                  <strong>Note:</strong> NFTs used as voting weight on open proposals cannot be unstaked until those proposals end.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {stakedNFTs.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No NFTs staked yet

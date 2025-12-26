@@ -17,7 +17,7 @@ import {
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -119,6 +119,13 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
   const yesPercent = totalVotes > 0 ? (proposal.yes_votes / totalVotes) * 100 : 0;
   const noPercent = totalVotes > 0 ? (proposal.no_votes / totalVotes) * 100 : 0;
+  
+  // Check if proposal meets the DAO's pass threshold
+  const passThreshold = dao?.threshold ?? 51;
+  const meetsThreshold = yesPercent >= passThreshold;
+  const isYesNoType = proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN || 
+                      proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
+                      proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
 
   // Calculate total votes from choices for multi-option proposals
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
@@ -472,8 +479,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return (
         <div className="space-y-2 w-full max-w-full overflow-hidden">
           <div className="flex justify-between text-sm">
-            <span className="text-green-500">Yes: {proposal.yes_votes}</span>
-            <span className="text-red-500">No: {proposal.no_votes}</span>
+            <span className="text-green-500">Yes: {proposal.yes_votes} ({yesPercent.toFixed(1)}%)</span>
+            <span className="text-red-500">No: {proposal.no_votes} ({noPercent.toFixed(1)}%)</span>
           </div>
           <div className="relative h-2 bg-muted rounded-full overflow-hidden w-full">
             <div
@@ -484,6 +491,34 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
               className="absolute right-0 top-0 h-full bg-red-500 transition-all"
               style={{ width: `${noPercent}%` }}
             />
+            {/* Threshold marker */}
+            <div 
+              className="absolute top-0 h-full w-0.5 bg-cheese z-10"
+              style={{ left: `${passThreshold}%` }}
+              title={`Pass threshold: ${passThreshold}%`}
+            />
+          </div>
+          {/* Threshold status */}
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1">
+              <Target className="h-3 w-3 text-cheese" />
+              <span className="text-muted-foreground">Threshold: {passThreshold}%</span>
+            </div>
+            {totalVotes > 0 && (
+              <div className={`flex items-center gap-1 ${meetsThreshold ? 'text-green-500' : 'text-amber-500'}`}>
+                {meetsThreshold ? (
+                  <>
+                    <TrendingUp className="h-3 w-3" />
+                    <span>Passing</span>
+                  </>
+                ) : (
+                  <>
+                    <Target className="h-3 w-3" />
+                    <span>Needs {(passThreshold - yesPercent).toFixed(1)}% more</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           {proposal.abstain_votes > 0 && (
             <p className="text-xs text-muted-foreground text-center">

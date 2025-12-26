@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
@@ -113,6 +114,7 @@ export function CreateDao() {
       });
     } catch (error) {
       console.error("Failed to create DAO:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Failed to create DAO");
     } finally {
       setLoading(false);

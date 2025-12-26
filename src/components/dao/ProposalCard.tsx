@@ -492,38 +492,92 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       );
     }
 
-    // For Most Votes Wins, Ranked Choice, and other multi-option proposals
+    // For multi-option proposals
     if (proposal.choices && proposal.choices.length > 0) {
-      // Sort choices by vote count for better display
+      // Sort choices by vote count for display
       const sortedChoices = [...proposal.choices].sort((a, b) => {
         const votesA = typeof a.total_votes === 'string' ? parseInt(a.total_votes) : a.total_votes || 0;
         const votesB = typeof b.total_votes === 'string' ? parseInt(b.total_votes) : b.total_votes || 0;
         return votesB - votesA;
       });
+
+      // Ranked Choice: Show all options with ranking medals
+      if (proposal.voting_type === PROPOSAL_VOTING_TYPES.RANKED_CHOICE) {
+        const rankingBadges = ['🥇', '🥈', '🥉'];
+        
+        return (
+          <div className="space-y-2 w-full max-w-full overflow-hidden">
+            <p className="text-xs text-muted-foreground font-medium">Full Rankings</p>
+            {sortedChoices.map((choice, index) => {
+              const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
+              const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
+              const badge = index < 3 ? rankingBadges[index] : `${index + 1}.`;
+              const isTop3 = index < 3 && votes > 0;
+              
+              return (
+                <div key={choice.description} className="space-y-1 w-full overflow-hidden">
+                  <div className="flex justify-between text-sm gap-2">
+                    <span className={`${isTop3 ? 'font-medium' : 'text-muted-foreground'} truncate flex-1 min-w-0`}>
+                      <span className="mr-1">{badge}</span>
+                      {choice.description}
+                    </span>
+                    <span className="text-muted-foreground shrink-0">{votes} ({percent.toFixed(0)}%)</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
+                    <div
+                      className={`h-full transition-all ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-muted-foreground/30'}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+      
+      // Most Votes Wins: Emphasize only the winner, de-emphasize others
+      const winner = sortedChoices[0];
+      const winnerVotes = typeof winner?.total_votes === 'string' ? parseInt(winner.total_votes) : winner?.total_votes || 0;
+      const winnerPercent = choicesTotalVotes > 0 ? (winnerVotes / choicesTotalVotes) * 100 : 0;
+      const others = sortedChoices.slice(1);
       
       return (
-        <div className="space-y-2 w-full max-w-full overflow-hidden">
-          {sortedChoices.map((choice, index) => {
-            const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
-            const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
-            const isLeading = index === 0 && votes > 0;
-            return (
-              <div key={choice.description} className="space-y-1 w-full overflow-hidden">
-                <div className="flex justify-between text-sm gap-2">
-                  <span className={`${isLeading ? 'text-cheese font-medium' : 'text-foreground'} truncate flex-1 min-w-0`}>
-                    {isLeading && '🏆 '}{choice.description}
-                  </span>
-                  <span className="text-muted-foreground shrink-0">{votes} ({percent.toFixed(0)}%)</span>
-                </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
-                  <div
-                    className={`h-full transition-all ${isLeading ? 'bg-cheese' : 'bg-muted-foreground/50'}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
+        <div className="space-y-3 w-full max-w-full overflow-hidden">
+          {/* Winner - prominent display */}
+          {winner && winnerVotes > 0 && (
+            <div className="p-3 bg-cheese/10 border border-cheese/30 rounded-lg">
+              <div className="flex justify-between text-sm gap-2 mb-2">
+                <span className="text-cheese font-semibold truncate flex-1 min-w-0">
+                  🏆 {winner.description}
+                </span>
+                <span className="text-cheese font-medium shrink-0">{winnerVotes} ({winnerPercent.toFixed(0)}%)</span>
               </div>
-            );
-          })}
+              <div className="h-2 bg-cheese/20 rounded-full overflow-hidden w-full">
+                <div
+                  className="h-full bg-cheese transition-all"
+                  style={{ width: `${winnerPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Other options - minimized */}
+          {others.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Other options:</p>
+              {others.map((choice) => {
+                const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
+                const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
+                return (
+                  <div key={choice.description} className="flex justify-between text-xs text-muted-foreground gap-2">
+                    <span className="truncate flex-1 min-w-0">{choice.description}</span>
+                    <span className="shrink-0">{votes} ({percent.toFixed(0)}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }

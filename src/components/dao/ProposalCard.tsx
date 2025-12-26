@@ -498,25 +498,18 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
               title={`Pass threshold: ${passThreshold}%`}
             />
           </div>
-          {/* Threshold status */}
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1">
-              <Target className="h-3 w-3 text-cheese" />
-              <span className="text-muted-foreground">Threshold: {passThreshold}%</span>
-            </div>
+          {/* Threshold status badge */}
+          <div className="flex items-center justify-between text-xs mt-1">
+            <span className="text-muted-foreground">
+              Requires {passThreshold}% in favor to pass
+            </span>
             {totalVotes > 0 && (
-              <div className={`flex items-center gap-1 ${meetsThreshold ? 'text-green-500' : 'text-amber-500'}`}>
-                {meetsThreshold ? (
-                  <>
-                    <TrendingUp className="h-3 w-3" />
-                    <span>Passing</span>
-                  </>
-                ) : (
-                  <>
-                    <Target className="h-3 w-3" />
-                    <span>Needs {(passThreshold - yesPercent).toFixed(1)}% more</span>
-                  </>
-                )}
+              <div className={`px-2 py-0.5 rounded-full font-medium ${
+                meetsThreshold 
+                  ? 'bg-green-500/20 text-green-500 border border-green-500/30' 
+                  : 'bg-red-500/20 text-red-500 border border-red-500/30'
+              }`}>
+                {meetsThreshold ? 'PASSING' : 'FAILING'}
               </div>
             )}
           </div>

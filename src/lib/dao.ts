@@ -1344,20 +1344,10 @@ export function buildTokenTransferProposalAction(
     transfer: TokenTransferProposalData;
   }
 ) {
-  // The proposal includes the transfer action that will be executed if passed
-  const transferAction: ProposalAction = {
-    contract: proposal.transfer.tokenContract,
-    action: "transfer",
-    data: {
-      from: daoName,
-      to: proposal.transfer.recipient,
-      quantity: proposal.transfer.amount,
-      memo: `DAO proposal: ${proposal.title}`,
-    },
-  };
-
-  // Token transfer proposals use proposal_type 2 (Token Transfer)
-  // They still use Yes/No/Abstain choices for voting
+  // Token transfer proposals use the token_receivers field, not actions
+  // Format the quantity with proper precision
+  const quantity = `${proposal.transfer.amount} ${proposal.transfer.tokenSymbol}`;
+  
   return {
     account: DAO_CONTRACT,
     name: "newproposal",
@@ -1373,8 +1363,12 @@ export function buildTokenTransferProposalAction(
         { choice: 1, description: "No", total_votes: 0 },
         { choice: 2, description: "Abstain", total_votes: 0 },
       ],
-      actions: [transferAction],
-      token_receivers: [],
+      actions: [],
+      token_receivers: [{
+        receiver: proposal.transfer.recipient,
+        quantity: quantity,
+        token_contract: proposal.transfer.tokenContract,
+      }],
       nft_receivers: [],
       proof_asset_ids: [],
     },

@@ -131,6 +131,19 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     : 0;
   const meetsThreshold = yesPercentOfTotalStaked >= passThreshold;
   
+  // Debug logging for threshold calculation
+  console.log(`[DEBUG] Proposal ${proposal.proposal_id} threshold calculation:`, {
+    proposalTitle: proposal.title,
+    yesVotes: proposal.yes_votes,
+    noVotes: proposal.no_votes,
+    abstainVotes: proposal.abstain_votes,
+    totalVotes,
+    totalStakedWeight,
+    passThreshold,
+    yesPercentOfTotalStaked: yesPercentOfTotalStaked.toFixed(2) + '%',
+    meetsThreshold
+  });
+  
   const isYesNoType = proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN || 
                       proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
                       proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;

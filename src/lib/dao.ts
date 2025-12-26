@@ -477,7 +477,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       }
       
       // Determine voting type based on contract's proposal_type field
-      // Contract uses: 0 = Yes/No/Abstain, 1 = Most Votes Wins, 2 = Ranked Choice
+      // Contract uses: 0 = Yes/No/Abstain, 1 = Most Votes Wins, 2 = Token Transfer, 3 = NFT Transfer, 4 = Ranked Choice
       const contractProposalType = (row.proposal_type as number) ?? 0;
       const actions = (row.actions as ProposalAction[]) || [];
       
@@ -496,7 +496,13 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
             votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS; // 2
             break;
           case 2:
-            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // 3
+            votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // Token Transfer
+            break;
+          case 3:
+            votingType = 5; // NFT Transfer
+            break;
+          case 4:
+            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // Ranked Choice
             break;
           default:
             votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // Default to Yes/No
@@ -749,7 +755,7 @@ export function buildRankedChoiceProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 2, // Ranked Choice
+      proposal_type: 4, // Ranked Choice
       choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],

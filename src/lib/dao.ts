@@ -1258,7 +1258,7 @@ export function buildUnstakeTokenAction(
     authorization: [{ actor: staker, permission: "active" }],
     data: {
       user: staker,
-      daoname: daoName,
+      dao: daoName,
       quantity: amount,
     },
   };

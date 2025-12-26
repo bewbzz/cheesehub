@@ -17,7 +17,7 @@ import {
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2 } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -608,6 +608,25 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       </CardHeader>
 
       <CardContent className="space-y-4 overflow-hidden" style={{ maxWidth: '100%' }}>
+        {/* Token Transfer Details */}
+        {proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER && proposal.token_receivers && proposal.token_receivers.length > 0 && (
+          <div className="p-3 bg-cheese/10 border border-cheese/20 rounded-lg">
+            <p className="text-xs font-medium text-cheese mb-2 flex items-center gap-1">
+              <Send className="h-3 w-3" />
+              Token Transfer Details
+            </p>
+            {proposal.token_receivers.map((receiver, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-sm">
+                <Wallet className="h-3 w-3 text-muted-foreground" />
+                <span className="font-medium">{receiver.quantity}</span>
+                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">{receiver.wax_account}</span>
+                <span className="text-xs text-muted-foreground">({receiver.contract})</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Proposal Meta */}
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">

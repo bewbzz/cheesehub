@@ -159,6 +159,19 @@ export interface Proposal {
   end_time_ts: number;
   total_votes: number;
   actions: ProposalAction[];
+  token_receivers?: TokenReceiver[]; // For token transfer proposals
+  nft_receivers?: NFTReceiver[]; // For NFT transfer proposals
+}
+
+export interface TokenReceiver {
+  wax_account: string;
+  quantity: string;
+  contract: string;
+}
+
+export interface NFTReceiver {
+  wax_account: string;
+  asset_ids: string[];
 }
 
 export interface ProposalAction {
@@ -539,6 +552,8 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         end_time_ts: endTime,
         total_votes: (row.total_votes as number) || 0,
         actions: actions,
+        token_receivers: (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [],
+        nft_receivers: (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [],
       };
     });
   } catch (error) {

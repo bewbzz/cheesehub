@@ -1,4 +1,5 @@
 import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseArmy from "@/assets/cheesearmy.png";
 
 export function BackgroundDecorations() {
   return (
@@ -6,7 +7,16 @@ export function BackgroundDecorations() {
       {/* Gradient orbs - warm cheese tones */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse-glow" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brown/20 rounded-full blur-3xl" />
+      
+      {/* Center orb with cheese army */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px]">
+        <div className="absolute inset-0 bg-brown/20 rounded-full blur-3xl" />
+        <img 
+          src={cheeseArmy} 
+          alt="" 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 opacity-10 animate-float object-contain"
+        />
+      </div>
 
       {/* Grid pattern */}
       <div

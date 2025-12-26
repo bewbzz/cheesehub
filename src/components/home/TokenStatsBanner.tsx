@@ -2,8 +2,9 @@ import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Lock, Shield, ExternalLink, RefreshCw, Calendar } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { CHEESE_CONFIG } from '@/lib/waxConfig';
+import cheeseToken from '@/assets/cheese-token.png';
 
 // Format large numbers with abbreviations
 function formatLargeNumber(num: number): string {
@@ -41,7 +42,7 @@ export function TokenStatsBanner() {
             {/* Total and Max Supply */}
             <div className="flex items-center gap-4 justify-center md:justify-start">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <Coins className="h-6 w-6 text-cheese" />
+                <img src={cheeseToken} alt="CHEESE" className="h-8 w-8 object-contain" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Total and Max Supply</p>
@@ -73,7 +74,7 @@ export function TokenStatsBanner() {
             {/* Locked Supply */}
             <div className="flex items-center gap-4 justify-center">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <Lock className="h-6 w-6 text-cheese" />
+                <span className="text-2xl">🔒</span>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Locked Supply</p>
@@ -105,7 +106,7 @@ export function TokenStatsBanner() {
             {/* Circulating Supply */}
             <div className="flex items-center gap-4 justify-center">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <RefreshCw className="h-6 w-6 text-cheese" />
+                <span className="text-2xl">🔄</span>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Circulating Supply</p>
@@ -127,7 +128,7 @@ export function TokenStatsBanner() {
             {/* Next Unlock */}
             <div className="flex items-center gap-4 justify-center">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <Calendar className="h-6 w-6 text-cheese" />
+                <span className="text-2xl">⏳</span>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Next Unlock</p>
@@ -161,7 +162,7 @@ export function TokenStatsBanner() {
             {/* Contract Status */}
             <div className="flex items-center gap-4 justify-center md:justify-end">
               <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                <Shield className="h-6 w-6 text-green-500" />
+                <span className="text-2xl">🛡️</span>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Contract Status</p>

@@ -50,14 +50,14 @@ export function CheesePriceBar() {
         rel="noopener noreferrer"
         className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
       >
-        <span className="text-lg">💱</span>
+        <img src="https://wax.alcor.exchange/tokens/wax-eosio.token.png" alt="WAX" className="w-6 h-6 rounded-full" />
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">CHEESE/WAX</span>
           {isLoading ? (
             <Skeleton className="h-5 w-24" />
           ) : (
             <span className="font-semibold text-foreground">
-              {formatPrice(priceData?.waxPrice ?? 0)} WAX
+              {formatPrice(priceData?.waxPrice ?? 0, 4)} WAX
             </span>
           )}
         </div>
@@ -71,7 +71,7 @@ export function CheesePriceBar() {
         rel="noopener noreferrer"
         className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
       >
-        <span className="text-lg">💵</span>
+        <span className="text-lg font-bold text-green-500">$</span>
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">CHEESE/USD</span>
           {isLoading ? (

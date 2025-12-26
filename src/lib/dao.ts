@@ -85,6 +85,7 @@ export const PROPOSAL_VOTING_TYPES = {
   MOST_VOTES_WINS: 2,   // Multi-option, highest wins
   RANKED_CHOICE: 3,     // Ranked preference voting
   TOKEN_TRANSFER: 4,    // Treasury withdrawal
+  NFT_TRANSFER: 5,      // NFT transfer
 } as const;
 
 export const VOTING_TYPE_LABELS: Record<number, string> = {
@@ -520,7 +521,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
             votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // Token Transfer
             break;
           case 3:
-            votingType = 5; // NFT Transfer
+            votingType = PROPOSAL_VOTING_TYPES.NFT_TRANSFER; // NFT Transfer
             break;
           case 4:
             // Legacy: proposal_type 4 was used for ranked choice, but contract overwrites choices to Yes/No/Abstain

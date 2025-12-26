@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, DaoStaker, fetchDaoStakers, UserVote, fetchUserVote } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -57,7 +57,6 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [isMember, setIsMember] = useState(false);
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [members, setMembers] = useState<DaoMember[]>([]);
-  const [stakers, setStakers] = useState<DaoStaker[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
@@ -109,7 +108,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   }, [activeSection]);
 
   useEffect(() => {
-    if (activeSection === "members") {
+    if (activeSection === "members" && members.length === 0) {
       loadMembers();
     }
   }, [activeSection]);
@@ -133,17 +132,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   async function loadMembers() {
     setMembersLoading(true);
     try {
-      if (isTokenBalanceDao) {
-        // For Type 4 DAOs, fetch stakers from the stakers table
-        const data = await fetchDaoStakers(dao.dao_name);
-        setStakers(data);
-        setMembers([]);
-      } else {
-        // For other DAOs, fetch from users table
-        const data = await fetchDaoMembers(dao.dao_name);
-        setMembers(data);
-        setStakers([]);
-      }
+      const data = await fetchDaoMembers(dao.dao_name);
+      setMembers(data);
     } catch (error) {
       console.error("Failed to load members:", error);
     } finally {
@@ -748,29 +738,28 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Users className="h-5 w-5 text-cheese" />
-                      Members
-                      {isTokenBalanceDao && stakers.length > 0 && (
-                        <Badge variant="secondary">{stakers.length}</Badge>
-                      )}
+                      {isTokenBalanceDao ? "Participants" : "Members"}
                       {!isTokenBalanceDao && members.length > 0 && (
                         <Badge variant="secondary">{members.length}</Badge>
                       )}
                     </h3>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={loadMembers}
-                      disabled={membersLoading}
-                    >
-                      {membersLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Refresh"
-                      )}
-                    </Button>
+                    {!isTokenBalanceDao && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={loadMembers}
+                        disabled={membersLoading}
+                      >
+                        {membersLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Refresh"
+                        )}
+                      </Button>
+                    )}
                   </div>
 
-                  {/* Token Balance DAO Stakers */}
+                  {/* Token Balance DAO Info */}
                   {isTokenBalanceDao && (
                     <div className="space-y-4">
                       <div className="p-4 bg-cheese/10 rounded-lg border border-cheese/20">
@@ -779,14 +768,14 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                             <Coins className="h-5 w-5 text-cheese" />
                           </div>
                           <div>
-                            <p className="font-semibold text-foreground">Stake Tokens (Custodial) DAO</p>
-                            <p className="text-sm text-muted-foreground">Stake tokens to gain voting power</p>
+                            <p className="font-semibold text-foreground">Token Balance DAO</p>
+                            <p className="text-sm text-muted-foreground">No membership required</p>
                           </div>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          This is a <span className="text-cheese font-medium">Custodial Token Staking DAO</span>. 
-                          Stake <span className="font-medium text-foreground">{tokenDisplay || "the governance token"}</span> to 
-                          participate in voting. Your voting power equals your staked amount.
+                          This is a <span className="text-cheese font-medium">Token Balance DAO</span>. 
+                          Anyone holding <span className="font-medium text-foreground">{tokenDisplay || "the governance token"}</span> can 
+                          participate in voting. Your voting power is determined by your token balance at the time of voting.
                         </p>
                       </div>
 
@@ -810,57 +799,6 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                           </div>
                         </div>
                       )}
-
-                      {/* Members List */}
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground font-medium">
-                          DAO Members {stakers.length > 0 && `(${stakers.length})`}
-                        </p>
-                        {membersLoading ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-cheese" />
-                          </div>
-                        ) : stakers.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
-                            <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                            <p className="font-medium">No Members Yet</p>
-                            <p className="text-sm">Be the first to stake tokens and join this DAO!</p>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 gap-2">
-                            {stakers
-                              .sort((a, b) => b.weight - a.weight)
-                              .map((staker) => (
-                              <div
-                                key={staker.wallet}
-                                className={cn(
-                                  "flex items-center gap-2 p-3 rounded-lg",
-                                  staker.wallet === accountName 
-                                    ? "bg-green-500/10 border border-green-500/20" 
-                                    : "bg-muted/50"
-                                )}
-                              >
-                                <div className={cn(
-                                  "h-8 w-8 rounded-full flex items-center justify-center",
-                                  staker.wallet === accountName ? "bg-green-500/20" : "bg-muted"
-                                )}>
-                                  <Coins className={cn(
-                                    "h-4 w-4",
-                                    staker.wallet === accountName ? "text-green-500" : "text-muted-foreground"
-                                  )} />
-                                </div>
-                                <span className="font-medium truncate flex-1">{staker.wallet}</span>
-                                <Badge variant="secondary" className="text-xs shrink-0">
-                                  {staker.balance}
-                                </Badge>
-                                {staker.wallet === accountName && (
-                                  <Badge className="bg-green-500/20 text-green-500 text-xs shrink-0">You</Badge>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   )}
 

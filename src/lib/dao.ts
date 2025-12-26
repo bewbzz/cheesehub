@@ -1636,14 +1636,7 @@ export interface DaoMember {
   dao: string;
 }
 
-// DAO Staker interface - users who have staked tokens to a DAO
-export interface DaoStaker {
-  wallet: string;
-  balance: string;
-  weight: number;
-}
-
-// Fetch DAO members to check membership (for non-token DAOs)
+// Fetch DAO members to check membership
 export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
   try {
     const response = await fetch("https://wax.eosphere.io/v1/chain/get_table_rows", {
@@ -1661,51 +1654,6 @@ export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
     return data.rows || [];
   } catch (error) {
     console.error("Failed to fetch DAO members:", error);
-    return [];
-  }
-}
-
-// Fetch all stakers for a DAO (for Type 4 - Stake Tokens Custodial DAOs)
-// Query the users table scoped by DAO name - this contains all users who have staked
-export async function fetchDaoStakers(daoName: string): Promise<DaoStaker[]> {
-  try {
-    // First try the users table which contains staker info
-    const response = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: daoName,
-        table: "users",
-        limit: 1000,
-      }),
-    });
-    const data = await response.json();
-    console.log("Users/Stakers table data for DAO", daoName, ":", data);
-    
-    if (data.rows && data.rows.length > 0) {
-      return data.rows.map((row: any) => {
-        // Parse balance to get weight if available
-        const balanceStr = row.balance || row.staked || "";
-        let weight = 0;
-        if (balanceStr) {
-          const balanceParts = balanceStr.split(" ");
-          const amount = parseFloat(balanceParts[0]) || 0;
-          const precision = balanceParts[0].includes(".") ? balanceParts[0].split(".")[1].length : 0;
-          weight = Math.floor(amount * Math.pow(10, precision));
-        }
-        
-        return {
-          wallet: row.wallet || row.user || row.account || row.name,
-          balance: balanceStr || "Staked",
-          weight: weight,
-        };
-      });
-    }
-    return [];
-  } catch (error) {
-    console.error("Failed to fetch DAO stakers:", error);
     return [];
   }
 }

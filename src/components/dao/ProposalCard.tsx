@@ -541,12 +541,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   return (
-    <Card className="bg-card/50 border-border/50 w-full max-w-full overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
+    <Card className="bg-card/50 border-border/50 w-full overflow-hidden" style={{ maxWidth: '100%' }}>
+      <CardHeader className="pb-2 overflow-hidden">
+        <div className="flex items-start justify-between gap-2 overflow-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">
             <h4 className="font-semibold text-foreground truncate">{proposal.title}</h4>
-            <p className="text-sm text-muted-foreground line-clamp-2 break-words">
+            <p className="text-sm text-muted-foreground line-clamp-2 break-all overflow-hidden" style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
               {proposal.description}
             </p>
           </div>
@@ -562,7 +562,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 overflow-hidden max-w-full">
+      <CardContent className="space-y-4 overflow-hidden" style={{ maxWidth: '100%' }}>
         {/* Proposal Meta */}
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">

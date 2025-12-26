@@ -346,8 +346,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
           </div>
 
           {/* Content Area */}
-          <ScrollArea className="flex-1 min-w-0">
-            <div className="p-4 max-w-full">
+          <ScrollArea className="flex-1 min-w-0 overflow-hidden">
+            <div className="p-4 overflow-hidden" style={{ maxWidth: 'calc(100% - 2rem)' }}>
               {/* Loading State */}
               {loading && activeSection !== "info" && activeSection !== "new-proposal" && (
                 <div className="flex items-center justify-center py-12">

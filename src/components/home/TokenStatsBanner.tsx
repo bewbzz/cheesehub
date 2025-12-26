@@ -94,18 +94,30 @@ export function TokenStatsBanner() {
                 ) : isError ? (
                   <p className="text-lg font-bold text-destructive">Error</p>
                 ) : (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge 
-                      variant="outline" 
-                      className={stats?.isNulled 
-                        ? "border-green-500/50 bg-green-500/10 text-green-500 font-semibold" 
-                        : "border-yellow-500/50 bg-yellow-500/10 text-yellow-500 font-semibold"
-                      }
-                    >
-                      🔒 {stats?.status}
-                    </Badge>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={stats?.isNulled 
+                          ? "border-green-500/50 bg-green-500/10 text-green-500 font-semibold" 
+                          : "border-yellow-500/50 bg-yellow-500/10 text-yellow-500 font-semibold"
+                        }
+                      >
+                        🔒 {stats?.status}
+                      </Badge>
+                      {stats?.isNulled && (
+                        <span className="text-xs text-muted-foreground">(Nulled Keys)</span>
+                      )}
+                    </div>
                     {stats?.isNulled && (
-                      <span className="text-xs text-muted-foreground">(Nulled Keys)</span>
+                      <a
+                        href="https://waxblock.io/account/cheeseburger#keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
+                      >
+                        proof
+                      </a>
                     )}
                   </div>
                 )}

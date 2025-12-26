@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Lock, ArrowRight, Shield, Zap, ShoppingBag } from "lucide-react";
 import cheeseArmy from "@/assets/cheesearmy.png";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
+import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 
 const Index = () => {
   return (
@@ -46,6 +47,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Token Stats Banner */}
+      <TokenStatsBanner />
 
       {/* CHEESETools Section */}
       <section className="container py-16">

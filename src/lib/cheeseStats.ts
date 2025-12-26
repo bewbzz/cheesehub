@@ -1,0 +1,167 @@
+// CHEESE Token Stats Fetching Utilities
+import { WAX_CHAIN, CHEESE_CONFIG } from './waxConfig';
+
+// WAX API endpoints for fallback
+const WAX_API_ENDPOINTS = [
+  'https://wax.greymass.com',
+  'https://api.wax.alohaeos.com',
+  'https://wax.eosrio.io',
+  'https://api.waxsweden.org',
+];
+
+interface TokenStat {
+  supply: string;
+  max_supply: string;
+  issuer: string;
+}
+
+interface AccountPermission {
+  perm_name: string;
+  parent: string;
+  required_auth: {
+    threshold: number;
+    keys: Array<{ key: string; weight: number }>;
+    accounts: Array<{ permission: { actor: string; permission: string }; weight: number }>;
+    waits: Array<{ wait_sec: number; weight: number }>;
+  };
+}
+
+interface AccountInfo {
+  account_name: string;
+  permissions: AccountPermission[];
+}
+
+export interface CheeseStats {
+  totalSupply: number;
+  circulatingSupply: number;
+  maxSupply: number;
+  isNulled: boolean;
+  ownerNulled: boolean;
+  activeNulled: boolean;
+  status: 'Immutable' | 'Active';
+  issuer: string;
+}
+
+// Fetch token stats from the stat table
+async function fetchTokenStats(): Promise<TokenStat | null> {
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: CHEESE_CONFIG.tokenContract,
+          scope: CHEESE_CONFIG.tokenSymbol,
+          table: 'stat',
+          json: true,
+          limit: 1,
+        }),
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (data.rows && data.rows.length > 0) {
+        return data.rows[0] as TokenStat;
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch token stats from ${endpoint}:`, error);
+    }
+  }
+  return null;
+}
+
+// Check if a permission is nulled (set to eosio.null)
+function isPermissionNulled(permission: AccountPermission): boolean {
+  const auth = permission.required_auth;
+  
+  // Check if there are no keys
+  if (auth.keys.length > 0) return false;
+  
+  // Check if there's only one account with eosio.null@active
+  if (auth.accounts.length === 1) {
+    const account = auth.accounts[0];
+    return account.permission.actor === 'eosio.null' && account.permission.permission === 'active';
+  }
+  
+  return false;
+}
+
+// Fetch account info to check if contract is nulled
+async function fetchAccountInfo(accountName: string): Promise<AccountInfo | null> {
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const response = await fetch(`${endpoint}/v1/chain/get_account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_name: accountName,
+        }),
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      return data as AccountInfo;
+    } catch (error) {
+      console.warn(`Failed to fetch account info from ${endpoint}:`, error);
+    }
+  }
+  return null;
+}
+
+// Parse token amount string (e.g., "888888888888.0000 CHEESE") to number
+function parseTokenAmount(amountStr: string): number {
+  const parts = amountStr.split(' ');
+  if (parts.length < 1) return 0;
+  return parseFloat(parts[0]);
+}
+
+// Get combined CHEESE stats
+export async function getCheeseStats(): Promise<CheeseStats> {
+  // Fetch both in parallel
+  const [tokenStats, accountInfo] = await Promise.all([
+    fetchTokenStats(),
+    fetchAccountInfo(CHEESE_CONFIG.tokenContract),
+  ]);
+
+  // Default values
+  let totalSupply = 0;
+  let maxSupply = 0;
+  let circulatingSupply = 0;
+  let issuer = '';
+  let ownerNulled = false;
+  let activeNulled = false;
+
+  // Parse token stats
+  if (tokenStats) {
+    totalSupply = parseTokenAmount(tokenStats.supply);
+    maxSupply = parseTokenAmount(tokenStats.max_supply);
+    circulatingSupply = totalSupply; // For now, assume all supply is circulating
+    issuer = tokenStats.issuer;
+  }
+
+  // Check if contract permissions are nulled
+  if (accountInfo) {
+    for (const perm of accountInfo.permissions) {
+      if (perm.perm_name === 'owner') {
+        ownerNulled = isPermissionNulled(perm);
+      } else if (perm.perm_name === 'active') {
+        activeNulled = isPermissionNulled(perm);
+      }
+    }
+  }
+
+  const isNulled = ownerNulled && activeNulled;
+
+  return {
+    totalSupply,
+    circulatingSupply,
+    maxSupply,
+    isNulled,
+    ownerNulled,
+    activeNulled,
+    status: isNulled ? 'Immutable' : 'Active',
+    issuer,
+  };
+}

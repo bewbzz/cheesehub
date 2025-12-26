@@ -6,7 +6,7 @@ import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations"
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllDrops, fetchNFTHiveDrops } from "@/services/atomicApi";
+import { fetchAllDrops, fetchNFTHiveDrops, fetchCheeseDropStats } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,14 @@ const Drops = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
+  // Fetch CHEESE drop stats from on-chain (includes historical)
+  const { data: cheeseStats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['cheese-drop-stats'],
+    queryFn: fetchCheeseDropStats,
+    staleTime: 1000 * 60 * 2,
+    refetchInterval: 1000 * 60 * 5,
+  });
+
   const displayDrops: NFTDrop[] = drops || [];
 
   const handleRefresh = async () => {
@@ -42,6 +50,7 @@ const Drops = () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['drops'] }),
       queryClient.invalidateQueries({ queryKey: ['cheese-drops'] }),
+      queryClient.invalidateQueries({ queryKey: ['cheese-drop-stats'] }),
     ]);
     setIsRefreshing(false);
   };
@@ -50,7 +59,7 @@ const Drops = () => {
     <div className="min-h-screen bg-background relative">
       <BackgroundDecorations />
       <Header />
-      <DropsHero drops={cheeseDrops} isLoading={isLoadingCheese} />
+      <DropsHero stats={cheeseStats} isLoading={isLoadingStats} />
 
       <main className="container pb-20">
         <Tabs defaultValue="cheese" className="w-full">

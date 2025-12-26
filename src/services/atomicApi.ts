@@ -678,3 +678,91 @@ export async function fetchUserDrops(account: string): Promise<Array<{
     return [];
   }
 }
+
+// Fetch CHEESE drop stats from nfthivedrops contract (includes historical data)
+// This queries drops that accept CHEESE token as payment
+export async function fetchCheeseDropStats(): Promise<{ activeDrops: number; totalSold: number }> {
+  try {
+    // First, get all drops from nfthivedrops
+    const dropsResponse = await fetch('https://wax.eosusa.io/v1/chain/get_table_rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        json: true,
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'drops',
+        limit: 1000,
+      }),
+    });
+
+    const dropsData = await dropsResponse.json();
+    const allDrops = dropsData.rows || [];
+
+    // Get drop prices to find drops that accept CHEESE
+    const pricesResponse = await fetch('https://wax.eosusa.io/v1/chain/get_table_rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        json: true,
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'dropprices',
+        limit: 1000,
+      }),
+    });
+
+    const pricesData = await pricesResponse.json();
+    const allPrices = pricesData.rows || [];
+
+    // Find drops that accept CHEESE token or are from cheesenftwax collection
+    const cheeseDropIds = new Set<number>();
+    
+    // Check prices for CHEESE token
+    for (const price of allPrices) {
+      const tokenSymbol = price.token_symbol || '';
+      const tokenContract = price.token_contract || '';
+      if (tokenSymbol.includes('CHEESE') || tokenContract === 'cheeseburger') {
+        cheeseDropIds.add(price.drop_id);
+      }
+    }
+
+    // Also include drops from cheesenftwax collection
+    for (const drop of allDrops) {
+      if (drop.collection_name === CHEESE_CONFIG.collectionName) {
+        cheeseDropIds.add(drop.drop_id);
+      }
+    }
+
+    console.log('CHEESE drop IDs found:', Array.from(cheeseDropIds));
+
+    const now = Math.floor(Date.now() / 1000);
+    let activeDrops = 0;
+    let totalSold = 0;
+
+    // Calculate stats for CHEESE drops
+    for (const drop of allDrops) {
+      if (!cheeseDropIds.has(drop.drop_id)) continue;
+
+      // Count claims (sold)
+      const claimed = drop.current_claimed || 0;
+      totalSold += claimed;
+
+      // Check if drop is active
+      const startTime = drop.start_time || 0;
+      const endTime = drop.end_time || 0;
+      const isStarted = startTime === 0 || startTime <= now;
+      const isNotEnded = endTime === 0 || endTime > now;
+      
+      if (isStarted && isNotEnded) {
+        activeDrops++;
+      }
+    }
+
+    console.log('CHEESE drop stats:', { activeDrops, totalSold });
+    return { activeDrops, totalSold };
+  } catch (error) {
+    console.error('Error fetching CHEESE drop stats:', error);
+    return { activeDrops: 0, totalSold: 0 };
+  }
+}

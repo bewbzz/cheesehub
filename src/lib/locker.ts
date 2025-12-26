@@ -1,5 +1,8 @@
 import { fetchTable, WAXDAO_CONTRACT } from "@/lib/wax";
 
+// Known LP token contracts that should be excluded from token locks
+const LP_TOKEN_CONTRACTS = ["lptoken.box", "swap.taco"];
+
 // Lock status values from WaxDAO locker contract
 export const LOCK_STATUS = {
   CREATED: 0,     // Lock created, awaiting token deposit
@@ -21,10 +24,11 @@ export interface TokenLock {
 }
 
 // Fetch locks for a specific user (by receiver - the person who can claim)
+// Excludes LP token locks which are shown in the Liquidity Locks tab
 export async function fetchUserLocks(account: string): Promise<TokenLock[]> {
   try {
     // Use receiver index (index_position 3) to find locks claimable by this user
-    const locks = await fetchTable<TokenLock>(
+    const allLocks = await fetchTable<TokenLock>(
       WAXDAO_CONTRACT,
       WAXDAO_CONTRACT,
       "locks",
@@ -37,8 +41,14 @@ export async function fetchUserLocks(account: string): Promise<TokenLock[]> {
       }
     );
     
-    console.log("Raw locks data:", locks);
-    return locks;
+    // Filter out LP token locks (those go to the Liquidity Locks tab)
+    const tokenLocks = allLocks.filter(
+      lock => !LP_TOKEN_CONTRACTS.includes(lock.token_contract)
+    );
+    
+    console.log("Raw locks data:", allLocks);
+    console.log("Filtered token locks (excluding LP):", tokenLocks);
+    return tokenLocks;
   } catch (error) {
     console.error("Failed to fetch locks:", error);
     return [];

@@ -1617,7 +1617,7 @@ export function buildNFTTransferProposalAction(
       actions: [],
       token_receivers: [],
       nft_receivers: [{
-        receiver: proposal.transfer.recipient,
+        wax_account: proposal.transfer.recipient,
         asset_ids: proposal.transfer.assetIds,
       }],
       proof_asset_ids: [],

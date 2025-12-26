@@ -476,18 +476,34 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         status = (OUTCOME_STATUS[outcome] as typeof status) || "pending";
       }
       
-      // Determine voting type based on choices or proposal_type
-      let votingType = (row.voting_type as number) || 1;
-      const proposalType = (row.proposal_type as string) || (row.type as string) || "standard";
-      
-      // If proposal has actions with transfer, it's a token transfer
+      // Determine voting type based on contract's proposal_type field
+      // Contract uses: 0 = Yes/No/Abstain, 1 = Most Votes Wins, 2 = Ranked Choice
+      const contractProposalType = (row.proposal_type as number) ?? 0;
       const actions = (row.actions as ProposalAction[]) || [];
+      
+      let votingType: number;
+      
+      // Check for transfer proposals first (they use Yes/No voting but are categorized as TOKEN_TRANSFER)
       if (actions.some(a => a.action === "transfer")) {
-        votingType = 4;
-      } else if (choices.length > 3) {
-        // More than 3 choices suggests multi-option or ranked
-        votingType = (row.voting_type as number) || 2;
+        votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // 4
+      } else {
+        // Map contract proposal_type to our voting type constants
+        switch (contractProposalType) {
+          case 0:
+            votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // 1
+            break;
+          case 1:
+            votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS; // 2
+            break;
+          case 2:
+            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // 3
+            break;
+          default:
+            votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // Default to Yes/No
+        }
       }
+      
+      console.log(`Proposal ${row.proposal_id}: contract_type=${contractProposalType}, voting_type=${votingType}, choices=`, choices);
       
       return {
         proposal_id: (row.proposal_id as number) || (row.id as number) || 0,
@@ -495,7 +511,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         proposer: (row.author as string) || (row.proposer as string) || "",
         title: (row.title as string) || "",
         description: (row.description as string) || "",
-        proposal_type: proposalType,
+        proposal_type: String(contractProposalType),
         voting_type: votingType,
         status,
         yes_votes: yesVotes,

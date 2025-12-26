@@ -50,12 +50,22 @@ export function TokenStatsBanner() {
                 ) : isError ? (
                   <p className="text-lg font-bold text-destructive">Error</p>
                 ) : (
-                  <p 
-                    className="text-xl font-bold text-foreground" 
-                    title={`${formatFullNumber(stats?.maxSupply ?? 0)} CHEESE`}
-                  >
-                    {formatLargeNumber(stats?.maxSupply ?? 0)} <span className="text-cheese">CHEESE</span>
-                  </p>
+                  <div className="flex flex-col gap-1">
+                    <p 
+                      className="text-xl font-bold text-foreground" 
+                      title={`${formatFullNumber(stats?.maxSupply ?? 0)} CHEESE`}
+                    >
+                      {formatLargeNumber(stats?.maxSupply ?? 0)} <span className="text-cheese">CHEESE</span>
+                    </p>
+                    <a
+                      href="https://waxblock.io/account/cheeseburger?code=cheeseburger&scope=CHEESE&table=stat&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
+                    >
+                      proof
+                    </a>
+                  </div>
                 )}
               </div>
             </div>

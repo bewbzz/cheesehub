@@ -118,9 +118,9 @@ export function TokenStatsBanner() {
                 ) : (
                   <p 
                     className="text-xl font-bold text-foreground"
-                    title={`${formatFullNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0))} CHEESE`}
+                    title={`${formatFullNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0) - (stats?.nulledBalance ?? 0))} CHEESE`}
                   >
-                    {formatLargeNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0))} <span className="text-cheese">CHEESE</span>
+                    {formatLargeNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0) - (stats?.nulledBalance ?? 0))} <span className="text-cheese">CHEESE</span>
                   </p>
                 )}
               </div>

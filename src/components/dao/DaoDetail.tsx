@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote, fetchDaoTotalStakedWeight } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, fetchDaoMembers, DaoMember, UserVote, fetchUserVote } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -45,9 +45,8 @@ interface MenuItem {
   badge?: number;
 }
 
-export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
+export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const { isConnected, accountName, joinDao, leaveDao } = useWax();
-  const [dao, setDao] = useState<DaoInfo>(initialDao);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
@@ -60,28 +59,6 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   const [membersLoading, setMembersLoading] = useState(false);
   // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
-
-  // Update dao when initialDao changes AND fetch total staked weight
-  useEffect(() => {
-    console.log("[DEBUG] DaoDetail useEffect triggered - open:", open, "dao_name:", initialDao.dao_name);
-    
-    async function initializeDao() {
-      if (open && initialDao.dao_name) {
-        console.log("[DEBUG] Fetching total staked weight for:", initialDao.dao_name);
-        try {
-          const totalWeight = await fetchDaoTotalStakedWeight(initialDao.dao_name);
-          console.log("[DEBUG] Total staked weight result:", totalWeight);
-          setDao({ ...initialDao, total_staked_weight: totalWeight });
-        } catch (error) {
-          console.error("[DEBUG] Error fetching total staked weight:", error);
-          setDao(initialDao);
-        }
-      } else {
-        setDao(initialDao);
-      }
-    }
-    initializeDao();
-  }, [open, initialDao.dao_name]);
 
   // Load votes from localStorage when account changes
   useEffect(() => {

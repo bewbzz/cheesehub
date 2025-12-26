@@ -121,29 +121,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const noPercent = totalVotes > 0 ? (proposal.no_votes / totalVotes) * 100 : 0;
   
   // Check if proposal meets the DAO's pass threshold
-  // Threshold is based on yes votes as a percentage of TOTAL staked weight in the DAO
   const passThreshold = dao?.threshold ?? 51;
-  const totalStakedWeight = dao?.total_staked_weight || 0;
-  
-  // Calculate yes votes percentage of total staked (not just votes cast)
-  const yesPercentOfTotalStaked = totalStakedWeight > 0 
-    ? (proposal.yes_votes / totalStakedWeight) * 100 
-    : 0;
-  const meetsThreshold = yesPercentOfTotalStaked >= passThreshold;
-  
-  // Debug logging for threshold calculation
-  console.log(`[DEBUG] Proposal ${proposal.proposal_id} threshold calculation:`, {
-    proposalTitle: proposal.title,
-    yesVotes: proposal.yes_votes,
-    noVotes: proposal.no_votes,
-    abstainVotes: proposal.abstain_votes,
-    totalVotes,
-    totalStakedWeight,
-    passThreshold,
-    yesPercentOfTotalStaked: yesPercentOfTotalStaked.toFixed(2) + '%',
-    meetsThreshold
-  });
-  
+  const meetsThreshold = yesPercent >= passThreshold;
   const isYesNoType = proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN || 
                       proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
                       proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
@@ -498,68 +477,53 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     // For Yes/No/Abstain and Token Transfer proposals
     if (isYesNoAbstain || proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER) {
       return (
-        <div className="space-y-3 w-full max-w-full overflow-hidden">
-          {/* Vote distribution bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-green-500">Yes: {proposal.yes_votes} ({yesPercent.toFixed(1)}%)</span>
-              <span className="text-red-500">No: {proposal.no_votes} ({noPercent.toFixed(1)}%)</span>
-            </div>
-            <div className="relative h-2 bg-muted rounded-full overflow-hidden w-full">
-              <div
-                className="absolute left-0 top-0 h-full bg-green-500 transition-all"
-                style={{ width: `${yesPercent}%` }}
-              />
-              <div
-                className="absolute right-0 top-0 h-full bg-red-500 transition-all"
-                style={{ width: `${noPercent}%` }}
-              />
-            </div>
-            {proposal.abstain_votes > 0 && (
-              <p className="text-xs text-muted-foreground text-center">
-                Abstain: {proposal.abstain_votes}
-              </p>
-            )}
+        <div className="space-y-2 w-full max-w-full overflow-hidden">
+          <div className="flex justify-between text-sm">
+            <span className="text-green-500">Yes: {proposal.yes_votes} ({yesPercent.toFixed(1)}%)</span>
+            <span className="text-red-500">No: {proposal.no_votes} ({noPercent.toFixed(1)}%)</span>
           </div>
-
-          {/* Threshold progress bar - shows yes votes as % of total staked */}
-          {totalStakedWeight > 0 && (
-            <div className="space-y-1 p-2 bg-muted/30 rounded-lg">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1">
-                  <Target className="h-3 w-3 text-cheese" />
-                  <span className="text-muted-foreground">Pass Threshold: {passThreshold}% of staked</span>
-                </div>
-                <span className={meetsThreshold ? 'text-green-500 font-medium' : 'text-amber-500 font-medium'}>
-                  {yesPercentOfTotalStaked.toFixed(1)}%
-                </span>
-              </div>
-              <div className="relative h-2 bg-muted rounded-full overflow-hidden w-full">
-                <div
-                  className={`absolute left-0 top-0 h-full transition-all ${meetsThreshold ? 'bg-green-500' : 'bg-amber-500'}`}
-                  style={{ width: `${Math.min(yesPercentOfTotalStaked, 100)}%` }}
-                />
-                {/* Threshold marker */}
-                <div 
-                  className="absolute top-0 h-full w-0.5 bg-cheese z-10"
-                  style={{ left: `${passThreshold}%` }}
-                  title={`Pass threshold: ${passThreshold}%`}
-                />
-              </div>
-              <div className="flex items-center justify-center">
+          <div className="relative h-2 bg-muted rounded-full overflow-hidden w-full">
+            <div
+              className="absolute left-0 top-0 h-full bg-green-500 transition-all"
+              style={{ width: `${yesPercent}%` }}
+            />
+            <div
+              className="absolute right-0 top-0 h-full bg-red-500 transition-all"
+              style={{ width: `${noPercent}%` }}
+            />
+            {/* Threshold marker */}
+            <div 
+              className="absolute top-0 h-full w-0.5 bg-cheese z-10"
+              style={{ left: `${passThreshold}%` }}
+              title={`Pass threshold: ${passThreshold}%`}
+            />
+          </div>
+          {/* Threshold status */}
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1">
+              <Target className="h-3 w-3 text-cheese" />
+              <span className="text-muted-foreground">Threshold: {passThreshold}%</span>
+            </div>
+            {totalVotes > 0 && (
+              <div className={`flex items-center gap-1 ${meetsThreshold ? 'text-green-500' : 'text-amber-500'}`}>
                 {meetsThreshold ? (
-                  <div className="flex items-center gap-1 text-green-500 text-xs">
+                  <>
                     <TrendingUp className="h-3 w-3" />
                     <span>Passing</span>
-                  </div>
+                  </>
                 ) : (
-                  <div className="flex items-center gap-1 text-amber-500 text-xs">
+                  <>
                     <Target className="h-3 w-3" />
-                    <span>Needs {(passThreshold - yesPercentOfTotalStaked).toFixed(1)}% more to pass</span>
-                  </div>
+                    <span>Needs {(passThreshold - yesPercent).toFixed(1)}% more</span>
+                  </>
                 )}
               </div>
-            </div>
+            )}
+          </div>
+          {proposal.abstain_votes > 0 && (
+            <p className="text-xs text-muted-foreground text-center">
+              Abstain: {proposal.abstain_votes}
+            </p>
           )}
         </div>
       );

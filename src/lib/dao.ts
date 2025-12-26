@@ -124,7 +124,6 @@ export interface DaoInfo {
   gov_schemas: { collection_name: string; schema_name: string }[];
   time_created: number;
   status: number;
-  total_staked_weight?: number; // Total staked weight in the DAO (for threshold calculations)
 }
 
 // Convert IPFS hash to full URL
@@ -1717,83 +1716,4 @@ export function buildLeaveDaoAction(user: string, daoName: string) {
       dao: daoName,
     },
   };
-}
-
-// Fetch total staked weight for a DAO
-// Checks both users table and stakedtokens table
-export async function fetchDaoTotalStakedWeight(daoName: string): Promise<number> {
-  try {
-    console.log(`[DEBUG] Fetching total staked weight for DAO: ${daoName}`);
-    
-    // First try the users table
-    const usersResponse = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: daoName,
-        table: "users",
-        limit: 1000,
-      }),
-    });
-    const usersData = await usersResponse.json();
-    
-    console.log(`[DEBUG] Users table for ${daoName}:`, usersData.rows?.length || 0, "rows");
-    
-    if (usersData.rows && usersData.rows.length > 0) {
-      const totalWeight = usersData.rows.reduce((sum: number, row: any) => {
-        const weight = typeof row.weight === 'string' 
-          ? parseInt(row.weight) || 0 
-          : row.weight || 0;
-        return sum + weight;
-      }, 0);
-      console.log(`[DEBUG] Total weight from users table: ${totalWeight}`);
-      return totalWeight;
-    }
-    
-    // If users table is empty, try stakedtokens table
-    console.log(`[DEBUG] Users table empty, trying stakedtokens table...`);
-    const stakedResponse = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: daoName,
-        table: "stakedtokens",
-        limit: 1000,
-      }),
-    });
-    const stakedData = await stakedResponse.json();
-    
-    console.log(`[DEBUG] Stakedtokens table for ${daoName}:`, stakedData.rows?.length || 0, "rows");
-    if (stakedData.rows?.length > 0) {
-      console.log(`[DEBUG] Sample stakedtokens row:`, JSON.stringify(stakedData.rows[0], null, 2));
-    }
-    
-    if (stakedData.rows && stakedData.rows.length > 0) {
-      // Parse the quantity field (e.g., "0.0400 CHEESE")
-      const totalWeight = stakedData.rows.reduce((sum: number, row: any) => {
-        if (row.quantity) {
-          const parts = row.quantity.split(' ');
-          const amount = parseFloat(parts[0]) || 0;
-          // Get precision from the token (count decimals)
-          const decimals = parts[0].includes('.') ? parts[0].split('.')[1].length : 0;
-          const weight = Math.round(amount * Math.pow(10, decimals));
-          console.log(`[DEBUG] Staked: ${row.wallet || row.user}: ${row.quantity} -> weight: ${weight}`);
-          return sum + weight;
-        }
-        return sum;
-      }, 0);
-      console.log(`[DEBUG] Total weight from stakedtokens table: ${totalWeight}`);
-      return totalWeight;
-    }
-    
-    console.log(`[DEBUG] No staked tokens found for ${daoName}`);
-    return 0;
-  } catch (error) {
-    console.error("[DEBUG] Failed to fetch DAO total staked weight:", error);
-    return 0;
-  }
 }

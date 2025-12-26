@@ -1254,7 +1254,7 @@ export function buildUnstakeTokenAction(
 ) {
   return {
     account: DAO_CONTRACT,
-    name: "unstake",
+    name: "unstaketoken",
     authorization: [{ actor: staker, permission: "active" }],
     data: {
       user: staker,

@@ -56,8 +56,13 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [members, setMembers] = useState<DaoMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  // Track which proposals the user has voted on (persists across proposal reloads)
+  // Track which proposals the user has voted on (persists across proposal reloads, but resets on account change)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
+
+  // Clear voted proposals when account changes (different user = different votes)
+  useEffect(() => {
+    setVotedProposals({});
+  }, [accountName]);
 
   // Function to record a vote and refresh proposals
   const handleVote = async (proposalId: number, vote: UserVote) => {

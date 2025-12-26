@@ -2,7 +2,7 @@ import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Lock, Shield, ExternalLink } from 'lucide-react';
+import { Coins, Lock, Shield, ExternalLink, RefreshCw } from 'lucide-react';
 import { CHEESE_CONFIG } from '@/lib/waxConfig';
 
 // Format large numbers with abbreviations
@@ -37,7 +37,7 @@ export function TokenStatsBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cheese/5 to-transparent animate-pulse" />
         
         <div className="relative p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Total and Max Supply */}
             <div className="flex items-center gap-4 justify-center md:justify-start">
               <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
@@ -77,6 +77,28 @@ export function TokenStatsBanner() {
                     title={`${formatFullNumber(stats?.lockedSupply ?? 0)} CHEESE`}
                   >
                     {formatLargeNumber(stats?.lockedSupply ?? 0)} <span className="text-cheese">CHEESE</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Circulating Supply */}
+            <div className="flex items-center gap-4 justify-center">
+              <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
+                <RefreshCw className="h-6 w-6 text-cheese" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Circulating Supply</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-28 mt-1" />
+                ) : isError ? (
+                  <p className="text-lg font-bold text-destructive">Error</p>
+                ) : (
+                  <p 
+                    className="text-xl font-bold text-foreground"
+                    title={`${formatFullNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0))} CHEESE`}
+                  >
+                    {formatLargeNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0))} <span className="text-cheese">CHEESE</span>
                   </p>
                 )}
               </div>

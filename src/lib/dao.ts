@@ -493,16 +493,19 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
             votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // 1
             break;
           case 1:
-            votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS; // 2
+            // Check for [RANKED] marker in description to distinguish ranked choice from most votes wins
+            const description = (row.description as string) || "";
+            if (description.startsWith("[RANKED]")) {
+              votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // 3
+            } else {
+              votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS; // 2
+            }
             break;
           case 2:
             votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // Token Transfer
             break;
           case 3:
             votingType = 5; // NFT Transfer
-            break;
-          case 4:
-            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // Ranked Choice
             break;
           default:
             votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // Default to Yes/No
@@ -516,7 +519,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         dao_name: daoName,
         proposer: (row.author as string) || (row.proposer as string) || "",
         title: (row.title as string) || "",
-        description: (row.description as string) || "",
+        description: ((row.description as string) || "").replace(/^\[RANKED\]\s*/, ""), // Strip marker for display
         proposal_type: String(contractProposalType),
         voting_type: votingType,
         status,
@@ -754,8 +757,8 @@ export function buildRankedChoiceProposalAction(
       user: proposer,
       dao: daoName,
       title: proposal.title,
-      description: proposal.description,
-      proposal_type: 4, // Ranked Choice
+      description: `[RANKED] ${proposal.description}`, // Marker to identify ranked choice proposals
+      proposal_type: 1, // Use Most Votes Wins type (1) to preserve custom choices
       choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],

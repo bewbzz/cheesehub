@@ -315,59 +315,13 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return null; // Don't show voting buttons if not eligible
     }
 
-    // If user has already voted, show their vote with disabled buttons
+    // If user has already voted, show their vote
     if (hasVoted()) {
       const voteLabel = getVoteLabel();
       return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-green-500 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>You voted: <strong>{voteLabel}</strong></span>
-          </div>
-          {(proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN ||
-            proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) && (
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className={`flex-1 opacity-40 cursor-not-allowed ${
-                  userVote?.choice_index === 0 
-                    ? "border-green-500 bg-green-500/20 text-green-500" 
-                    : "border-muted-foreground/30 text-muted-foreground"
-                }`}
-                disabled
-              >
-                <ThumbsUp className="h-4 w-4 mr-1" />
-                Yes
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={`flex-1 opacity-40 cursor-not-allowed ${
-                  userVote?.choice_index === 1 
-                    ? "border-red-500 bg-red-500/20 text-red-500" 
-                    : "border-muted-foreground/30 text-muted-foreground"
-                }`}
-                disabled
-              >
-                <ThumbsDown className="h-4 w-4 mr-1" />
-                No
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={`flex-1 opacity-40 cursor-not-allowed ${
-                  userVote?.choice_index === 2 
-                    ? "border-muted-foreground bg-muted text-muted-foreground" 
-                    : "border-muted-foreground/30 text-muted-foreground"
-                }`}
-                disabled
-              >
-                <Minus className="h-4 w-4 mr-1" />
-                Abstain
-              </Button>
-            </div>
-          )}
+        <div className="flex items-center gap-2 text-sm text-green-500 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>You voted: <strong>{voteLabel}</strong></span>
         </div>
       );
     }
@@ -514,9 +468,14 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   const renderVoteResults = () => {
-    // For Yes/No/Abstain and Token Transfer
-    if (proposal.voting_type === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN || 
-        proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
+    // Check if this is a Yes/No/Abstain type proposal by checking choices
+    const isYesNoAbstain = proposal.choices?.length === 3 && 
+      proposal.choices.some(c => c.description?.toLowerCase() === "yes") &&
+      proposal.choices.some(c => c.description?.toLowerCase() === "no") &&
+      proposal.choices.some(c => c.description?.toLowerCase() === "abstain");
+    
+    // For Yes/No/Abstain and Token Transfer proposals
+    if (isYesNoAbstain || proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
       return (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -542,22 +501,32 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       );
     }
 
-    // For Most Votes Wins and Ranked Choice
+    // For Most Votes Wins, Ranked Choice, and other multi-option proposals
     if (proposal.choices && proposal.choices.length > 0) {
+      // Sort choices by vote count for better display
+      const sortedChoices = [...proposal.choices].sort((a, b) => {
+        const votesA = typeof a.total_votes === 'string' ? parseInt(a.total_votes) : a.total_votes || 0;
+        const votesB = typeof b.total_votes === 'string' ? parseInt(b.total_votes) : b.total_votes || 0;
+        return votesB - votesA;
+      });
+      
       return (
         <div className="space-y-2">
-          {proposal.choices.map((choice, index) => {
+          {sortedChoices.map((choice, index) => {
             const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
             const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
+            const isLeading = index === 0 && votes > 0;
             return (
-              <div key={index} className="space-y-1">
+              <div key={choice.description} className="space-y-1">
                 <div className="flex justify-between text-sm">
-                  <span className="text-foreground">{choice.description}</span>
-                  <span className="text-muted-foreground">{votes} votes</span>
+                  <span className={`${isLeading ? 'text-cheese font-medium' : 'text-foreground'}`}>
+                    {isLeading && '🏆 '}{choice.description}
+                  </span>
+                  <span className="text-muted-foreground">{votes} votes ({percent.toFixed(1)}%)</span>
                 </div>
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-cheese transition-all"
+                    className={`h-full transition-all ${isLeading ? 'bg-cheese' : 'bg-muted-foreground/50'}`}
                     style={{ width: `${percent}%` }}
                   />
                 </div>

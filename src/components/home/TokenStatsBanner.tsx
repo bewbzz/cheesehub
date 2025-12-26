@@ -38,6 +38,7 @@ export function TokenStatsBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cheese/5 to-transparent animate-pulse" />
         
         <div className="relative p-6">
+          {/* Top row - 5 columns */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {/* Total and Max Supply */}
             <div className="flex items-center gap-4 justify-center md:justify-start">
@@ -159,8 +160,42 @@ export function TokenStatsBanner() {
               </div>
             </div>
 
-            {/* Contract Status */}
+            {/* CHEESE Nulled */}
             <div className="flex items-center gap-4 justify-center md:justify-end">
+              <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
+                <span className="text-2xl">🔥</span>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">CHEESE Nulled</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-24 mt-1" />
+                ) : isError ? (
+                  <p className="text-lg font-bold text-destructive">Error</p>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <p 
+                      className="text-xl font-bold text-foreground"
+                      title={`${formatFullNumber(stats?.nulledBalance ?? 0)} CHEESE sent to eosio.null`}
+                    >
+                      {formatLargeNumber(stats?.nulledBalance ?? 0)} <span className="text-cheese">CHEESE</span>
+                    </p>
+                    <a
+                      href="https://waxblock.io/account/eosio.null?code=cheeseburger&scope=eosio.null&table=accounts&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
+                    >
+                      proof
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom row - Contract Status centered */}
+          <div className="mt-6 flex justify-center">
+            <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
                 <span className="text-2xl">🛡️</span>
               </div>

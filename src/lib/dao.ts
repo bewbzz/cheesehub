@@ -1365,7 +1365,7 @@ export function buildTokenTransferProposalAction(
       ],
       actions: [],
       token_receivers: [{
-        receiver: proposal.transfer.recipient,
+        wax_account: proposal.transfer.recipient,
         quantity: quantity,
         token_contract: proposal.transfer.tokenContract,
       }],

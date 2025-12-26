@@ -19,6 +19,7 @@ import {
   NFTTransferProposalData,
   TreasuryNFT
 } from "@/lib/dao";
+import { WAX_TOKENS, getTokenConfig } from "@/lib/tokenRegistry";
 import { toast } from "sonner";
 import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy, ImageIcon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -359,16 +360,25 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
                   <Select
                     value={transferData.tokenSymbol}
                     onValueChange={(value) => {
-                      const contract = value === "WAX" ? "eosio.token" : "token.waxdao";
-                      setTransferData({ ...transferData, tokenSymbol: value, tokenContract: contract });
+                      const tokenConfig = getTokenConfig(value);
+                      if (tokenConfig) {
+                        setTransferData({ 
+                          ...transferData, 
+                          tokenSymbol: value, 
+                          tokenContract: tokenConfig.contract 
+                        });
+                      }
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="WAX">WAX</SelectItem>
-                      <SelectItem value="WAXDAO">WAXDAO</SelectItem>
+                    <SelectContent className="max-h-60">
+                      {WAX_TOKENS.map((token) => (
+                        <SelectItem key={token.symbol} value={token.symbol}>
+                          {token.displayName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

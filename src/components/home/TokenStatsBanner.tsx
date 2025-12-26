@@ -89,7 +89,7 @@ export function TokenStatsBanner() {
                       className="text-xl font-bold text-foreground"
                       title={`${formatFullNumber(stats?.lockedSupply ?? 0)} CHEESE`}
                     >
-                      {formatLargeNumber(stats?.lockedSupply ?? 0)} <span className="text-cheese">CHEESE</span>
+                      {formatFullNumber(stats?.lockedSupply ?? 0)} <span className="text-cheese">CHEESE</span>
                     </p>
                     <a
                       href="https://waxblock.io/account/waxdaolocker?code=waxdaolocker&scope=waxdaolocker&table=locks&lower_bound=249&upper_bound=259&limit=10&reverse=false#contract-tables"
@@ -120,7 +120,7 @@ export function TokenStatsBanner() {
                     className="text-xl font-bold text-foreground"
                     title={`${formatFullNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0) - (stats?.nulledBalance ?? 0))} CHEESE`}
                   >
-                    {formatLargeNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0) - (stats?.nulledBalance ?? 0))} <span className="text-cheese">CHEESE</span>
+                    {formatFullNumber((stats?.totalSupply ?? 0) - (stats?.lockedSupply ?? 0) - (stats?.nulledBalance ?? 0))} <span className="text-cheese">CHEESE</span>
                   </p>
                 )}
               </div>

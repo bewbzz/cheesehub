@@ -65,7 +65,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEFaucet</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Stake and claim CHEESE tokens daily. A simple way to grow your holdings in the CHEESE ecosystem.
+                Hosted separately on GitHub and powered by the cheesefaucet and cheesecheese smart contracts, users can stake their $CHEESE to claim/mine $CHEESE at a high APR.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <a href="https://cheeseonwax.github.io/tools/cheesefaucet.html" target="_blank" rel="noopener noreferrer">
@@ -84,7 +84,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEDao</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Participate in governance and help shape the future of your token community.
+                Powered by the dao.waxdao smart contract and acting as an alternate Front-End, CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/dao">
@@ -108,7 +108,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESELock</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Secure your tokens with time-locked smart contracts. Perfect for vesting and investor protection.
+                Powered by the WAXDALOCKER smart contract and acting as an alternate Front-End, CHEESELock allows all WAX users the ability to time-lock tokens and/or LP tokens.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/locker">
@@ -127,7 +127,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEDrops</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Exchange your CHEESE tokens for exclusive NFTs and physical items from our collection.
+                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End, CHEESEDrops allows all WAX users to create NFT drops and sell them for various WAX tokens.
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">

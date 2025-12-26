@@ -84,10 +84,16 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   // Get the user's vote choice label
-  const getVoteLabel = (): string => {
-    if (!userVote || !proposal.choices) return "";
+  // Note: For votes loaded from blockchain, we may not know the specific choice
+  // (votesbyprop table doesn't store choice_index, only that they voted)
+  const getVoteLabel = (): string | null => {
+    if (!userVote || !proposal.choices) return null;
+    
+    // If choice_index is -1, we know they voted but not what they voted for
+    if (userVote.choice_index === -1) return null;
+    
     const choice = proposal.choices[userVote.choice_index];
-    return choice?.description || "";
+    return choice?.description || null;
   };
 
   // Check if user has staked tokens for voting
@@ -321,7 +327,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return (
         <div className="flex items-center gap-2 text-sm text-green-500 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>You voted: <strong>{voteLabel}</strong></span>
+          <span>{voteLabel ? <>You voted: <strong>{voteLabel}</strong></> : "You have voted on this proposal"}</span>
         </div>
       );
     }

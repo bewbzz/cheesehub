@@ -922,8 +922,11 @@ export async function fetchUserVote(
     if (data.rows && data.rows.length > 0) {
       const row = data.rows[0];
       console.log("Found user vote in votesbyprop:", row);
+      // Note: The votesbyprop table only stores wallet/weight, NOT the choice_index
+      // So we use -1 to indicate "voted but unknown choice" for blockchain-loaded votes
+      const hasChoiceInfo = row.choice !== undefined || row.choice_index !== undefined || row.vote_option !== undefined;
       return {
-        choice_index: (row.choice ?? row.choice_index ?? row.vote_option ?? 0) as number,
+        choice_index: hasChoiceInfo ? (row.choice ?? row.choice_index ?? row.vote_option) as number : -1,
         weight: parseInt(String(row.weight || row.vote_weight || 0)) || 0,
         rankings: (row.rankings || row.ranked_choices) as number[] | undefined,
       };

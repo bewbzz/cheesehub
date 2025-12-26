@@ -204,24 +204,26 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return;
     }
 
-    if (rankings.length !== proposal.choices.length) {
-      toast.error("Please rank all options");
+    if (selectedChoice === null) {
+      toast.error("Please select an option");
       return;
     }
 
     setVoting(true);
     try {
+      // Note: WaxDAO contract doesn't support true ranked choice voting
+      // It uses single-choice voting, same as Most Votes Wins
       const action = buildRankedChoiceVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        rankings
+        selectedChoice
       );
 
       await session.transact({ actions: [action] });
       
-      // Set local vote state with rankings
-      const voteData = { choice_index: rankings[0], weight: stakedWeight || 0, rankings };
+      // Set local vote state
+      const voteData = { choice_index: selectedChoice, weight: stakedWeight || 0 };
       setUserVote(voteData);
       
       toast.success("Vote submitted successfully!");
@@ -419,51 +421,34 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         );
 
       case PROPOSAL_VOTING_TYPES.RANKED_CHOICE:
-        if (rankings.length === 0) initRankings();
+        // Note: WaxDAO contract doesn't support true ranked choice - uses single-choice voting
+        // UI shows options like Most Votes Wins but labeled as "Ranked Choice" for display
         return (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">Drag to rank in order of preference (1st = most preferred)</p>
-            <div className="space-y-1">
-              {rankings.map((choiceIndex, rankPosition) => (
-                <div
-                  key={choiceIndex}
-                  className="flex items-center gap-2 p-2 bg-muted/30 rounded border border-border/50"
-                >
-                  <span className="text-xs font-medium text-cheese w-6">#{rankPosition + 1}</span>
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1 text-sm">
-                    {proposal.choices[choiceIndex]?.description}
+            <p className="text-xs text-muted-foreground">Select your preferred option</p>
+            <RadioGroup
+              value={selectedChoice?.toString()}
+              onValueChange={(value) => setSelectedChoice(parseInt(value))}
+            >
+              {proposal.choices.map((choice, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <RadioGroupItem value={index.toString()} id={`ranked-choice-${index}`} />
+                  <Label htmlFor={`ranked-choice-${index}`} className="flex-1 cursor-pointer">
+                    {choice.description}
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {choice.total_votes} votes
                   </span>
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => moveRanking(rankPosition, "up")}
-                      disabled={rankPosition === 0}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => moveRanking(rankPosition, "down")}
-                      disabled={rankPosition === rankings.length - 1}
-                    >
-                      ↓
-                    </Button>
-                  </div>
                 </div>
               ))}
-            </div>
+            </RadioGroup>
             <Button
               size="sm"
               className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
               onClick={handleRankedChoiceVote}
-              disabled={voting || rankings.length !== proposal.choices.length}
+              disabled={voting || selectedChoice === null}
             >
-              {voting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Rankings"}
+              {voting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Vote"}
             </Button>
           </div>
         );

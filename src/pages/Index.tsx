@@ -16,18 +16,18 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cheese/5 via-transparent to-cheese-dark/5" />
-        <div className="container relative py-20 md:py-32">
-          <div className="max-w-3xl mx-auto text-center relative">
-            <img 
-              src={cheeseArmy} 
-              alt="" 
-              className="absolute left-1/2 top-[15%] -translate-x-1/2 -translate-y-1/2 w-72 md:w-96 opacity-25 pointer-events-none"
-            />
-            <h1 className="relative text-4xl md:text-6xl font-bold mb-6">
+        <div className="container relative py-16 md:py-24">
+          <div className="flex flex-col items-center text-center">
+            {/* Floating Bubble - same pattern as DropsHero, just bigger */}
+            <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
+              <img src={cheeseArmy} alt="CHEESE Army" className="w-48 md:w-64 object-contain" />
+            </div>
+
+            <h1 className="mt-8 text-4xl md:text-6xl font-bold mb-6">
               <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Hub</span>
             </h1>
-            <p className="relative text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Facilitating Front-End access to a range of tools on the WAX Blockchain
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

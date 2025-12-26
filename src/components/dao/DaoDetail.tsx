@@ -61,21 +61,20 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
 
-  // Update dao when initialDao changes
+  // Update dao when initialDao changes AND fetch total staked weight
   useEffect(() => {
-    setDao(initialDao);
-  }, [initialDao]);
-
-  // Fetch total staked weight for the DAO
-  useEffect(() => {
-    async function loadTotalStakedWeight() {
-      if (open && dao.dao_name) {
-        const totalWeight = await fetchDaoTotalStakedWeight(dao.dao_name);
-        setDao(prev => ({ ...prev, total_staked_weight: totalWeight }));
+    async function initializeDao() {
+      if (open && initialDao.dao_name) {
+        console.log("[DEBUG] Fetching total staked weight for:", initialDao.dao_name);
+        const totalWeight = await fetchDaoTotalStakedWeight(initialDao.dao_name);
+        console.log("[DEBUG] Total staked weight result:", totalWeight);
+        setDao({ ...initialDao, total_staked_weight: totalWeight });
+      } else {
+        setDao(initialDao);
       }
     }
-    loadTotalStakedWeight();
-  }, [open, dao.dao_name]);
+    initializeDao();
+  }, [open, initialDao]);
 
   // Load votes from localStorage when account changes
   useEffect(() => {

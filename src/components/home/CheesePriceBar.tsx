@@ -48,7 +48,7 @@ export function CheesePriceBar() {
         href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2 hover:bg-card/70 transition-colors group"
+        className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
       >
         <span className="text-lg">💱</span>
         <div className="flex flex-col">
@@ -69,7 +69,7 @@ export function CheesePriceBar() {
         href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2 hover:bg-card/70 transition-colors group"
+        className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
       >
         <span className="text-lg">💵</span>
         <div className="flex flex-col">
@@ -86,7 +86,7 @@ export function CheesePriceBar() {
       </a>
 
       {/* Market Cap */}
-      <div className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2">
+      <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
         <span className="text-lg">📊</span>
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">Market Cap</span>

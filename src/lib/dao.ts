@@ -1613,7 +1613,11 @@ export function buildNFTTransferProposalAction(
       title: proposal.title,
       description: proposal.description,
       proposal_type: 3, // NFT transfer type
-      choices: [],
+      choices: [
+        { choice: 0, description: "Yes", total_votes: 0 },
+        { choice: 1, description: "No", total_votes: 0 },
+        { choice: 2, description: "Abstain", total_votes: 0 },
+      ],
       actions: [],
       token_receivers: [],
       nft_receivers: [{

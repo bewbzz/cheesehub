@@ -541,7 +541,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   return (
-    <Card className="bg-card/50 border-border/50">
+    <Card className="bg-card/50 border-border/50 overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -562,7 +562,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 overflow-hidden">
         {/* Proposal Meta */}
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">

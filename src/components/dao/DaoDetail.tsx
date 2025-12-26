@@ -59,10 +59,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   // Track which proposals the user has voted on (persists across proposal reloads)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
 
-  // Function to record a vote
-  const handleVote = (proposalId: number, vote: UserVote) => {
+  // Function to record a vote and refresh proposals
+  const handleVote = async (proposalId: number, vote: UserVote) => {
     setVotedProposals(prev => ({ ...prev, [proposalId]: vote }));
-    // Reload proposals to get updated vote counts
+    // Wait a bit for blockchain to process, then reload proposals to get updated vote counts
+    await new Promise(resolve => setTimeout(resolve, 2000));
     loadProposals();
   };
 

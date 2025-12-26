@@ -1356,7 +1356,8 @@ export function buildTokenTransferProposalAction(
     },
   };
 
-  // Token transfer proposals use Yes/No/Abstain voting (proposal_type 0)
+  // Token transfer proposals use proposal_type 2 (Token Transfer)
+  // They still use Yes/No/Abstain choices for voting
   return {
     account: DAO_CONTRACT,
     name: "newproposal",
@@ -1366,7 +1367,7 @@ export function buildTokenTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 0, // Yes/No/Abstain for token transfers
+      proposal_type: 2, // Token Transfer type
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },

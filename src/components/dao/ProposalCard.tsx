@@ -534,10 +534,22 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       // Ranked Choice: Show all options with ranking medals
       if (proposal.voting_type === PROPOSAL_VOTING_TYPES.RANKED_CHOICE) {
         const rankingBadges = ['🥇', '🥈', '🥉'];
+        const leader = sortedChoices[0];
+        const leaderVotes = typeof leader?.total_votes === 'string' ? parseInt(leader.total_votes) : leader?.total_votes || 0;
         
         return (
           <div className="space-y-2 w-full max-w-full overflow-hidden">
-            <p className="text-xs text-muted-foreground font-medium">Full Rankings</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground font-medium">Full Rankings</p>
+              {leaderVotes > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">
+                  LEADING: {leader.description}
+                </span>
+              )}
+              {choicesTotalVotes === 0 && (
+                <span className="text-xs text-muted-foreground">No votes yet</span>
+              )}
+            </div>
             {sortedChoices.map((choice, index) => {
               const votes = typeof choice.total_votes === 'string' ? parseInt(choice.total_votes) : choice.total_votes || 0;
               const percent = choicesTotalVotes > 0 ? (votes / choicesTotalVotes) * 100 : 0;
@@ -581,7 +593,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
                 <span className="text-cheese font-semibold truncate flex-1 min-w-0">
                   🏆 {winner.description}
                 </span>
-                <span className="text-cheese font-medium shrink-0">{winnerVotes} ({winnerPercent.toFixed(0)}%)</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-cheese font-medium">{winnerVotes} ({winnerPercent.toFixed(0)}%)</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cheese/20 text-cheese border border-cheese/30">
+                    LEADING
+                  </span>
+                </div>
               </div>
               <div className="h-2 bg-cheese/20 rounded-full overflow-hidden w-full">
                 <div
@@ -592,8 +609,15 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
             </div>
           )}
           
+          {/* No votes yet message */}
+          {choicesTotalVotes === 0 && (
+            <div className="text-center text-sm text-muted-foreground py-2">
+              No votes yet
+            </div>
+          )}
+          
           {/* Other options - minimized */}
-          {others.length > 0 && (
+          {others.length > 0 && choicesTotalVotes > 0 && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Other options:</p>
               {others.map((choice) => {

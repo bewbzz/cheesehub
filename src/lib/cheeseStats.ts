@@ -78,10 +78,10 @@ function isPermissionNulled(permission: AccountPermission): boolean {
   // Check if there are no keys
   if (auth.keys.length > 0) return false;
   
-  // Check if there's only one account with eosio.null@active
+  // Check if there's only one account authority pointing to eosio.null
   if (auth.accounts.length === 1) {
     const account = auth.accounts[0];
-    return account.permission.actor === 'eosio.null' && account.permission.permission === 'active';
+    return account.permission.actor === 'eosio.null';
   }
   
   return false;

@@ -507,6 +507,11 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
           case 3:
             votingType = 5; // NFT Transfer
             break;
+          case 4:
+            // Legacy: proposal_type 4 was used for ranked choice, but contract overwrites choices to Yes/No/Abstain
+            // Treat it as ranked choice for display purposes, but note the choices may be wrong from contract
+            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE;
+            break;
           default:
             votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // Default to Yes/No
         }

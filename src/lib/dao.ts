@@ -103,7 +103,11 @@ export const OUTCOME_STATUS: Record<number, string> = {
   3: "rejected",
   4: "executed",
   5: "pending",  // Finalization pending
+  6: "expired",  // Old unfinalized proposal
 };
+
+// Threshold for marking unfinalized proposals as expired (30 days in seconds)
+export const EXPIRY_THRESHOLD = 30 * 24 * 60 * 60;
 
 export interface DaoInfo {
   dao_name: string;
@@ -150,7 +154,7 @@ export interface Proposal {
   description: string;
   proposal_type: string;
   voting_type: number; // 1=yes/no/abstain, 2=most votes, 3=ranked choice, 4=token transfer
-  status: "pending" | "active" | "passed" | "rejected" | "executed";
+  status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired";
   yes_votes: number;
   no_votes: number;
   abstain_votes: number;
@@ -477,11 +481,16 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       });
       
       // Determine status based on outcome and end_time
-      let status: "pending" | "active" | "passed" | "rejected" | "executed" = "pending";
+      let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" = "pending";
       if ((outcome === 0 || outcome === 1) && endTime > now) {
         status = "active";  // Voting in progress
       } else if ((outcome === 0 || outcome === 1) && endTime <= now) {
-        status = "pending"; // Voting ended but not yet finalized
+        // Check if it's been more than 30 days since end - mark as expired
+        if (now - endTime > EXPIRY_THRESHOLD) {
+          status = "expired"; // Old unfinalized proposal
+        } else {
+          status = "pending"; // Recently ended, awaiting finalization
+        }
       } else if (outcome === 2) {
         status = "passed";
       } else if (outcome === 3) {

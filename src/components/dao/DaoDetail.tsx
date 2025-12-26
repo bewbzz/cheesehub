@@ -567,15 +567,25 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     </div>
                   ) : (
                     <div className="space-y-3 w-full max-w-full overflow-hidden">
-                      {activeProposals.map((proposal) => (
-                        <ProposalCard
-                          key={proposal.proposal_id}
-                          proposal={proposal}
-                          dao={dao}
-                          initialVote={votedProposals[proposal.proposal_id] || null}
-                          onVote={handleVote}
-                        />
-                      ))}
+                      {activeProposals.map((proposal) => {
+                        const hasVoted = !!votedProposals[proposal.proposal_id];
+                        return (
+                          <div 
+                            key={proposal.proposal_id}
+                            className={cn(
+                              "rounded-lg transition-all",
+                              !hasVoted && "ring-2 ring-cheese ring-offset-2 ring-offset-background animate-pulse"
+                            )}
+                          >
+                            <ProposalCard
+                              proposal={proposal}
+                              dao={dao}
+                              initialVote={votedProposals[proposal.proposal_id] || null}
+                              onVote={handleVote}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

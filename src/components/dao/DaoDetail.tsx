@@ -514,7 +514,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 w-full max-w-full overflow-hidden">
                       {activeProposals.map((proposal) => (
                         <ProposalCard
                           key={proposal.proposal_id}
@@ -542,7 +542,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <p>No past proposals yet</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 w-full max-w-full overflow-hidden">
                       {pastProposals.map((proposal) => (
                         <ProposalCard
                           key={proposal.proposal_id}

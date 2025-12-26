@@ -2,11 +2,11 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Lock, ArrowRight, Shield, Zap, ShoppingBag } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Lightning, ShieldCheck, LockKey, Storefront } from "@phosphor-icons/react";
 import cheeseArmy from "@/assets/cheesearmy.png";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
-
 const Index = () => {
   return (
     <div className="min-h-screen bg-background relative">
@@ -62,7 +62,7 @@ const Index = () => {
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <Zap className="h-8 w-8 text-cheese" />
+                <Lightning size={32} weight="duotone" className="text-cheese" />
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEFaucet</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
@@ -81,7 +81,7 @@ const Index = () => {
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <Shield className="h-8 w-8 text-cheese" />
+                <ShieldCheck size={32} weight="duotone" className="text-cheese" />
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEDao</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
@@ -105,7 +105,7 @@ const Index = () => {
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <Lock className="h-8 w-8 text-cheese" />
+                <LockKey size={32} weight="duotone" className="text-cheese" />
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESELock</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
@@ -124,7 +124,7 @@ const Index = () => {
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <ShoppingBag className="h-8 w-8 text-cheese" />
+                <Storefront size={32} weight="duotone" className="text-cheese" />
               </div>
               <h2 className="text-2xl font-bold mb-4">CHEESEDrops</h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">

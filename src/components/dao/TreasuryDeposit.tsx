@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useWax } from "@/context/WaxContext";
 import { buildDepositToTreasuryAction, buildTokenDepositAction, fetchUserTokenBalance } from "@/lib/dao";
 import { toast } from "sonner";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
 
 interface TreasuryDepositProps {
@@ -143,6 +144,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       onSuccess();
     } catch (error) {
       console.error("Failed to deposit:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Failed to deposit");
     } finally {
       setLoading(false);

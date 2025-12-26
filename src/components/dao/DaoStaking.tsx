@@ -21,6 +21,7 @@ import {
   buildUnstakeNFTAction,
 } from "@/lib/dao";
 import { fetchUserNFTsBySchema } from "@/services/atomicApi";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, UserPlus, AlertCircle, Lock } from "lucide-react";
 
 interface DaoStakingProps {
@@ -136,6 +137,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       await loadStakingData();
     } catch (error) {
       console.error("Stake failed:", error);
+      closeWharfkitModals();
       toast({
         title: "Stake Failed",
         description: error instanceof Error ? error.message : "Failed to stake tokens",
@@ -171,6 +173,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       await loadStakingData();
     } catch (error) {
       console.error("Unstake failed:", error);
+      closeWharfkitModals();
       toast({
         title: "Unstake Failed",
         description: error instanceof Error ? error.message : "Failed to unstake tokens",
@@ -203,6 +206,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       await loadStakingData();
     } catch (error) {
       console.error("Stake NFTs failed:", error);
+      closeWharfkitModals();
       toast({
         title: "Stake Failed",
         description: error instanceof Error ? error.message : "Failed to stake NFTs",
@@ -235,6 +239,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       await loadStakingData();
     } catch (error) {
       console.error("Unstake NFTs failed:", error);
+      closeWharfkitModals();
       toast({
         title: "Unstake Failed",
         description: error instanceof Error ? error.message : "Failed to unstake NFTs",

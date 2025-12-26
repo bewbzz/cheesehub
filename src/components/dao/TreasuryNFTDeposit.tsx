@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useWax } from "@/context/WaxContext";
 import { buildNFTDepositAction, buildDepositNFTToTreasuryAction, fetchUserNFTs, TreasuryNFT } from "@/lib/dao";
 import { toast } from "sonner";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, ArrowDownToLine, Wallet, ImageIcon, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +91,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
       onSuccess();
     } catch (error) {
       console.error("Failed to deposit NFTs:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Failed to deposit NFTs");
     } finally {
       setLoading(false);

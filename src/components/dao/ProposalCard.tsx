@@ -17,6 +17,7 @@ import {
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp } from "lucide-react";
 
 interface ProposalCardProps {
@@ -162,6 +163,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       setTimeout(() => onVote?.(proposal.proposal_id, voteData), 500);
     } catch (error) {
       console.error("Vote failed:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
@@ -199,6 +201,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
@@ -237,6 +240,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
+      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);

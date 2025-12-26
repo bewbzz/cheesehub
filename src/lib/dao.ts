@@ -1723,6 +1723,7 @@ export function buildLeaveDaoAction(user: string, daoName: string) {
 // This sums up all staked weights from the users table
 export async function fetchDaoTotalStakedWeight(daoName: string): Promise<number> {
   try {
+    console.log(`[DEBUG] Fetching total staked weight for DAO: ${daoName}`);
     const response = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1736,20 +1737,31 @@ export async function fetchDaoTotalStakedWeight(daoName: string): Promise<number
     });
     const data = await response.json();
     
+    console.log(`[DEBUG] Users table raw response for ${daoName}:`, JSON.stringify(data, null, 2));
+    console.log(`[DEBUG] Number of rows returned:`, data.rows?.length || 0);
+    
     if (data.rows && data.rows.length > 0) {
+      // Log first few rows to see the structure
+      console.log(`[DEBUG] Sample row structure:`, JSON.stringify(data.rows[0], null, 2));
+      console.log(`[DEBUG] All rows:`, data.rows.map((r: any) => ({ user: r.user, weight: r.weight })));
+      
       // Sum up all weights from users
       const totalWeight = data.rows.reduce((sum: number, row: any) => {
         const weight = typeof row.weight === 'string' 
           ? parseInt(row.weight) || 0 
           : row.weight || 0;
+        console.log(`[DEBUG] User ${row.user}: weight = ${row.weight} (parsed: ${weight})`);
         return sum + weight;
       }, 0);
-      console.log(`Total staked weight for ${daoName}:`, totalWeight);
+      
+      console.log(`[DEBUG] TOTAL staked weight for ${daoName}:`, totalWeight);
       return totalWeight;
     }
+    
+    console.log(`[DEBUG] No rows found in users table for ${daoName}`);
     return 0;
   } catch (error) {
-    console.error("Failed to fetch DAO total staked weight:", error);
+    console.error("[DEBUG] Failed to fetch DAO total staked weight:", error);
     return 0;
   }
 }

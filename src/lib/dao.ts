@@ -833,23 +833,32 @@ export function buildMultiOptionVoteAction(
 }
 
 // Build action for voting on a Ranked Choice proposal
+// Note: WaxDAO contract doesn't support true ranked choice voting - it uses single-choice voting
+// The "ranked choice" is a UI/display preference only, voting works the same as Most Votes Wins
 export function buildRankedChoiceVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
-  rankings: number[] // Array of choice indices in order of preference
+  choiceIndex: number, // Single choice index (same as multi-option)
+  voteWeight?: string
 ) {
+  const data: Record<string, unknown> = {
+    user: voter,
+    dao: daoName,
+    proposal_id: proposalId,
+    choice: choiceIndex,
+    asset_ids: [],
+  };
+  
+  if (voteWeight) {
+    data.weight = voteWeight;
+  }
+  
   return {
     account: DAO_CONTRACT,
     name: "vote",
     authorization: [{ actor: voter, permission: "active" }],
-    data: {
-      user: voter,
-      dao: daoName,
-      proposal_id: proposalId,
-      rankings,
-      asset_ids: [],
-    },
+    data,
   };
 }
 

@@ -748,7 +748,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Users className="h-5 w-5 text-cheese" />
-                      {isTokenBalanceDao ? "Stakers" : "Members"}
+                      Members
                       {isTokenBalanceDao && stakers.length > 0 && (
                         <Badge variant="secondary">{stakers.length}</Badge>
                       )}
@@ -811,10 +811,10 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         </div>
                       )}
 
-                      {/* Stakers List */}
+                      {/* Members List */}
                       <div className="space-y-2">
                         <p className="text-sm text-muted-foreground font-medium">
-                          Staked Members {stakers.length > 0 && `(${stakers.length})`}
+                          DAO Members {stakers.length > 0 && `(${stakers.length})`}
                         </p>
                         {membersLoading ? (
                           <div className="flex items-center justify-center py-8">
@@ -823,8 +823,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                         ) : stakers.length === 0 ? (
                           <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
                             <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                            <p className="font-medium">No Stakers Yet</p>
-                            <p className="text-sm">Be the first to stake tokens to this DAO!</p>
+                            <p className="font-medium">No Members Yet</p>
+                            <p className="text-sm">Be the first to stake tokens and join this DAO!</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 gap-2">

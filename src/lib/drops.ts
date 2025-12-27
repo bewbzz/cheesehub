@@ -102,18 +102,11 @@ export function buildCreateDropAction(
   const isPremint = data.dropType === 'premint';
   const templateId = isPremint ? -1 : parseInt(data.templateId);
   
-  // Format tokens_to_back from form data
+  // Format tokens_to_back as simple asset strings (e.g., "10.0000 CHEESE")
+  // The nfthivedrops contract expects asset[] type, not complex objects
   const tokensToBack = data.tokensToBack
     .filter(t => t.symbol && t.amount && parseFloat(t.amount) > 0)
-    .map(t => {
-      const config = getTokenConfig(t.symbol);
-      if (!config) throw new Error(`Unknown token: ${t.symbol}`);
-      return {
-        token_contract: config.contract,
-        token_symbol: `${config.precision},${t.symbol}`,
-        token_amount: formatTokenAmount(parseFloat(t.amount), t.symbol)
-      };
-    });
+    .map(t => formatTokenAmount(parseFloat(t.amount), t.symbol));
 
   // Build assets_to_mint with nested template info for mint-on-demand
   const assetsToMint = isPremint 

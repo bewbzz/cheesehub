@@ -21,18 +21,42 @@ interface UsePowerupEstimateResult {
   refetch: () => void;
 }
 
-interface PowerUpResourceState {
-  weight: number;
-  adjusted_utilization: number;
-  min_price: number;
-  max_price: number;
-  exponent: number;
-  utilization: number;
-}
-
-interface PowerUpState {
-  cpu: PowerUpResourceState;
-  net: PowerUpResourceState;
+interface PowerUpStateRow {
+  version: number;
+  net: {
+    weight: string;
+    weight_ratio: string;
+    assumed_stake_weight: string;
+    initial_weight_ratio: string;
+    target_weight_ratio: string;
+    initial_timestamp: string;
+    target_timestamp: string;
+    exponent: number;
+    decay_secs: number;
+    min_price: string;
+    max_price: string;
+    utilization: string;
+    adjusted_utilization: string;
+    utilization_timestamp: string;
+  };
+  cpu: {
+    weight: string;
+    weight_ratio: string;
+    assumed_stake_weight: string;
+    initial_weight_ratio: string;
+    target_weight_ratio: string;
+    initial_timestamp: string;
+    target_timestamp: string;
+    exponent: number;
+    decay_secs: number;
+    min_price: string;
+    max_price: string;
+    utilization: string;
+    adjusted_utilization: string;
+    utilization_timestamp: string;
+  };
+  powerup_days: number;
+  min_powerup_fee: string;
 }
 
 const WAX_ENDPOINTS = [
@@ -41,26 +65,32 @@ const WAX_ENDPOINTS = [
   "https://wax.greymass.com",
 ];
 
+const POWERUP_FRAC = 1e15;
+
 // Constants for frac-to-resource conversion (from WAX chain analysis)
-const CPU_MS_PER_FRAC = 78.45 / 3.45e9;
-const NET_BYTES_PER_FRAC = 1.4e9 / 4.2e9;
-const POWERUP_FRAC = 1e15; // 10^15 = 100% of resources
+const CPU_MS_PER_FRAC = 78.45 / 3.45e9;  // ~22.7 microseconds per frac unit
+const NET_BYTES_PER_FRAC = 1.4e9 / 4.2e9;  // Estimated from typical NET transactions
+
+// Parse price values (WAX has 8 decimals, prices are in string format like "8750.00000000 WAX")
+const parsePriceWax = (priceStr: string): number => {
+  const match = priceStr.match(/^([\d.]+)/);
+  return match ? parseFloat(match[1]) * 1e8 : 0; // Convert to 8-decimal units
+};
 
 async function fetchCheesePrice(): Promise<{ priceInWax: number; usdPrice: number; waxUsdPrice: number }> {
   try {
     // Fetch from Alcor DEX v2 API for accurate system_price
     const response = await fetch("https://wax.alcor.exchange/api/v2/tokens/cheese-cheeseburger");
     const data = await response.json();
-    const priceInWax = data.system_price || 0;
     
-    // Fetch WAX USD price from CoinGecko
-    const waxResponse = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=wax&vs_currencies=usd");
-    const waxData = await waxResponse.json();
-    const waxUsdPrice = waxData.wax?.usd || 0;
+    // Use system_price directly - it's already the CHEESE/WAX rate
+    const cheeseUsdPrice = data.usd_price || 0;
+    const priceInWax = data.system_price || 0;
+    const waxUsdPrice = priceInWax > 0 ? cheeseUsdPrice / priceInWax : 0;
     
     return {
       priceInWax,
-      usdPrice: priceInWax * waxUsdPrice,
+      usdPrice: cheeseUsdPrice,
       waxUsdPrice,
     };
   } catch (error) {
@@ -69,13 +99,7 @@ async function fetchCheesePrice(): Promise<{ priceInWax: number; usdPrice: numbe
   }
 }
 
-function parseAssetToNumber(assetStr: string): number {
-  if (!assetStr) return 0;
-  const parts = assetStr.split(" ");
-  return parseFloat(parts[0]) || 0;
-}
-
-async function fetchPowerupState(): Promise<PowerUpState | null> {
+async function fetchPowerupState(): Promise<PowerUpStateRow | null> {
   for (const baseUrl of WAX_ENDPOINTS) {
     try {
       const response = await fetch(`${baseUrl}/v1/chain/get_table_rows`, {
@@ -94,21 +118,7 @@ async function fetchPowerupState(): Promise<PowerUpState | null> {
       const data = await response.json();
 
       if (data.rows && data.rows.length > 0) {
-        const state = data.rows[0];
-        
-        const parseResource = (resource: any): PowerUpResourceState => ({
-          weight: parseFloat(resource?.weight || "0"),
-          adjusted_utilization: parseFloat(resource?.adjusted_utilization || "0"),
-          min_price: parseAssetToNumber(resource?.min_price || "0"),
-          max_price: parseAssetToNumber(resource?.max_price || "0"),
-          exponent: parseFloat(resource?.exponent || "2"),
-          utilization: parseFloat(resource?.utilization || "0"),
-        });
-
-        return {
-          cpu: parseResource(state.cpu),
-          net: parseResource(state.net),
-        };
+        return data.rows[0] as PowerUpStateRow;
       }
     } catch (err) {
       console.error(`Failed to fetch powerup state from ${baseUrl}:`, err);
@@ -119,69 +129,64 @@ async function fetchPowerupState(): Promise<PowerUpState | null> {
   return null;
 }
 
-// Calculate the fee for a given frac using the PowerUp pricing curve
-function estimatePowerupFee(
+// Estimate PowerUp fee for a given frac (replicates eosio.system calc_powerup_fee)
+const estimatePowerupFee = (
   frac: number,
   weight: number,
-  adjustedUtilization: number,
+  adjustedUtil: number,
   minPrice: number,
   maxPrice: number,
   exponent: number
-): number {
-  if (frac <= 0 || weight <= 0) return 0;
-  
-  const utilizationIncrease = frac / weight;
-  const startUtilization = adjustedUtilization / weight;
-  const endUtilization = startUtilization + utilizationIncrease;
-  
-  // Price curve integration: fee = integral of price(u) du from start to end
-  // price(u) = min_price + (max_price - min_price) * u^exponent
-  const priceDelta = maxPrice - minPrice;
-  
-  // Integral of u^exponent = u^(exponent+1) / (exponent+1)
-  const exp1 = exponent + 1;
-  const startIntegral = Math.pow(startUtilization, exp1) / exp1;
-  const endIntegral = Math.pow(endUtilization, exp1) / exp1;
-  
-  const baseFee = minPrice * utilizationIncrease;
-  const curveFee = priceDelta * (endIntegral - startIntegral);
-  
-  return (baseFee + curveFee) * weight;
-}
+): number => {
+  if (frac <= 0) return 0;
 
-// Binary search to find the frac that costs a given WAX amount
-function findFracForWax(
-  waxAmount: number,
+  // Amount of resource weight being purchased
+  const amount = (frac * weight) / POWERUP_FRAC;
+  if (amount <= 0) return 0;
+
+  // Normalize utilization to 0-1 range
+  const startU = adjustedUtil / weight;
+  const endU = (adjustedUtil + amount) / weight;
+
+  // Coefficient for polynomial part
+  const coefficient = (maxPrice - minPrice) / exponent;
+
+  // Calculate fee using integral formula
+  const fee = minPrice * (endU - startU) +
+              coefficient * (Math.pow(endU, exponent) - Math.pow(startU, exponent));
+
+  return Math.ceil(fee);
+};
+
+// Binary search to find frac that costs <= target_fee
+const findFracForWax = (
+  targetWax: number,  // WAX amount in regular units (not 8-decimal)
   weight: number,
-  adjustedUtilization: number,
+  adjustedUtil: number,
   minPrice: number,
   maxPrice: number,
   exponent: number
-): number {
-  if (waxAmount <= 0) return 0;
-  
+): number => {
+  const targetFee = targetWax * 1e8; // Convert to 8-decimal units
+  if (targetFee <= 0) return 0;
+
   let low = 0;
-  let high = POWERUP_FRAC * 0.1; // Max 10% of total resources per transaction
-  let result = 0;
-  
-  // Binary search for the frac that results in <= waxAmount fee
-  for (let i = 0; i < 64; i++) {
-    const mid = (low + high) / 2;
-    const fee = estimatePowerupFee(mid, weight, adjustedUtilization, minPrice, maxPrice, exponent);
-    
-    if (fee <= waxAmount) {
-      result = mid;
+  let high = POWERUP_FRAC;
+
+  while (low < high) {
+    const mid = low + Math.floor((high - low + 1) / 2);
+    const estimatedFee = estimatePowerupFee(mid, weight, adjustedUtil, minPrice, maxPrice, exponent);
+
+    if (estimatedFee <= targetFee) {
       low = mid;
     } else {
-      high = mid;
+      high = mid - 1;
     }
-    
-    // Stop if we've converged
-    if (high - low < 1) break;
   }
-  
-  return result;
-}
+
+  // Apply 5% safety margin
+  return Math.floor(low * 0.95);
+};
 
 export const usePowerupEstimate = (
   cpuCheeseAmount: number,
@@ -214,36 +219,40 @@ export const usePowerupEstimate = (
         throw new Error("Failed to fetch PowerUp state");
       }
 
-      // Convert CHEESE to WAX
-      const cpuWaxAmount = debouncedCpu * priceData.priceInWax;
-      const netWaxAmount = debouncedNet * priceData.priceInWax;
+      // Calculate WAX equivalents
+      const cpuWaxAmount = (debouncedCpu || 0) * priceData.priceInWax;
+      const netWaxAmount = (debouncedNet || 0) * priceData.priceInWax;
 
-      // Find frac for each resource using binary search
-      const cpuFrac = findFracForWax(
-        cpuWaxAmount,
-        powerupState.cpu.weight,
-        powerupState.cpu.adjusted_utilization,
-        powerupState.cpu.min_price,
-        powerupState.cpu.max_price,
-        powerupState.cpu.exponent
-      );
+      // Parse PowerUp state values
+      const cpuWeight = parseFloat(powerupState.cpu.weight);
+      const netWeight = parseFloat(powerupState.net.weight);
+      const cpuAdjustedUtil = parseFloat(powerupState.cpu.adjusted_utilization);
+      const netAdjustedUtil = parseFloat(powerupState.net.adjusted_utilization);
 
-      const netFrac = findFracForWax(
-        netWaxAmount,
-        powerupState.net.weight,
-        powerupState.net.adjusted_utilization,
-        powerupState.net.min_price,
-        powerupState.net.max_price,
-        powerupState.net.exponent
-      );
+      // Parse price values with 8-decimal conversion
+      const cpuMinPrice = parsePriceWax(powerupState.cpu.min_price);
+      const cpuMaxPrice = parsePriceWax(powerupState.cpu.max_price);
+      const netMinPrice = parsePriceWax(powerupState.net.min_price);
+      const netMaxPrice = parsePriceWax(powerupState.net.max_price);
+      const cpuExponent = powerupState.cpu.exponent;
+      const netExponent = powerupState.net.exponent;
 
-      // Convert frac to actual resources
+      // For display, utilization as percentage (0-100 scale)
+      const cpuU0 = cpuWeight > 0 ? cpuAdjustedUtil / cpuWeight : 0;
+      const netU0 = netWeight > 0 ? netAdjustedUtil / netWeight : 0;
+      const cpuUtilization = cpuU0 * 100;
+      const netUtilization = netU0 * 100;
+
+      // Calculate frac for each resource using binary search
+      const cpuFrac = findFracForWax(cpuWaxAmount, cpuWeight, cpuAdjustedUtil, cpuMinPrice, cpuMaxPrice, cpuExponent);
+      const netFrac = findFracForWax(netWaxAmount, netWeight, netAdjustedUtil, netMinPrice, netMaxPrice, netExponent);
+
+      // Convert frac to estimated resources
       const estimatedCpuMs = cpuFrac * CPU_MS_PER_FRAC;
       const estimatedNetBytes = netFrac * NET_BYTES_PER_FRAC;
 
-      // Calculate utilization percentages
-      const cpuUtilization = (powerupState.cpu.adjusted_utilization / powerupState.cpu.weight) * 100;
-      const netUtilization = (powerupState.net.adjusted_utilization / powerupState.net.weight) * 100;
+      console.log(`CPU: ${cpuWaxAmount.toFixed(4)} WAX → ${cpuFrac.toExponential(2)} frac → ${estimatedCpuMs.toFixed(2)}ms`);
+      console.log(`NET: ${netWaxAmount.toFixed(4)} WAX → ${netFrac.toExponential(2)} frac → ${estimatedNetBytes.toFixed(0)} bytes`);
 
       setEstimate({
         cheesePriceInWax: priceData.priceInWax,
@@ -255,7 +264,7 @@ export const usePowerupEstimate = (
         estimatedNetBytes,
         cpuUtilization,
         netUtilization,
-        powerupDays: 1,
+        powerupDays: powerupState.powerup_days,
       });
     } catch (err) {
       console.error("Error fetching estimate:", err);

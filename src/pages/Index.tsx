@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import cheeseArmy from "@/assets/cheesearmy.png";
+import cheeseCoin from "@/assets/cheese-coin.png";
 import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 import { CheesePriceBar } from "@/components/home/CheesePriceBar";
@@ -20,7 +20,7 @@ const Index = () => {
           <div className="flex flex-col items-center text-center">
             {/* Floating Bubble - same pattern as DropsHero, just bigger */}
             <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
-              <img src={cheeseArmy} alt="CHEESE Army" className="w-56 md:w-72 object-contain" />
+              <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
             </div>
 
             <h1 className="mt-8 text-4xl md:text-6xl font-bold mb-6">

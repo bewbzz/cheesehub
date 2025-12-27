@@ -316,7 +316,7 @@ export async function fetchCollectionRamBalance(collectionName: string): Promise
         body: JSON.stringify({
           code: NFTHIVE_CONFIG.dropContract,
           scope: NFTHIVE_CONFIG.dropContract,
-          table: 'colramconfig',
+          table: 'rambalances',
           lower_bound: collectionName,
           upper_bound: collectionName,
           limit: 1,

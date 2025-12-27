@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
 import { useWax } from '@/context/WaxContext';
-import { useTokenBalance } from '@/hooks/useTokenBalance';
+import { useAllTokenBalances, TokenWithBalance } from '@/hooks/useAllTokenBalances';
+import { TokenLogo } from '@/components/TokenLogo';
 import { Send, Check, X, Loader2 } from 'lucide-react';
 
 interface WalletTransferDialogProps {
@@ -33,17 +34,23 @@ function isValidWaxAccount(account: string): boolean {
 export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialogProps) {
   const { accountName, transferToken } = useWax();
   const [recipient, setRecipient] = useState('');
-  const [selectedToken, setSelectedToken] = useState<TokenConfig>(WAX_TOKENS[0]);
+  const [selectedTokenKey, setSelectedTokenKey] = useState<string>('');
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  const { balance, isLoading: isLoadingBalance, refetch } = useTokenBalance(accountName, selectedToken);
+  const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
+
+  const selectedToken = useMemo(() => {
+    return tokens.find(t => `${t.contract}-${t.symbol}` === selectedTokenKey) || null;
+  }, [tokens, selectedTokenKey]);
+
+  const balance = selectedToken?.balance ?? 0;
 
   const isValidRecipient = recipient.length > 0 && isValidWaxAccount(recipient);
   const parsedAmount = parseFloat(amount) || 0;
   const hasEnoughBalance = parsedAmount > 0 && parsedAmount <= balance;
-  const canSend = isValidRecipient && hasEnoughBalance && !isSending;
+  const canSend = isValidRecipient && hasEnoughBalance && !isSending && selectedToken;
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -51,21 +58,28 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       setRecipient('');
       setAmount('');
       setMemo('');
-      setSelectedToken(WAX_TOKENS[0]);
+      // Select first token with balance, or first token
+      const firstWithBalance = tokens.find(t => t.balance > 0);
+      const defaultToken = firstWithBalance || tokens[0];
+      if (defaultToken) {
+        setSelectedTokenKey(`${defaultToken.contract}-${defaultToken.symbol}`);
+      }
+      refetch();
     }
   }, [open]);
 
-  // Refetch balance when token changes
+  // Update selection when tokens load
   useEffect(() => {
-    refetch();
-  }, [selectedToken, refetch]);
-
-  const handleTokenChange = (symbol: string) => {
-    const token = WAX_TOKENS.find(t => t.symbol === symbol);
-    if (token) {
-      setSelectedToken(token);
-      setAmount('');
+    if (tokens.length > 0 && !selectedTokenKey) {
+      const firstWithBalance = tokens.find(t => t.balance > 0);
+      const defaultToken = firstWithBalance || tokens[0];
+      setSelectedTokenKey(`${defaultToken.contract}-${defaultToken.symbol}`);
     }
+  }, [tokens, selectedTokenKey]);
+
+  const handleTokenChange = (key: string) => {
+    setSelectedTokenKey(key);
+    setAmount('');
   };
 
   const handleMaxClick = () => {
@@ -73,7 +87,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   };
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || !selectedToken) return;
 
     setIsSending(true);
     try {
@@ -128,20 +142,53 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
             )}
           </div>
 
-          {/* Token Select */}
+          {/* Token Select with Logos */}
           <div className="space-y-2">
             <Label>Token</Label>
-            <Select value={selectedToken.symbol} onValueChange={handleTokenChange}>
+            <Select value={selectedTokenKey} onValueChange={handleTokenChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Select token" />
+                <SelectValue placeholder="Select token">
+                  {selectedToken && (
+                    <div className="flex items-center gap-2">
+                      <TokenLogo 
+                        contract={selectedToken.contract} 
+                        symbol={selectedToken.symbol} 
+                        size="sm" 
+                      />
+                      <span className="font-medium">{selectedToken.symbol}</span>
+                      <span className="text-muted-foreground text-xs">
+                        ({balance.toLocaleString()})
+                      </span>
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {WAX_TOKENS.map((token) => (
-                  <SelectItem key={`${token.contract}-${token.symbol}`} value={token.symbol}>
-                    <span className="font-medium">{token.symbol}</span>
-                    <span className="text-muted-foreground ml-2 text-xs">({token.contract})</span>
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-72">
+                {isLoadingBalances ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-muted-foreground">Loading balances...</span>
+                  </div>
+                ) : (
+                  tokens.map((token) => (
+                    <SelectItem 
+                      key={`${token.contract}-${token.symbol}`} 
+                      value={`${token.contract}-${token.symbol}`}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <TokenLogo 
+                          contract={token.contract} 
+                          symbol={token.symbol} 
+                          size="sm" 
+                        />
+                        <span className="font-medium">{token.symbol}</span>
+                        <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {token.balance.toLocaleString()}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -150,8 +197,19 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="amount">Amount</Label>
-              <div className="text-xs text-muted-foreground">
-                Balance: {isLoadingBalance ? '...' : balance.toLocaleString()} {selectedToken.symbol}
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                Balance: 
+                {selectedToken && (
+                  <>
+                    <TokenLogo 
+                      contract={selectedToken.contract} 
+                      symbol={selectedToken.symbol} 
+                      size="sm" 
+                      className="h-3 w-3"
+                    />
+                    {balance.toLocaleString()} {selectedToken.symbol}
+                  </>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -162,7 +220,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min={0}
-                step={Math.pow(10, -selectedToken.precision)}
+                step={selectedToken ? Math.pow(10, -selectedToken.precision) : 0.01}
               />
               <Button
                 type="button"
@@ -204,7 +262,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                Send {selectedToken.symbol}
+                Send {selectedToken?.symbol || 'Tokens'}
               </>
             )}
           </Button>

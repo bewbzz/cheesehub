@@ -20,6 +20,7 @@ import {
   TreasuryNFT
 } from "@/lib/dao";
 import { WAX_TOKENS, getTokenConfig } from "@/lib/tokenRegistry";
+import { TokenLogo } from "@/components/TokenLogo";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy, ImageIcon, Check } from "lucide-react";
@@ -378,7 +379,10 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
                     <SelectContent className="max-h-60">
                       {WAX_TOKENS.map((token) => (
                         <SelectItem key={token.symbol} value={token.symbol}>
-                          {token.displayName}
+                          <div className="flex items-center gap-2">
+                            <TokenLogo contract={token.contract} symbol={token.symbol} size="sm" />
+                            {token.displayName}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

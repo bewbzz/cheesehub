@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWax } from "@/context/WaxContext";
 import { buildDepositToTreasuryAction, buildTokenDepositAction, fetchUserTokenBalance } from "@/lib/dao";
+import { TokenLogo } from "@/components/TokenLogo";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
@@ -186,7 +187,10 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
             <SelectContent>
               {COMMON_TOKENS.map((token) => (
                 <SelectItem key={token.symbol} value={token.symbol}>
-                  {token.symbol}
+                  <div className="flex items-center gap-2">
+                    <TokenLogo contract={token.contract} symbol={token.symbol} size="sm" />
+                    {token.symbol}
+                  </div>
                 </SelectItem>
               ))}
               <SelectItem value={CUSTOM_TOKEN_VALUE}>

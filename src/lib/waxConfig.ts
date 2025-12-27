@@ -2,6 +2,13 @@
 export const WAX_CHAIN = {
   id: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4',
   url: 'https://wax.greymass.com',
+  // Multiple RPC endpoints for fallback
+  rpcUrls: [
+    'https://wax.greymass.com',
+    'https://wax.eosusa.io',
+    'https://api.wax.alohaeos.com',
+    'https://wax.pink.gg',
+  ],
 };
 
 // Your CHEESE project configuration

@@ -86,13 +86,13 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🏛️</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">DAO</span></h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the DAO..WAXDAO smart contract and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
+                Powered by the DAO.WAXDAO smart contract and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/dao">
-                  Go to CHEESE DAO
+                  Go to CHEESEDao
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

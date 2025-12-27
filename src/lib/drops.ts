@@ -1,7 +1,12 @@
-import { NFTHIVE_CONFIG } from './waxConfig';
+import { NFTHIVE_CONFIG, WAX_CHAIN } from './waxConfig';
 import { getTokenConfig, formatTokenAmount, getSettlementSymbol, WAX_TOKENS } from './tokenRegistry';
 
 export type DropType = 'mint-on-demand' | 'premint';
+
+export interface RamBalance {
+  collection: string;
+  bytes: number;
+}
 
 export interface TokenBacking {
   symbol: string;
@@ -241,4 +246,91 @@ export function validateDropFormData(data: DropFormData): string | null {
   }
   
   return null;
+}
+
+/**
+ * Build actions to deposit WAX for RAM to the nfthivedrops contract
+ * Based on transaction: 95485109dc2060e02d59c5595c884e3a6d744893b30240d573a499741122258f
+ */
+export function buildDepositRamActions(account: string, collectionName: string, waxAmount: number) {
+  // Format WAX amount with 8 decimals
+  const formattedAmount = `${waxAmount.toFixed(8)} WAX`;
+  
+  return [
+    // Action 1: Boost action on nft.hive
+    {
+      account: NFTHIVE_CONFIG.boostContract,
+      name: 'boost',
+      authorization: [{ actor: account, permission: 'active' }],
+      data: {
+        booster: account,
+      },
+    },
+    // Action 2: Transfer WAX to nfthivedrops with collection memo
+    {
+      account: 'eosio.token',
+      name: 'transfer',
+      authorization: [{ actor: account, permission: 'active' }],
+      data: {
+        from: account,
+        to: NFTHIVE_CONFIG.dropContract,
+        quantity: formattedAmount,
+        memo: `deposit_collection_ram:${collectionName}`,
+      },
+    },
+  ];
+}
+
+/**
+ * Build action to withdraw RAM from the nfthivedrops contract
+ */
+export function buildWithdrawRamActions(account: string, collectionName: string, bytes: number) {
+  return [
+    {
+      account: NFTHIVE_CONFIG.dropContract,
+      name: 'withdrawram',
+      authorization: [{ actor: account, permission: 'active' }],
+      data: {
+        authorized_account: account,
+        collection_name: collectionName,
+        bytes: bytes,
+      },
+    },
+  ];
+}
+
+/**
+ * Fetch the deposited RAM balance for a collection from nfthivedrops
+ */
+export async function fetchCollectionRamBalance(collectionName: string): Promise<RamBalance | null> {
+  try {
+    const response = await fetch(`${WAX_CHAIN.url}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: NFTHIVE_CONFIG.dropContract,
+        scope: NFTHIVE_CONFIG.dropContract,
+        table: 'colramconfig',
+        lower_bound: collectionName,
+        upper_bound: collectionName,
+        limit: 1,
+        json: true,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.rows && data.rows.length > 0) {
+      const row = data.rows[0];
+      return {
+        collection: row.collection_name || collectionName,
+        bytes: row.ram_bytes || 0,
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch collection RAM balance:', error);
+    return null;
+  }
 }

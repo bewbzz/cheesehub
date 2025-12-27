@@ -1,0 +1,286 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useWax } from "@/context/WaxContext";
+import { toast } from "sonner";
+import { HardDrive, Loader2, Download, Upload, RefreshCw } from "lucide-react";
+import { fetchUserCollections } from "@/services/atomicApi";
+import { useQuery } from "@tanstack/react-query";
+import { buildDepositRamActions, buildWithdrawRamActions, fetchCollectionRamBalance, RamBalance } from "@/lib/drops";
+
+export function ManageRamDialog() {
+  const { session, isConnected } = useWax();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawBytes, setWithdrawBytes] = useState("");
+  const [ramBalance, setRamBalance] = useState<RamBalance | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  const accountName = session?.actor?.toString() || '';
+
+  const { data: userCollections = [] } = useQuery({
+    queryKey: ['userCollections', accountName],
+    queryFn: () => fetchUserCollections(accountName),
+    enabled: !!accountName && open,
+  });
+
+  // Fetch RAM balance when collection changes
+  useEffect(() => {
+    if (selectedCollection && open) {
+      fetchRamBalance();
+    }
+  }, [selectedCollection, open]);
+
+  async function fetchRamBalance() {
+    if (!selectedCollection) return;
+    
+    setLoadingBalance(true);
+    try {
+      const balance = await fetchCollectionRamBalance(selectedCollection);
+      setRamBalance(balance);
+    } catch (error) {
+      console.error("Failed to fetch RAM balance:", error);
+      setRamBalance(null);
+    } finally {
+      setLoadingBalance(false);
+    }
+  }
+
+  async function handleDeposit() {
+    if (!session || !selectedCollection || !depositAmount) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const actions = buildDepositRamActions(accountName, selectedCollection, amount);
+      console.log('🧀 Depositing RAM with actions:', JSON.stringify(actions, null, 2));
+      
+      await session.transact({ actions });
+      
+      toast.success(`Successfully deposited ${amount} WAX for RAM`);
+      setDepositAmount("");
+      await fetchRamBalance();
+    } catch (error) {
+      console.error("Failed to deposit RAM:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to deposit RAM");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    if (!session || !selectedCollection || !withdrawBytes) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    const bytes = parseInt(withdrawBytes);
+    if (isNaN(bytes) || bytes <= 0) {
+      toast.error("Please enter a valid byte amount");
+      return;
+    }
+
+    if (ramBalance && bytes > ramBalance.bytes) {
+      toast.error("Cannot withdraw more than deposited");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const actions = buildWithdrawRamActions(accountName, selectedCollection, bytes);
+      console.log('🧀 Withdrawing RAM with actions:', JSON.stringify(actions, null, 2));
+      
+      await session.transact({ actions });
+      
+      toast.success(`Successfully withdrew ${bytes} bytes of RAM`);
+      setWithdrawBytes("");
+      await fetchRamBalance();
+    } catch (error) {
+      console.error("Failed to withdraw RAM:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to withdraw RAM");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!isConnected) {
+    return null;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
+          <HardDrive className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
+          <span className="text-xs text-cheese font-medium">Manage RAM</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <HardDrive className="h-5 w-5 text-cheese" />
+            Manage Collection RAM
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Mint-on-demand drops require RAM deposited to the nfthivedrops contract. 
+            Deposit WAX to purchase RAM for your collection.
+          </p>
+
+          {/* Collection Selector */}
+          <div className="space-y-2">
+            <Label>Collection</Label>
+            <Select value={selectedCollection} onValueChange={setSelectedCollection}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a collection" />
+              </SelectTrigger>
+              <SelectContent>
+                {userCollections.map((col: string) => (
+                  <SelectItem key={col} value={col}>
+                    {col}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* RAM Balance Display */}
+          {selectedCollection && (
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Deposited RAM</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={fetchRamBalance}
+                  disabled={loadingBalance}
+                  className="h-6 px-2"
+                >
+                  <RefreshCw className={`h-3 w-3 ${loadingBalance ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              {loadingBalance ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </div>
+              ) : ramBalance ? (
+                <div className="space-y-1">
+                  <p className="text-lg font-bold text-cheese">
+                    {ramBalance.bytes.toLocaleString()} bytes
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ≈ {Math.floor(ramBalance.bytes / 151)} NFTs mintable (est. 151 bytes each)
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No RAM deposited for this collection
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Deposit/Withdraw Tabs */}
+          <Tabs defaultValue="deposit" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="deposit" className="flex items-center gap-1.5">
+                <Download className="h-3.5 w-3.5" />
+                Deposit
+              </TabsTrigger>
+              <TabsTrigger value="withdraw" className="flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" />
+                Withdraw
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="deposit" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Amount (WAX)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 20"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  min="0"
+                  step="0.00000001"
+                />
+                <p className="text-xs text-muted-foreground">
+                  WAX will be converted to RAM for minting NFTs on demand.
+                </p>
+              </div>
+              <Button 
+                onClick={handleDeposit} 
+                disabled={loading || !selectedCollection || !depositAmount}
+                className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Depositing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Deposit RAM
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="withdraw" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Bytes to Withdraw</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 1000"
+                  value={withdrawBytes}
+                  onChange={(e) => setWithdrawBytes(e.target.value)}
+                  min="0"
+                  step="1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Withdraw unused RAM back to your account.
+                </p>
+              </div>
+              <Button 
+                onClick={handleWithdraw} 
+                disabled={loading || !selectedCollection || !withdrawBytes}
+                variant="outline"
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Withdrawing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Withdraw RAM
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

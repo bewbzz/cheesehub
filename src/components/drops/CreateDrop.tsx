@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
 import { buildDropCreationActions, validateDropFormData, DropFormData, DropType, TokenBacking } from "@/lib/drops";
 import { toast } from "sonner";
-import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X } from "lucide-react";
+import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X, HardDrive } from "lucide-react";
+import { ManageRamDialog } from "./ManageRamDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -177,6 +178,7 @@ export function CreateDrop() {
             <Plus className="h-5 w-5 text-cheese" />
             Create a New Drop
           </CardTitle>
+          <ManageRamDialog />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">

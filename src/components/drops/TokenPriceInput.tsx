@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { WAX_TOKENS, getTokenConfig } from "@/lib/tokenRegistry";
+import { TokenLogo } from "@/components/TokenLogo";
 import { Plus, X, ChevronDown, Check, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -109,9 +110,16 @@ export function TokenPriceInput({
                     variant="outline"
                     role="combobox"
                     aria-expanded={openTokenIndex === index}
-                    className="w-32 justify-between font-medium"
+                    className="w-36 justify-between font-medium"
                   >
-                    {price.token}
+                    <div className="flex items-center gap-2">
+                      <TokenLogo 
+                        contract={tokenConfig?.contract || ''} 
+                        symbol={price.token} 
+                        size="sm" 
+                      />
+                      {price.token}
+                    </div>
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -135,7 +143,12 @@ export function TokenPriceInput({
                                   price.token === token.symbol ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <span className="font-medium">{token.symbol}</span>
+                              <TokenLogo 
+                                contract={token.contract} 
+                                symbol={token.symbol} 
+                                size="sm" 
+                              />
+                              <span className="font-medium ml-2">{token.symbol}</span>
                               <span className="ml-auto text-xs text-muted-foreground">
                                 {token.precision}dp
                               </span>

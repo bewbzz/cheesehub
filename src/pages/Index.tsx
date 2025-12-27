@@ -135,7 +135,7 @@ const Index = () => {
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">
-                  Go to CHEESEDrops
+                  Go to CHEESEDrop
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

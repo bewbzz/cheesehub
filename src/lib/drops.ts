@@ -303,34 +303,51 @@ export function buildWithdrawRamActions(account: string, collectionName: string,
  * Fetch the deposited RAM balance for a collection from nfthivedrops
  */
 export async function fetchCollectionRamBalance(collectionName: string): Promise<RamBalance | null> {
-  try {
-    const response = await fetch(`${WAX_CHAIN.url}/v1/chain/get_table_rows`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: NFTHIVE_CONFIG.dropContract,
-        scope: NFTHIVE_CONFIG.dropContract,
-        table: 'colramconfig',
-        lower_bound: collectionName,
-        upper_bound: collectionName,
-        limit: 1,
-        json: true,
-      }),
-    });
+  const rpcUrls = WAX_CHAIN.rpcUrls || [WAX_CHAIN.url];
+  
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
+      const response = await fetch(`${rpcUrl}/v1/chain/get_table_rows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: NFTHIVE_CONFIG.dropContract,
+          scope: NFTHIVE_CONFIG.dropContract,
+          table: 'colramconfig',
+          lower_bound: collectionName,
+          upper_bound: collectionName,
+          limit: 1,
+          json: true,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    
-    if (data.rows && data.rows.length > 0) {
-      const row = data.rows[0];
-      return {
-        collection: row.collection_name || collectionName,
-        bytes: row.ram_bytes || 0,
-      };
+      if (!response.ok) {
+        console.warn(`RPC ${rpcUrl} returned ${response.status}, trying next...`);
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data.rows && data.rows.length > 0) {
+        const row = data.rows[0];
+        return {
+          collection: row.collection_name || collectionName,
+          bytes: row.ram_bytes || 0,
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn(`RPC ${rpcUrl} failed:`, (error as Error).message);
     }
-    
-    return null;
-  } catch (error) {
-    console.error('Failed to fetch collection RAM balance:', error);
-    return null;
   }
+  
+  console.error('All RPC endpoints failed to fetch collection RAM balance');
+  return null;
 }

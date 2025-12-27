@@ -291,24 +291,30 @@ export function CreateDrop() {
                   </AccordionItem>
 
                   <AccordionItem value="backing" className="border border-border/50 rounded-lg px-4">
-                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                      Token Backing
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-muted-foreground">
+                      Token Backing (Coming Soon)
                     </AccordionTrigger>
                     <AccordionContent className="text-sm text-foreground space-y-2">
-                      <p>
-                        Token backing allows you to lock WAX or CHEESE tokens inside each NFT. 
+                      <p className="text-xs bg-amber-500/10 text-amber-500 p-2 rounded">
+                        <strong>Note:</strong> Token backing for drops is not yet supported by the nfthivedrops smart contract. 
+                        This feature is planned for a future update.
+                      </p>
+                      <p className="mt-2">
+                        Token backing would allow you to lock WAX or CHEESE tokens inside each NFT. 
                         When the NFT is burned, the backed tokens are released to the burner.
                       </p>
-                      <p className="font-medium text-cheese mt-3">Use cases:</p>
-                      <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                      <p className="font-medium text-muted-foreground mt-3">Planned use cases:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2 text-xs text-muted-foreground">
                         <li>Give your NFTs intrinsic value</li>
                         <li>Create "treasure" NFTs with hidden rewards</li>
                         <li>Incentivize burning for token recycling</li>
                         <li>Build deflationary mechanics</li>
                       </ul>
                       <p className="text-xs bg-muted/50 p-2 rounded mt-2">
-                        <strong>Note:</strong> Only available for Mint-on-Demand drops. 
-                        The tokens are locked when each NFT is minted.
+                        <strong>Alternative:</strong> For token-infused NFTs now, try the{' '}
+                        <a href="https://nfthive.io/pack" target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline">
+                          NFTHive Pack Creator
+                        </a>.
                       </p>
                     </AccordionContent>
                   </AccordionItem>
@@ -764,95 +770,33 @@ export function CreateDrop() {
                 />
               </div>
 
-              {/* Token Backing - Only for Mint-on-Demand */}
+              {/* Token Backing - Coming Soon */}
               {formData.dropType === 'mint-on-demand' && (
-                <div className="space-y-3 rounded-lg border border-border/50 p-4">
+                <div className="space-y-3 rounded-lg border border-border/30 p-4 opacity-60">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Coins className="h-4 w-4 text-cheese" />
-                      <Label>Token Backing</Label>
+                      <Coins className="h-4 w-4 text-muted-foreground" />
+                      <Label className="text-muted-foreground">Token Backing</Label>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-medium">
+                        Coming Soon
+                      </span>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        tokensToBack: [...prev.tokensToBack, { symbol: 'CHEESE', amount: '' }]
-                      }))}
-                      className="h-7 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Token
-                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Lock tokens inside each NFT. Released when burned.
                   </p>
-                  
-                  {formData.tokensToBack.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-2">
-                      No token backing configured
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {formData.tokensToBack.map((token, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Select
-                            value={token.symbol}
-                            onValueChange={(value) => {
-                              const updated = [...formData.tokensToBack];
-                              updated[index] = { ...updated[index], symbol: value };
-                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
-                            }}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="CHEESE">CHEESE</SelectItem>
-                              <SelectItem value="WAX">WAX</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.0001"
-                            placeholder="Amount per NFT"
-                            value={token.amount}
-                            onChange={(e) => {
-                              const updated = [...formData.tokensToBack];
-                              updated[index] = { ...updated[index], amount: e.target.value };
-                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
-                            }}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const updated = formData.tokensToBack.filter((_, i) => i !== index);
-                              setFormData(prev => ({ ...prev, tokensToBack: updated }));
-                            }}
-                            className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {formData.tokensToBack.length > 0 && formData.maxClaimable > 0 && (
-                    <div className="text-xs bg-cheese/10 text-cheese p-2 rounded">
-                      Total tokens needed: {formData.tokensToBack.map(t => {
-                        const amount = parseFloat(t.amount) || 0;
-                        const total = amount * formData.maxClaimable;
-                        return `${total.toLocaleString()} ${t.symbol}`;
-                      }).join(' + ')}
-                    </div>
-                  )}
+                  <p className="text-xs bg-amber-500/10 text-amber-500 p-2 rounded">
+                    Token backing is not yet supported by the nfthivedrops contract. 
+                    For token-infused NFTs, try the{' '}
+                    <a 
+                      href="https://nfthive.io/pack" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="underline hover:text-amber-400"
+                    >
+                      NFTHive Pack Creator
+                    </a>.
+                  </p>
                 </div>
               )}
             </CollapsibleContent>

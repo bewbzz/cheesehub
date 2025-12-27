@@ -67,9 +67,9 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🧀</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4">CHEESEFaucet</h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Faucet</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Hosted separately on GitHub and powered by the cheesefaucet and cheesecheese smart contracts, users can stake their $CHEESE to claim/mine $CHEESE at a high APR.
+                Powered by the CHEESEFAUCET and CHEESECHEESE smart contracts, Hosted on GitHub users stake their $CHEESE to claim mine $CHEESE at a high APR
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <a href="https://cheeseonwax.github.io/tools/cheesefaucet.html" target="_blank" rel="noopener noreferrer">
@@ -86,9 +86,9 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🏛️</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4">CHEESEDao</h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">DAO</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the dao.waxdao smart contract and acting as an alternate Front-End, CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals.
+                Powered by the DAO..WAXDAO smart contract and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/dao">
@@ -110,9 +110,9 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🔐</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4">CHEESELock</h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the WAXDALOCKER smart contract and acting as an alternate Front-End, CHEESELock allows all WAX users the ability to time-lock tokens and/or LP tokens.
+                Powered by the WAXDALOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users the ability to time-lock tokens and/or LP tokens
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/locker">
@@ -129,9 +129,9 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">💧</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4">CHEESEDrops</h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End, CHEESEDrops allows all WAX users to create NFT drops and sell them for various WAX tokens.
+                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEDrop allows all WAX users to create NFT drops and sell them for various WAX tokens
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">

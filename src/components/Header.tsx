@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Users } from "lucide-react";
+import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Users, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -34,6 +34,19 @@ export function Header() {
             >
               <Home className="h-4 w-4" />
               Home
+            </Link>
+            {/* CHEESEUp */}
+            <Link
+              to="/powerup"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/powerup"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Zap className="h-4 w-4" />
+              CHEESEUp
             </Link>
             {/* CHEESEFaucet (external) */}
             <a

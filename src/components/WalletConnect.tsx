@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function WalletConnect() {
-  const { session, isConnected, isLoading, accountName, login, logout } = useWax();
+  const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
 
   const handleLogin = async () => {
@@ -33,6 +33,9 @@ export function WalletConnect() {
           <Button variant="outline" className="border-cheese/30 hover:border-cheese hover:bg-cheese/10">
             <Wallet className="mr-2 h-4 w-4 text-cheese" />
             <span className="max-w-[120px] truncate">{accountName}</span>
+            <span className="ml-2 text-cheese font-semibold">
+              {cheeseBalance !== null ? `${cheeseBalance.toLocaleString()} 🧀` : '...'}
+            </span>
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

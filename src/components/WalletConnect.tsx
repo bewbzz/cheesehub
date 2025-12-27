@@ -9,18 +9,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { Wallet, LogOut, ChevronDown } from "lucide-react";
+import { Wallet, LogOut, ChevronDown, Send } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import { WalletTransferDialog } from "./WalletTransferDialog";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
 
   const handleLogin = async () => {
     await login();
@@ -29,6 +32,7 @@ export function WalletConnect() {
 
   if (isConnected && accountName) {
     return (
+      <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="border-cheese/30 hover:border-cheese hover:bg-cheese/10">
@@ -42,12 +46,19 @@ export function WalletConnect() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={() => setWalletOpen(true)} className="cursor-pointer">
+            <Send className="mr-2 h-4 w-4" />
+            Wallet
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />
             Disconnect
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <WalletTransferDialog open={walletOpen} onOpenChange={setWalletOpen} />
+    </>
     );
   }
 

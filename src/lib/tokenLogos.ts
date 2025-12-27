@@ -4,10 +4,10 @@ const ALCOR_LOGO_BASE = 'https://raw.githubusercontent.com/alcorexchange/alcor-u
 
 /**
  * Get the token logo URL from Alcor's repository
- * Format: https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax/{contract}/{symbol_lowercase}.png
+ * Format: https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax/{symbol_lowercase}_{contract}.png
  */
 export function getTokenLogoUrl(contract: string, symbol: string): string {
-  return `${ALCOR_LOGO_BASE}/${contract}/${symbol.toLowerCase()}.png`;
+  return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${contract}.png`;
 }
 
 /**

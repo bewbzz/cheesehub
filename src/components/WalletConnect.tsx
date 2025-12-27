@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
@@ -33,8 +34,9 @@ export function WalletConnect() {
           <Button variant="outline" className="border-cheese/30 hover:border-cheese hover:bg-cheese/10">
             <Wallet className="mr-2 h-4 w-4 text-cheese" />
             <span className="max-w-[120px] truncate">{accountName}</span>
-            <span className="ml-2 text-cheese font-semibold">
-              {cheeseBalance !== null ? `${cheeseBalance.toLocaleString()} 🧀` : '...'}
+            <span className="ml-2 text-cheese font-semibold flex items-center gap-1">
+              <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
+              {cheeseBalance !== null ? cheeseBalance.toLocaleString() : '...'}
             </span>
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>

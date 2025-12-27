@@ -333,12 +333,16 @@ export async function fetchCollectionRamBalance(collectionName: string): Promise
       }
 
       const data = await response.json();
+      console.log('RAM balance response:', JSON.stringify(data, null, 2));
       
       if (data.rows && data.rows.length > 0) {
         const row = data.rows[0];
+        console.log('RAM balance row:', row);
+        // Try common field names for bytes: ram_bytes, bytes, balance, ram
+        const bytes = row.ram_bytes ?? row.bytes ?? row.balance ?? row.ram ?? 0;
         return {
-          collection: row.collection_name || collectionName,
-          bytes: row.ram_bytes || 0,
+          collection: row.collection_name ?? row.collection ?? collectionName,
+          bytes: typeof bytes === 'number' ? bytes : parseInt(bytes) || 0,
         };
       }
       

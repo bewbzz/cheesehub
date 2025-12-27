@@ -19,9 +19,8 @@ export default function Locker() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
           <div className="flex flex-col items-center text-center">
-            <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center relative">
-              <span className="absolute text-4xl opacity-80">🔐</span>
-              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain relative z-10" />
+            <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
+              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
             <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">

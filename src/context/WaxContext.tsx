@@ -15,6 +15,14 @@ interface WaxContextType {
   logout: () => Promise<void>;
   refreshBalance: () => Promise<void>;
   transferCheese: (amount: number, memo: string) => Promise<string | null>;
+  transferToken: (
+    tokenContract: string,
+    tokenSymbol: string,
+    precision: number,
+    to: string,
+    amount: number,
+    memo: string
+  ) => Promise<string | null>;
   claimDrop: (dropId: string, quantity: number, totalPrice: number) => Promise<string | null>;
   joinDao: (daoName: string) => Promise<string | null>;
   leaveDao: (daoName: string) => Promise<string | null>;
@@ -159,6 +167,59 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       toast({
         title: 'Transaction Failed',
         description: error instanceof Error ? error.message : 'Failed to send CHEESE',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const transferToken = async (
+    tokenContract: string,
+    tokenSymbol: string,
+    precision: number,
+    to: string,
+    amount: number,
+    memo: string
+  ): Promise<string | null> => {
+    if (!session) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const quantity = `${amount.toFixed(precision)} ${tokenSymbol}`;
+
+    try {
+      const action = {
+        account: tokenContract,
+        name: 'transfer',
+        authorization: [session.permissionLevel],
+        data: {
+          from: session.actor.toString(),
+          to,
+          quantity,
+          memo,
+        },
+      };
+
+      const result = await session.transact({ actions: [action] });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      toast({
+        title: 'Transaction Successful',
+        description: `Sent ${quantity} to ${to}`,
+      });
+
+      await refreshBalance();
+      return txId;
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      toast({
+        title: 'Transaction Failed',
+        description: error instanceof Error ? error.message : 'Failed to send tokens',
         variant: 'destructive',
       });
       return null;
@@ -320,6 +381,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         logout,
         refreshBalance,
         transferCheese,
+        transferToken,
         claimDrop,
         joinDao,
         leaveDao,

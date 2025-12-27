@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import { WaxProvider } from "@/context/WaxContext";
 import Index from "./pages/Index";
+import PowerUp from "./pages/PowerUp";
 import Locker from "./pages/Locker";
 import Drops from "./pages/Drops";
 import DropDetail from "./pages/DropDetail";
@@ -29,7 +30,8 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<Index />} />
+              <Route path="/" element={<Index />} />
+                <Route path="/powerup" element={<PowerUp />} />
                 <Route path="/locker" element={<Locker />} />
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drops/:id" element={<DropDetail />} />

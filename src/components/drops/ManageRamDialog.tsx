@@ -11,6 +11,7 @@ import { HardDrive, Loader2, Download, Upload, RefreshCw } from "lucide-react";
 import { fetchUserCollections } from "@/services/atomicApi";
 import { useQuery } from "@tanstack/react-query";
 import { buildDepositRamActions, buildWithdrawRamActions, fetchCollectionRamBalance, RamBalance } from "@/lib/drops";
+import { WAX_CHAIN } from "@/lib/waxConfig";
 
 export function ManageRamDialog() {
   const { session, isConnected } = useWax();
@@ -21,6 +22,7 @@ export function ManageRamDialog() {
   const [withdrawBytes, setWithdrawBytes] = useState("");
   const [ramBalance, setRamBalance] = useState<RamBalance | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  const [waxBalance, setWaxBalance] = useState<number | null>(null);
 
   const accountName = session?.actor?.toString() || '';
 
@@ -30,12 +32,46 @@ export function ManageRamDialog() {
     enabled: !!accountName && open,
   });
 
+  // Fetch WAX balance when dialog opens
+  useEffect(() => {
+    if (accountName && open) {
+      fetchWaxBalance();
+    }
+  }, [accountName, open]);
+
   // Fetch RAM balance when collection changes
   useEffect(() => {
     if (selectedCollection && open) {
       fetchRamBalance();
     }
   }, [selectedCollection, open]);
+
+  async function fetchWaxBalance() {
+    if (!accountName) return;
+    
+    try {
+      const response = await fetch(`${WAX_CHAIN.url}/v1/chain/get_currency_balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'eosio.token',
+          account: accountName,
+          symbol: 'WAX',
+        }),
+      });
+      
+      const balances = await response.json();
+      if (balances && balances.length > 0) {
+        const balance = parseFloat(balances[0].split(' ')[0]);
+        setWaxBalance(balance);
+      } else {
+        setWaxBalance(0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch WAX balance:', error);
+      setWaxBalance(null);
+    }
+  }
 
   async function fetchRamBalance() {
     if (!selectedCollection) return;
@@ -217,7 +253,14 @@ export function ManageRamDialog() {
 
             <TabsContent value="deposit" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Amount (WAX)</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Amount (WAX)</Label>
+                  {waxBalance !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      Balance: <span className="font-medium text-foreground">{waxBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} WAX</span>
+                    </span>
+                  )}
+                </div>
                 <Input
                   type="number"
                   placeholder="e.g. 20"

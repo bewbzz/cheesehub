@@ -282,9 +282,10 @@ export function buildDepositRamActions(account: string, collectionName: string, 
 }
 
 /**
- * Build action to withdraw RAM from the nfthivedrops contract
+ * Build action to withdraw all RAM from the nfthivedrops contract
+ * Note: NftHive only supports withdrawing all RAM at once
  */
-export function buildWithdrawRamActions(account: string, collectionName: string, bytes: number) {
+export function buildWithdrawRamActions(account: string, collectionName: string) {
   return [
     {
       account: NFTHIVE_CONFIG.dropContract,
@@ -293,7 +294,7 @@ export function buildWithdrawRamActions(account: string, collectionName: string,
       data: {
         authorized_account: account,
         collection_name: collectionName,
-        bytes: bytes,
+        recipient: account,
       },
     },
   ];

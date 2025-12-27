@@ -18,7 +18,6 @@ export function ManageRamDialog() {
   const [loading, setLoading] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
-  const [withdrawBytes, setWithdrawBytes] = useState("");
   const [ramBalance, setRamBalance] = useState<RamBalance | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
@@ -83,31 +82,24 @@ export function ManageRamDialog() {
   }
 
   async function handleWithdraw() {
-    if (!session || !selectedCollection || !withdrawBytes) {
-      toast.error("Please fill in all fields");
+    if (!session || !selectedCollection) {
+      toast.error("Please select a collection");
       return;
     }
 
-    const bytes = parseInt(withdrawBytes);
-    if (isNaN(bytes) || bytes <= 0) {
-      toast.error("Please enter a valid byte amount");
-      return;
-    }
-
-    if (ramBalance && bytes > ramBalance.bytes) {
-      toast.error("Cannot withdraw more than deposited");
+    if (!ramBalance || ramBalance.bytes === 0) {
+      toast.error("No RAM to withdraw");
       return;
     }
 
     setLoading(true);
     try {
-      const actions = buildWithdrawRamActions(accountName, selectedCollection, bytes);
+      const actions = buildWithdrawRamActions(accountName, selectedCollection);
       console.log('🧀 Withdrawing RAM with actions:', JSON.stringify(actions, null, 2));
       
       await session.transact({ actions });
       
-      toast.success(`Successfully withdrew ${bytes} bytes of RAM`);
-      setWithdrawBytes("");
+      toast.success(`Successfully withdrew all RAM (${ramBalance.bytes.toLocaleString()} bytes)`);
       await fetchRamBalance();
     } catch (error) {
       console.error("Failed to withdraw RAM:", error);
@@ -246,22 +238,20 @@ export function ManageRamDialog() {
 
             <TabsContent value="withdraw" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Bytes to Withdraw</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g. 1000"
-                  value={withdrawBytes}
-                  onChange={(e) => setWithdrawBytes(e.target.value)}
-                  min="0"
-                  step="1"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Withdraw unused RAM back to your account.
+                <p className="text-sm text-muted-foreground">
+                  Withdraw all deposited RAM back to your account as WAX.
                 </p>
+                {ramBalance && ramBalance.bytes > 0 && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm">
+                      You will withdraw: <span className="font-bold text-cheese">{ramBalance.bytes.toLocaleString()} bytes</span>
+                    </p>
+                  </div>
+                )}
               </div>
               <Button 
                 onClick={handleWithdraw} 
-                disabled={loading || !selectedCollection || !withdrawBytes}
+                disabled={loading || !selectedCollection || !ramBalance || ramBalance.bytes === 0}
                 variant="outline"
                 className="w-full"
               >
@@ -273,7 +263,7 @@ export function ManageRamDialog() {
                 ) : (
                   <>
                     <Upload className="h-4 w-4 mr-2" />
-                    Withdraw RAM
+                    Withdraw All RAM
                   </>
                 )}
               </Button>

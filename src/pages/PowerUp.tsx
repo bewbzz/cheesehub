@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
+import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
 import cheeseLogo from "@/assets/cheese-logo.png";
@@ -19,29 +20,30 @@ const PowerUp = () => {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Background effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
-      </div>
-
+      <BackgroundDecorations />
       <Header />
 
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4 pt-8 pb-8 gap-8">
-        <div className="relative text-center space-y-4 mb-4">
-          <img
-            src={cheeseLogo}
-            alt="CHEESE Coin"
-            className="absolute left-1/2 bottom-full -translate-x-1/2 translate-y-1/2 w-48 md:w-64 opacity-20 pointer-events-none"
-          />
-          <h1 className="relative text-5xl md:text-7xl font-extrabold">
-            <span className="text-cheese-gradient bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">CHEESE</span>
-            <span className="text-foreground">Up</span>
-          </h1>
-          <p className="relative text-muted-foreground max-w-md mx-auto mt-4">
-            Fuel your WAX transactions with CHEESE.
-          </p>
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
+        <div className="container relative z-10">
+          <div className="flex flex-col items-center text-center">
+            <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
+              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+            </div>
+
+            <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+              <span className="text-primary cheese-text-glow">CHEESE</span>
+              <span className="text-foreground">Up</span>
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+              Fuel your WAX transactions with CHEESE tokens
+            </p>
+          </div>
         </div>
+      </section>
+
+      <main className="container pb-12 flex flex-col items-center gap-8">
 
         <PowerUpCard
           walletConnected={isConnected}
@@ -55,9 +57,9 @@ const PowerUp = () => {
 
         <PowerupStatsBar stats={stats} isLoading={statsLoading} />
 
-        <footer className="text-center text-xs text-muted-foreground mt-8">
+        <div className="text-center text-sm text-muted-foreground">
           <p>Powered by CHEESE PowerUp Contract on WAX</p>
-        </footer>
+        </div>
       </main>
     </div>
   );

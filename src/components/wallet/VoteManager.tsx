@@ -159,36 +159,44 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
       // Fetch proxies - query known popular proxy accounts
       // The voters table is too large to scan, so we check known proxies
       const knownProxyAccounts = [
-        'proxy4nation', 'waxpoolproxy', 'teamgreymass', 'proxy.pink', 
-        'cryptolions1', 'waxdaomarket', 'sentnlagents', 'eikinakatata',
-        'waxdaoproxy1', 'nation.wax', 'votebpforwax', 'alohaeosprox',
-        'greeneosiobp', 'blaborgreenv', 'proxywaxwax1', 'wax.defibox'
+        'proxy4nation', 'bigmikeproxy', 'teamgreymass', 'sentnlagents',
+        'nation.wax', 'greeneosiobp', 'blaborgreenv', 'eikinakatata',
+        'alohaeosprox', 'wax24hrs', 'proxyfishies', 'cryptolions1'
+      ];
+      
+      const rpcEndpoints = [
+        'https://api.wax.alohaeos.com',
+        'https://wax.greymass.com',
+        'https://api.waxsweden.org',
       ];
       
       try {
         const proxyPromises = knownProxyAccounts.map(async (account) => {
-          try {
-            const response = await fetch('https://wax.eosphere.io/v1/chain/get_table_rows', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                json: true,
-                code: 'eosio',
-                scope: 'eosio',
-                table: 'voters',
-                lower_bound: account,
-                upper_bound: account,
-                limit: 1,
-              }),
-            });
-            const data = await response.json();
-            if (data.rows && data.rows.length > 0 && data.rows[0].is_proxy === 1) {
-              return data.rows[0] as ProxyVoter;
+          for (const endpoint of rpcEndpoints) {
+            try {
+              const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  json: true,
+                  code: 'eosio',
+                  scope: 'eosio',
+                  table: 'voters',
+                  lower_bound: account,
+                  upper_bound: account,
+                  limit: 1,
+                }),
+              });
+              const data = await response.json();
+              if (data.rows && data.rows.length > 0 && data.rows[0].is_proxy === 1) {
+                return data.rows[0] as ProxyVoter;
+              }
+              return null;
+            } catch {
+              continue;
             }
-            return null;
-          } catch {
-            return null;
           }
+          return null;
         });
         
         const proxyResults = await Promise.all(proxyPromises);

@@ -127,9 +127,6 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           <DialogTitle className="text-xl">Wallet</DialogTitle>
         </DialogHeader>
         
-        {/* Resources display - always visible */}
-        <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
-        
         <Tabs defaultValue="send" className="w-full">
           <TabsList className="w-full mb-4">
             <TabsTrigger value="send" className="flex-1 gap-2">
@@ -141,6 +138,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               RAM
             </TabsTrigger>
           </TabsList>
+          
+          {/* Resources display - always visible */}
+          <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
 
           <TabsContent value="send" className="space-y-4">
             {/* Recipient */}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sprout, Search, FolderOpen, Plus, HelpCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -6,13 +7,28 @@ import { BrowseFarms } from "@/components/farm/BrowseFarms";
 import { MyFarms } from "@/components/farm/MyFarms";
 import { CreateFarm } from "@/components/farm/CreateFarm";
 import { FarmFaq } from "@/components/farm/FarmFaq";
+import { FarmDetail } from "@/components/farm/FarmDetail";
 
 export default function Farm() {
+  const { farmName } = useParams<{ farmName: string }>();
   const [activeTab, setActiveTab] = useState("browse");
 
   const handleCreateFarm = () => {
     setActiveTab("create");
   };
+
+  // If viewing a specific farm, show detail view
+  if (farmName) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+          <div className="container py-8">
+            <FarmDetail />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

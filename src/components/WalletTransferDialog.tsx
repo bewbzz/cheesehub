@@ -15,11 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances, TokenWithBalance } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
-import { Send, Check, X, Loader2 } from 'lucide-react';
+import { RamManager } from '@/components/wallet/RamManager';
+import { Send, Check, X, Loader2, HardDrive } from 'lucide-react';
 
 interface WalletTransferDialogProps {
   open: boolean;
@@ -111,162 +113,180 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Send Tokens</DialogTitle>
+          <DialogTitle className="text-xl">Wallet</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* Recipient */}
-          <div className="space-y-2">
-            <Label htmlFor="recipient">Recipient</Label>
-            <div className="relative">
-              <Input
-                id="recipient"
-                placeholder="Enter WAX account"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value.toLowerCase())}
-                className="pr-10"
-              />
-              {recipient.length > 0 && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {isValidRecipient ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <X className="h-4 w-4 text-destructive" />
-                  )}
-                </div>
+        
+        <Tabs defaultValue="send" className="w-full">
+          <TabsList className="w-full mb-4">
+            <TabsTrigger value="send" className="flex-1 gap-2">
+              <Send className="h-4 w-4" />
+              Send Tokens
+            </TabsTrigger>
+            <TabsTrigger value="ram" className="flex-1 gap-2">
+              <HardDrive className="h-4 w-4" />
+              RAM
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="send" className="space-y-4">
+            {/* Recipient */}
+            <div className="space-y-2">
+              <Label htmlFor="recipient">Recipient</Label>
+              <div className="relative">
+                <Input
+                  id="recipient"
+                  placeholder="Enter WAX account"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value.toLowerCase())}
+                  className="pr-10"
+                />
+                {recipient.length > 0 && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {isValidRecipient ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                )}
+              </div>
+              {recipient.length > 0 && !isValidRecipient && (
+                <p className="text-xs text-destructive">
+                  Invalid account name (1-12 chars, a-z, 1-5, periods)
+                </p>
               )}
             </div>
-            {recipient.length > 0 && !isValidRecipient && (
-              <p className="text-xs text-destructive">
-                Invalid account name (1-12 chars, a-z, 1-5, periods)
-              </p>
-            )}
-          </div>
 
-          {/* Token Select with Logos */}
-          <div className="space-y-2">
-            <Label>Token</Label>
-            <Select value={selectedTokenKey} onValueChange={handleTokenChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select token">
+            {/* Token Select with Logos */}
+            <div className="space-y-2">
+              <Label>Token</Label>
+              <Select value={selectedTokenKey} onValueChange={handleTokenChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select token">
+                    {selectedToken && (
+                      <div className="flex items-center gap-2">
+                        <TokenLogo 
+                          contract={selectedToken.contract} 
+                          symbol={selectedToken.symbol} 
+                          size="sm" 
+                        />
+                        <span className="font-medium">{selectedToken.symbol}</span>
+                        <span className="text-muted-foreground text-xs">
+                          ({balance.toLocaleString()})
+                        </span>
+                      </div>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {isLoadingBalances ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span className="text-sm text-muted-foreground">Loading balances...</span>
+                    </div>
+                  ) : (
+                    tokens.map((token) => (
+                      <SelectItem 
+                        key={`${token.contract}-${token.symbol}`} 
+                        value={`${token.contract}-${token.symbol}`}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <TokenLogo 
+                            contract={token.contract} 
+                            symbol={token.symbol} 
+                            size="sm" 
+                          />
+                          <span className="font-medium">{token.symbol}</span>
+                          <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            {token.balance.toLocaleString()}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="amount">Amount</Label>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  Balance: 
                   {selectedToken && (
-                    <div className="flex items-center gap-2">
+                    <>
                       <TokenLogo 
                         contract={selectedToken.contract} 
                         symbol={selectedToken.symbol} 
                         size="sm" 
+                        className="h-3 w-3"
                       />
-                      <span className="font-medium">{selectedToken.symbol}</span>
-                      <span className="text-muted-foreground text-xs">
-                        ({balance.toLocaleString()})
-                      </span>
-                    </div>
+                      {balance.toLocaleString()} {selectedToken.symbol}
+                    </>
                   )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {isLoadingBalances ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span className="text-sm text-muted-foreground">Loading balances...</span>
-                  </div>
-                ) : (
-                  tokens.map((token) => (
-                    <SelectItem 
-                      key={`${token.contract}-${token.symbol}`} 
-                      value={`${token.contract}-${token.symbol}`}
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                        <TokenLogo 
-                          contract={token.contract} 
-                          symbol={token.symbol} 
-                          size="sm" 
-                        />
-                        <span className="font-medium">{token.symbol}</span>
-                        <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                          {token.balance.toLocaleString()}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Amount */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="amount">Amount</Label>
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                Balance: 
-                {selectedToken && (
-                  <>
-                    <TokenLogo 
-                      contract={selectedToken.contract} 
-                      symbol={selectedToken.symbol} 
-                      size="sm" 
-                      className="h-3 w-3"
-                    />
-                    {balance.toLocaleString()} {selectedToken.symbol}
-                  </>
-                )}
+                </div>
               </div>
+              <div className="flex gap-2">
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  min={0}
+                  step={selectedToken ? Math.pow(10, -selectedToken.precision) : 0.01}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMaxClick}
+                  className="shrink-0"
+                >
+                  Max
+                </Button>
+              </div>
+              {parsedAmount > balance && (
+                <p className="text-xs text-destructive">Insufficient balance</p>
+              )}
             </div>
-            <div className="flex gap-2">
+
+            {/* Memo */}
+            <div className="space-y-2">
+              <Label htmlFor="memo">Memo (optional)</Label>
               <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min={0}
-                step={selectedToken ? Math.pow(10, -selectedToken.precision) : 0.01}
+                id="memo"
+                placeholder="Enter memo"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleMaxClick}
-                className="shrink-0"
-              >
-                Max
-              </Button>
             </div>
-            {parsedAmount > balance && (
-              <p className="text-xs text-destructive">Insufficient balance</p>
-            )}
-          </div>
 
-          {/* Memo */}
-          <div className="space-y-2">
-            <Label htmlFor="memo">Memo (optional)</Label>
-            <Input
-              id="memo"
-              placeholder="Enter memo"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-            />
-          </div>
+            {/* Send Button */}
+            <Button
+              onClick={handleSend}
+              disabled={!canSend}
+              className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send {selectedToken?.symbol || 'Tokens'}
+                </>
+              )}
+            </Button>
+          </TabsContent>
 
-          {/* Send Button */}
-          <Button
-            onClick={handleSend}
-            disabled={!canSend}
-            className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Send {selectedToken?.symbol || 'Tokens'}
-              </>
-            )}
-          </Button>
-        </div>
+          <TabsContent value="ram">
+            <RamManager />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

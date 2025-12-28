@@ -1,8 +1,7 @@
-import { Header } from "@/components/Header";
+import { Layout } from "@/components/Layout";
 import { DropsHero } from "@/components/drops/DropsHero";
 import { DropCard } from "@/components/drops/DropCard";
 import { CartDrawer } from "@/components/drops/CartDrawer";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,9 +55,7 @@ const Drops = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <Header />
+    <Layout>
       <DropsHero stats={cheeseStats} isLoading={isLoadingStats} />
 
       <main className="container pb-20">
@@ -196,7 +193,7 @@ const Drops = () => {
       </div>
 
       <CartDrawer />
-    </div>
+    </Layout>
   );
 };
 

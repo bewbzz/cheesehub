@@ -2,9 +2,8 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ShoppingCart, ImageOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { DropsHeader } from "@/components/drops/DropsHeader";
+import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,9 +34,7 @@ const DropDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background relative">
-        <BackgroundDecorations />
-        <DropsHeader />
+      <Layout>
         <main className="container py-10">
           <Skeleton className="h-10 w-32 mb-6" />
           <div className="grid gap-10 lg:grid-cols-2">
@@ -51,15 +48,13 @@ const DropDetail = () => {
           </div>
         </main>
         <CartDrawer />
-      </div>
+      </Layout>
     );
   }
 
   if (!drop) {
     return (
-      <div className="min-h-screen bg-background relative">
-        <BackgroundDecorations />
-        <DropsHeader />
+      <Layout>
         <div className="container flex flex-col items-center justify-center py-20">
           <img src={cheeseLogo} alt="Cheese" className="h-16 w-16" />
           <h1 className="mt-4 font-display text-2xl font-bold text-foreground">
@@ -73,7 +68,7 @@ const DropDetail = () => {
           </Link>
         </div>
         <CartDrawer />
-      </div>
+      </Layout>
     );
   }
 
@@ -84,9 +79,7 @@ const DropDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <DropsHeader />
+    <Layout>
 
       <main className="container py-10">
         <Link to="/drops">
@@ -196,7 +189,7 @@ const DropDetail = () => {
       </main>
 
       <CartDrawer />
-    </div>
+    </Layout>
   );
 };
 

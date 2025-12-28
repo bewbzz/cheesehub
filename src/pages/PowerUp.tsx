@@ -1,7 +1,6 @@
-import { Header } from "@/components/Header";
+import { Layout } from "@/components/Layout";
 import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
 import cheeseLogo from "@/assets/cheese-logo.png";
@@ -19,9 +18,7 @@ const PowerUp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <Header />
+    <Layout>
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
@@ -61,7 +58,7 @@ const PowerUp = () => {
           <p>Powered by CHEESE PowerUp Contract on WAX</p>
         </div>
       </main>
-    </div>
+    </Layout>
   );
 };
 

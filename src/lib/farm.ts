@@ -39,6 +39,20 @@ export const PAYOUT_INTERVALS = [
   { label: "30 days", value: 2592000 },
 ];
 
+// Validate farm name (must be 1-12 chars, a-z, 1-5, and .)
+export function validateFarmName(name: string): { valid: boolean; error?: string } {
+  if (!name) {
+    return { valid: false, error: "Farm name is required" };
+  }
+  if (name.length > 12) {
+    return { valid: false, error: "Farm name must be 12 characters or less" };
+  }
+  if (!/^[a-z1-5.]+$/.test(name)) {
+    return { valid: false, error: "Farm name can only contain a-z, 1-5, and ." };
+  }
+  return { valid: true };
+}
+
 export interface StakableAsset {
   collection?: string;
   schema?: string;
@@ -506,7 +520,7 @@ export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | nul
       const status = (row.status || 0) as number;
       const farmType = (row.farm_type || 0) as number;
       
-      // Parse reward pools
+      // Parse reward pools from WaxDAO format
       const rawPools = row.reward_pools as Array<{
         total_funds?: string;
         contract?: string;
@@ -635,11 +649,29 @@ export async function fetchUserStakes(
   }
 }
 
+// Stakable template with hourly rate
+export interface StakableTemplate {
+  template_id: number;
+  collection: string;
+  hourly_rate: string;
+}
+
+export interface StakableSchema {
+  collection: string;
+  schema: string;
+  hourly_rate: string;
+}
+
+export interface StakableCollection {
+  collection: string;
+  hourly_rate: string;
+}
+
 // Fetch stakable collections/schemas/templates for a farm
 export interface FarmStakableConfig {
-  collections: string[];
-  schemas: { collection: string; schema: string }[];
-  templates: { template_id: number; collection: string }[];
+  collections: StakableCollection[];
+  schemas: StakableSchema[];
+  templates: StakableTemplate[];
 }
 
 export async function fetchFarmStakableConfig(farmName: string): Promise<FarmStakableConfig> {
@@ -650,56 +682,100 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
   };
 
   try {
-    // Fetch stkcollection table
-    const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: farmName,
-        table: "stkcollection",
-        limit: 100,
-      }),
-    });
-    const collectionsData = await collectionsRes.json();
-    config.collections = (collectionsData.rows || []).map((r: { collection_name: string }) => r.collection_name);
+    // Try multiple possible table names for templates
+    const templateTableNames = ["templates", "templ", "tmpls", "template"];
+    
+    for (const tableName of templateTableNames) {
+      try {
+        const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: tableName,
+            limit: 500,
+          }),
+        });
+        const templatesData = await templatesRes.json();
+        console.log(`Templates table "${tableName}" result:`, templatesData);
+        
+        if (templatesData.rows && templatesData.rows.length > 0) {
+          config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
+            template_id: (r.template_id || r.id || r.templateid || 0) as number,
+            collection: (r.collection_name || r.collection || "") as string,
+            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
+          }));
+          break;
+        }
+      } catch (e) {
+        // Table doesn't exist, try next
+      }
+    }
 
-    // Fetch stkschema table
-    const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: farmName,
-        table: "stkschema",
-        limit: 100,
-      }),
-    });
-    const schemasData = await schemasRes.json();
-    config.schemas = (schemasData.rows || []).map((r: { collection_name: string; schema_name: string }) => ({
-      collection: r.collection_name,
-      schema: r.schema_name,
-    }));
+    // Try multiple possible table names for schemas
+    const schemaTableNames = ["schemas", "schema"];
+    
+    for (const tableName of schemaTableNames) {
+      try {
+        const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: tableName,
+            limit: 500,
+          }),
+        });
+        const schemasData = await schemasRes.json();
+        console.log(`Schemas table "${tableName}" result:`, schemasData);
+        
+        if (schemasData.rows && schemasData.rows.length > 0) {
+          config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
+            collection: (r.collection_name || r.collection || "") as string,
+            schema: (r.schema_name || r.schema || "") as string,
+            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
+          }));
+          break;
+        }
+      } catch (e) {
+        // Table doesn't exist, try next
+      }
+    }
 
-    // Fetch stktemplate table
-    const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: farmName,
-        table: "stktemplate",
-        limit: 100,
-      }),
-    });
-    const templatesData = await templatesRes.json();
-    config.templates = (templatesData.rows || []).map((r: { template_id: number; collection_name: string }) => ({
-      template_id: r.template_id,
-      collection: r.collection_name,
-    }));
+    // Try multiple possible table names for collections
+    const collectionTableNames = ["collections", "cols", "collection"];
+    
+    for (const tableName of collectionTableNames) {
+      try {
+        const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: tableName,
+            limit: 500,
+          }),
+        });
+        const collectionsData = await collectionsRes.json();
+        console.log(`Collections table "${tableName}" result:`, collectionsData);
+        
+        if (collectionsData.rows && collectionsData.rows.length > 0) {
+          config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
+            collection: (r.collection_name || r.collection || r.name || "") as string,
+            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
+          }));
+          break;
+        }
+      } catch (e) {
+        // Table doesn't exist, try next
+      }
+    }
 
   } catch (error) {
     console.error("Error fetching farm stakable config:", error);
@@ -717,75 +793,17 @@ export interface PendingReward {
 
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
   try {
-    // Try the rewards table with farm as scope
-    const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: farmName,
-        table: "rewards",
-        lower_bound: account,
-        upper_bound: account,
-        limit: 1,
-      }),
-    });
-    const data = await response.json();
-    console.log("Rewards table result (scope=farmName):", data);
-    
-    if (data.rows && data.rows.length > 0) {
-      const row = data.rows[0];
-      const balances = row.balances || row.claimable || [];
-      return balances.map((b: string) => {
-        const parts = b.split(" ");
-        const amount = parseFloat(parts[0]) || 0;
-        const symbol = parts[1] || "";
-        const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
-        return { symbol, amount, precision };
-      });
-    }
-    
-    // Fallback: Try with user as scope
-    const userScopeResponse = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: account,
-        table: "rewards",
-        lower_bound: farmName,
-        upper_bound: farmName,
-        limit: 1,
-      }),
-    });
-    const userScopeData = await userScopeResponse.json();
-    console.log("Rewards table result (scope=account):", userScopeData);
-    
-    if (userScopeData.rows && userScopeData.rows.length > 0) {
-      const row = userScopeData.rows[0];
-      const balances = row.balances || row.claimable || [];
-      return balances.map((b: string) => {
-        const parts = b.split(" ");
-        const amount = parseFloat(parts[0]) || 0;
-        const symbol = parts[1] || "";
-        const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
-        return { symbol, amount, precision };
-      });
-    }
-    
-    // Final fallback: Check stakers table for claimable rewards
+    // Try the stakers table first - rewards are often stored with stake info
     const stakersResponse = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         json: true,
         code: FARM_CONTRACT,
-        scope: account,
+        scope: farmName,
         table: "stakers",
-        lower_bound: farmName,
-        upper_bound: farmName,
+        lower_bound: account,
+        upper_bound: account,
         limit: 1,
       }),
     });
@@ -794,9 +812,10 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
     
     if (stakersData.rows && stakersData.rows.length > 0) {
       const row = stakersData.rows[0];
-      const claimable = row.claimable || row.balances || [];
-      if (Array.isArray(claimable)) {
-        return claimable.map((b: string) => {
+      // Check for claimable or pending rewards fields
+      const balances = row.claimable || row.pending || row.rewards || row.balances || [];
+      if (Array.isArray(balances) && balances.length > 0) {
+        return balances.map((b: string) => {
           const parts = b.split(" ");
           const amount = parseFloat(parts[0]) || 0;
           const symbol = parts[1] || "";
@@ -813,22 +832,13 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
   }
 }
 
-// Validate farm name format (12 chars, a-z, 1-5, periods)
-export function validateFarmName(name: string): { valid: boolean; error?: string } {
-  if (!name) {
-    return { valid: false, error: "Farm name is required" };
-  }
-  if (name.length > 12) {
-    return { valid: false, error: "Farm name must be 12 characters or less" };
-  }
-  if (!/^[a-z1-5.]+$/.test(name)) {
-    return { valid: false, error: "Farm name can only contain a-z, 1-5, and periods" };
-  }
-  if (name.startsWith(".") || name.endsWith(".")) {
-    return { valid: false, error: "Farm name cannot start or end with a period" };
-  }
-  if (name.includes("..")) {
-    return { valid: false, error: "Farm name cannot contain consecutive periods" };
-  }
-  return { valid: true };
+// Update the NFTStaking component to use the new interfaces
+export function getCollectionNames(config: FarmStakableConfig): string[] {
+  const collections = new Set<string>();
+  
+  config.collections.forEach(c => collections.add(c.collection));
+  config.schemas.forEach(s => collections.add(s.collection));
+  config.templates.forEach(t => collections.add(t.collection));
+  
+  return Array.from(collections);
 }

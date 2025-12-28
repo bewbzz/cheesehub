@@ -110,7 +110,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       
       // Get all unique collections from config
       const collectionsToFetch = new Set<string>();
-      stakableConfig.collections.forEach(c => collectionsToFetch.add(c));
+      stakableConfig.collections.forEach(c => collectionsToFetch.add(c.collection));
       stakableConfig.schemas.forEach(s => collectionsToFetch.add(s.collection));
       stakableConfig.templates.forEach(t => collectionsToFetch.add(t.collection));
       
@@ -138,7 +138,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               let isEligible = false;
               
               // Check collections
-              if (stakableConfig.collections.includes(assetCollection)) {
+              if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
                 isEligible = true;
               }
               
@@ -382,48 +382,63 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           <CardContent className="space-y-3">
             {stakableConfig.templates.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Template IDs:</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="text-xs text-muted-foreground mb-2">Template IDs & Hourly Rewards:</p>
+                <div className="space-y-2">
                   {stakableConfig.templates.map((t, i) => (
-                    <Badge 
+                    <div 
                       key={i} 
-                      variant="outline" 
-                      className="bg-primary/10 text-primary border-primary/20 font-mono"
+                      className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20"
                     >
-                      #{t.template_id}
-                    </Badge>
+                      <span className="font-mono text-primary">#{t.template_id}</span>
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-cheese/10 text-cheese border-cheese/20"
+                      >
+                        {t.hourly_rate}/hr
+                      </Badge>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
             {stakableConfig.schemas.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Schemas:</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="text-xs text-muted-foreground mb-2">Schemas & Hourly Rewards:</p>
+                <div className="space-y-2">
                   {stakableConfig.schemas.map((s, i) => (
-                    <Badge 
+                    <div 
                       key={i} 
-                      variant="outline" 
-                      className="bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      className="flex items-center justify-between p-2 rounded-lg bg-blue-500/5 border border-blue-500/20"
                     >
-                      {s.collection} / {s.schema}
-                    </Badge>
+                      <span className="text-blue-400">{s.collection} / {s.schema}</span>
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-cheese/10 text-cheese border-cheese/20"
+                      >
+                        {s.hourly_rate}/hr
+                      </Badge>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
             {stakableConfig.collections.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Collections:</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="text-xs text-muted-foreground mb-2">Collections & Hourly Rewards:</p>
+                <div className="space-y-2">
                   {stakableConfig.collections.map((c, i) => (
-                    <Badge 
+                    <div 
                       key={i} 
-                      variant="outline" 
-                      className="bg-green-500/10 text-green-400 border-green-500/20"
+                      className="flex items-center justify-between p-2 rounded-lg bg-green-500/5 border border-green-500/20"
                     >
-                      {c}
-                    </Badge>
+                      <span className="text-green-400">{c.collection}</span>
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-cheese/10 text-cheese border-cheese/20"
+                      >
+                        {c.hourly_rate}/hr
+                      </Badge>
+                    </div>
                   ))}
                 </div>
               </div>

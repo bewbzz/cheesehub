@@ -154,70 +154,7 @@ export function FarmDetail() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">NFTs Staked</p>
-                <p className="text-2xl font-bold">{farm.staked_count.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-cheese/10">
-                <Coins className="h-5 w-5 text-cheese" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Reward Tokens</p>
-                <p className="text-2xl font-bold">{farm.reward_pools.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Clock className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Payout Interval</p>
-                <p className="text-2xl font-bold">{formatPayoutInterval(farm.payout_interval)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isExpired ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
-                <Calendar className={`h-5 w-5 ${isExpired ? 'text-red-400' : 'text-green-400'}`} />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {isExpired ? "Expired" : "Days Left"}
-                </p>
-                <p className="text-2xl font-bold">
-                  {isExpired ? expirationDate.toLocaleDateString() : daysRemaining}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Details */}
+      {/* Farm Info & Reward Pools */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Farm Info */}
         <Card className="border-border/50 bg-card/50">
@@ -289,6 +226,69 @@ export function FarmDetail() {
                 No reward pools configured yet.
               </p>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border/50 bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">NFTs Staked</p>
+                <p className="text-2xl font-bold">{farm.staked_count.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-cheese/10">
+                <Coins className="h-5 w-5 text-cheese" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Reward Tokens</p>
+                <p className="text-2xl font-bold">{farm.reward_pools.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Clock className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Payout Interval</p>
+                <p className="text-2xl font-bold">{formatPayoutInterval(farm.payout_interval)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${isExpired ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+                <Calendar className={`h-5 w-5 ${isExpired ? 'text-red-400' : 'text-green-400'}`} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {isExpired ? "Expired" : "Days Left"}
+                </p>
+                <p className="text-2xl font-bold">
+                  {isExpired ? expirationDate.toLocaleDateString() : daysRemaining}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

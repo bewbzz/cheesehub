@@ -681,6 +681,32 @@ export interface FarmStakableConfig {
   attributes: StakableAttribute[];
 }
 
+// Helper to fetch collection names for template IDs from AtomicHub
+async function fetchTemplateCollections(templateIds: number[]): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (templateIds.length === 0) return map;
+
+  try {
+    const ids = templateIds.join(",");
+    const response = await fetch(`https://wax.api.atomicassets.io/atomicassets/v1/templates?ids=${ids}&limit=100`);
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      for (const template of data.data) {
+        const templateId = parseInt(template.template_id);
+        const collection = template.collection?.collection_name || "";
+        if (collection) {
+          map.set(templateId, collection);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching template collections from AtomicHub:", error);
+  }
+  
+  return map;
+}
+
 export async function fetchFarmStakableConfig(farmName: string): Promise<FarmStakableConfig> {
   const config: FarmStakableConfig = {
     collections: [],
@@ -713,11 +739,26 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       console.log(`[Farm ${farmName}] valuesbytemp:`, templatesData);
       
       if (templatesData.rows && templatesData.rows.length > 0) {
-        config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
+        const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => ({
           template_id: Number(r.template_id || r.templateid || r.id || 0),
           collection: String(r.collection_name || r.collection || ""),
           hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0"),
         }));
+        
+        // For templates missing collection, fetch from AtomicHub
+        const missingCollectionIds = rawTemplates
+          .filter((t: StakableTemplate) => !t.collection)
+          .map((t: StakableTemplate) => t.template_id);
+        
+        if (missingCollectionIds.length > 0) {
+          const collectionMap = await fetchTemplateCollections(missingCollectionIds);
+          config.templates = rawTemplates.map((t: StakableTemplate) => ({
+            ...t,
+            collection: t.collection || collectionMap.get(t.template_id) || "",
+          }));
+        } else {
+          config.templates = rawTemplates;
+        }
       }
     } catch (e) {
       console.log(`[Farm ${farmName}] No valuesbytemp table`);

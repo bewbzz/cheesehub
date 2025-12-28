@@ -370,139 +370,110 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   return (
     <div className="space-y-4">
-      {/* Stakeable Config Info - shows what NFTs can be staked based on farm type */}
+      {/* Staking Requirements - compact info card */}
       <Card className="border-border/50 bg-card/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Package className="h-5 w-5 text-primary" />
-            Stakeable NFTs
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <Package className="h-4 w-4 text-muted-foreground" />
+            Staking Requirements
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            {farm.farm_type === 1 && "This farm accepts any NFT from specific collections"}
-            {farm.farm_type === 2 && "This farm accepts NFTs from specific schemas"}
-            {farm.farm_type === 3 && "This farm accepts specific template IDs only"}
-            {farm.farm_type === 4 && "This farm accepts NFTs with specific attributes"}
-          </p>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="px-4 pb-3 pt-0">
           {/* Template-based farms */}
           {stakableConfig && stakableConfig.templates.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Template IDs & Hourly Rewards:</p>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Templates: </span>
+              <span className="text-foreground">
                 {stakableConfig.templates.map((t, i) => (
-                  <a 
-                    key={i}
-                    href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors"
-                  >
-                    <span className="font-mono text-primary">#{t.template_id}</span>
+                  <span key={i}>
+                    <a 
+                      href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-mono"
+                    >
+                      #{t.template_id}
+                    </a>
                     {t.hourly_rate && t.hourly_rate !== "0" && (
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-cheese/10 text-cheese border-cheese/20"
-                      >
-                        {t.hourly_rate}/hr
-                      </Badge>
+                      <span className="text-cheese ml-1">({t.hourly_rate}/hr)</span>
                     )}
-                  </a>
+                    {i < stakableConfig.templates.length - 1 && <span className="mx-1">•</span>}
+                  </span>
                 ))}
-              </div>
+              </span>
             </div>
           )}
           
           {/* Schema-based farms */}
           {stakableConfig && stakableConfig.schemas.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Schemas & Hourly Rewards:</p>
-              <div className="space-y-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Schemas: </span>
+              <span className="text-foreground">
                 {stakableConfig.schemas.map((s, i) => (
-                  <div 
-                    key={i} 
-                    className="flex items-center justify-between p-2 rounded-lg bg-blue-500/5 border border-blue-500/20"
-                  >
-                    <span className="text-blue-400">{s.collection} / {s.schema}</span>
+                  <span key={i}>
+                    <span className="text-primary">{s.collection}/{s.schema}</span>
                     {s.hourly_rate && s.hourly_rate !== "0" && (
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-cheese/10 text-cheese border-cheese/20"
-                      >
-                        {s.hourly_rate}/hr
-                      </Badge>
+                      <span className="text-cheese ml-1">({s.hourly_rate}/hr)</span>
                     )}
-                  </div>
+                    {i < stakableConfig.schemas.length - 1 && <span className="mx-1">•</span>}
+                  </span>
                 ))}
-              </div>
+              </span>
             </div>
           )}
           
           {/* Collection-based farms */}
           {stakableConfig && stakableConfig.collections.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Collections & Hourly Rewards:</p>
-              <div className="space-y-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Collections: </span>
+              <span className="text-foreground">
                 {stakableConfig.collections.map((c, i) => (
-                  <a 
-                    key={i}
-                    href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-2 rounded-lg bg-green-500/5 border border-green-500/20 hover:bg-green-500/10 transition-colors"
-                  >
-                    <span className="text-green-400">{c.collection}</span>
+                  <span key={i}>
+                    <a 
+                      href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {c.collection}
+                    </a>
                     {c.hourly_rate && c.hourly_rate !== "0" && (
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-cheese/10 text-cheese border-cheese/20"
-                      >
-                        {c.hourly_rate}/hr
-                      </Badge>
+                      <span className="text-cheese ml-1">({c.hourly_rate}/hr)</span>
                     )}
-                  </a>
+                    {i < stakableConfig.collections.length - 1 && <span className="mx-1">•</span>}
+                  </span>
                 ))}
-              </div>
+              </span>
             </div>
           )}
           
           {/* Attribute-based farms */}
           {stakableConfig && stakableConfig.attributes && stakableConfig.attributes.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Attributes & Hourly Rewards:</p>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Attributes: </span>
+              <span className="text-foreground">
                 {stakableConfig.attributes.map((a, i) => (
-                  <div 
-                    key={i} 
-                    className="flex items-center justify-between p-2 rounded-lg bg-purple-500/5 border border-purple-500/20"
-                  >
-                    <span className="text-purple-400">{a.attribute_name}: {a.attribute_value}</span>
+                  <span key={i}>
+                    <span className="text-primary">{a.attribute_name}={a.attribute_value}</span>
                     {a.hourly_rate && a.hourly_rate !== "0" && (
-                      <Badge 
-                        variant="secondary" 
-                        className="bg-cheese/10 text-cheese border-cheese/20"
-                      >
-                        {a.hourly_rate}/hr
-                      </Badge>
+                      <span className="text-cheese ml-1">({a.hourly_rate}/hr)</span>
                     )}
-                  </div>
+                    {i < stakableConfig.attributes.length - 1 && <span className="mx-1">•</span>}
+                  </span>
                 ))}
-              </div>
+              </span>
             </div>
           )}
 
-          {/* No config found - show farm type description */}
+          {/* No config found */}
           {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0 && (!stakableConfig.attributes || stakableConfig.attributes.length === 0))) && (
-            <div className="text-center py-4">
-              <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {farm.farm_type === 1 && "Collection-based staking - check the farm's allowed collections"}
-                {farm.farm_type === 2 && "Schema-based staking - specific schemas are eligible"}
-                {farm.farm_type === 3 && "Template-based staking - only specific template IDs qualify"}
-                {farm.farm_type === 4 && "Attribute-based staking - NFTs with matching attributes are eligible"}
-                {!farm.farm_type && "Unable to determine stakeable NFT requirements"}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {farm.farm_type === 1 && "Collection-based staking"}
+              {farm.farm_type === 2 && "Schema-based staking"}
+              {farm.farm_type === 3 && "Template-based staking"}
+              {farm.farm_type === 4 && "Attribute-based staking"}
+              {!farm.farm_type && "Loading requirements..."}
+            </p>
           )}
         </CardContent>
       </Card>

@@ -276,9 +276,9 @@ export function CheeseHistorySection() {
     <section className="py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* About CHEESE Text */}
-        <div className="space-y-4">
+        <div className="space-y-4 text-foreground leading-relaxed">
           <h3 className="text-xl font-semibold text-primary text-center">History</h3>
-          <p className="text-muted-foreground leading-relaxed">
+          <p>
             We want to share a few details about the CHEESE Token on the WAX blockchain. CHEESE is a 
             memecoin that was launched on the WAX blockchain on July 7, 2019 (Block 2156575) as a fun project.
           </p>
@@ -290,7 +290,7 @@ export function CheeseHistorySection() {
           <p>
             CHEESE represents the delightful enjoyment of cheese, which we firmly believe is an essential 
             topping for every hamburger. CHEESE is flavor, CHEESE is joy. While there are hundreds of tokens 
-            on the WAX blockchain, CHEESE has a unique distinction: it is the <strong className="text-foreground">first token</strong> created after the 
+            on the WAX blockchain, CHEESE has a unique distinction: it is the <strong>first token</strong> created after the 
             chain's native token, WAX, right after the WAX mainnet launch.
           </p>
           <p>
@@ -302,9 +302,9 @@ export function CheeseHistorySection() {
         </div>
 
         {/* Verify the History */}
-        <div className="space-y-4">
+        <div className="space-y-4 text-foreground">
           <h3 className="text-xl font-semibold text-primary text-center">Verify the History</h3>
-          <p className="text-muted-foreground text-center">
+          <p className="text-center">
             To prove CHEESE was the first token created on WAX (besides WAX itself, which was deployed on 
             June 24, 2019), use the following verification command:
           </p>
@@ -316,7 +316,7 @@ export function CheeseHistorySection() {
             </code>
           </Card>
 
-          <p className="text-muted-foreground text-center">
+          <p className="text-center">
             The JSON output will provide the evidence.
           </p>
 

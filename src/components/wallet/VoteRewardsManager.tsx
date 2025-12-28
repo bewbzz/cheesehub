@@ -281,7 +281,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       const rewardAmount = estimatedRewards > 0 ? estimatedRewards.toFixed(8) : '0';
       onTransactionSuccess?.(
         'Vote Rewards Claimed!', 
-        `Claimed approximately ${rewardAmount} WAX in voting rewards. Rewards are automatically staked to your CPU.`, 
+        `Claimed approximately ${rewardAmount} WAX in voting rewards.`, 
         txId
       );
       
@@ -420,7 +420,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
-            Voting rewards are automatically staked to your CPU.
+            Voting rewards are added to your liquid WAX balance.
           </p>
         </>
       )}

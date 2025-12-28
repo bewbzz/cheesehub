@@ -562,7 +562,42 @@ export async function fetchUserStakes(
   farmName: string
 ): Promise<UserStake[]> {
   try {
-    const response = await fetch(
+    // Query stakers table with farm name as scope and user as key
+    const stakersResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakers",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 1,
+        }),
+      }
+    );
+    
+    const stakersData = await stakersResponse.json();
+    console.log("Stakers table result (scope=farmName, key=account):", stakersData);
+    
+    if (stakersData.rows && stakersData.rows.length > 0) {
+      const row = stakersData.rows[0];
+      // Assets can be stored as asset_ids, assets, or staked_assets
+      const assetIds = row.asset_ids || row.assets || row.staked_assets || [];
+      console.log("Found staked assets:", assetIds);
+      return assetIds.map((assetId: string | number) => ({
+        asset_id: String(assetId),
+        staker: account,
+        farm_name: farmName,
+        last_claim: (row.last_claim as number) || 0,
+      }));
+    }
+    
+    // Fallback: Try stakes table with secondary index on staker
+    const stakesResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
         method: "POST",
@@ -576,18 +611,24 @@ export async function fetchUserStakes(
           key_type: "name",
           lower_bound: account,
           upper_bound: account,
-          limit: 100,
+          limit: 500,
         }),
       }
     );
 
-    const data = await response.json();
-    return (data.rows || []).map((row: Record<string, unknown>) => ({
-      asset_id: row.asset_id as string || "",
-      staker: row.staker as string || "",
-      farm_name: farmName,
-      last_claim: row.last_claim as number || 0,
-    }));
+    const stakesData = await stakesResponse.json();
+    console.log("Stakes table result:", stakesData);
+    
+    if (stakesData.rows && stakesData.rows.length > 0) {
+      return stakesData.rows.map((row: Record<string, unknown>) => ({
+        asset_id: String(row.asset_id || ""),
+        staker: String(row.staker || account),
+        farm_name: farmName,
+        last_claim: (row.last_claim as number) || 0,
+      }));
+    }
+    
+    return [];
   } catch (error) {
     console.error("Error fetching user stakes:", error);
     return [];
@@ -676,6 +717,7 @@ export interface PendingReward {
 
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
   try {
+    // Try the rewards table with farm as scope
     const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -690,10 +732,11 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
       }),
     });
     const data = await response.json();
+    console.log("Rewards table result (scope=farmName):", data);
     
     if (data.rows && data.rows.length > 0) {
       const row = data.rows[0];
-      const balances = row.balances || [];
+      const balances = row.balances || row.claimable || [];
       return balances.map((b: string) => {
         const parts = b.split(" ");
         const amount = parseFloat(parts[0]) || 0;
@@ -702,6 +745,67 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
         return { symbol, amount, precision };
       });
     }
+    
+    // Fallback: Try with user as scope
+    const userScopeResponse = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: account,
+        table: "rewards",
+        lower_bound: farmName,
+        upper_bound: farmName,
+        limit: 1,
+      }),
+    });
+    const userScopeData = await userScopeResponse.json();
+    console.log("Rewards table result (scope=account):", userScopeData);
+    
+    if (userScopeData.rows && userScopeData.rows.length > 0) {
+      const row = userScopeData.rows[0];
+      const balances = row.balances || row.claimable || [];
+      return balances.map((b: string) => {
+        const parts = b.split(" ");
+        const amount = parseFloat(parts[0]) || 0;
+        const symbol = parts[1] || "";
+        const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
+        return { symbol, amount, precision };
+      });
+    }
+    
+    // Final fallback: Check stakers table for claimable rewards
+    const stakersResponse = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: account,
+        table: "stakers",
+        lower_bound: farmName,
+        upper_bound: farmName,
+        limit: 1,
+      }),
+    });
+    const stakersData = await stakersResponse.json();
+    console.log("Stakers table for rewards:", stakersData);
+    
+    if (stakersData.rows && stakersData.rows.length > 0) {
+      const row = stakersData.rows[0];
+      const claimable = row.claimable || row.balances || [];
+      if (Array.isArray(claimable)) {
+        return claimable.map((b: string) => {
+          const parts = b.split(" ");
+          const amount = parseFloat(parts[0]) || 0;
+          const symbol = parts[1] || "";
+          const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
+          return { symbol, amount, precision };
+        });
+      }
+    }
+    
     return [];
   } catch (error) {
     console.error("Error fetching pending rewards:", error);

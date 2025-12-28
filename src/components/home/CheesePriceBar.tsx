@@ -46,7 +46,7 @@ export function CheesePriceBar() {
     <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
       {/* CHEESE/WAX Price */}
       <a
-        href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
+        href="https://alcor.exchange/swap?output=CHEESE-cheeseburger"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
@@ -67,7 +67,7 @@ export function CheesePriceBar() {
 
       {/* CHEESE/USD Price */}
       <a
-        href="https://wax.alcor.exchange/trade/cheese-cheeseburger_wax-eosio.token"
+        href="https://wax.alcor.exchange/swap?output=WAXUSDC-eth.token"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"

@@ -265,22 +265,20 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
               {filteredProducers.map((producer, index) => (
                 <div
                   key={producer.owner}
-                  className="flex items-center gap-3 p-2 hover:bg-muted/50 cursor-pointer"
+                  className="flex items-center gap-2 p-2 hover:bg-muted/50 cursor-pointer text-xs"
                   onClick={() => handleProducerToggle(producer.owner)}
                 >
                   <Checkbox
                     checked={selectedProducers.includes(producer.owner)}
                     onCheckedChange={() => handleProducerToggle(producer.owner)}
+                    className="h-3.5 w-3.5"
                   />
-                  <span className="text-muted-foreground w-6 text-sm">{index + 1}</span>
-                  <span className="font-medium flex-1 text-sm text-primary hover:underline">
+                  <span className="text-muted-foreground w-5 text-center">{index + 1}</span>
+                  <span className="font-medium flex-1 text-primary truncate">
                     {producer.owner}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground w-16 text-right">
                     {formatVotePercentage(producer.total_votes, totalVoteWeight)}
-                  </span>
-                  <span className="text-xs text-muted-foreground w-20 text-right">
-                    {formatVotes(producer.total_votes)}
                   </span>
                 </div>
               ))}

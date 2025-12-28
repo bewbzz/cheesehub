@@ -21,10 +21,11 @@ import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';
 import { StakeManager } from '@/components/wallet/StakeManager';
+import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
@@ -33,7 +34,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'send' | 'stake' | 'ram' | 'rewards';
+type WalletSection = 'send' | 'stake' | 'ram' | 'vote' | 'rewards';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -44,6 +45,7 @@ const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] =
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
+  { id: 'vote', label: 'Vote', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
 ];
 
@@ -374,6 +376,14 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {activeSection === 'ram' && (
                 <RamManager 
                   resources={resources} 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Vote Section */}
+              {activeSection === 'vote' && (
+                <VoteManager 
                   onTransactionComplete={handleTransactionComplete}
                   onTransactionSuccess={showSuccessDialog}
                 />

@@ -436,20 +436,20 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                 filteredProxies.map((proxy, index) => (
                   <label
                     key={proxy.owner}
-                    className={`flex items-center gap-2 p-2 cursor-pointer text-xs select-none transition-colors ${
+                    className={`flex items-center gap-1 p-2 cursor-pointer text-xs select-none transition-colors ${
                       selectedProxy === proxy.owner ? 'bg-cheese/10 hover:bg-cheese/20' : 'hover:bg-muted/50'
                     }`}
                     onClick={() => handleProxySelect(proxy.owner)}
                   >
                     <Checkbox
                       checked={selectedProxy === proxy.owner}
-                      className="h-4 w-4 pointer-events-none"
+                      className="h-3 w-3 pointer-events-none flex-shrink-0"
                     />
-                    <span className="text-muted-foreground w-5 text-center">{index + 1}</span>
-                    <span className="font-medium flex-1 text-primary truncate">
+                    <span className="text-muted-foreground w-4 text-center flex-shrink-0">{index + 1}</span>
+                    <span className="font-medium flex-1 text-primary truncate min-w-0">
                       {proxy.owner}
                     </span>
-                    <span className="text-muted-foreground w-16 text-right">
+                    <span className="text-muted-foreground text-right flex-shrink-0">
                       {formatVotes(proxy.proxied_vote_weight || '0')}
                     </span>
                   </label>

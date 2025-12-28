@@ -1,17 +1,14 @@
-import { Header } from "@/components/Header";
+import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrowseDaos } from "@/components/dao/BrowseDaos";
 import { CreateDao } from "@/components/dao/CreateDao";
 import { MyDaos } from "@/components/dao/MyDaos";
 import { Users, Plus, User } from "lucide-react";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export default function Dao() {
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <Header />
+    <Layout>
       
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
@@ -83,6 +80,6 @@ export default function Dao() {
           </p>
         </div>
       </section>
-    </div>
+    </Layout>
   );
 }

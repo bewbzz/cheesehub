@@ -1,18 +1,15 @@
-import { Header } from "@/components/Header";
+import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLock } from "@/components/locker/CreateLock";
 import { MyLocks } from "@/components/locker/MyLocks";
 import { CreateLiquidityLock } from "@/components/locker/CreateLiquidityLock";
 import { MyLiquidityLocks } from "@/components/locker/MyLiquidityLocks";
 import { Lock, List, Coins, Droplets } from "lucide-react";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export default function Locker() {
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <Header />
+    <Layout>
       
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
@@ -122,6 +119,6 @@ export default function Locker() {
           </p>
         </div>
       </main>
-    </div>
+    </Layout>
   );
 }

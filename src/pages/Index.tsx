@@ -1,17 +1,15 @@
-import { Header } from "@/components/Header";
+import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import cheeseCoin from "@/assets/cheese-coin.png";
-import { BackgroundDecorations } from "@/components/drops/BackgroundDecorations";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 import { CheesePriceBar } from "@/components/home/CheesePriceBar";
+
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundDecorations />
-      <Header />
+    <Layout>
       
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -160,14 +158,7 @@ const Index = () => {
           </Card>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="container text-center text-sm text-muted-foreground">
-          <p><span className="text-cheese">CHEESE</span><span className="text-foreground">Hub</span> • Built on WAX • Powered by $CHEESE, WaxDAO and NFTHive Smart Contracts</p>
-        </div>
-      </footer>
-    </div>
+    </Layout>
   );
 };
 

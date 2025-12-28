@@ -112,7 +112,7 @@ export async function transact(
   throw new Error("Invalid session");
 }
 
-// Fetch table data from WAX blockchain
+// Fetch table data from WAX blockchain with fallback endpoints and timeout
 export async function fetchTable<T>(
   code: string,
   scope: string,
@@ -125,25 +125,52 @@ export async function fetchTable<T>(
     index_position?: number;
   } = {}
 ): Promise<T[]> {
-  // Use eosphere endpoint which has better CORS support for browser requests
-  const response = await fetch(`https://wax.eosphere.io/v1/chain/get_table_rows`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      json: true,
-      code,
-      scope,
-      table,
-      lower_bound: options.lower_bound || "",
-      upper_bound: options.upper_bound || "",
-      limit: options.limit || 100,
-      key_type: options.key_type || "",
-      index_position: options.index_position || 1,
-    }),
+  const endpoints = [
+    'https://api.wax.alohaeos.com',
+    'https://wax.greymass.com',
+    'https://wax.eosphere.io',
+    'https://api.waxsweden.org',
+  ];
+
+  const body = JSON.stringify({
+    json: true,
+    code,
+    scope,
+    table,
+    lower_bound: options.lower_bound || "",
+    upper_bound: options.upper_bound || "",
+    limit: options.limit || 100,
+    key_type: options.key_type || "",
+    index_position: options.index_position || 1,
   });
 
-  const data = await response.json();
-  return data.rows as T[];
+  for (const endpoint of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.rows as T[];
+    } catch (error) {
+      console.warn(`fetchTable failed for ${endpoint}:`, error);
+      continue;
+    }
+  }
+
+  throw new Error('All RPC endpoints failed');
 }
 
 // Get user's token balances

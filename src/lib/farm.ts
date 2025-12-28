@@ -626,8 +626,8 @@ export async function fetchUserStakes(
       }
     }
     
-    // Fallback: Query all from stakednfts with contract scope and filter client-side
-    const allStakednftsResponse = await fetch(
+    // Query by owner secondary index (index 2) - gets ALL user's staked NFTs across all farms
+    const userStakednftsResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
         method: "POST",
@@ -635,37 +635,32 @@ export async function fetchUserStakes(
         body: JSON.stringify({
           json: true,
           code: FARM_CONTRACT,
-          scope: FARM_CONTRACT, // Contract scope
+          scope: FARM_CONTRACT,
           table: "stakednfts",
-          limit: 1000,
+          index_position: 2, // owner index
+          key_type: "name",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 500,
         }),
       }
     );
     
-    const allStakednftsData = await allStakednftsResponse.json();
-    console.log("All stakednfts (contract scope) sample:", allStakednftsData.rows?.slice(0, 3));
+    const userStakednftsData = await userStakednftsResponse.json();
+    console.log("User's ALL staked NFTs (owner index):", userStakednftsData);
     
-    if (allStakednftsData.rows && allStakednftsData.rows.length > 0) {
-      // Log full structure of first row to see actual field names
-      console.log("First stakednfts row FULL structure:", JSON.stringify(allStakednftsData.rows[0]));
-      
-      // Filter by both user AND farm name
-      const userFarmRows = allStakednftsData.rows.filter((row: Record<string, unknown>) => {
-        const rowUser = row.user || row.staker || row.owner || row.wallet || "";
+    if (userStakednftsData.rows && userStakednftsData.rows.length > 0) {
+      // Filter by farm name since we got all user's NFTs across all farms
+      const farmRows = userStakednftsData.rows.filter((row: Record<string, unknown>) => {
         const rowFarm = row.farmname || row.farm_name || row.farm || "";
-        const isUserMatch = rowUser === account;
-        const isFarmMatch = rowFarm === farmName;
-        // Log the first few to debug
-        if (allStakednftsData.rows.indexOf(row) < 3) {
-          console.log(`Row ${row.asset_id}: user field="${rowUser}", farm field="${rowFarm}", match user=${isUserMatch}, match farm=${isFarmMatch}`);
-        }
-        return isUserMatch && isFarmMatch;
+        console.log(`User NFT ${row.asset_id}: staked in farm "${rowFarm}", looking for "${farmName}"`);
+        return rowFarm === farmName;
       });
       
-      console.log("Found staked NFTs for user in farm (fallback):", userFarmRows.length);
+      console.log(`Found ${farmRows.length} NFTs staked by ${account} in farm ${farmName}`);
       
-      if (userFarmRows.length > 0) {
-        return userFarmRows.map((row: Record<string, unknown>) => ({
+      if (farmRows.length > 0) {
+        return farmRows.map((row: Record<string, unknown>) => ({
           asset_id: String(row.asset_id),
           staker: account,
           farm_name: farmName,

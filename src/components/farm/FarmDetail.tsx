@@ -19,6 +19,7 @@ import {
   Check
 } from "lucide-react";
 import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
+import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
 
@@ -211,9 +212,19 @@ export function FarmDetail() {
                     key={index}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
                   >
-                    <div>
-                      <p className="font-medium">{pool.symbol}</p>
-                      <p className="text-xs text-muted-foreground">{pool.contract}</p>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={getTokenLogoUrl(pool.contract, pool.symbol)}
+                        alt={pool.symbol}
+                        className="h-8 w-8 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                        }}
+                      />
+                      <div>
+                        <p className="font-medium">{pool.symbol}</p>
+                        <p className="text-xs text-muted-foreground">{pool.contract}</p>
+                      </div>
                     </div>
                     <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
                       {formatRewardPool(pool)}

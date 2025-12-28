@@ -99,11 +99,14 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     staleTime: 30000,
   });
 
-  // Fetch user's eligible NFTs for staking
+  // Fetch user's eligible NFTs for staking (excludes already staked NFTs)
   const { data: eligibleNfts = [], isLoading: isLoadingEligible, refetch: refetchEligible } = useQuery({
-    queryKey: ["eligibleNfts", accountName, farm.farm_name, stakableConfig],
+    queryKey: ["eligibleNfts", accountName, farm.farm_name, stakableConfig, stakedNfts],
     queryFn: async () => {
       if (!accountName || !stakableConfig) return [];
+      
+      // Get set of already staked asset IDs to exclude
+      const stakedAssetIds = new Set(stakedNfts.map(s => s.asset_id));
       
       const assets: NFTAsset[] = [];
       const seenIds = new Set<string>();
@@ -129,6 +132,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           if (json.success && json.data) {
             for (const asset of json.data) {
               if (seenIds.has(asset.asset_id)) continue;
+              
+              // Skip NFTs that are already staked (V2 non-custodial - they stay in wallet)
+              if (stakedAssetIds.has(asset.asset_id)) continue;
               
               const assetCollection = asset.collection?.collection_name || "";
               const assetSchema = asset.schema?.schema_name || "";

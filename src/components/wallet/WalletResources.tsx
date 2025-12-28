@@ -17,6 +17,12 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatCpu(us: number): string {
+  if (us < 1000) return `${us} µs`;
+  if (us < 1000000) return `${(us / 1000).toFixed(2)} ms`;
+  return `${(us / 1000000).toFixed(2)} s`;
+}
+
 function parseWaxBalance(balance: string | undefined): number {
   if (!balance) return 0;
   return parseFloat(balance.replace(' WAX', '')) || 0;
@@ -140,6 +146,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
               </span>
             </div>
             <div className="text-muted-foreground">CPU</div>
+            <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
           </div>
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -161,6 +168,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
               </span>
             </div>
             <div className="text-muted-foreground">NET</div>
+            <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
           </div>
         </div>
       )}

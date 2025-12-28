@@ -92,6 +92,11 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
       ? parseInt(buyAmount) || 0
       : 0;
   
+  // Calculate estimated WAX cost for buying RAM in bytes
+  const estimatedWaxCost = buyMode === 'bytes' && ramPricePerByte && buyAmount
+    ? ((parseInt(buyAmount) || 0) * ramPricePerByte).toFixed(8)
+    : null;
+  
   // Calculate estimated WAX return for selling RAM
   const estimatedWaxReturn = ramPricePerByte && sellBytes
     ? (parseInt(sellBytes) * ramPricePerByte * 0.995).toFixed(8) // 0.5% fee
@@ -241,6 +246,9 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
           />
           {buyMode === 'wax' && buyAmount && (
             <p className="text-xs text-muted-foreground">≈ {formatBytes(estimatedBytes)}</p>
+          )}
+          {buyMode === 'bytes' && buyAmount && estimatedWaxCost && (
+            <p className="text-xs text-muted-foreground">≈ {estimatedWaxCost} WAX</p>
           )}
         </div>
 

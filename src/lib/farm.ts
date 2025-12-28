@@ -347,7 +347,7 @@ export function buildStakeNftsAction(
     authorization: [{ actor: staker, permission: "active" }],
     data: {
       user: staker,
-      farm_name: farmName,
+      farmname: farmName,
       asset_ids: assetIds,
     },
   };

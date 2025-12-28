@@ -276,8 +276,9 @@ export function CheeseHistorySection() {
     <section className="py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* About CHEESE Text */}
-        <div className="space-y-4 text-muted-foreground leading-relaxed">
-          <p>
+        <div className="space-y-4">
+          <h3 className="text-xl font-semibold text-primary text-center">History</h3>
+          <p className="text-muted-foreground leading-relaxed">
             We want to share a few details about the CHEESE Token on the WAX blockchain. CHEESE is a 
             memecoin that was launched on the WAX blockchain on July 7, 2019 (Block 2156575) as a fun project.
           </p>

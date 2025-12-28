@@ -466,8 +466,33 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             </div>
           )}
           
+          {/* Attribute-based farms */}
+          {stakableConfig && stakableConfig.attributes && stakableConfig.attributes.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Attributes & Hourly Rewards:</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {stakableConfig.attributes.map((a, i) => (
+                  <div 
+                    key={i} 
+                    className="flex items-center justify-between p-2 rounded-lg bg-purple-500/5 border border-purple-500/20"
+                  >
+                    <span className="text-purple-400">{a.attribute_name}: {a.attribute_value}</span>
+                    {a.hourly_rate && a.hourly_rate !== "0" && (
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-cheese/10 text-cheese border-cheese/20"
+                      >
+                        {a.hourly_rate}/hr
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* No config found - show farm type description */}
-          {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0)) && (
+          {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0 && (!stakableConfig.attributes || stakableConfig.attributes.length === 0))) && (
             <div className="text-center py-4">
               <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">

@@ -667,11 +667,18 @@ export interface StakableCollection {
   hourly_rate: string;
 }
 
+export interface StakableAttribute {
+  attribute_name: string;
+  attribute_value: string;
+  hourly_rate: string;
+}
+
 // Fetch stakable collections/schemas/templates for a farm
 export interface FarmStakableConfig {
   collections: StakableCollection[];
   schemas: StakableSchema[];
   templates: StakableTemplate[];
+  attributes: StakableAttribute[];
 }
 
 export async function fetchFarmStakableConfig(farmName: string): Promise<FarmStakableConfig> {
@@ -679,139 +686,121 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
     collections: [],
     schemas: [],
     templates: [],
+    attributes: [],
   };
 
   try {
-    // WaxDAO V2 uses specific table names - try the known ones first
-    // Templates: farmtmplates (main), nctemplates, templates
-    const templateTableNames = ["farmtmplates", "nctemplates", "templates", "templ", "tmpls", "template"];
-    
-    for (const tableName of templateTableNames) {
-      try {
-        const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: tableName,
-            limit: 500,
-          }),
-        });
-        const templatesData = await templatesRes.json();
-        console.log(`[Farm ${farmName}] Templates table "${tableName}":`, templatesData);
-        
-        if (templatesData.rows && templatesData.rows.length > 0) {
-          const firstRow = templatesData.rows[0];
-          // Check for template_id field (could be named differently)
-          const templateIdField = 'template_id' in firstRow ? 'template_id' : 
-                                   'templateid' in firstRow ? 'templateid' :
-                                   'id' in firstRow ? 'id' : null;
-          // Check for hourly rate field (various naming conventions)
-          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
-                           'rate' in firstRow ? 'rate' :
-                           'reward_rate' in firstRow ? 'reward_rate' :
-                           'staking_value' in firstRow ? 'staking_value' :
-                           'reward' in firstRow ? 'reward' : null;
-          
-          if (templateIdField) {
-            config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
-              template_id: Number(r[templateIdField]) || 0,
-              collection: (r.collection_name || r.collection || "") as string,
-              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
-            }));
-            console.log(`[Farm ${farmName}] Found ${config.templates.length} templates in "${tableName}"`);
-            break;
-          }
-        }
-      } catch (e) {
-        // Table doesn't exist, try next
+    // WaxDAO V2 uses these specific table names:
+    // valuesbytemp - template rewards
+    // valuesbysch - schema rewards  
+    // valuesbycol - collection rewards
+    // valuesbyatt - attribute rewards
+
+    // Fetch templates from valuesbytemp
+    try {
+      const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "valuesbytemp",
+          limit: 500,
+        }),
+      });
+      const templatesData = await templatesRes.json();
+      console.log(`[Farm ${farmName}] valuesbytemp:`, templatesData);
+      
+      if (templatesData.rows && templatesData.rows.length > 0) {
+        config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
+          template_id: Number(r.template_id || r.templateid || r.id || 0),
+          collection: String(r.collection_name || r.collection || ""),
+          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0"),
+        }));
       }
+    } catch (e) {
+      console.log(`[Farm ${farmName}] No valuesbytemp table`);
     }
 
-    // Schemas: farmschemas, schemas
-    const schemaTableNames = ["farmschemas", "schemas", "schema"];
-    
-    for (const tableName of schemaTableNames) {
-      try {
-        const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: tableName,
-            limit: 500,
-          }),
-        });
-        const schemasData = await schemasRes.json();
-        console.log(`[Farm ${farmName}] Schemas table "${tableName}":`, schemasData);
-        
-        if (schemasData.rows && schemasData.rows.length > 0) {
-          const firstRow = schemasData.rows[0];
-          const schemaField = 'schema_name' in firstRow ? 'schema_name' :
-                             'schema' in firstRow ? 'schema' : null;
-          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
-                           'rate' in firstRow ? 'rate' :
-                           'staking_value' in firstRow ? 'staking_value' : null;
-          
-          if (schemaField) {
-            config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
-              collection: (r.collection_name || r.collection || "") as string,
-              schema: String(r[schemaField] || ""),
-              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
-            }));
-            console.log(`[Farm ${farmName}] Found ${config.schemas.length} schemas in "${tableName}"`);
-            break;
-          }
-        }
-      } catch (e) {
-        // Table doesn't exist, try next
+    // Fetch schemas from valuesbysch
+    try {
+      const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "valuesbysch",
+          limit: 500,
+        }),
+      });
+      const schemasData = await schemasRes.json();
+      console.log(`[Farm ${farmName}] valuesbysch:`, schemasData);
+      
+      if (schemasData.rows && schemasData.rows.length > 0) {
+        config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
+          collection: String(r.collection_name || r.collection || ""),
+          schema: String(r.schema_name || r.schema || ""),
+          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
+        }));
       }
+    } catch (e) {
+      console.log(`[Farm ${farmName}] No valuesbysch table`);
     }
 
-    // Collections: farmcols, collections, cols
-    const collectionTableNames = ["farmcols", "collections", "cols", "collection"];
-    
-    for (const tableName of collectionTableNames) {
-      try {
-        const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: tableName,
-            limit: 500,
-          }),
-        });
-        const collectionsData = await collectionsRes.json();
-        console.log(`[Farm ${farmName}] Collections table "${tableName}":`, collectionsData);
-        
-        if (collectionsData.rows && collectionsData.rows.length > 0) {
-          const firstRow = collectionsData.rows[0];
-          const collectionField = 'collection_name' in firstRow ? 'collection_name' :
-                                  'collection' in firstRow ? 'collection' :
-                                  'name' in firstRow ? 'name' : null;
-          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
-                           'rate' in firstRow ? 'rate' :
-                           'staking_value' in firstRow ? 'staking_value' : null;
-          
-          if (collectionField) {
-            config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
-              collection: String(r[collectionField] || ""),
-              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
-            }));
-            console.log(`[Farm ${farmName}] Found ${config.collections.length} collections in "${tableName}"`);
-            break;
-          }
-        }
-      } catch (e) {
-        // Table doesn't exist, try next
+    // Fetch collections from valuesbycol
+    try {
+      const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "valuesbycol",
+          limit: 500,
+        }),
+      });
+      const collectionsData = await collectionsRes.json();
+      console.log(`[Farm ${farmName}] valuesbycol:`, collectionsData);
+      
+      if (collectionsData.rows && collectionsData.rows.length > 0) {
+        config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
+          collection: String(r.collection_name || r.collection || r.name || ""),
+          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
+        }));
       }
+    } catch (e) {
+      console.log(`[Farm ${farmName}] No valuesbycol table`);
+    }
+
+    // Fetch attributes from valuesbyatt
+    try {
+      const attributesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "valuesbyatt",
+          limit: 500,
+        }),
+      });
+      const attributesData = await attributesRes.json();
+      console.log(`[Farm ${farmName}] valuesbyatt:`, attributesData);
+      
+      if (attributesData.rows && attributesData.rows.length > 0) {
+        config.attributes = attributesData.rows.map((r: Record<string, unknown>) => ({
+          attribute_name: String(r.attribute_name || r.attr_name || r.key || ""),
+          attribute_value: String(r.attribute_value || r.attr_value || r.value || ""),
+          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
+        }));
+      }
+    } catch (e) {
+      console.log(`[Farm ${farmName}] No valuesbyatt table`);
     }
 
   } catch (error) {

@@ -188,11 +188,13 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                 }),
               });
               const data = await response.json();
+              console.log(`Proxy check ${account}:`, data.rows?.[0]?.is_proxy, data.rows?.[0]?.owner);
               if (data.rows && data.rows.length > 0 && data.rows[0].is_proxy === 1) {
                 return data.rows[0] as ProxyVoter;
               }
               return null;
-            } catch {
+            } catch (e) {
+              console.log(`Proxy fetch failed for ${account} at ${endpoint}:`, e);
               continue;
             }
           }
@@ -201,6 +203,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
         
         const proxyResults = await Promise.all(proxyPromises);
         const validProxies = proxyResults.filter((p): p is ProxyVoter => p !== null);
+        console.log('Valid proxies found:', validProxies.map(p => p.owner));
         
         // Sort by proxied vote weight descending
         validProxies.sort((a, b) => 

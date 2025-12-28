@@ -370,82 +370,117 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   return (
     <div className="space-y-4">
-      {/* Stakeable Config Info */}
-      {stakableConfig && (stakableConfig.templates.length > 0 || stakableConfig.collections.length > 0 || stakableConfig.schemas.length > 0) && (
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Package className="h-5 w-5 text-primary" />
-              Stakeable NFTs
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {stakableConfig.templates.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Template IDs & Hourly Rewards:</p>
-                <div className="space-y-2">
-                  {stakableConfig.templates.map((t, i) => (
-                    <div 
-                      key={i} 
-                      className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20"
-                    >
-                      <span className="font-mono text-primary">#{t.template_id}</span>
+      {/* Stakeable Config Info - shows what NFTs can be staked based on farm type */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Package className="h-5 w-5 text-primary" />
+            Stakeable NFTs
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            {farm.farm_type === 1 && "This farm accepts any NFT from specific collections"}
+            {farm.farm_type === 2 && "This farm accepts NFTs from specific schemas"}
+            {farm.farm_type === 3 && "This farm accepts specific template IDs only"}
+            {farm.farm_type === 4 && "This farm accepts NFTs with specific attributes"}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Template-based farms */}
+          {stakableConfig && stakableConfig.templates.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Template IDs & Hourly Rewards:</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {stakableConfig.templates.map((t, i) => (
+                  <a 
+                    key={i}
+                    href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors"
+                  >
+                    <span className="font-mono text-primary">#{t.template_id}</span>
+                    {t.hourly_rate && t.hourly_rate !== "0" && (
                       <Badge 
                         variant="secondary" 
                         className="bg-cheese/10 text-cheese border-cheese/20"
                       >
                         {t.hourly_rate}/hr
                       </Badge>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </a>
+                ))}
               </div>
-            )}
-            {stakableConfig.schemas.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Schemas & Hourly Rewards:</p>
-                <div className="space-y-2">
-                  {stakableConfig.schemas.map((s, i) => (
-                    <div 
-                      key={i} 
-                      className="flex items-center justify-between p-2 rounded-lg bg-blue-500/5 border border-blue-500/20"
-                    >
-                      <span className="text-blue-400">{s.collection} / {s.schema}</span>
+            </div>
+          )}
+          
+          {/* Schema-based farms */}
+          {stakableConfig && stakableConfig.schemas.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Schemas & Hourly Rewards:</p>
+              <div className="space-y-2">
+                {stakableConfig.schemas.map((s, i) => (
+                  <div 
+                    key={i} 
+                    className="flex items-center justify-between p-2 rounded-lg bg-blue-500/5 border border-blue-500/20"
+                  >
+                    <span className="text-blue-400">{s.collection} / {s.schema}</span>
+                    {s.hourly_rate && s.hourly_rate !== "0" && (
                       <Badge 
                         variant="secondary" 
                         className="bg-cheese/10 text-cheese border-cheese/20"
                       >
                         {s.hourly_rate}/hr
                       </Badge>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
-            {stakableConfig.collections.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Collections & Hourly Rewards:</p>
-                <div className="space-y-2">
-                  {stakableConfig.collections.map((c, i) => (
-                    <div 
-                      key={i} 
-                      className="flex items-center justify-between p-2 rounded-lg bg-green-500/5 border border-green-500/20"
-                    >
-                      <span className="text-green-400">{c.collection}</span>
+            </div>
+          )}
+          
+          {/* Collection-based farms */}
+          {stakableConfig && stakableConfig.collections.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Collections & Hourly Rewards:</p>
+              <div className="space-y-2">
+                {stakableConfig.collections.map((c, i) => (
+                  <a 
+                    key={i}
+                    href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2 rounded-lg bg-green-500/5 border border-green-500/20 hover:bg-green-500/10 transition-colors"
+                  >
+                    <span className="text-green-400">{c.collection}</span>
+                    {c.hourly_rate && c.hourly_rate !== "0" && (
                       <Badge 
                         variant="secondary" 
                         className="bg-cheese/10 text-cheese border-cheese/20"
                       >
                         {c.hourly_rate}/hr
                       </Badge>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </a>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          )}
+          
+          {/* No config found - show farm type description */}
+          {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0)) && (
+            <div className="text-center py-4">
+              <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                {farm.farm_type === 1 && "Collection-based staking - check the farm's allowed collections"}
+                {farm.farm_type === 2 && "Schema-based staking - specific schemas are eligible"}
+                {farm.farm_type === 3 && "Template-based staking - only specific template IDs qualify"}
+                {farm.farm_type === 4 && "Attribute-based staking - NFTs with matching attributes are eligible"}
+                {!farm.farm_type && "Unable to determine stakeable NFT requirements"}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Rewards Card */}
       <Card className="border-border/50 bg-card/50">

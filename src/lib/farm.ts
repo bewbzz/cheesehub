@@ -670,6 +670,44 @@ export async function fetchUserStakes(
       }
     }
     
+    // Try stakers table - V2 farms store staked asset_ids as array per user
+    const stakersResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakers",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 1,
+        }),
+      }
+    );
+    
+    const stakersData = await stakersResponse.json();
+    console.log("Stakers table result for", account, ":", stakersData);
+    
+    if (stakersData.rows && stakersData.rows.length > 0) {
+      const stakerRow = stakersData.rows[0];
+      console.log("Staker row structure:", stakerRow);
+      
+      // Check if staked_assets or asset_ids array exists
+      const stakedAssets = stakerRow.staked_assets || stakerRow.asset_ids || stakerRow.assets || [];
+      if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+        console.log("Found staked assets in stakers table:", stakedAssets.length);
+        return stakedAssets.map((assetId: string | number) => ({
+          asset_id: String(assetId),
+          staker: account,
+          farm_name: farmName,
+          last_claim: (stakerRow.last_claim as number) || 0,
+        }));
+      }
+    }
+    
     // Fallback: Try stakes table with secondary index on staker
     const stakesResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,

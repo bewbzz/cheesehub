@@ -682,8 +682,9 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
   };
 
   try {
-    // Try multiple possible table names for templates - including stakednfts and stakers
-    const templateTableNames = ["templates", "templ", "tmpls", "template", "stakednfts", "stakers"];
+    // WaxDAO V2 uses specific table names - try the known ones first
+    // Templates: farmtmplates (main), nctemplates, templates
+    const templateTableNames = ["farmtmplates", "nctemplates", "templates", "templ", "tmpls", "template"];
     
     for (const tableName of templateTableNames) {
       try {
@@ -699,21 +700,28 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
           }),
         });
         const templatesData = await templatesRes.json();
-        console.log(`Templates table "${tableName}" result:`, templatesData);
+        console.log(`[Farm ${farmName}] Templates table "${tableName}":`, templatesData);
         
         if (templatesData.rows && templatesData.rows.length > 0) {
-          // Check if this looks like a templates config table (has template_id and hourly_rate fields)
           const firstRow = templatesData.rows[0];
-          const hasTemplateId = 'template_id' in firstRow || 'templateid' in firstRow || 'id' in firstRow;
-          const hasRate = 'hourly_rate' in firstRow || 'rate' in firstRow || 'reward_rate' in firstRow;
+          // Check for template_id field (could be named differently)
+          const templateIdField = 'template_id' in firstRow ? 'template_id' : 
+                                   'templateid' in firstRow ? 'templateid' :
+                                   'id' in firstRow ? 'id' : null;
+          // Check for hourly rate field (various naming conventions)
+          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
+                           'rate' in firstRow ? 'rate' :
+                           'reward_rate' in firstRow ? 'reward_rate' :
+                           'staking_value' in firstRow ? 'staking_value' :
+                           'reward' in firstRow ? 'reward' : null;
           
-          if (hasTemplateId && hasRate) {
+          if (templateIdField) {
             config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
-              template_id: (r.template_id || r.id || r.templateid || 0) as number,
+              template_id: Number(r[templateIdField]) || 0,
               collection: (r.collection_name || r.collection || "") as string,
-              hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
+              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
             }));
-            console.log(`Found template config in table "${tableName}":`, config.templates);
+            console.log(`[Farm ${farmName}] Found ${config.templates.length} templates in "${tableName}"`);
             break;
           }
         }
@@ -722,8 +730,8 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       }
     }
 
-    // Try multiple possible table names for schemas
-    const schemaTableNames = ["schemas", "schema"];
+    // Schemas: farmschemas, schemas
+    const schemaTableNames = ["farmschemas", "schemas", "schema"];
     
     for (const tableName of schemaTableNames) {
       try {
@@ -739,23 +747,33 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
           }),
         });
         const schemasData = await schemasRes.json();
-        console.log(`Schemas table "${tableName}" result:`, schemasData);
+        console.log(`[Farm ${farmName}] Schemas table "${tableName}":`, schemasData);
         
         if (schemasData.rows && schemasData.rows.length > 0) {
-          config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
-            collection: (r.collection_name || r.collection || "") as string,
-            schema: (r.schema_name || r.schema || "") as string,
-            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
-          }));
-          break;
+          const firstRow = schemasData.rows[0];
+          const schemaField = 'schema_name' in firstRow ? 'schema_name' :
+                             'schema' in firstRow ? 'schema' : null;
+          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
+                           'rate' in firstRow ? 'rate' :
+                           'staking_value' in firstRow ? 'staking_value' : null;
+          
+          if (schemaField) {
+            config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
+              collection: (r.collection_name || r.collection || "") as string,
+              schema: String(r[schemaField] || ""),
+              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
+            }));
+            console.log(`[Farm ${farmName}] Found ${config.schemas.length} schemas in "${tableName}"`);
+            break;
+          }
         }
       } catch (e) {
         // Table doesn't exist, try next
       }
     }
 
-    // Try multiple possible table names for collections
-    const collectionTableNames = ["collections", "cols", "collection"];
+    // Collections: farmcols, collections, cols
+    const collectionTableNames = ["farmcols", "collections", "cols", "collection"];
     
     for (const tableName of collectionTableNames) {
       try {
@@ -771,14 +789,25 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
           }),
         });
         const collectionsData = await collectionsRes.json();
-        console.log(`Collections table "${tableName}" result:`, collectionsData);
+        console.log(`[Farm ${farmName}] Collections table "${tableName}":`, collectionsData);
         
         if (collectionsData.rows && collectionsData.rows.length > 0) {
-          config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
-            collection: (r.collection_name || r.collection || r.name || "") as string,
-            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
-          }));
-          break;
+          const firstRow = collectionsData.rows[0];
+          const collectionField = 'collection_name' in firstRow ? 'collection_name' :
+                                  'collection' in firstRow ? 'collection' :
+                                  'name' in firstRow ? 'name' : null;
+          const rateField = 'hourly_rate' in firstRow ? 'hourly_rate' :
+                           'rate' in firstRow ? 'rate' :
+                           'staking_value' in firstRow ? 'staking_value' : null;
+          
+          if (collectionField) {
+            config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
+              collection: String(r[collectionField] || ""),
+              hourly_rate: rateField ? String(r[rateField] || "0") : "0",
+            }));
+            console.log(`[Farm ${farmName}] Found ${config.collections.length} collections in "${tableName}"`);
+            break;
+          }
         }
       } catch (e) {
         // Table doesn't exist, try next

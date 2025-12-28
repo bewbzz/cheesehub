@@ -37,6 +37,7 @@ interface VoterInfo {
 interface GlobalState {
   total_unpaid_voteshare: string;
   total_voteshare_change_rate: string;
+  total_unpaid_voteshare_last_updated: string;
   voters_bucket: string;
   pervote_bucket: number;
   total_activated_stake: string;
@@ -144,21 +145,26 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         setHasVoted(isVoting);
         
         // Calculate last claim time from unpaid_voteshare_last_updated
-        if (voter.unpaid_voteshare_last_updated > 0) {
-          const lastClaim = new Date(voter.unpaid_voteshare_last_updated * 1000);
-          setLastClaimTime(lastClaim);
-          
-          // Next claim is available immediately after voting/claiming
-          const now = new Date();
-          if (now > lastClaim) {
-            setNextClaimTime('Now!');
-          } else {
-            setNextClaimTime('Pending...');
-          }
+        // This can be either a timestamp string or unix seconds
+        let lastUpdatedTime: Date;
+        if (typeof voter.unpaid_voteshare_last_updated === 'string') {
+          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated + 'Z');
+        } else if (voter.unpaid_voteshare_last_updated > 0) {
+          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated * 1000);
         } else {
-          // Never claimed before - unix epoch
-          setLastClaimTime(new Date(0));
+          lastUpdatedTime = new Date(0);
+        }
+        
+        setLastClaimTime(lastUpdatedTime);
+        
+        // Next claim is available immediately
+        const now = new Date();
+        if (now > lastUpdatedTime && lastUpdatedTime.getTime() > 0) {
           setNextClaimTime('Now!');
+        } else if (lastUpdatedTime.getTime() === 0) {
+          setNextClaimTime('Now!');
+        } else {
+          setNextClaimTime('Pending...');
         }
         
         // Calculate estimated rewards - try even if globalData is incomplete
@@ -196,10 +202,27 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
     try {
       // Get current time and last update time
       const now = Math.floor(Date.now() / 1000);
-      const lastUpdated = voter.unpaid_voteshare_last_updated || 0;
-      const timeDelta = now - lastUpdated;
       
-      // Parse values
+      // Parse last updated - can be string date or unix timestamp
+      let lastUpdated: number;
+      if (typeof voter.unpaid_voteshare_last_updated === 'string') {
+        lastUpdated = Math.floor(new Date(voter.unpaid_voteshare_last_updated + 'Z').getTime() / 1000);
+      } else {
+        lastUpdated = voter.unpaid_voteshare_last_updated || 0;
+      }
+      
+      // Parse global last updated
+      let globalLastUpdated: number;
+      if (typeof global.total_unpaid_voteshare_last_updated === 'string') {
+        globalLastUpdated = Math.floor(new Date(global.total_unpaid_voteshare_last_updated + 'Z').getTime() / 1000);
+      } else {
+        globalLastUpdated = 0;
+      }
+      
+      const timeDelta = now - lastUpdated;
+      const globalTimeDelta = now - globalLastUpdated;
+      
+      // Parse values - these are very large numbers, use BigInt-like approach
       const unpaidVoteshare = parseFloat(voter.unpaid_voteshare || '0');
       const changeRate = parseFloat(voter.unpaid_voteshare_change_rate || '0');
       const totalUnpaidVoteshare = parseFloat(global.total_unpaid_voteshare || '0');
@@ -207,10 +230,19 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       
       // Calculate current voteshare
       const currentVoteshare = unpaidVoteshare + (changeRate * timeDelta);
-      const currentTotalVoteshare = totalUnpaidVoteshare + (totalChangeRate * timeDelta);
+      const currentTotalVoteshare = totalUnpaidVoteshare + (totalChangeRate * globalTimeDelta);
       
-      // Voters bucket in WAX (divide by 10000 for precision)
-      const votersBucket = parseFloat(global.voters_bucket || '0') / 10000;
+      // Voters bucket in WAX (stored with 8 decimal precision, so divide by 100000000)
+      const votersBucketRaw = parseFloat(global.voters_bucket || '0');
+      const votersBucket = votersBucketRaw / 100000000;
+      
+      console.log('Reward calc:', {
+        currentVoteshare,
+        currentTotalVoteshare,
+        votersBucket,
+        timeDelta,
+        globalTimeDelta
+      });
       
       if (currentTotalVoteshare <= 0 || votersBucket <= 0) {
         return 0;
@@ -219,6 +251,8 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       // Calculate share of the bucket
       const share = currentVoteshare / currentTotalVoteshare;
       const estimatedReward = share * votersBucket;
+      
+      console.log('Share:', share, 'Estimated:', estimatedReward);
       
       return estimatedReward > 0 ? estimatedReward : 0;
     } catch (error) {

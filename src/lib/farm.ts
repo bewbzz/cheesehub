@@ -339,15 +339,16 @@ export function buildStakeNftsAction(
   farmName: string,
   assetIds: string[]
 ) {
+  // V2 farms use non-custodial staking - NFTs stay in wallet
+  // Call farms.waxdao::stake directly instead of transferring
   return {
-    account: "atomicassets",
-    name: "transfer",
+    account: FARM_CONTRACT,
+    name: "stake",
     authorization: [{ actor: staker, permission: "active" }],
     data: {
-      from: staker,
-      to: FARM_CONTRACT,
+      staker: staker,
+      farm_name: farmName,
       asset_ids: assetIds,
-      memo: `|stake|${farmName}|`,
     },
   };
 }

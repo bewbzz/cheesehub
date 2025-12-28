@@ -576,7 +576,10 @@ export async function fetchUserStakes(
   farmName: string
 ): Promise<UserStake[]> {
   try {
-    // WaxDAO V2 uses "stakednfts" table with secondary index on staker
+    // WaxDAO V2 uses "stakednfts" table - try multiple query approaches
+    // First try with secondary index on staker field (index_position 2)
+    console.log("Querying stakednfts table for", account, "in farm", farmName);
+    
     const stakednftsResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -597,16 +600,54 @@ export async function fetchUserStakes(
     );
     
     const stakednftsData = await stakednftsResponse.json();
-    console.log("stakednfts table result:", stakednftsData);
+    console.log("stakednfts table result (index 2):", stakednftsData);
     
     if (stakednftsData.rows && stakednftsData.rows.length > 0) {
-      // Each row represents one staked NFT
       return stakednftsData.rows.map((row: Record<string, unknown>) => ({
         asset_id: String(row.asset_id),
         staker: account,
         farm_name: farmName,
         last_claim: (row.last_claim as number) || 0,
       }));
+    }
+    
+    // Fallback: Fetch all from stakednfts and filter client-side
+    const allStakednftsResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakednfts",
+          limit: 1000,
+        }),
+      }
+    );
+    
+    const allStakednftsData = await allStakednftsResponse.json();
+    console.log("All stakednfts in farm:", farmName, "total:", allStakednftsData.rows?.length || 0);
+    
+    if (allStakednftsData.rows && allStakednftsData.rows.length > 0) {
+      // Log first row to see structure
+      console.log("Sample stakednfts row:", allStakednftsData.rows[0]);
+      
+      const userRows = allStakednftsData.rows.filter((row: Record<string, unknown>) => {
+        const staker = row.staker || row.owner || row.wallet || "";
+        return staker === account;
+      });
+      
+      if (userRows.length > 0) {
+        console.log("Found user's staked NFTs:", userRows.length);
+        return userRows.map((row: Record<string, unknown>) => ({
+          asset_id: String(row.asset_id),
+          staker: account,
+          farm_name: farmName,
+          last_claim: (row.last_claim as number) || 0,
+        }));
+      }
     }
     
     // Fallback: Try stakes table with secondary index on staker

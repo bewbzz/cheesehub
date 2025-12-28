@@ -682,8 +682,8 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
   };
 
   try {
-    // Try multiple possible table names for templates
-    const templateTableNames = ["templates", "templ", "tmpls", "template"];
+    // Try multiple possible table names for templates - including stakednfts and stakers
+    const templateTableNames = ["templates", "templ", "tmpls", "template", "stakednfts", "stakers"];
     
     for (const tableName of templateTableNames) {
       try {
@@ -702,12 +702,20 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         console.log(`Templates table "${tableName}" result:`, templatesData);
         
         if (templatesData.rows && templatesData.rows.length > 0) {
-          config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
-            template_id: (r.template_id || r.id || r.templateid || 0) as number,
-            collection: (r.collection_name || r.collection || "") as string,
-            hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
-          }));
-          break;
+          // Check if this looks like a templates config table (has template_id and hourly_rate fields)
+          const firstRow = templatesData.rows[0];
+          const hasTemplateId = 'template_id' in firstRow || 'templateid' in firstRow || 'id' in firstRow;
+          const hasRate = 'hourly_rate' in firstRow || 'rate' in firstRow || 'reward_rate' in firstRow;
+          
+          if (hasTemplateId && hasRate) {
+            config.templates = templatesData.rows.map((r: Record<string, unknown>) => ({
+              template_id: (r.template_id || r.id || r.templateid || 0) as number,
+              collection: (r.collection_name || r.collection || "") as string,
+              hourly_rate: (r.hourly_rate || r.rate || r.reward_rate || "0") as string,
+            }));
+            console.log(`Found template config in table "${tableName}":`, config.templates);
+            break;
+          }
         }
       } catch (e) {
         // Table doesn't exist, try next

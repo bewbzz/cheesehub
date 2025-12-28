@@ -319,29 +319,33 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
           {/* Producers list */}
           <ScrollArea className="h-[200px] border rounded-md">
             <div className="divide-y divide-border">
-              {filteredProducers.map((producer, index) => (
-                <div
-                  key={producer.owner}
-                  className="flex items-center gap-2 p-2 hover:bg-muted/50 cursor-pointer text-xs"
-                  onClick={() => handleProducerToggle(producer.owner)}
-                >
-                  <Checkbox
-                    checked={selectedProducers.includes(producer.owner)}
-                    onCheckedChange={() => handleProducerToggle(producer.owner)}
-                    className="h-3.5 w-3.5"
-                  />
-                  <span className="text-muted-foreground w-5 text-center">{index + 1}</span>
-                  <span className="font-medium flex-1 text-primary truncate">
-                    {producer.owner}
-                  </span>
-                  <span className="text-muted-foreground w-20 truncate text-center">
-                    {getLocationName(producer.location)}
-                  </span>
-                  <span className="text-muted-foreground w-12 text-right">
-                    {formatVotePercentage(producer.total_votes, totalVoteWeight)}
-                  </span>
-                </div>
-              ))}
+              {filteredProducers.map((producer, index) => {
+                const isSelected = selectedProducers.includes(producer.owner);
+                return (
+                  <label
+                    key={producer.owner}
+                    className={`flex items-center gap-2 p-2 cursor-pointer text-xs select-none transition-colors ${
+                      isSelected ? 'bg-cheese/10 hover:bg-cheese/20' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => handleProducerToggle(producer.owner)}
+                      className="h-4 w-4 pointer-events-none"
+                    />
+                    <span className="text-muted-foreground w-5 text-center">{index + 1}</span>
+                    <span className="font-medium flex-1 text-primary truncate">
+                      {producer.owner}
+                    </span>
+                    <span className="text-muted-foreground w-20 truncate text-center">
+                      {getLocationName(producer.location)}
+                    </span>
+                    <span className="text-muted-foreground w-12 text-right">
+                      {formatVotePercentage(producer.total_votes, totalVoteWeight)}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </ScrollArea>
         </TabsContent>

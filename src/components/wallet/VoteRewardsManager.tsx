@@ -4,6 +4,7 @@ import { useWax } from '@/context/WaxContext';
 import { Loader2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { cn } from '@/lib/utils';
 
 const WAX_ENDPOINTS = [
   'https://wax.greymass.com',
@@ -53,6 +54,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
   const [estimatedRewards, setEstimatedRewards] = useState<number>(0);
   const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
   const [nextClaimTime, setNextClaimTime] = useState<string>('');
+  const [canClaim, setCanClaim] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
 
   useEffect(() => {
@@ -157,14 +159,26 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         
         setLastClaimTime(lastUpdatedTime);
         
-        // Next claim is available immediately
+        // Calculate next claim time - 24 hours from last claim
         const now = new Date();
-        if (now > lastUpdatedTime && lastUpdatedTime.getTime() > 0) {
+        const CLAIM_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const nextClaimDate = new Date(lastUpdatedTime.getTime() + CLAIM_COOLDOWN_MS);
+        
+        if (lastUpdatedTime.getTime() === 0) {
+          // Never claimed before
           setNextClaimTime('Now!');
-        } else if (lastUpdatedTime.getTime() === 0) {
+          setCanClaim(true);
+        } else if (now >= nextClaimDate) {
+          // 24 hours have passed
           setNextClaimTime('Now!');
+          setCanClaim(true);
         } else {
-          setNextClaimTime('Pending...');
+          // Calculate time remaining
+          const remaining = nextClaimDate.getTime() - now.getTime();
+          const hours = Math.floor(remaining / (1000 * 60 * 60));
+          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+          setNextClaimTime(`${hours}h ${minutes}m`);
+          setCanClaim(false);
         }
         
         // Calculate estimated rewards - try even if globalData is incomplete
@@ -403,8 +417,11 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
           {/* Claim Button */}
           <Button
             onClick={handleClaimVote}
-            disabled={isTransacting || !hasVoted || estimatedRewards === 0}
-            className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
+            disabled={isTransacting || !hasVoted || !canClaim || estimatedRewards === 0}
+            className={cn(
+              "w-full text-primary-foreground",
+              canClaim ? "bg-cheese hover:bg-cheese-dark" : "bg-cheese/50 cursor-not-allowed"
+            )}
           >
             {isTransacting ? (
               <>

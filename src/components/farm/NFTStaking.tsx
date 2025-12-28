@@ -474,50 +474,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         </CardContent>
       </Card>
 
-      {/* Rewards Card */}
-      <Card className="border-border/50 bg-card/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Coins className="h-5 w-5 text-cheese" />
-            Your Rewards
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              {pendingRewards.length > 0 ? (
-                <div className="space-y-1">
-                  {pendingRewards.map((reward, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No pending rewards</p>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">
-                {stakedNfts.length} NFT(s) staked in this farm
-              </p>
-            </div>
-            <Button
-              onClick={handleClaim}
-              disabled={isClaiming || !hasRewards}
-              className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-            >
-              {isClaiming ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Coins className="h-4 w-4 mr-2" />
-              )}
-              Claim Rewards
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Staking Tabs */}
       <Card className="border-border/50 bg-card/50">
         <Tabs defaultValue="stake" className="w-full">
@@ -692,6 +648,50 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             </TabsContent>
           </CardContent>
         </Tabs>
+      </Card>
+
+      {/* Rewards Card */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Coins className="h-5 w-5 text-cheese" />
+            Your Rewards
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              {pendingRewards.length > 0 ? (
+                <div className="space-y-1">
+                  {pendingRewards.map((reward, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">No pending rewards</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-2">
+                {stakedNfts.length} NFT(s) staked in this farm
+              </p>
+            </div>
+            <Button
+              onClick={handleClaim}
+              disabled={isClaiming || !hasRewards}
+              className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+            >
+              {isClaiming ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Coins className="h-4 w-4 mr-2" />
+              )}
+              Claim Rewards
+            </Button>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

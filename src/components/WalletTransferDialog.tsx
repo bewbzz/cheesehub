@@ -162,7 +162,11 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden">
+      <DialogContent 
+        className="sm:max-w-2xl max-h-[90vh] overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl">Wallet</DialogTitle>
           <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>

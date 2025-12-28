@@ -578,8 +578,26 @@ export async function fetchUserStakes(
 ): Promise<UserStake[]> {
   try {
     // WaxDAO V2 uses "stakednfts" table - try multiple query approaches
-    // First try with secondary index on staker field (index_position 2)
+    // First try with secondary index on user field (index_position 2)
     console.log("Querying stakednfts table for", account, "in farm", farmName);
+    
+    // Try fetching ALL stakednfts first to see the structure (limited)
+    const debugResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakednfts",
+          limit: 10,
+        }),
+      }
+    );
+    const debugData = await debugResponse.json();
+    console.log("stakednfts table sample (first 10):", debugData);
     
     const stakednftsResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
@@ -636,7 +654,8 @@ export async function fetchUserStakes(
       console.log("Sample stakednfts row:", allStakednftsData.rows[0]);
       
       const userRows = allStakednftsData.rows.filter((row: Record<string, unknown>) => {
-        const staker = row.staker || row.owner || row.wallet || "";
+        // V2 farms use "user" field, V1 might use "staker", "owner", or "wallet"
+        const staker = row.user || row.staker || row.owner || row.wallet || "";
         return staker === account;
       });
       

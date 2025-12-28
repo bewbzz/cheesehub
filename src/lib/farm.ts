@@ -348,7 +348,7 @@ export function buildStakeNftsAction(
     data: {
       user: staker,
       farmname: farmName,
-      asset_ids: assetIds,
+      assets_to_stake: assetIds,
     },
   };
 }

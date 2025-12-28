@@ -55,7 +55,18 @@ const PowerUp = () => {
         <PowerupStatsBar stats={stats} isLoading={statsLoading} />
 
         <div className="text-center text-sm text-muted-foreground">
-          <p>Powered by CHEESE PowerUp Contract on WAX</p>
+          <p>
+            Powered by the{" "}
+            <a 
+              href="https://wax.bloks.io/account/cheesepowerz?loadContract=true&tab=Tables&account=cheesepowerz&scope=cheesepowerz&limit=100" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-cheese hover:underline"
+            >
+              CHEESEPOWERZ
+            </a>{" "}
+            smart contract.
+          </p>
         </div>
       </main>
     </Layout>

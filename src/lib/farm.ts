@@ -576,7 +576,8 @@ export async function fetchUserStakes(
   farmName: string
 ): Promise<UserStake[]> {
   try {
-    // Query stakers table with farm name as scope and user as key
+    // WaxDAO V2 stakers table: primary key is usually the wallet name
+    // Try querying with name type key
     const stakersResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -589,25 +590,70 @@ export async function fetchUserStakes(
           table: "stakers",
           lower_bound: account,
           upper_bound: account,
+          key_type: "name",
+          index_position: 1,
           limit: 1,
         }),
       }
     );
     
     const stakersData = await stakersResponse.json();
-    console.log("Stakers table result (scope=farmName, key=account):", stakersData);
+    console.log("Stakers table result (key_type=name):", stakersData);
     
     if (stakersData.rows && stakersData.rows.length > 0) {
       const row = stakersData.rows[0];
-      // Assets can be stored as asset_ids, assets, or staked_assets
-      const assetIds = row.asset_ids || row.assets || row.staked_assets || [];
-      console.log("Found staked assets:", assetIds);
-      return assetIds.map((assetId: string | number) => ({
-        asset_id: String(assetId),
-        staker: account,
-        farm_name: farmName,
-        last_claim: (row.last_claim as number) || 0,
-      }));
+      // Check if the wallet field matches our account
+      const walletName = row.wallet || row.staker || row.owner || "";
+      if (walletName === account) {
+        // Assets can be stored as asset_ids, assets, or staked_assets
+        const assetIds = row.asset_ids || row.assets || row.staked_assets || [];
+        console.log("Found staked assets for", account, ":", assetIds);
+        return assetIds.map((assetId: string | number) => ({
+          asset_id: String(assetId),
+          staker: account,
+          farm_name: farmName,
+          last_claim: (row.last_claim as number) || 0,
+        }));
+      }
+    }
+    
+    // Fallback: Fetch all stakers and filter by wallet name
+    // This is needed when the primary key isn't directly the account name
+    const allStakersResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakers",
+          limit: 1000,
+        }),
+      }
+    );
+    
+    const allStakersData = await allStakersResponse.json();
+    console.log("All stakers in farm:", farmName, allStakersData.rows?.length || 0, "entries");
+    
+    if (allStakersData.rows && allStakersData.rows.length > 0) {
+      // Find the row matching our account
+      const userRow = allStakersData.rows.find((row: Record<string, unknown>) => {
+        const walletName = row.wallet || row.staker || row.owner || "";
+        return walletName === account;
+      });
+      
+      if (userRow) {
+        const assetIds = userRow.asset_ids || userRow.assets || userRow.staked_assets || [];
+        console.log("Found staked assets (from all stakers):", assetIds);
+        return assetIds.map((assetId: string | number) => ({
+          asset_id: String(assetId),
+          staker: account,
+          farm_name: farmName,
+          last_claim: (userRow.last_claim as number) || 0,
+        }));
+      }
     }
     
     // Fallback: Try stakes table with secondary index on staker

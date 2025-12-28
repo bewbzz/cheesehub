@@ -304,6 +304,20 @@ export function FarmDetail() {
         </Card>
       </div>
 
+      {/* Cover Image */}
+      {farm.profile?.cover_image && (
+        <div className="rounded-xl overflow-hidden border border-border/50">
+          <img
+            src={getIpfsUrl(farm.profile.cover_image)}
+            alt={`${farm.farm_name} cover`}
+            className="w-full h-48 md:h-64 object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </div>
+      )}
+
       {/* NFT Staking Section */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold flex items-center gap-2">

@@ -646,11 +646,20 @@ export async function fetchUserStakes(
     console.log("All stakednfts (contract scope) sample:", allStakednftsData.rows?.slice(0, 3));
     
     if (allStakednftsData.rows && allStakednftsData.rows.length > 0) {
+      // Log full structure of first row to see actual field names
+      console.log("First stakednfts row FULL structure:", JSON.stringify(allStakednftsData.rows[0]));
+      
       // Filter by both user AND farm name
       const userFarmRows = allStakednftsData.rows.filter((row: Record<string, unknown>) => {
-        const rowUser = row.user || row.staker || row.owner || "";
+        const rowUser = row.user || row.staker || row.owner || row.wallet || "";
         const rowFarm = row.farmname || row.farm_name || row.farm || "";
-        return rowUser === account && rowFarm === farmName;
+        const isUserMatch = rowUser === account;
+        const isFarmMatch = rowFarm === farmName;
+        // Log the first few to debug
+        if (allStakednftsData.rows.indexOf(row) < 3) {
+          console.log(`Row ${row.asset_id}: user field="${rowUser}", farm field="${rowFarm}", match user=${isUserMatch}, match farm=${isFarmMatch}`);
+        }
+        return isUserMatch && isFarmMatch;
       });
       
       console.log("Found staked NFTs for user in farm (fallback):", userFarmRows.length);

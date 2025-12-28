@@ -351,128 +351,136 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     setSelectedToUnstake(new Set(stakedNftDetails.map(n => n.asset_id)));
   };
 
-  if (!isConnected) {
-    return (
-      <Card className="border-border/50 bg-card/50">
-        <CardContent className="p-6 text-center">
-          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">Connect Wallet to Stake</h3>
-          <p className="text-muted-foreground text-sm">
-            Connect your WAX wallet to stake NFTs and earn rewards.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const totalPendingRewards = pendingRewards.reduce((acc, r) => acc + r.amount, 0);
   const hasRewards = totalPendingRewards > 0;
 
+  // Show stakeable assets for everyone, but staking UI only for connected users
+  const renderStakeableAssets = () => (
+    <Card className="border-border/50 bg-card/50">
+      <CardHeader className="py-3 px-4">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+          <Package className="h-4 w-4 text-muted-foreground" />
+          Stakeable Assets
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-3 pt-0">
+        {/* Template-based farms */}
+        {stakableConfig && stakableConfig.templates.length > 0 && (
+          <div className="text-xs">
+            <span className="text-muted-foreground">Templates: </span>
+            <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
+              {stakableConfig.templates.map((t, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <a 
+                    href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-mono"
+                  >
+                    #{t.template_id}
+                  </a>
+                  {t.hourly_rate && t.hourly_rate !== "0" && (
+                    <span className="text-cheese ml-1">({t.hourly_rate}/hr)</span>
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+        
+        {/* Schema-based farms */}
+        {stakableConfig && stakableConfig.schemas.length > 0 && (
+          <div className="text-xs">
+            <span className="text-muted-foreground">Schemas: </span>
+            <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
+              {stakableConfig.schemas.map((s, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <span className="text-primary">{s.collection}/{s.schema}</span>
+                  {s.hourly_rate && s.hourly_rate !== "0" && (
+                    <span className="text-cheese ml-1">({s.hourly_rate}/hr)</span>
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+        
+        {/* Collection-based farms */}
+        {stakableConfig && stakableConfig.collections.length > 0 && (
+          <div className="text-xs">
+            <span className="text-muted-foreground">Collections: </span>
+            <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
+              {stakableConfig.collections.map((c, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <a 
+                    href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {c.collection}
+                  </a>
+                  {c.hourly_rate && c.hourly_rate !== "0" && (
+                    <span className="text-cheese ml-1">({c.hourly_rate}/hr)</span>
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+        
+        {/* Attribute-based farms */}
+        {stakableConfig && stakableConfig.attributes && stakableConfig.attributes.length > 0 && (
+          <div className="text-xs">
+            <span className="text-muted-foreground">Attributes: </span>
+            <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
+              {stakableConfig.attributes.map((a, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <span className="text-primary">{a.attribute_name}={a.attribute_value}</span>
+                  {a.hourly_rate && a.hourly_rate !== "0" && (
+                    <span className="text-cheese ml-1">({a.hourly_rate}/hr)</span>
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+
+        {/* No config found */}
+        {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0 && (!stakableConfig.attributes || stakableConfig.attributes.length === 0))) && (
+          <p className="text-xs text-muted-foreground">
+            {farm.farm_type === 1 && "Collection-based staking"}
+            {farm.farm_type === 2 && "Schema-based staking"}
+            {farm.farm_type === 3 && "Template-based staking"}
+            {farm.farm_type === 4 && "Attribute-based staking"}
+            {!farm.farm_type && "Loading requirements..."}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (!isConnected) {
+    return (
+      <div className="space-y-4">
+        {renderStakeableAssets()}
+        <Card className="border-border/50 bg-card/50">
+          <CardContent className="p-6 text-center">
+            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-semibold mb-2">Connect Wallet to Stake</h3>
+            <p className="text-muted-foreground text-sm">
+              Connect your WAX wallet to stake NFTs and earn rewards.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+
   return (
     <div className="space-y-4">
-      {/* Stakeable Assets - compact info card */}
-      <Card className="border-border/50 bg-card/50">
-        <CardHeader className="py-3 px-4">
-          <CardTitle className="flex items-center gap-2 text-sm font-medium">
-            <Package className="h-4 w-4 text-muted-foreground" />
-            Stakeable Assets
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-3 pt-0">
-          {/* Template-based farms */}
-          {stakableConfig && stakableConfig.templates.length > 0 && (
-            <div className="text-xs">
-              <span className="text-muted-foreground">Templates: </span>
-              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
-                {stakableConfig.templates.map((t, i) => (
-                  <span key={i} className="inline-flex items-center">
-                    <a 
-                      href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline font-mono"
-                    >
-                      #{t.template_id}
-                    </a>
-                    {t.hourly_rate && t.hourly_rate !== "0" && (
-                      <span className="text-cheese ml-1">({t.hourly_rate}/hr)</span>
-                    )}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-          
-          {/* Schema-based farms */}
-          {stakableConfig && stakableConfig.schemas.length > 0 && (
-            <div className="text-xs">
-              <span className="text-muted-foreground">Schemas: </span>
-              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
-                {stakableConfig.schemas.map((s, i) => (
-                  <span key={i} className="inline-flex items-center">
-                    <span className="text-primary">{s.collection}/{s.schema}</span>
-                    {s.hourly_rate && s.hourly_rate !== "0" && (
-                      <span className="text-cheese ml-1">({s.hourly_rate}/hr)</span>
-                    )}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-          
-          {/* Collection-based farms */}
-          {stakableConfig && stakableConfig.collections.length > 0 && (
-            <div className="text-xs">
-              <span className="text-muted-foreground">Collections: </span>
-              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
-                {stakableConfig.collections.map((c, i) => (
-                  <span key={i} className="inline-flex items-center">
-                    <a 
-                      href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      {c.collection}
-                    </a>
-                    {c.hourly_rate && c.hourly_rate !== "0" && (
-                      <span className="text-cheese ml-1">({c.hourly_rate}/hr)</span>
-                    )}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-          
-          {/* Attribute-based farms */}
-          {stakableConfig && stakableConfig.attributes && stakableConfig.attributes.length > 0 && (
-            <div className="text-xs">
-              <span className="text-muted-foreground">Attributes: </span>
-              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
-                {stakableConfig.attributes.map((a, i) => (
-                  <span key={i} className="inline-flex items-center">
-                    <span className="text-primary">{a.attribute_name}={a.attribute_value}</span>
-                    {a.hourly_rate && a.hourly_rate !== "0" && (
-                      <span className="text-cheese ml-1">({a.hourly_rate}/hr)</span>
-                    )}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-
-          {/* No config found */}
-          {(!stakableConfig || (stakableConfig.templates.length === 0 && stakableConfig.schemas.length === 0 && stakableConfig.collections.length === 0 && (!stakableConfig.attributes || stakableConfig.attributes.length === 0))) && (
-            <p className="text-xs text-muted-foreground">
-              {farm.farm_type === 1 && "Collection-based staking"}
-              {farm.farm_type === 2 && "Schema-based staking"}
-              {farm.farm_type === 3 && "Template-based staking"}
-              {farm.farm_type === 4 && "Attribute-based staking"}
-              {!farm.farm_type && "Loading requirements..."}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {renderStakeableAssets()}
 
       {/* Staking Tabs */}
       <Card className="border-border/50 bg-card/50">

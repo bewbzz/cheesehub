@@ -156,16 +156,53 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
       const total = sortedProducers.reduce((sum, p) => sum + parseFloat(p.total_votes), 0);
       setTotalVoteWeight(total);
 
-      // Fetch proxies from voters table (accounts with is_proxy=1)
-      // We need to scan more entries to find proxies
-      const votersData = await fetchTable<ProxyVoter>('eosio', 'eosio', 'voters', {
-        limit: 500,
-      });
-      // Filter for accounts that are registered as proxies
-      const proxyVoters = votersData.filter(v => v.is_proxy === 1);
-      // Sort by proxied vote weight descending
-      proxyVoters.sort((a, b) => parseFloat(b.proxied_vote_weight || '0') - parseFloat(a.proxied_vote_weight || '0'));
-      setProxies(proxyVoters);
+      // Fetch proxies - query known popular proxy accounts
+      // The voters table is too large to scan, so we check known proxies
+      const knownProxyAccounts = [
+        'proxy4nation', 'waxpoolproxy', 'teamgreymass', 'proxy.pink', 
+        'cryptolions1', 'waxdaomarket', 'sentnlagents', 'eikinakatata',
+        'waxdaoproxy1', 'nation.wax', 'votebpforwax', 'alohaeosprox',
+        'greeneosiobp', 'blaborgreenv', 'proxywaxwax1', 'wax.defibox'
+      ];
+      
+      try {
+        const proxyPromises = knownProxyAccounts.map(async (account) => {
+          try {
+            const response = await fetch('https://wax.eosphere.io/v1/chain/get_table_rows', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                json: true,
+                code: 'eosio',
+                scope: 'eosio',
+                table: 'voters',
+                lower_bound: account,
+                upper_bound: account,
+                limit: 1,
+              }),
+            });
+            const data = await response.json();
+            if (data.rows && data.rows.length > 0 && data.rows[0].is_proxy === 1) {
+              return data.rows[0] as ProxyVoter;
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        });
+        
+        const proxyResults = await Promise.all(proxyPromises);
+        const validProxies = proxyResults.filter((p): p is ProxyVoter => p !== null);
+        
+        // Sort by proxied vote weight descending
+        validProxies.sort((a, b) => 
+          parseFloat(b.proxied_vote_weight || '0') - parseFloat(a.proxied_vote_weight || '0')
+        );
+        setProxies(validProxies);
+      } catch (err) {
+        console.error('Failed to fetch proxies:', err);
+        setProxies([]);
+      }
 
       // Fetch voter info for current user
       const voterData = await fetchTable<VoterInfo>('eosio', 'eosio', 'voters', {

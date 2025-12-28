@@ -15,6 +15,7 @@ import {
   Loader2,
   Image as ImageIcon,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +68,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isStaking, setIsStaking] = useState(false);
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -100,8 +102,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   });
 
   // Fetch user's eligible NFTs for staking
-  const { data: eligibleNfts = [], isLoading: isLoadingEligible, refetch: refetchEligible } = useQuery({
+  const { data: eligibleNfts = [], isLoading: isLoadingEligible, refetch: refetchEligible, isFetching: isScanningNfts } = useQuery({
     queryKey: ["eligibleNfts", accountName, farm.farm_name, stakableConfig],
+    enabled: !!accountName && !!stakableConfig && hasScanned,
     queryFn: async () => {
       if (!accountName || !stakableConfig) return [];
       
@@ -176,7 +179,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       
       return assets;
     },
-    enabled: !!accountName && !!stakableConfig,
     staleTime: 30000,
   });
 
@@ -351,6 +353,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     setSelectedToUnstake(new Set(stakedNftDetails.map(n => n.asset_id)));
   };
 
+  const handleScanWallet = () => {
+    setHasScanned(true);
+    refetchEligible();
+  };
+
   if (!isConnected) {
     return (
       <Card className="border-border/50 bg-card/50">
@@ -470,6 +477,103 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               {farm.farm_type === 4 && "Attribute-based staking"}
               {!farm.farm_type && "Loading requirements..."}
             </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Your Stakeable NFTs - Scan Section */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="py-3 px-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+              Your Stakeable NFTs
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleScanWallet}
+              disabled={isScanningNfts || !stakableConfig}
+              className="h-7 text-xs"
+            >
+              {isScanningNfts ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Search className="h-3 w-3 mr-1" />
+              )}
+              Scan Wallet
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-4 pt-0">
+          {!hasScanned ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              Click "Scan Wallet" to find stakeable NFTs in your collection
+            </p>
+          ) : isScanningNfts ? (
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+              {[...Array(8)].map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded" />
+              ))}
+            </div>
+          ) : eligibleNfts.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No stakeable NFTs found in your wallet
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  Found {eligibleNfts.length} stakeable NFT{eligibleNfts.length !== 1 ? 's' : ''}
+                </span>
+                <Button variant="ghost" size="sm" onClick={selectAllToStake} className="h-6 text-xs px-2">
+                  Select All
+                </Button>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-48 overflow-y-auto">
+                {eligibleNfts.map((nft) => (
+                  <div
+                    key={nft.asset_id}
+                    onClick={() => toggleStakeSelection(nft.asset_id)}
+                    className={`relative aspect-square rounded cursor-pointer overflow-hidden transition-all ${
+                      selectedToStake.has(nft.asset_id)
+                        ? "ring-2 ring-primary"
+                        : "hover:ring-1 hover:ring-border"
+                    }`}
+                    title={`${nft.name} (#${nft.asset_id})`}
+                  >
+                    <img
+                      src={nft.image}
+                      alt={nft.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/placeholder.svg";
+                      }}
+                    />
+                    {selectedToStake.has(nft.asset_id) && (
+                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                        <Checkbox checked className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {selectedToStake.size > 0 && (
+                <Button
+                  onClick={handleStake}
+                  disabled={isStaking}
+                  className="w-full mt-2 bg-primary hover:bg-primary/90"
+                  size="sm"
+                >
+                  {isStaking ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowDownToLine className="h-4 w-4 mr-2" />
+                  )}
+                  Stake {selectedToStake.size} NFT{selectedToStake.size !== 1 ? 's' : ''}
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

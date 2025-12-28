@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,15 +8,29 @@ import { useWax } from '@/context/WaxContext';
 import { Loader2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AccountResources, formatBytes } from './WalletResources';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
+
+const WAX_ENDPOINTS = [
+  'https://wax.greymass.com',
+  'https://api.wax.alohaeos.com',
+  'https://wax.eosphere.io',
+];
 
 interface RamManagerProps {
   resources: AccountResources | null;
   onTransactionComplete?: () => void;
 }
 
+interface RamMarketRow {
+  supply: string;
+  base: { balance: string; weight: string };
+  quote: { balance: string; weight: string };
+}
+
 export function RamManager({ resources, onTransactionComplete }: RamManagerProps) {
   const { session, accountName } = useWax();
   const [isTransacting, setIsTransacting] = useState(false);
+  const [ramPricePerByte, setRamPricePerByte] = useState<number | null>(null);
   
   // Buy RAM state
   const [buyReceiver, setBuyReceiver] = useState('');
@@ -26,16 +40,62 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
   // Sell RAM state
   const [sellBytes, setSellBytes] = useState('');
 
+  // Fetch RAM price from eosio rammarket table
+  const fetchRamPrice = useCallback(async () => {
+    try {
+      const response = await fetchWithFallback(
+        WAX_ENDPOINTS,
+        '/v1/chain/get_table_rows',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: 'eosio',
+            scope: 'eosio',
+            table: 'rammarket',
+            json: true,
+            limit: 1,
+          }),
+        }
+      );
+      const data = await response.json();
+      
+      if (data.rows && data.rows.length > 0) {
+        const row: RamMarketRow = data.rows[0];
+        // Parse quote balance (WAX) and base balance (RAM bytes)
+        const quoteBalance = parseFloat(row.quote.balance.split(' ')[0]);
+        const baseBalance = parseFloat(row.base.balance.split(' ')[0]);
+        
+        // Price per byte = quote / base
+        const pricePerByte = quoteBalance / baseBalance;
+        setRamPricePerByte(pricePerByte);
+      }
+    } catch (error) {
+      console.error('Failed to fetch RAM price:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRamPrice();
+  }, [fetchRamPrice]);
+
   useEffect(() => {
     if (accountName) {
       setBuyReceiver(accountName);
     }
   }, [accountName]);
 
-  // Estimated bytes for WAX amount (rough estimate: 1 WAX ≈ 1.5KB at current prices)
-  const estimatedBytes = buyMode === 'wax' 
-    ? Math.floor((parseFloat(buyAmount) || 0) * 1500)
-    : parseInt(buyAmount) || 0;
+  // Calculate estimated bytes based on actual RAM market price
+  const estimatedBytes = buyMode === 'wax' && ramPricePerByte
+    ? Math.floor((parseFloat(buyAmount) || 0) / ramPricePerByte)
+    : buyMode === 'bytes' 
+      ? parseInt(buyAmount) || 0
+      : 0;
+  
+  // Calculate estimated WAX return for selling RAM
+  const estimatedWaxReturn = ramPricePerByte && sellBytes
+    ? (parseInt(sellBytes) * ramPricePerByte * 0.995).toFixed(8) // 0.5% fee
+    : null;
 
   const handleBuyRam = async () => {
     if (!session || !buyReceiver || !buyAmount) return;
@@ -230,6 +290,9 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
               Max
             </Button>
           </div>
+          {sellBytes && estimatedWaxReturn && (
+            <p className="text-xs text-muted-foreground">≈ {estimatedWaxReturn} WAX (after 0.5% fee)</p>
+          )}
         </div>
 
         <Button

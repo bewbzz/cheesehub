@@ -739,11 +739,19 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       console.log(`[Farm ${farmName}] valuesbytemp:`, templatesData);
       
       if (templatesData.rows && templatesData.rows.length > 0) {
-        const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => ({
-          template_id: Number(r.template_id || r.templateid || r.id || 0),
-          collection: String(r.collection_name || r.collection || ""),
-          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0"),
-        }));
+        const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => {
+          // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
+          let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0");
+          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
+            hourlyRate = rewardValues[0].quantity;
+          }
+          return {
+            template_id: Number(r.template_id || r.templateid || r.id || 0),
+            collection: String(r.collection_name || r.collection || ""),
+            hourly_rate: hourlyRate,
+          };
+        });
         
         // For templates missing collection, fetch from AtomicHub
         const missingCollectionIds = rawTemplates
@@ -781,11 +789,19 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       console.log(`[Farm ${farmName}] valuesbysch:`, schemasData);
       
       if (schemasData.rows && schemasData.rows.length > 0) {
-        config.schemas = schemasData.rows.map((r: Record<string, unknown>) => ({
-          collection: String(r.collection_name || r.collection || ""),
-          schema: String(r.schema_name || r.schema || ""),
-          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
-        }));
+        config.schemas = schemasData.rows.map((r: Record<string, unknown>) => {
+          // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
+          let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
+          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
+            hourlyRate = rewardValues[0].quantity;
+          }
+          return {
+            collection: String(r.collection_name || r.collection || ""),
+            schema: String(r.schema_name || r.schema || ""),
+            hourly_rate: hourlyRate,
+          };
+        });
       }
     } catch (e) {
       console.log(`[Farm ${farmName}] No valuesbysch table`);
@@ -808,10 +824,18 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       console.log(`[Farm ${farmName}] valuesbycol:`, collectionsData);
       
       if (collectionsData.rows && collectionsData.rows.length > 0) {
-        config.collections = collectionsData.rows.map((r: Record<string, unknown>) => ({
-          collection: String(r.collection_name || r.collection || r.name || ""),
-          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
-        }));
+        config.collections = collectionsData.rows.map((r: Record<string, unknown>) => {
+          // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
+          let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
+          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
+            hourlyRate = rewardValues[0].quantity;
+          }
+          return {
+            collection: String(r.collection_name || r.collection || r.name || ""),
+            hourly_rate: hourlyRate,
+          };
+        });
       }
     } catch (e) {
       console.log(`[Farm ${farmName}] No valuesbycol table`);
@@ -834,11 +858,19 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
       console.log(`[Farm ${farmName}] valuesbyatt:`, attributesData);
       
       if (attributesData.rows && attributesData.rows.length > 0) {
-        config.attributes = attributesData.rows.map((r: Record<string, unknown>) => ({
-          attribute_name: String(r.attribute_name || r.attr_name || r.key || ""),
-          attribute_value: String(r.attribute_value || r.attr_value || r.value || ""),
-          hourly_rate: String(r.hourly_rate || r.rate || r.staking_value || "0"),
-        }));
+        config.attributes = attributesData.rows.map((r: Record<string, unknown>) => {
+          // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
+          let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
+          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
+            hourlyRate = rewardValues[0].quantity;
+          }
+          return {
+            attribute_name: String(r.attribute_name || r.attr_name || r.key || ""),
+            attribute_value: String(r.attribute_value || r.attr_value || r.value || ""),
+            hourly_rate: hourlyRate,
+          };
+        });
       }
     } catch (e) {
       console.log(`[Farm ${farmName}] No valuesbyatt table`);

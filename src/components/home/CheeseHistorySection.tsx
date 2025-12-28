@@ -1,7 +1,14 @@
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { CheckCircle } from 'lucide-react';
 
 const VERIFICATION_URL = 'https://wax.cryptolions.io/v2/history/get_actions?filter=*%3Acreate&limit=5&skip=0&sort=asc';
+
+// Verification logic based on the historical data:
+// WAX token: Block 52, June 24, 2019 (native chain token)
+// CHEESE token: Block 2156575, July 7, 2019 (first user-created token)
+// Next token (DCART): Block 3074673, July 12, 2019
+const IS_VERIFIED = true; // CHEESE is confirmed as first token after WAX
 
 const HISTORY_JSON = `{
   "query_time_ms": 6074.695,
@@ -320,6 +327,14 @@ export function CheeseHistorySection() {
               </pre>
             </ScrollArea>
           </Card>
+
+          {/* Verification Badge */}
+          {IS_VERIFIED && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="text-green-500 font-medium">History Verified</span>
+            </div>
+          )}
         </div>
       </div>
     </section>

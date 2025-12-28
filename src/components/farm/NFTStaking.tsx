@@ -370,31 +370,63 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   return (
     <div className="space-y-4">
-      {/* Stakeable Templates Info */}
-      {stakableConfig && stakableConfig.templates.length > 0 && (
+      {/* Stakeable Config Info */}
+      {stakableConfig && (stakableConfig.templates.length > 0 || stakableConfig.collections.length > 0 || stakableConfig.schemas.length > 0) && (
         <Card className="border-border/50 bg-card/50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Package className="h-5 w-5 text-primary" />
-              Stakeable Template IDs
+              Stakeable NFTs
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {stakableConfig.templates.map((t, i) => (
-                <Badge 
-                  key={i} 
-                  variant="outline" 
-                  className="bg-primary/10 text-primary border-primary/20 font-mono"
-                >
-                  #{t.template_id}
-                </Badge>
-              ))}
-            </div>
+          <CardContent className="space-y-3">
+            {stakableConfig.templates.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Template IDs:</p>
+                <div className="flex flex-wrap gap-2">
+                  {stakableConfig.templates.map((t, i) => (
+                    <Badge 
+                      key={i} 
+                      variant="outline" 
+                      className="bg-primary/10 text-primary border-primary/20 font-mono"
+                    >
+                      #{t.template_id}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stakableConfig.schemas.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Schemas:</p>
+                <div className="flex flex-wrap gap-2">
+                  {stakableConfig.schemas.map((s, i) => (
+                    <Badge 
+                      key={i} 
+                      variant="outline" 
+                      className="bg-blue-500/10 text-blue-400 border-blue-500/20"
+                    >
+                      {s.collection} / {s.schema}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             {stakableConfig.collections.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-3">
-                Also accepts all NFTs from: {stakableConfig.collections.join(", ")}
-              </p>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Collections:</p>
+                <div className="flex flex-wrap gap-2">
+                  {stakableConfig.collections.map((c, i) => (
+                    <Badge 
+                      key={i} 
+                      variant="outline" 
+                      className="bg-green-500/10 text-green-400 border-green-500/20"
+                    >
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

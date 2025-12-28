@@ -219,40 +219,6 @@ export function FarmDetail() {
 
       {/* Details */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Reward Pools */}
-        <Card className="border-border/50 bg-card/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-cheese" />
-              Reward Pools
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {farm.reward_pools.length > 0 ? (
-              <div className="space-y-3">
-                {farm.reward_pools.map((pool, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
-                  >
-                    <div>
-                      <p className="font-medium">{pool.symbol}</p>
-                      <p className="text-xs text-muted-foreground">{pool.contract}</p>
-                    </div>
-                    <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                      {formatRewardPool(pool)}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                No reward pools configured yet.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Farm Info */}
         <Card className="border-border/50 bg-card/50">
           <CardHeader>
@@ -288,6 +254,40 @@ export function FarmDetail() {
                 <p className="text-muted-foreground text-sm mb-1">Description</p>
                 <p className="text-foreground">{farm.description}</p>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Reward Pools */}
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-cheese" />
+              Reward Pools
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {farm.reward_pools.length > 0 ? (
+              <div className="space-y-3">
+                {farm.reward_pools.map((pool, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
+                  >
+                    <div>
+                      <p className="font-medium">{pool.symbol}</p>
+                      <p className="text-xs text-muted-foreground">{pool.contract}</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                      {formatRewardPool(pool)}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                No reward pools configured yet.
+              </p>
             )}
           </CardContent>
         </Card>

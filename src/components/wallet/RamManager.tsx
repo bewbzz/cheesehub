@@ -19,6 +19,7 @@ const WAX_ENDPOINTS = [
 interface RamManagerProps {
   resources: AccountResources | null;
   onTransactionComplete?: () => void;
+  onTransactionSuccess?: (title: string, description: string, txId: string | null) => void;
 }
 
 interface RamMarketRow {
@@ -27,7 +28,7 @@ interface RamMarketRow {
   quote: { balance: string; weight: string };
 }
 
-export function RamManager({ resources, onTransactionComplete }: RamManagerProps) {
+export function RamManager({ resources, onTransactionComplete, onTransactionSuccess }: RamManagerProps) {
   const { session, accountName } = useWax();
   const [isTransacting, setIsTransacting] = useState(false);
   const [ramPricePerByte, setRamPricePerByte] = useState<number | null>(null);
@@ -129,9 +130,14 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
             },
           }];
 
-      await session.transact({ actions });
+      const result = await session.transact({ actions });
+      const txId = result.resolved?.transaction.id?.toString() || null;
 
-      toast.success('RAM purchased successfully!');
+      const purchaseDesc = buyMode === 'wax' 
+        ? `Purchased ~${formatBytes(estimatedBytes)} RAM for ${parseFloat(buyAmount).toFixed(8)} WAX`
+        : `Purchased ${parseInt(buyAmount).toLocaleString()} bytes of RAM`;
+      
+      onTransactionSuccess?.('RAM Purchased!', `${purchaseDesc} for ${buyReceiver}`, txId);
       setBuyAmount('');
       onTransactionComplete?.();
     } catch (error: any) {
@@ -163,9 +169,11 @@ export function RamManager({ resources, onTransactionComplete }: RamManagerProps
         },
       }];
 
-      await session.transact({ actions });
+      const result = await session.transact({ actions });
+      const txId = result.resolved?.transaction.id?.toString() || null;
 
-      toast.success('RAM sold successfully!');
+      const sellDesc = `Sold ${formatBytes(bytes)} (${bytes.toLocaleString()} bytes) of RAM`;
+      onTransactionSuccess?.('RAM Sold!', sellDesc, txId);
       setSellBytes('');
       onTransactionComplete?.();
     } catch (error: any) {

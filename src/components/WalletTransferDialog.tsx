@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -21,6 +22,7 @@ import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';
 import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
+import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { Send, Check, X, Loader2, HardDrive } from 'lucide-react';
 
 interface WalletTransferDialogProps {
@@ -42,6 +44,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [isSending, setIsSending] = useState(false);
   const [resources, setResources] = useState<AccountResources | null>(null);
   const [resourcesKey, setResourcesKey] = useState(0);
+  
+  // Success dialog state
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [successTitle, setSuccessTitle] = useState('');
+  const [successDescription, setSuccessDescription] = useState('');
+  const [successTxId, setSuccessTxId] = useState<string | null>(null);
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
 
@@ -104,7 +112,8 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         memo
       );
       if (txId) {
-        onOpenChange(false);
+        const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
+        showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
       }
     } finally {
       setIsSending(false);
@@ -120,11 +129,30 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
     setResourcesKey(prev => prev + 1);
   }, []);
 
+  const showSuccessDialog = useCallback((title: string, description: string, txId: string | null) => {
+    setSuccessTitle(title);
+    setSuccessDescription(description);
+    setSuccessTxId(txId);
+    setSuccessOpen(true);
+  }, []);
+
+  const handleSuccessClose = useCallback((open: boolean) => {
+    setSuccessOpen(open);
+    if (!open) {
+      // Reset form after closing success dialog
+      setRecipient('');
+      setAmount('');
+      setMemo('');
+    }
+  }, []);
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl">Wallet</DialogTitle>
+          <DialogDescription className="sr-only">Manage your wallet tokens and RAM</DialogDescription>
         </DialogHeader>
         
         <Tabs defaultValue="send" className="w-full">
@@ -298,10 +326,23 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           </TabsContent>
 
           <TabsContent value="ram">
-            <RamManager resources={resources} onTransactionComplete={handleRamTransactionComplete} />
+            <RamManager 
+              resources={resources} 
+              onTransactionComplete={handleRamTransactionComplete}
+              onTransactionSuccess={showSuccessDialog}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
+
+    <TransactionSuccessDialog
+      open={successOpen}
+      onOpenChange={handleSuccessClose}
+      title={successTitle}
+      description={successDescription}
+      txId={successTxId}
+    />
+    </>
   );
 }

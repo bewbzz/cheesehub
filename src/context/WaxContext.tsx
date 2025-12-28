@@ -208,11 +208,6 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
-      toast({
-        title: 'Transaction Successful',
-        description: `Sent ${quantity} to ${to}`,
-      });
-
       await refreshBalance();
       return txId;
     } catch (error) {

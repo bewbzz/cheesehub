@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,11 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
 import { useWax } from '@/context/WaxContext';
-import { useAllTokenBalances, TokenWithBalance } from '@/hooks/useAllTokenBalances';
+import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';
+import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
 import { Send, Check, X, Loader2, HardDrive } from 'lucide-react';
 
 interface WalletTransferDialogProps {
@@ -40,6 +40,8 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [resources, setResources] = useState<AccountResources | null>(null);
+  const [resourcesKey, setResourcesKey] = useState(0);
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
 
@@ -109,12 +111,24 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
     }
   };
 
+  const handleResourcesUpdate = useCallback((newResources: AccountResources | null) => {
+    setResources(newResources);
+  }, []);
+
+  const handleRamTransactionComplete = useCallback(() => {
+    // Force refresh resources by updating the key
+    setResourcesKey(prev => prev + 1);
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl">Wallet</DialogTitle>
         </DialogHeader>
+        
+        {/* Resources display - always visible */}
+        <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
         
         <Tabs defaultValue="send" className="w-full">
           <TabsList className="w-full mb-4">
@@ -284,7 +298,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           </TabsContent>
 
           <TabsContent value="ram">
-            <RamManager />
+            <RamManager resources={resources} onTransactionComplete={handleRamTransactionComplete} />
           </TabsContent>
         </Tabs>
       </DialogContent>

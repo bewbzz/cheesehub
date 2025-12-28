@@ -22,17 +22,14 @@ interface Producer {
   location: number;
 }
 
-interface Proxy {
+interface ProxyVoter {
   owner: string;
-  name: string;
-  website: string;
-  slogan: string;
-  philosophy: string;
-  background: string;
-  logo_256: string;
-  is_proxy: number;
   proxy: string;
+  producers: string[];
+  staked: number;
+  last_vote_weight: string;
   proxied_vote_weight: string;
+  is_proxy: number;
 }
 
 interface VoterInfo {
@@ -129,7 +126,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
   const [isLoading, setIsLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [producers, setProducers] = useState<Producer[]>([]);
-  const [proxies, setProxies] = useState<Proxy[]>([]);
+  const [proxies, setProxies] = useState<ProxyVoter[]>([]);
   const [selectedProducers, setSelectedProducers] = useState<string[]>([]);
   const [selectedProxy, setSelectedProxy] = useState<string>('');
   const [voterInfo, setVoterInfo] = useState<VoterInfo | null>(null);
@@ -159,11 +156,16 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
       const total = sortedProducers.reduce((sum, p) => sum + parseFloat(p.total_votes), 0);
       setTotalVoteWeight(total);
 
-      // Fetch proxies from regproxyinfo table
-      const proxyData = await fetchTable<Proxy>('regproxyinfo', 'regproxyinfo', 'proxies', {
-        limit: 100,
+      // Fetch proxies from voters table (accounts with is_proxy=1)
+      // We need to scan more entries to find proxies
+      const votersData = await fetchTable<ProxyVoter>('eosio', 'eosio', 'voters', {
+        limit: 500,
       });
-      setProxies(proxyData.filter(p => p.is_proxy === 1));
+      // Filter for accounts that are registered as proxies
+      const proxyVoters = votersData.filter(v => v.is_proxy === 1);
+      // Sort by proxied vote weight descending
+      proxyVoters.sort((a, b) => parseFloat(b.proxied_vote_weight || '0') - parseFloat(a.proxied_vote_weight || '0'));
+      setProxies(proxyVoters);
 
       // Fetch voter info for current user
       const voterData = await fetchTable<VoterInfo>('eosio', 'eosio', 'voters', {
@@ -258,8 +260,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
   );
 
   const filteredProxies = proxies.filter(p => 
-    p.owner.toLowerCase().includes(proxySearch.toLowerCase()) ||
-    p.name?.toLowerCase().includes(proxySearch.toLowerCase())
+    p.owner.toLowerCase().includes(proxySearch.toLowerCase())
   );
 
   const canVote = (selectedProducers.length > 0 || selectedProxy) && !isVoting;
@@ -413,12 +414,9 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                   >
                     <div className="flex-1">
                       <div className="font-medium text-sm text-primary">{proxy.owner}</div>
-                      {proxy.name && (
-                        <div className="text-xs text-muted-foreground">{proxy.name}</div>
-                      )}
-                      {proxy.slogan && (
-                        <div className="text-xs text-muted-foreground line-clamp-1">{proxy.slogan}</div>
-                      )}
+                      <div className="text-xs text-muted-foreground">
+                        Vote Weight: {formatVotes(proxy.proxied_vote_weight || '0')}
+                      </div>
                     </div>
                     {selectedProxy === proxy.owner && (
                       <Check className="h-4 w-4 text-cheese" />

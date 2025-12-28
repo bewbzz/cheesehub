@@ -63,7 +63,41 @@ function formatVotes(votes: string): string {
 function formatVotePercentage(votes: string, totalVotes: number): string {
   const num = parseFloat(votes);
   if (isNaN(num) || totalVotes === 0) return '0%';
-  return ((num / totalVotes) * 100).toFixed(3) + '%';
+  return ((num / totalVotes) * 100).toFixed(2) + '%';
+}
+
+// ISO 3166-1 numeric country codes to flag emoji
+const locationToFlag: Record<number, string> = {
+  36: '🇦🇺', // Australia
+  76: '🇧🇷', // Brazil
+  124: '🇨🇦', // Canada
+  156: '🇨🇳', // China
+  276: '🇩🇪', // Germany
+  344: '🇭🇰', // Hong Kong
+  372: '🇮🇪', // Ireland
+  392: '🇯🇵', // Japan
+  410: '🇰🇷', // South Korea
+  528: '🇳🇱', // Netherlands
+  554: '🇳🇿', // New Zealand
+  578: '🇳🇴', // Norway
+  608: '🇵🇭', // Philippines
+  616: '🇵🇱', // Poland
+  620: '🇵🇹', // Portugal
+  643: '🇷🇺', // Russia
+  702: '🇸🇬', // Singapore
+  710: '🇿🇦', // South Africa
+  724: '🇪🇸', // Spain
+  752: '🇸🇪', // Sweden
+  756: '🇨🇭', // Switzerland
+  764: '🇹🇭', // Thailand
+  804: '🇺🇦', // Ukraine
+  826: '🇬🇧', // United Kingdom
+  840: '🇺🇸', // United States
+  320: '🇬🇹', // Guatemala
+};
+
+function getLocationFlag(location: number): string {
+  return locationToFlag[location] || '🌍';
 }
 
 export function VoteManager({ onTransactionComplete, onTransactionSuccess }: VoteManagerProps) {
@@ -277,7 +311,10 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                   <span className="font-medium flex-1 text-primary truncate">
                     {producer.owner}
                   </span>
-                  <span className="text-muted-foreground w-16 text-right">
+                  <span className="w-5 text-center" title={`Location: ${producer.location}`}>
+                    {getLocationFlag(producer.location)}
+                  </span>
+                  <span className="text-muted-foreground w-14 text-right">
                     {formatVotePercentage(producer.total_votes, totalVoteWeight)}
                   </span>
                 </div>

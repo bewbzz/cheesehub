@@ -7,8 +7,10 @@ import { fetchWithFallback } from '@/lib/fetchWithFallback';
 
 const WAX_ENDPOINTS = [
   'https://wax.greymass.com',
+  'https://wax.eosusa.io',
   'https://api.wax.alohaeos.com',
-  'https://wax.eosphere.io',
+  'https://wax.pink.gg',
+  'https://wax.cryptolions.io',
 ];
 
 interface VoteRewardsManagerProps {
@@ -82,29 +84,64 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         }
       );
       const voterData = await voterResponse.json();
+      console.log('Voter data response:', voterData);
       
-      // Fetch global state for reward calculation
-      const globalResponse = await fetchWithFallback(
-        WAX_ENDPOINTS,
-        '/v1/chain/get_table_rows',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: 'eosio',
-            scope: 'eosio',
-            table: 'global4',
-            limit: 1,
-            json: true,
-          }),
+      // Fetch global state for reward calculation - try global4 first, fallback to global3
+      let globalData: any = { rows: [] };
+      try {
+        const global4Response = await fetchWithFallback(
+          WAX_ENDPOINTS,
+          '/v1/chain/get_table_rows',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: 'eosio',
+              scope: 'eosio',
+              table: 'global4',
+              limit: 1,
+              json: true,
+            }),
+          }
+        );
+        globalData = await global4Response.json();
+        console.log('Global4 data:', globalData);
+      } catch (e) {
+        console.log('Global4 fetch failed, trying global3:', e);
+        // Fallback - calculate from voters bucket in global state
+        try {
+          const globalResponse = await fetchWithFallback(
+            WAX_ENDPOINTS,
+            '/v1/chain/get_table_rows',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code: 'eosio',
+                scope: 'eosio',
+                table: 'global',
+                limit: 1,
+                json: true,
+              }),
+            }
+          );
+          globalData = await globalResponse.json();
+          console.log('Global data fallback:', globalData);
+        } catch (e2) {
+          console.log('Global fetch also failed:', e2);
         }
-      );
-      const globalData = await globalResponse.json();
+      }
       
       if (voterData.rows && voterData.rows.length > 0) {
         const voter = voterData.rows[0] as VoterInfo;
+        console.log('Voter info:', voter);
         setVoterInfo(voter);
-        setHasVoted(voter.producers.length > 0 || voter.proxy !== '');
+        
+        // Check if user is voting (either directly for producers or via proxy)
+        const isVoting = (voter.producers && voter.producers.length > 0) || 
+                         (voter.proxy && voter.proxy.length > 0 && voter.proxy !== '');
+        console.log('Is voting:', isVoting, 'Proxy:', voter.proxy, 'Producers:', voter.producers?.length);
+        setHasVoted(isVoting);
         
         // Calculate last claim time from unpaid_voteshare_last_updated
         if (voter.unpaid_voteshare_last_updated > 0) {
@@ -124,13 +161,21 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
           setNextClaimTime('Now!');
         }
         
-        // Calculate estimated rewards
+        // Calculate estimated rewards - try even if globalData is incomplete
         if (globalData.rows && globalData.rows.length > 0) {
           const global = globalData.rows[0] as GlobalState;
           setGlobalState(global);
           
           const rewards = calculateRewards(voter, global);
           setEstimatedRewards(rewards);
+          console.log('Calculated rewards:', rewards);
+        } else {
+          // Even without global data, show that user has some rewards based on voteshare
+          const hasRewards = parseFloat(voter.unpaid_voteshare || '0') > 0 || 
+                            parseFloat(voter.unpaid_voteshare_change_rate || '0') > 0;
+          if (hasRewards) {
+            setEstimatedRewards(-1); // -1 means "some rewards available but amount unknown"
+          }
         }
       } else {
         setVoterInfo(null);
@@ -290,7 +335,11 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Next Voter Rewards:</span>
               <span className="font-medium text-cheese">
-                {estimatedRewards > 0 ? `${estimatedRewards.toFixed(8)} WAX` : 'Calculating...'}
+                {estimatedRewards > 0 
+                  ? `${estimatedRewards.toFixed(8)} WAX` 
+                  : estimatedRewards === -1 
+                    ? 'Rewards Available!' 
+                    : 'Calculating...'}
               </span>
             </div>
 
@@ -320,7 +369,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
           {/* Claim Button */}
           <Button
             onClick={handleClaimVote}
-            disabled={isTransacting || !hasVoted || estimatedRewards <= 0}
+            disabled={isTransacting || !hasVoted || estimatedRewards === 0}
             className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
           >
             {isTransacting ? (

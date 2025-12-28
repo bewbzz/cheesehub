@@ -594,6 +594,121 @@ export async function fetchUserStakes(
   }
 }
 
+// Fetch stakable collections/schemas/templates for a farm
+export interface FarmStakableConfig {
+  collections: string[];
+  schemas: { collection: string; schema: string }[];
+  templates: { template_id: number; collection: string }[];
+}
+
+export async function fetchFarmStakableConfig(farmName: string): Promise<FarmStakableConfig> {
+  const config: FarmStakableConfig = {
+    collections: [],
+    schemas: [],
+    templates: [],
+  };
+
+  try {
+    // Fetch stkcollection table
+    const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stkcollection",
+        limit: 100,
+      }),
+    });
+    const collectionsData = await collectionsRes.json();
+    config.collections = (collectionsData.rows || []).map((r: { collection_name: string }) => r.collection_name);
+
+    // Fetch stkschema table
+    const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stkschema",
+        limit: 100,
+      }),
+    });
+    const schemasData = await schemasRes.json();
+    config.schemas = (schemasData.rows || []).map((r: { collection_name: string; schema_name: string }) => ({
+      collection: r.collection_name,
+      schema: r.schema_name,
+    }));
+
+    // Fetch stktemplate table
+    const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stktemplate",
+        limit: 100,
+      }),
+    });
+    const templatesData = await templatesRes.json();
+    config.templates = (templatesData.rows || []).map((r: { template_id: number; collection_name: string }) => ({
+      template_id: r.template_id,
+      collection: r.collection_name,
+    }));
+
+  } catch (error) {
+    console.error("Error fetching farm stakable config:", error);
+  }
+
+  return config;
+}
+
+// Fetch user's pending rewards for a farm
+export interface PendingReward {
+  symbol: string;
+  amount: number;
+  precision: number;
+}
+
+export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
+  try {
+    const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "rewards",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 1,
+      }),
+    });
+    const data = await response.json();
+    
+    if (data.rows && data.rows.length > 0) {
+      const row = data.rows[0];
+      const balances = row.balances || [];
+      return balances.map((b: string) => {
+        const parts = b.split(" ");
+        const amount = parseFloat(parts[0]) || 0;
+        const symbol = parts[1] || "";
+        const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
+        return { symbol, amount, precision };
+      });
+    }
+    return [];
+  } catch (error) {
+    console.error("Error fetching pending rewards:", error);
+    return [];
+  }
+}
+
 // Validate farm name format (12 chars, a-z, 1-5, periods)
 export function validateFarmName(name: string): { valid: boolean; error?: string } {
   if (!name) {

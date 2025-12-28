@@ -579,11 +579,8 @@ export async function fetchUserStakes(
   try {
     console.log("Querying stakednfts table for", account, "in farm", farmName);
     
-    // WaxDAO V2 stakednfts table structure:
-    // Primary: asset_id, Secondary indexes: owner (2), farmname (3)
-    
-    // Try querying by farmname secondary index (index 3), then filter by owner
-    const farmStakednftsResponse = await fetch(
+    // Try 1: Query stakednfts with FARM NAME as scope (common pattern)
+    const farmScopeResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
         method: "POST",
@@ -591,74 +588,60 @@ export async function fetchUserStakes(
         body: JSON.stringify({
           json: true,
           code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
+          scope: farmName, // Use farm name as scope!
           table: "stakednfts",
-          index_position: 3, // farmname index
-          key_type: "name",
-          lower_bound: farmName,
-          upper_bound: farmName,
-          limit: 1000,
-        }),
-      }
-    );
-    
-    const farmStakednftsData = await farmStakednftsResponse.json();
-    console.log(`All staked NFTs in farm ${farmName} (farmname index):`, farmStakednftsData);
-    
-    if (farmStakednftsData.rows && farmStakednftsData.rows.length > 0) {
-      console.log(`Farm ${farmName} has ${farmStakednftsData.rows.length} total staked NFTs`);
-      
-      // Filter by owner
-      const userRows = farmStakednftsData.rows.filter((row: Record<string, unknown>) => {
-        return row.owner === account;
-      });
-      
-      console.log(`Found ${userRows.length} NFTs staked by ${account} in farm ${farmName}`);
-      
-      if (userRows.length > 0) {
-        return userRows.map((row: Record<string, unknown>) => ({
-          asset_id: String(row.asset_id),
-          staker: account,
-          farm_name: farmName,
-          last_claim: (row.last_claim as number) || 0,
-        }));
-      }
-    }
-    
-    // If farmname index didn't work, try owner index with different approach
-    // The secondary index might need i64 encoding for the name
-    const ownerStakednftsResponse = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "stakednfts",
-          index_position: 2, // owner index
-          key_type: "name",
           lower_bound: account,
           upper_bound: account,
+          index_position: 2, // owner secondary index
+          key_type: "name",
           limit: 500,
         }),
       }
     );
     
-    const ownerStakednftsData = await ownerStakednftsResponse.json();
-    console.log(`User ${account} staked NFTs (owner index):`, ownerStakednftsData);
+    const farmScopeData = await farmScopeResponse.json();
+    console.log(`stakednfts with farm scope (${farmName}), owner filter:`, farmScopeData);
     
-    if (ownerStakednftsData.rows && ownerStakednftsData.rows.length > 0) {
-      // Filter by farm
-      const farmRows = ownerStakednftsData.rows.filter((row: Record<string, unknown>) => {
-        return row.farmname === farmName;
+    if (farmScopeData.rows && farmScopeData.rows.length > 0) {
+      console.log(`Found ${farmScopeData.rows.length} NFTs for ${account} in farm ${farmName}`);
+      return farmScopeData.rows.map((row: Record<string, unknown>) => ({
+        asset_id: String(row.asset_id),
+        staker: account,
+        farm_name: farmName,
+        last_claim: (row.last_claim as number) || 0,
+      }));
+    }
+    
+    // Try 2: Query stakednfts with farm scope, no secondary index (get all, filter by owner)
+    const farmScopeAllResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakednfts",
+          limit: 1000,
+        }),
+      }
+    );
+    
+    const farmScopeAllData = await farmScopeAllResponse.json();
+    console.log(`stakednfts with farm scope (${farmName}), all rows:`, farmScopeAllData);
+    
+    if (farmScopeAllData.rows && farmScopeAllData.rows.length > 0) {
+      // Filter by owner
+      const userRows = farmScopeAllData.rows.filter((row: Record<string, unknown>) => {
+        const rowOwner = row.owner || row.staker || row.user || "";
+        return rowOwner === account;
       });
       
-      console.log(`Found ${farmRows.length} NFTs for user in farm ${farmName}`);
+      console.log(`Found ${userRows.length} NFTs for ${account} after filtering`);
       
-      if (farmRows.length > 0) {
-        return farmRows.map((row: Record<string, unknown>) => ({
+      if (userRows.length > 0) {
+        return userRows.map((row: Record<string, unknown>) => ({
           asset_id: String(row.asset_id),
           staker: account,
           farm_name: farmName,

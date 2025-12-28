@@ -45,7 +45,7 @@ const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] =
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
-  { id: 'vote', label: 'Vote', icon: <Vote className="h-4 w-4" /> },
+  { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
 ];
 

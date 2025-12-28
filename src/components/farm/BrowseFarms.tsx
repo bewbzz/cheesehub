@@ -13,8 +13,8 @@ type SortOption = "newest" | "staked" | "name";
 
 export function BrowseFarms() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showActiveOnly, setShowActiveOnly] = useState(false); // Show all farms by default
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>("name");
 
   const { data: farms = [], isLoading, error } = useQuery({
     queryKey: ["v2farms"],

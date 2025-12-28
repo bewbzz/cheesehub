@@ -26,6 +26,7 @@ import { WalletResources, AccountResources } from '@/components/wallet/WalletRes
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { Send, Check, X, Loader2, HardDrive, Cpu, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import cheeseLogo from '@/assets/cheese-logo.png';
 
 interface WalletTransferDialogProps {
   open: boolean;
@@ -168,7 +169,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle className="text-xl">Wallet</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
+            Wallet
+          </DialogTitle>
           <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
         </DialogHeader>
         

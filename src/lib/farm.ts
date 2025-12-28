@@ -671,6 +671,7 @@ export async function fetchUserStakes(
     }
     
     // Try stakers table - V2 farms store staked asset_ids as array per user
+    // Query with farm scope
     const stakersResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -689,14 +690,14 @@ export async function fetchUserStakes(
     );
     
     const stakersData = await stakersResponse.json();
-    console.log("Stakers table result for", account, ":", stakersData);
+    console.log("Stakers table result for", account, "in farm scope:", stakersData);
     
     if (stakersData.rows && stakersData.rows.length > 0) {
       const stakerRow = stakersData.rows[0];
-      console.log("Staker row structure:", stakerRow);
+      console.log("Staker row structure:", JSON.stringify(stakerRow));
       
       // Check if staked_assets or asset_ids array exists
-      const stakedAssets = stakerRow.staked_assets || stakerRow.asset_ids || stakerRow.assets || [];
+      const stakedAssets = stakerRow.staked_assets || stakerRow.asset_ids || stakerRow.assets || stakerRow.nfts || [];
       if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
         console.log("Found staked assets in stakers table:", stakedAssets.length);
         return stakedAssets.map((assetId: string | number) => ({
@@ -705,6 +706,44 @@ export async function fetchUserStakes(
           farm_name: farmName,
           last_claim: (stakerRow.last_claim as number) || 0,
         }));
+      }
+    }
+    
+    // Also try with user as scope (some contracts use this pattern)
+    const stakersUserScopeResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: account,
+          table: "stakers",
+          limit: 10,
+        }),
+      }
+    );
+    
+    const stakersUserScopeData = await stakersUserScopeResponse.json();
+    console.log("Stakers table with user scope:", stakersUserScopeData);
+    
+    if (stakersUserScopeData.rows && stakersUserScopeData.rows.length > 0) {
+      // Filter for this farm
+      const farmRow = stakersUserScopeData.rows.find((r: Record<string, unknown>) => 
+        r.farm_name === farmName || r.farmname === farmName
+      );
+      if (farmRow) {
+        console.log("Found farm row in user scope:", JSON.stringify(farmRow));
+        const stakedAssets = farmRow.staked_assets || farmRow.asset_ids || farmRow.assets || farmRow.nfts || [];
+        if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+          return stakedAssets.map((assetId: string | number) => ({
+            asset_id: String(assetId),
+            staker: account,
+            farm_name: farmName,
+            last_claim: (farmRow.last_claim as number) || 0,
+          }));
+        }
       }
     }
     

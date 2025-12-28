@@ -54,15 +54,19 @@ export interface RewardToken {
   precision: number;
 }
 
-export interface FarmConfig {
-  name: string;
-  logo: string;
-  description: string;
-  farmType: FarmType;
-  stakableAssets: StakableAsset[];
-  rewardTokens: RewardToken[];
-  payoutInterval: number;
-  expirationDate: Date;
+export interface FarmProfile {
+  avatar?: string;
+  cover_image?: string;
+  description?: string;
+}
+
+export interface FarmSocials {
+  website?: string;
+  telegram?: string;
+  discord?: string;
+  twitter?: string;
+  atomichub?: string;
+  waxdao?: string;
 }
 
 export interface FarmInfo {
@@ -75,9 +79,24 @@ export interface FarmInfo {
   expiration: number;
   payout_interval: number;
   last_payout: number;
-  farm_type: string;
+  farm_type: number;
   time_created: number;
   is_active: boolean;
+  status: number;
+  profile?: FarmProfile;
+  socials?: FarmSocials;
+  id: number;
+}
+
+export interface FarmConfig {
+  name: string;
+  logo: string;
+  description: string;
+  farmType: FarmType;
+  stakableAssets: StakableAsset[];
+  rewardTokens: RewardToken[];
+  payoutInterval: number;
+  expirationDate: Date;
 }
 
 export interface RewardPool {
@@ -85,6 +104,8 @@ export interface RewardPool {
   symbol: string;
   balance: string;
   precision: number;
+  total_funds?: string;
+  total_hourly_reward?: string;
 }
 
 export interface UserStake {
@@ -361,7 +382,7 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
           code: FARM_CONTRACT,
           scope: FARM_CONTRACT,
           table: "farms",
-          limit: 100,
+          limit: 200,
         }),
       }
     );
@@ -371,22 +392,61 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
 
     const now = Math.floor(Date.now() / 1000);
 
-    return (data.rows || []).map((row: Record<string, unknown>) => {
-      const expiration = row.expiration as number || 0;
+    return (data.rows || []).map((row: Record<string, unknown>, index: number) => {
+      // Handle actual WaxDAO V2 farm structure
+      const farmName = (row.farmname || row.farm_name || `farm_${index}`) as string;
+      const expiration = (row.expiration || 0) as number;
+      const stakedCount = (row.total_staked || 0) as number;
+      const createdTime = (row.time_created || 0) as number;
+      const hoursInterval = (row.hours_between_payouts || 1) as number;
+      const payoutInterval = hoursInterval * 3600;
+      const profile = row.profile as FarmProfile | undefined;
+      const socials = row.socials as FarmSocials | undefined;
+      const farmId = (row.id || index) as number;
+      const status = (row.status || 0) as number;
+      const farmType = (row.farm_type || 0) as number;
+      
+      // Parse reward pools from WaxDAO format
+      const rawPools = row.reward_pools as Array<{
+        total_funds?: string;
+        contract?: string;
+        total_hourly_reward?: string;
+      }> || [];
+      
+      const rewardPools: RewardPool[] = rawPools.map(pool => {
+        const fundsStr = pool.total_funds || "0";
+        const parts = fundsStr.split(" ");
+        const balance = parts[0] || "0";
+        const symbol = parts[1] || "";
+        const precision = balance.includes(".") ? balance.split(".")[1]?.length || 0 : 0;
+        
+        return {
+          contract: pool.contract || "",
+          symbol,
+          balance,
+          precision,
+          total_funds: pool.total_funds,
+          total_hourly_reward: pool.total_hourly_reward,
+        };
+      });
       
       return {
-        farm_name: row.farm_name as string || "",
-        creator: row.creator as string || "",
-        logo: row.logo as string || "",
-        description: row.description as string || "",
-        staked_count: row.staked_count as number || 0,
-        reward_pools: (row.reward_pools as RewardPool[]) || [],
+        farm_name: farmName,
+        creator: (row.creator || "") as string,
+        logo: profile?.avatar || "",
+        description: profile?.description || "",
+        staked_count: stakedCount,
+        reward_pools: rewardPools,
         expiration,
-        payout_interval: row.payout_interval as number || 3600,
-        last_payout: row.last_payout as number || 0,
-        farm_type: row.farm_type as string || "collections",
-        time_created: row.time_created as number || 0,
-        is_active: expiration > now,
+        payout_interval: payoutInterval,
+        last_payout: (row.last_state_change || 0) as number,
+        farm_type: farmType,
+        time_created: createdTime,
+        is_active: status === 1 && expiration > now,
+        status,
+        profile,
+        socials,
+        id: farmId,
       };
     });
   } catch (error) {
@@ -427,24 +487,66 @@ export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | nul
     );
 
     const data = await response.json();
+    console.log("Farm detail data:", data);
+    
     if (data.rows && data.rows.length > 0) {
       const row = data.rows[0];
       const now = Math.floor(Date.now() / 1000);
-      const expiration = row.expiration as number || 0;
+      
+      // Handle actual WaxDAO V2 farm structure
+      const farmName = (row.farmname || row.farm_name || "") as string;
+      const expiration = (row.expiration || 0) as number;
+      const stakedCount = (row.total_staked || 0) as number;
+      const createdTime = (row.time_created || 0) as number;
+      const hoursInterval = (row.hours_between_payouts || 1) as number;
+      const payoutInterval = hoursInterval * 3600;
+      const profile = row.profile as FarmProfile | undefined;
+      const socials = row.socials as FarmSocials | undefined;
+      const farmId = (row.id || 0) as number;
+      const status = (row.status || 0) as number;
+      const farmType = (row.farm_type || 0) as number;
+      
+      // Parse reward pools
+      const rawPools = row.reward_pools as Array<{
+        total_funds?: string;
+        contract?: string;
+        total_hourly_reward?: string;
+      }> || [];
+      
+      const rewardPools: RewardPool[] = rawPools.map(pool => {
+        const fundsStr = pool.total_funds || "0";
+        const parts = fundsStr.split(" ");
+        const balance = parts[0] || "0";
+        const symbol = parts[1] || "";
+        const precision = balance.includes(".") ? balance.split(".")[1]?.length || 0 : 0;
+        
+        return {
+          contract: pool.contract || "",
+          symbol,
+          balance,
+          precision,
+          total_funds: pool.total_funds,
+          total_hourly_reward: pool.total_hourly_reward,
+        };
+      });
       
       return {
-        farm_name: row.farm_name as string || "",
-        creator: row.creator as string || "",
-        logo: row.logo as string || "",
-        description: row.description as string || "",
-        staked_count: row.staked_count as number || 0,
-        reward_pools: (row.reward_pools as RewardPool[]) || [],
+        farm_name: farmName,
+        creator: (row.creator || "") as string,
+        logo: profile?.avatar || "",
+        description: profile?.description || "",
+        staked_count: stakedCount,
+        reward_pools: rewardPools,
         expiration,
-        payout_interval: row.payout_interval as number || 3600,
-        last_payout: row.last_payout as number || 0,
-        farm_type: row.farm_type as string || "collections",
-        time_created: row.time_created as number || 0,
-        is_active: expiration > now,
+        payout_interval: payoutInterval,
+        last_payout: (row.last_state_change || 0) as number,
+        farm_type: farmType,
+        time_created: createdTime,
+        is_active: status === 1 && expiration > now,
+        status,
+        profile,
+        socials,
+        id: farmId,
       };
     }
     return null;

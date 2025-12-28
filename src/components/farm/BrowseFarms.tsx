@@ -13,14 +13,18 @@ type SortOption = "newest" | "staked" | "name";
 
 export function BrowseFarms() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [showActiveOnly, setShowActiveOnly] = useState(false); // Show all farms by default
   const [sortBy, setSortBy] = useState<SortOption>("newest");
 
-  const { data: farms = [], isLoading } = useQuery({
+  const { data: farms = [], isLoading, error } = useQuery({
     queryKey: ["v2farms"],
     queryFn: fetchAllFarms,
     staleTime: 30000,
+    refetchOnMount: true,
   });
+
+  // Debug log
+  console.log("Farms query state:", { isLoading, error, farmsCount: farms.length });
 
   const filteredFarms = useMemo(() => {
     let result = [...farms];
@@ -123,7 +127,7 @@ export function BrowseFarms() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredFarms.map((farm) => (
-            <FarmCard key={farm.farm_name} farm={farm} />
+            <FarmCard key={`farm-${farm.id}-${farm.farm_name}`} farm={farm} />
           ))}
         </div>
       )}

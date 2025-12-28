@@ -21,6 +21,16 @@ import {
 import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
 import { useToast } from "@/hooks/use-toast";
 
+// Farm type labels based on WaxDAO contract
+const FARM_TYPE_LABELS: Record<number, string> = {
+  0: "Collections",
+  1: "Schemas", 
+  2: "Templates",
+  3: "Attributes",
+};
+
+const getFarmTypeLabel = (type: number) => FARM_TYPE_LABELS[type] || "Unknown";
+
 export function FarmDetail() {
   const { farmName } = useParams<{ farmName: string }>();
   const navigate = useNavigate();
@@ -262,7 +272,7 @@ export function FarmDetail() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Farm Type</p>
-                <p className="font-medium capitalize">{farm.farm_type || "Collections"}</p>
+                <p className="font-medium">{getFarmTypeLabel(farm.farm_type)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Creator</p>

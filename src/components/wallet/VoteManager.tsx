@@ -165,39 +165,22 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
         'waxunderdogs', 'binjteamwax1', 'swedencornet', 'massadoption'
       ];
       
-      const rpcEndpoints = [
-        'https://api.wax.alohaeos.com',
-        'https://wax.greymass.com',
-        'https://api.waxsweden.org',
-      ];
-      
+      // Fetch proxies using fetchTable which has proper fallback
       try {
         const proxyPromises = knownProxyAccounts.map(async (account) => {
-          for (const endpoint of rpcEndpoints) {
-            try {
-              const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  json: true,
-                  code: 'eosio',
-                  scope: 'eosio',
-                  table: 'voters',
-                  lower_bound: account,
-                  upper_bound: account,
-                  limit: 1,
-                }),
-              });
-              const data = await response.json();
-              if (data.rows && data.rows.length > 0 && data.rows[0].is_proxy === 1) {
-                return data.rows[0] as ProxyVoter;
-              }
-              return null;
-            } catch {
-              continue;
+          try {
+            const rows = await fetchTable<ProxyVoter>('eosio', 'eosio', 'voters', {
+              lower_bound: account,
+              upper_bound: account,
+              limit: 1,
+            });
+            if (rows.length > 0 && rows[0].is_proxy === 1) {
+              return rows[0];
             }
+            return null;
+          } catch {
+            return null;
           }
-          return null;
         });
         
         const proxyResults = await Promise.all(proxyPromises);

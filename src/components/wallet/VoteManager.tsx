@@ -66,38 +66,61 @@ function formatVotePercentage(votes: string, totalVotes: number): string {
   return ((num / totalVotes) * 100).toFixed(2) + '%';
 }
 
-// ISO 3166-1 numeric country codes to flag emoji
-const locationToFlag: Record<number, string> = {
-  36: '🇦🇺', // Australia
-  76: '🇧🇷', // Brazil
-  124: '🇨🇦', // Canada
-  156: '🇨🇳', // China
-  276: '🇩🇪', // Germany
-  344: '🇭🇰', // Hong Kong
-  372: '🇮🇪', // Ireland
-  392: '🇯🇵', // Japan
-  410: '🇰🇷', // South Korea
-  528: '🇳🇱', // Netherlands
-  554: '🇳🇿', // New Zealand
-  578: '🇳🇴', // Norway
-  608: '🇵🇭', // Philippines
-  616: '🇵🇱', // Poland
-  620: '🇵🇹', // Portugal
-  643: '🇷🇺', // Russia
-  702: '🇸🇬', // Singapore
-  710: '🇿🇦', // South Africa
-  724: '🇪🇸', // Spain
-  752: '🇸🇪', // Sweden
-  756: '🇨🇭', // Switzerland
-  764: '🇹🇭', // Thailand
-  804: '🇺🇦', // Ukraine
-  826: '🇬🇧', // United Kingdom
-  840: '🇺🇸', // United States
-  320: '🇬🇹', // Guatemala
+// ISO 3166-1 numeric country codes to country names
+const locationToCountry: Record<number, string> = {
+  36: 'Australia',
+  76: 'Brazil',
+  124: 'Canada',
+  156: 'China',
+  276: 'Germany',
+  344: 'Hong Kong',
+  372: 'Ireland',
+  392: 'Japan',
+  410: 'South Korea',
+  528: 'Netherlands',
+  554: 'New Zealand',
+  578: 'Norway',
+  608: 'Philippines',
+  616: 'Poland',
+  620: 'Portugal',
+  643: 'Russia',
+  702: 'Singapore',
+  710: 'South Africa',
+  724: 'Spain',
+  752: 'Sweden',
+  756: 'Switzerland',
+  764: 'Thailand',
+  804: 'Ukraine',
+  826: 'United Kingdom',
+  840: 'United States',
+  320: 'Guatemala',
+  250: 'France',
+  380: 'Italy',
+  40: 'Austria',
+  56: 'Belgium',
+  203: 'Czech Republic',
+  208: 'Denmark',
+  246: 'Finland',
+  300: 'Greece',
+  348: 'Hungary',
+  356: 'India',
+  360: 'Indonesia',
+  376: 'Israel',
+  458: 'Malaysia',
+  484: 'Mexico',
+  566: 'Nigeria',
+  586: 'Pakistan',
+  604: 'Peru',
+  642: 'Romania',
+  682: 'Saudi Arabia',
+  784: 'UAE',
+  858: 'Uruguay',
+  862: 'Venezuela',
+  704: 'Vietnam',
 };
 
-function getLocationFlag(location: number): string {
-  return locationToFlag[location] || '🌍';
+function getLocationName(location: number): string {
+  return locationToCountry[location] || '-';
 }
 
 export function VoteManager({ onTransactionComplete, onTransactionSuccess }: VoteManagerProps) {
@@ -311,10 +334,10 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                   <span className="font-medium flex-1 text-primary truncate">
                     {producer.owner}
                   </span>
-                  <span className="w-5 text-center" title={`Location: ${producer.location}`}>
-                    {getLocationFlag(producer.location)}
+                  <span className="text-muted-foreground w-20 truncate text-center">
+                    {getLocationName(producer.location)}
                   </span>
-                  <span className="text-muted-foreground w-14 text-right">
+                  <span className="text-muted-foreground w-12 text-right">
                     {formatVotePercentage(producer.total_votes, totalVoteWeight)}
                   </span>
                 </div>

@@ -597,7 +597,45 @@ export async function fetchUserStakes(
       }
     );
     const debugData = await debugResponse.json();
-    console.log("stakednfts table sample (first 10):", debugData);
+    console.log("stakednfts table sample (farm scope, first 10):", debugData);
+    
+    // Also try with farms.waxdao as scope
+    const globalScopeResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT,
+          table: "stakednfts",
+          limit: 10,
+        }),
+      }
+    );
+    const globalScopeData = await globalScopeResponse.json();
+    console.log("stakednfts table sample (contract scope):", globalScopeData);
+    
+    // Try querying by asset_id directly to see if the staked NFT exists
+    const assetCheckResponse = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakednfts",
+          lower_bound: "1099957185992",
+          upper_bound: "1099957185992",
+          limit: 1,
+        }),
+      }
+    );
+    const assetCheckData = await assetCheckResponse.json();
+    console.log("Check specific staked asset 1099957185992:", assetCheckData);
     
     const stakednftsResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,

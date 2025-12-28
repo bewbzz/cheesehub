@@ -1,7 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sprout, Users, Clock, ExternalLink } from "lucide-react";
+import { Sprout, Users, Clock, ArrowRight } from "lucide-react";
 import { FarmInfo, getIpfsUrl } from "@/lib/farm";
 
 interface FarmCardProps {
@@ -10,6 +11,7 @@ interface FarmCardProps {
 }
 
 export function FarmCard({ farm, onSelect }: FarmCardProps) {
+  const navigate = useNavigate();
   const now = Math.floor(Date.now() / 1000);
   const isExpired = farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
@@ -26,14 +28,14 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
     return `${amount.toFixed(2)} ${pool.symbol}`;
   };
 
-  const handleViewOnWaxDao = () => {
-    window.open(`https://waxdao.io/v2/farm/${farm.farm_name}`, "_blank");
+  const handleViewFarm = () => {
+    navigate(`/farm/${farm.farm_name}`);
   };
 
   return (
     <Card 
       className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all cursor-pointer"
-      onClick={() => onSelect?.(farm)}
+      onClick={handleViewFarm}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start gap-3">
@@ -118,11 +120,11 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
             className="flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              handleViewOnWaxDao();
+              handleViewFarm();
             }}
           >
-            <ExternalLink className="h-4 w-4 mr-1" />
-            View on WaxDAO
+            <ArrowRight className="h-4 w-4 mr-1" />
+            View Details
           </Button>
         </div>
       </CardContent>

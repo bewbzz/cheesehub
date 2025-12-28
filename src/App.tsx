@@ -38,6 +38,7 @@ const App = () => {
                 <Route path="/drops/:id" element={<DropDetail />} />
                 <Route path="/dao" element={<Dao />} />
                 <Route path="/farm" element={<Farm />} />
+                <Route path="/farm/:farmName" element={<Farm />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

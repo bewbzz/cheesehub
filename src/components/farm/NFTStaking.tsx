@@ -344,11 +344,19 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   };
 
   const selectAllToStake = () => {
-    setSelectedToStake(new Set(eligibleNfts.map(n => n.asset_id)));
+    if (selectedToStake.size === eligibleNfts.length) {
+      setSelectedToStake(new Set());
+    } else {
+      setSelectedToStake(new Set(eligibleNfts.map(n => n.asset_id)));
+    }
   };
 
   const selectAllToUnstake = () => {
-    setSelectedToUnstake(new Set(stakedNftDetails.map(n => n.asset_id)));
+    if (selectedToUnstake.size === stakedNftDetails.length) {
+      setSelectedToUnstake(new Set());
+    } else {
+      setSelectedToUnstake(new Set(stakedNftDetails.map(n => n.asset_id)));
+    }
   };
 
   const totalPendingRewards = pendingRewards.reduce((acc, r) => acc + r.amount, 0);

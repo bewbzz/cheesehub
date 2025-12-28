@@ -450,24 +450,26 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
                   No registered proxies found. You can still enter a proxy account manually.
                 </div>
               ) : (
-                filteredProxies.map((proxy) => (
-                  <div
+                filteredProxies.map((proxy, index) => (
+                  <label
                     key={proxy.owner}
-                    className={`flex items-center gap-3 p-3 hover:bg-muted/50 cursor-pointer ${
-                      selectedProxy === proxy.owner ? 'bg-cheese/10' : ''
+                    className={`flex items-center gap-2 p-2 cursor-pointer text-xs select-none transition-colors ${
+                      selectedProxy === proxy.owner ? 'bg-cheese/10 hover:bg-cheese/20' : 'hover:bg-muted/50'
                     }`}
                     onClick={() => handleProxySelect(proxy.owner)}
                   >
-                    <div className="flex-1">
-                      <div className="font-medium text-sm text-primary">{proxy.owner}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Vote Weight: {formatVotes(proxy.proxied_vote_weight || '0')}
-                      </div>
-                    </div>
-                    {selectedProxy === proxy.owner && (
-                      <Check className="h-4 w-4 text-cheese" />
-                    )}
-                  </div>
+                    <Checkbox
+                      checked={selectedProxy === proxy.owner}
+                      className="h-4 w-4 pointer-events-none"
+                    />
+                    <span className="text-muted-foreground w-5 text-center">{index + 1}</span>
+                    <span className="font-medium flex-1 text-primary truncate">
+                      {proxy.owner}
+                    </span>
+                    <span className="text-muted-foreground w-16 text-right">
+                      {formatVotes(proxy.proxied_vote_weight || '0')}
+                    </span>
+                  </label>
                 ))
               )}
             </div>

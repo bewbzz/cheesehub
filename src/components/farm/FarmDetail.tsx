@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
 import { useToast } from "@/hooks/use-toast";
+import { NFTStaking } from "./NFTStaking";
 
 // Farm type labels based on WaxDAO contract
 const FARM_TYPE_LABELS: Record<number, string> = {
@@ -148,14 +149,6 @@ export function FarmDetail() {
             <Button size="sm" variant="outline" onClick={handleCopyFarmName}>
               {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
               Copy Name
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.open(`https://waxdao.io/v2/farm/${farm.farm_name}`, "_blank")}
-            >
-              <ExternalLink className="h-4 w-4 mr-1" />
-              Stake on WaxDAO
             </Button>
           </div>
         </div>
@@ -300,23 +293,32 @@ export function FarmDetail() {
         </Card>
       </div>
 
-      {/* Actions */}
+      {/* NFT Staking Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Sprout className="h-5 w-5 text-primary" />
+          Stake & Earn
+        </h2>
+        <NFTStaking farm={farm} />
+      </div>
+
+      {/* External Link */}
       <Card className="border-border/50 bg-card/50">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div>
-              <h3 className="font-semibold mb-1">Ready to stake?</h3>
+              <h3 className="font-semibold mb-1">View on WaxDAO</h3>
               <p className="text-sm text-muted-foreground">
-                Stake your NFTs to earn rewards from this farm.
+                View this farm on WaxDAO for additional details.
               </p>
             </div>
             <Button
               size="lg"
-              className="bg-primary hover:bg-primary/90"
+              variant="outline"
               onClick={() => window.open(`https://waxdao.io/v2/farm/${farm.farm_name}`, "_blank")}
             >
-              <Sprout className="h-5 w-5 mr-2" />
-              Stake NFTs on WaxDAO
+              <ExternalLink className="h-5 w-5 mr-2" />
+              View on WaxDAO
             </Button>
           </div>
         </CardContent>

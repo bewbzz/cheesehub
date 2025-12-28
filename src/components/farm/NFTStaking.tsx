@@ -78,7 +78,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   // Fetch user's staked NFTs
   const { data: stakedNfts = [], isLoading: isLoadingStaked, refetch: refetchStaked } = useQuery({
     queryKey: ["userStakes", accountName, farm.farm_name],
-    queryFn: () => fetchUserStakes(accountName!, farm.farm_name),
+    queryFn: async () => {
+      const stakes = await fetchUserStakes(accountName!, farm.farm_name);
+      console.log("Fetched staked NFTs for", accountName, "in farm", farm.farm_name, ":", stakes);
+      return stakes;
+    },
     enabled: !!accountName,
     staleTime: 30000,
   });
@@ -86,7 +90,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   // Fetch user's pending rewards
   const { data: pendingRewards = [], refetch: refetchRewards } = useQuery({
     queryKey: ["pendingRewards", accountName, farm.farm_name],
-    queryFn: () => fetchPendingRewards(accountName!, farm.farm_name),
+    queryFn: async () => {
+      const rewards = await fetchPendingRewards(accountName!, farm.farm_name);
+      console.log("Fetched pending rewards for", accountName, "in farm", farm.farm_name, ":", rewards);
+      return rewards;
+    },
     enabled: !!accountName,
     staleTime: 30000,
   });

@@ -343,7 +343,7 @@ export function buildStakeNftsAction(
   // Call farms.waxdao::stake directly instead of transferring
   return {
     account: FARM_CONTRACT,
-    name: "stake",
+    name: "stakenfts",
     authorization: [{ actor: staker, permission: "active" }],
     data: {
       staker: staker,

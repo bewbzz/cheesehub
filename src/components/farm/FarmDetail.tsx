@@ -310,7 +310,7 @@ export function FarmDetail() {
           <img
             src={getIpfsUrl(farm.profile.cover_image)}
             alt={`${farm.farm_name} cover`}
-            className="w-full h-48 md:h-64 object-cover"
+            className="w-full h-auto object-contain"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}

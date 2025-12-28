@@ -370,12 +370,12 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   return (
     <div className="space-y-4">
-      {/* Staking Requirements - compact info card */}
+      {/* Stakeable Assets - compact info card */}
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="py-3 px-4">
           <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <Package className="h-4 w-4 text-muted-foreground" />
-            Staking Requirements
+            Stakeable Assets
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-3 pt-0">
@@ -383,9 +383,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           {stakableConfig && stakableConfig.templates.length > 0 && (
             <div className="text-xs">
               <span className="text-muted-foreground">Templates: </span>
-              <span className="text-foreground">
+              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
                 {stakableConfig.templates.map((t, i) => (
-                  <span key={i}>
+                  <span key={i} className="inline-flex items-center">
                     <a 
                       href={`https://wax.atomichub.io/explorer/template/wax-mainnet/${t.collection || 'unknown'}/${t.template_id}`}
                       target="_blank"
@@ -397,7 +397,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                     {t.hourly_rate && t.hourly_rate !== "0" && (
                       <span className="text-cheese ml-1">({t.hourly_rate}/hr)</span>
                     )}
-                    {i < stakableConfig.templates.length - 1 && <span className="mx-1">•</span>}
                   </span>
                 ))}
               </span>
@@ -408,14 +407,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           {stakableConfig && stakableConfig.schemas.length > 0 && (
             <div className="text-xs">
               <span className="text-muted-foreground">Schemas: </span>
-              <span className="text-foreground">
+              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
                 {stakableConfig.schemas.map((s, i) => (
-                  <span key={i}>
+                  <span key={i} className="inline-flex items-center">
                     <span className="text-primary">{s.collection}/{s.schema}</span>
                     {s.hourly_rate && s.hourly_rate !== "0" && (
                       <span className="text-cheese ml-1">({s.hourly_rate}/hr)</span>
                     )}
-                    {i < stakableConfig.schemas.length - 1 && <span className="mx-1">•</span>}
                   </span>
                 ))}
               </span>
@@ -426,9 +424,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           {stakableConfig && stakableConfig.collections.length > 0 && (
             <div className="text-xs">
               <span className="text-muted-foreground">Collections: </span>
-              <span className="text-foreground">
+              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
                 {stakableConfig.collections.map((c, i) => (
-                  <span key={i}>
+                  <span key={i} className="inline-flex items-center">
                     <a 
                       href={`https://wax.atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
                       target="_blank"
@@ -440,7 +438,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                     {c.hourly_rate && c.hourly_rate !== "0" && (
                       <span className="text-cheese ml-1">({c.hourly_rate}/hr)</span>
                     )}
-                    {i < stakableConfig.collections.length - 1 && <span className="mx-1">•</span>}
                   </span>
                 ))}
               </span>
@@ -451,14 +448,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           {stakableConfig && stakableConfig.attributes && stakableConfig.attributes.length > 0 && (
             <div className="text-xs">
               <span className="text-muted-foreground">Attributes: </span>
-              <span className="text-foreground">
+              <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
                 {stakableConfig.attributes.map((a, i) => (
-                  <span key={i}>
+                  <span key={i} className="inline-flex items-center">
                     <span className="text-primary">{a.attribute_name}={a.attribute_value}</span>
                     {a.hourly_rate && a.hourly_rate !== "0" && (
                       <span className="text-cheese ml-1">({a.hourly_rate}/hr)</span>
                     )}
-                    {i < stakableConfig.attributes.length - 1 && <span className="mx-1">•</span>}
                   </span>
                 ))}
               </span>

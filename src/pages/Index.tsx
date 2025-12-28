@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import cheeseCoin from "@/assets/cheese-coin.png";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 import { CheesePriceBar } from "@/components/home/CheesePriceBar";
+import { CheeseHistorySection } from "@/components/home/CheeseHistorySection";
 
 const Index = () => {
   return (
@@ -51,6 +52,9 @@ const Index = () => {
 
       {/* Token Stats Banner */}
       <TokenStatsBanner />
+
+      {/* CHEESE History Section */}
+      <CheeseHistorySection />
 
       {/* CHEESETools Section */}
       <section className="container py-16">

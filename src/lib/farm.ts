@@ -366,7 +366,7 @@ export function buildUnstakeNftsAction(
     data: {
       user: staker,
       farmname: farmName,
-      assets_to_unstake: assetIds,
+      asset_ids: assetIds,
     },
   };
 }

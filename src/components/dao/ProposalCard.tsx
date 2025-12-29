@@ -564,21 +564,23 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
               title={`Pass threshold: ${passThreshold}%`}
             />
           </div>
-          {/* Threshold status badge */}
-          <div className="flex items-center justify-between text-xs mt-1">
-            <span className="text-muted-foreground">
-              Requires {passThreshold}% in favor to pass
-            </span>
-            {totalVotes > 0 && (
-              <div className={`px-2 py-0.5 rounded-full font-medium ${
-                meetsThreshold 
-                  ? 'bg-green-500/20 text-green-500 border border-green-500/30' 
-                  : 'bg-red-500/20 text-red-500 border border-red-500/30'
-              }`}>
-                {meetsThreshold ? 'PASSING' : 'FAILING'}
-              </div>
-            )}
-          </div>
+          {/* Threshold status badge - only show for active/pending proposals */}
+          {!isAlreadyFinalized && !isFinalized && (
+            <div className="flex items-center justify-between text-xs mt-1">
+              <span className="text-muted-foreground">
+                Requires {passThreshold}% in favor to pass
+              </span>
+              {totalVotes > 0 && (
+                <div className={`px-2 py-0.5 rounded-full font-medium ${
+                  meetsThreshold 
+                    ? 'bg-green-500/20 text-green-500 border border-green-500/30' 
+                    : 'bg-red-500/20 text-red-500 border border-red-500/30'
+                }`}>
+                  {meetsThreshold ? 'PASSING' : 'FAILING'}
+                </div>
+              )}
+            </div>
+          )}
           {proposal.abstain_votes > 0 && (
             <p className="text-xs text-muted-foreground text-center">
               Abstain: {proposal.abstain_votes}
@@ -607,7 +609,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
           <div className="space-y-2 w-full max-w-full overflow-hidden">
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground font-medium">Full Rankings</p>
-              {leaderVotes > 0 && (
+              {/* Only show LEADING label for active proposals */}
+              {!isAlreadyFinalized && !isFinalized && leaderVotes > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">
                   LEADING: {leader.description}
                 </span>
@@ -661,9 +664,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-cheese font-medium">{winnerVotes} ({winnerPercent.toFixed(0)}%)</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cheese/20 text-cheese border border-cheese/30">
-                    LEADING
-                  </span>
+                  {/* Only show LEADING label for active proposals */}
+                  {!isAlreadyFinalized && !isFinalized && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cheese/20 text-cheese border border-cheese/30">
+                      LEADING
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="h-2 bg-cheese/20 rounded-full overflow-hidden w-full">
@@ -716,7 +722,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <Badge className={statusColors[displayStatus] || "bg-muted"}>
+            <Badge className={`${statusColors[displayStatus] || "bg-muted"} ${
+              (displayStatus === "passed" || displayStatus === "rejected") ? "text-sm px-3 py-1" : ""
+            }`}>
               {displayStatus}
             </Badge>
             <Badge variant="outline" className="text-xs flex items-center gap-1">

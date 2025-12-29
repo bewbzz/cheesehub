@@ -559,7 +559,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                   >
                     #{t.template_id}
                   </a>
-                  {t.hourly_rate && t.hourly_rate !== "0" && (
+                  {t.hourly_rates && t.hourly_rates.length > 0 ? (
+                    <span className="text-cheese ml-1">
+                      ({t.hourly_rates.map(r => r.quantity).join(' + ')}/hr)
+                    </span>
+                  ) : t.hourly_rate && t.hourly_rate !== "0" && (
                     <span className="text-cheese ml-1">({t.hourly_rate}/hr)</span>
                   )}
                 </span>

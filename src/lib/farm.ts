@@ -41,16 +41,52 @@ async function fetchWithWaxFallback(
 }
 
 // Fetch all farm names where a user has staked
-// V2 farms use non-custodial staking - try both 'stakers' and 'stakednfts' tables
+// Debug: Try multiple query approaches to find the right one
 export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
   if (!account || allFarmNames.length === 0) return [];
   
   const endpoint = "https://wax.eosusa.io";
   const stakedFarms = new Set<string>();
+  
+  console.log(`[fetchUserStakedFarmNames] Checking farms for user ${account}`);
+  
+  // First, let's try to get ALL rows from a known farm's stakers table to understand structure
+  const testFarm = "ruggapesv2";
+  try {
+    const testResponse = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: testFarm,
+        table: "stakers",
+        limit: 10,
+      }),
+    });
+    const testData = await testResponse.json();
+    console.log(`[DEBUG] ${testFarm} stakers table sample:`, testData.rows?.slice(0, 3));
+    
+    // Also check stakednfts table
+    const testResponse2 = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: testFarm,
+        table: "stakednfts",
+        limit: 10,
+      }),
+    });
+    const testData2 = await testResponse2.json();
+    console.log(`[DEBUG] ${testFarm} stakednfts table sample:`, testData2.rows?.slice(0, 3));
+  } catch (e) {
+    console.log("[DEBUG] Error fetching test data:", e);
+  }
+  
+  // Now batch check each farm
   const batchSize = 5;
-  
-  console.log(`[fetchUserStakedFarmNames] Checking ${allFarmNames.length} farms for user ${account}`);
-  
   for (let i = 0; i < allFarmNames.length; i += batchSize) {
     const batch = allFarmNames.slice(i, i + batchSize);
     
@@ -58,7 +94,6 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
       batch.flatMap((farmName) => {
         if (!farmName) return [];
         
-        // Try both tables: stakers and stakednfts
         return ['stakers', 'stakednfts'].map(async (tableName) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -105,7 +140,6 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
       }
     }
     
-    // Small delay between batches
     if (i + batchSize < allFarmNames.length) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }

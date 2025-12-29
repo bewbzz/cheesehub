@@ -77,19 +77,6 @@ export function buildFinalizeProposalAction(user: string, daoName: string, propo
   };
 }
 
-// Build action for executing a passed token/NFT transfer proposal
-export function buildExecuteProposalAction(user: string, daoName: string, proposalId: number) {
-  return {
-    account: DAO_CONTRACT,
-    name: "execute",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user: user,
-      dao: daoName,
-      proposal_id: proposalId,
-    },
-  };
-}
 
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
@@ -1446,7 +1433,7 @@ export function buildTokenTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 2, // Token Transfer type
+      proposal_type: 4, // Token Transfer type (uses token_receivers)
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },
@@ -1674,7 +1661,7 @@ export function buildNFTTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 3, // NFT transfer type
+      proposal_type: 5, // NFT Transfer type (uses nft_receivers)
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },

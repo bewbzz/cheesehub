@@ -77,6 +77,20 @@ export function buildFinalizeProposalAction(user: string, daoName: string, propo
   };
 }
 
+// Build action for executing a passed token/NFT transfer proposal
+export function buildExecuteProposalAction(user: string, daoName: string, proposalId: number) {
+  return {
+    account: DAO_CONTRACT,
+    name: "execute",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      proposal_id: proposalId,
+    },
+  };
+}
+
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
   1: "Custodial NFT Farm",        // Requires gov_farm_name (waxdaofarmer)

@@ -731,10 +731,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
             {displayStatus === "rejected" && (
               <span className="text-xs text-red-400 text-right max-w-[150px]">
                 {(() => {
-                  if (totalVotes === 0) return "No votes cast";
-                  if (proposal.no_votes > proposal.yes_votes) return "Voted down by majority";
-                  if (yesPercent < passThreshold) return `Did not reach ${passThreshold}% threshold`;
-                  return "Did not pass";
+                  // Use choicesTotalVotes for multi-option, totalVotes for yes/no
+                  const actualVotes = isYesNoType ? totalVotes : choicesTotalVotes;
+                  if (actualVotes === 0) return "No votes cast";
+                  if (isYesNoType && proposal.no_votes > proposal.yes_votes) return "Voted down by majority";
+                  if (isYesNoType && yesPercent < passThreshold) return `Did not reach ${passThreshold}% threshold`;
+                  return "Did not pass requirements";
                 })()}
               </span>
             )}

@@ -124,6 +124,10 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   // State for live rewards that update in real-time
   const [liveRewards, setLiveRewards] = useState<PendingReward[]>([]);
+  // State for pending rewards (will be added at next payout)
+  const [pendingNextPayout, setPendingNextPayout] = useState<PendingReward[]>([]);
+  // Countdown to next payout in seconds
+  const [nextPayoutIn, setNextPayoutIn] = useState<number>(0);
 
   // Extract staking data for live calculation
   const stakerData = useMemo(() => {
@@ -140,19 +144,32 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     };
   }, [stakedNfts]);
 
-  // Dynamic reward calculation that updates every second
+  // Dynamic reward calculation based on completed payout periods
   useEffect(() => {
     if (!stakerData || !stakerData.claimableBalances.length) {
       setLiveRewards([]);
+      setPendingNextPayout([]);
+      setNextPayoutIn(0);
       return;
     }
 
     const calculateLiveRewards = () => {
       const now = Math.floor(Date.now() / 1000);
-      const elapsedSeconds = now - stakerData.lastStateChange;
-      const elapsedHours = elapsedSeconds / 3600;
+      const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
+      const lastPayout = farm.last_payout || now;
+      
+      // Calculate completed payout periods since last farm payout
+      const timeSinceLastPayout = now - lastPayout;
+      const completedPeriods = Math.floor(timeSinceLastPayout / payoutInterval);
+      const claimableHours = (completedPeriods * payoutInterval) / 3600;
+      
+      // Time remaining in current incomplete period
+      const elapsedInCurrentPeriod = timeSinceLastPayout % payoutInterval;
+      const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
+      setNextPayoutIn(secondsUntilNextPayout);
 
-      const rewards = stakerData.claimableBalances.map((balance) => {
+      // Calculate claimable rewards (from completed periods only)
+      const claimable = stakerData.claimableBalances.map((balance) => {
         const balanceParts = balance.quantity.split(" ");
         const baseAmount = parseFloat(balanceParts[0]) || 0;
         const symbol = balanceParts[1] || "";
@@ -162,20 +179,35 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
         const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
 
-        // Calculate live amount: base + (rate * elapsed hours)
-        const liveAmount = baseAmount + (rateAmount * elapsedHours);
+        // Claimable = base + (rate * hours from completed periods)
+        const claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-        return { symbol, amount: liveAmount, precision };
+        return { symbol, amount: claimableAmount, precision };
       });
 
-      setLiveRewards(rewards);
+      // Calculate pending rewards (one full payout period worth)
+      const pending = stakerData.ratesPerHour.map((rate) => {
+        const rateParts = rate.quantity.split(" ");
+        const rateAmount = parseFloat(rateParts[0]) || 0;
+        const symbol = rateParts[1] || "";
+        const precision = rateParts[0].includes(".") ? rateParts[0].split(".")[1]?.length || 0 : 0;
+        
+        // Pending = rate * hours_per_payout_period
+        const hoursPerPeriod = payoutInterval / 3600;
+        const pendingAmount = rateAmount * hoursPerPeriod;
+
+        return { symbol, amount: pendingAmount, precision };
+      });
+
+      setLiveRewards(claimable);
+      setPendingNextPayout(pending);
     };
 
     calculateLiveRewards(); // Initial calculation
-    const interval = setInterval(calculateLiveRewards, 30000); // Update every 30 seconds
+    const interval = setInterval(calculateLiveRewards, 1000); // Update countdown every second
 
     return () => clearInterval(interval);
-  }, [stakerData]);
+  }, [stakerData, farm.payout_interval, farm.last_payout]);
 
   // Fallback to static rewards if live calculation not available
   const pendingRewards: PendingReward[] = useMemo(() => {
@@ -850,21 +882,47 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              {pendingRewards.length > 0 ? (
-                <div className="space-y-1">
-                  {pendingRewards.map((reward, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
-                      </Badge>
-                    </div>
-                  ))}
+            <div className="space-y-3">
+              {/* Claimable Now */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Claimable Now</p>
+                {pendingRewards.length > 0 ? (
+                  <div className="space-y-1">
+                    {pendingRewards.map((reward, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                          {reward.amount.toFixed(reward.precision)} {reward.symbol}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No claimable rewards</p>
+                )}
+              </div>
+              
+              {/* Pending (next payout) */}
+              {pendingNextPayout.length > 0 && pendingNextPayout.some(r => r.amount > 0) && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Pending 
+                    <span className="text-muted-foreground/70 ml-1">
+                      (in {Math.floor(nextPayoutIn / 60)}:{(nextPayoutIn % 60).toString().padStart(2, '0')})
+                    </span>
+                  </p>
+                  <div className="space-y-1">
+                    {pendingNextPayout.map((reward, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-muted-foreground border-border/50 text-xs">
+                          +{reward.amount.toFixed(reward.precision)} {reward.symbol}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No pending rewards</p>
               )}
-              <p className="text-xs text-muted-foreground mt-2">
+              
+              <p className="text-xs text-muted-foreground">
                 {stakedNfts.length} NFT(s) staked in this farm
               </p>
             </div>

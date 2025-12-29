@@ -26,7 +26,8 @@ import {
   ImageIcon,
   UserPlus,
   UserMinus,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -527,14 +528,24 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <Vote className="h-5 w-5 text-cheese" />
                       Active Proposals
                     </h3>
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveSection("new-proposal")}
-                      className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      New
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => loadProposals()}
+                        disabled={loading}
+                      >
+                        <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveSection("new-proposal")}
+                        className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        New
+                      </Button>
+                    </div>
                   </div>
                   {activeProposals.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
@@ -577,10 +588,20 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
               {/* Past Proposals Section */}
               {activeSection === "past" && !loading && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <History className="h-5 w-5 text-cheese" />
-                    Past Proposals
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <History className="h-5 w-5 text-cheese" />
+                      Past Proposals
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadProposals()}
+                      disabled={loading}
+                    >
+                      <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                    </Button>
+                  </div>
                   {pastProposals.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <History className="h-12 w-12 mx-auto mb-3 opacity-30" />

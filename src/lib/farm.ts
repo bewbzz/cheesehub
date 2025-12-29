@@ -40,8 +40,11 @@ async function fetchWithWaxFallback(
   throw new Error("All WAX API endpoints failed");
 }
 
+// V1 (legacy) contract
+const FARM_CONTRACT_V1 = "waxdaofarmer";
+
 // Fetch all farm names where a user has staked
-// Debug: Try multiple query approaches to find the right one
+// Check BOTH V1 (waxdaofarmer) and V2 (farms.waxdao) contracts
 export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
   if (!account || allFarmNames.length === 0) return [];
   
@@ -50,99 +53,84 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
   
   console.log(`[fetchUserStakedFarmNames] Checking farms for user ${account}`);
   
-  // First, let's try to get ALL rows from a known farm's stakers table to understand structure
+  // Debug: Check both V1 and V2 contracts for ruggapesv2
   const testFarm = "ruggapesv2";
-  try {
-    const testResponse = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: testFarm,
-        table: "stakers",
-        limit: 10,
-      }),
-    });
-    const testData = await testResponse.json();
-    console.log(`[DEBUG] ${testFarm} stakers table sample:`, testData.rows?.slice(0, 3));
-    
-    // Also check stakednfts table
-    const testResponse2 = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: testFarm,
-        table: "stakednfts",
-        limit: 10,
-      }),
-    });
-    const testData2 = await testResponse2.json();
-    console.log(`[DEBUG] ${testFarm} stakednfts table sample:`, testData2.rows?.slice(0, 3));
-  } catch (e) {
-    console.log("[DEBUG] Error fetching test data:", e);
+  for (const contract of [FARM_CONTRACT, FARM_CONTRACT_V1]) {
+    try {
+      const testResponse = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: contract,
+          scope: testFarm,
+          table: "stakers",
+          limit: 5,
+        }),
+      });
+      const testData = await testResponse.json();
+      console.log(`[DEBUG] ${contract}/${testFarm} stakers:`, testData.rows?.slice(0, 2));
+    } catch (e) {
+      console.log(`[DEBUG] Error fetching from ${contract}:`, e);
+    }
   }
   
-  // Now batch check each farm
-  const batchSize = 5;
-  for (let i = 0; i < allFarmNames.length; i += batchSize) {
-    const batch = allFarmNames.slice(i, i + batchSize);
-    
-    const results = await Promise.allSettled(
-      batch.flatMap((farmName) => {
-        if (!farmName) return [];
-        
-        return ['stakers', 'stakednfts'].map(async (tableName) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 4000);
-          
-          try {
-            const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                json: true,
-                code: FARM_CONTRACT,
-                scope: farmName,
-                table: tableName,
-                index_position: 2,
-                key_type: "name",
-                lower_bound: account,
-                upper_bound: account,
-                limit: 1,
-              }),
-              signal: controller.signal,
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) return null;
-            
-            const data = await response.json();
-            if (data.rows && data.rows.length > 0) {
-              console.log(`[fetchUserStakedFarmNames] Found stake in ${farmName} (${tableName})`, data.rows[0]);
-              return farmName;
-            }
-            return null;
-          } catch {
-            clearTimeout(timeoutId);
-            return null;
-          }
-        });
-      })
-    );
-    
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value) {
-        stakedFarms.add(result.value);
+  // Also try querying V1 with global scope
+  try {
+    const v1Response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT_V1,
+        scope: FARM_CONTRACT_V1,
+        table: "stakers",
+        index_position: 2,
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 20,
+      }),
+    });
+    const v1Data = await v1Response.json();
+    console.log(`[DEBUG] V1 global stakers for ${account}:`, v1Data.rows);
+    if (v1Data.rows) {
+      for (const row of v1Data.rows) {
+        const farmName = row.farmname || row.farm_name;
+        if (farmName) stakedFarms.add(farmName);
       }
     }
-    
-    if (i + batchSize < allFarmNames.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+  } catch (e) {
+    console.log("[DEBUG] V1 global query error:", e);
+  }
+  
+  // Query V2 with global scope (farms.waxdao)
+  try {
+    const v2Response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "stakers",
+        index_position: 2,
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 100,
+      }),
+    });
+    const v2Data = await v2Response.json();
+    console.log(`[DEBUG] V2 global stakers for ${account}:`, v2Data.rows);
+    if (v2Data.rows) {
+      for (const row of v2Data.rows) {
+        const farmName = row.farmname || row.farm_name;
+        if (farmName) stakedFarms.add(farmName);
+      }
     }
+  } catch (e) {
+    console.log("[DEBUG] V2 global query error:", e);
   }
   
   const farmsList = Array.from(stakedFarms);

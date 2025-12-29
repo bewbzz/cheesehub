@@ -579,7 +579,94 @@ export async function fetchUserStakes(
   try {
     console.log("Querying stakednfts table for", account, "in farm", farmName);
     
-    // Try 1: Query stakednfts with FARM NAME as scope (common pattern)
+    // Strategy 1: Query stakednfts with USER ACCOUNT as scope
+    // WaxDAO V2 non-custodial farms may use user account as scope
+    try {
+      const userScopeResponse = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: account, // User account as scope
+            table: "stakednfts",
+            limit: 1000,
+          }),
+        }
+      );
+      
+      const userScopeData = await userScopeResponse.json();
+      console.log(`[Strategy 1] stakednfts with user scope (${account}):`, userScopeData);
+      
+      if (userScopeData.rows && userScopeData.rows.length > 0) {
+        // Filter by farm name
+        const farmRows = userScopeData.rows.filter((row: Record<string, unknown>) => {
+          const rowFarm = row.farmname || row.farm_name || "";
+          return rowFarm === farmName;
+        });
+        
+        if (farmRows.length > 0) {
+          console.log(`[Strategy 1] Found ${farmRows.length} staked NFTs for ${account} in farm ${farmName}`);
+          return farmRows.map((row: Record<string, unknown>) => ({
+            asset_id: String(row.asset_id),
+            staker: account,
+            farm_name: farmName,
+            last_claim: (row.last_claim as number) || 0,
+          }));
+        }
+      }
+    } catch (e) {
+      console.log("[Strategy 1] Failed:", e);
+    }
+    
+    // Strategy 2: Query stakednfts with CONTRACT as scope using farmname secondary index
+    try {
+      const contractScopeResponse = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: FARM_CONTRACT, // Contract as scope
+            table: "stakednfts",
+            index_position: 3, // farmname secondary index
+            key_type: "name",
+            lower_bound: farmName,
+            upper_bound: farmName,
+            limit: 1000,
+          }),
+        }
+      );
+      
+      const contractScopeData = await contractScopeResponse.json();
+      console.log(`[Strategy 2] stakednfts with contract scope, farmname index:`, contractScopeData);
+      
+      if (contractScopeData.rows && contractScopeData.rows.length > 0) {
+        // Filter by owner
+        const userRows = contractScopeData.rows.filter((row: Record<string, unknown>) => {
+          const rowOwner = row.owner || row.staker || row.user || "";
+          return rowOwner === account;
+        });
+        
+        if (userRows.length > 0) {
+          console.log(`[Strategy 2] Found ${userRows.length} staked NFTs for ${account} in farm ${farmName}`);
+          return userRows.map((row: Record<string, unknown>) => ({
+            asset_id: String(row.asset_id),
+            staker: account,
+            farm_name: farmName,
+            last_claim: (row.last_claim as number) || 0,
+          }));
+        }
+      }
+    } catch (e) {
+      console.log("[Strategy 2] Failed:", e);
+    }
+    
+    // Strategy 3: Query stakednfts with FARM NAME as scope (common pattern)
     const farmScopeResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -600,10 +687,10 @@ export async function fetchUserStakes(
     );
     
     const farmScopeData = await farmScopeResponse.json();
-    console.log(`stakednfts with farm scope (${farmName}), owner filter:`, farmScopeData);
+    console.log(`[Strategy 3] stakednfts with farm scope (${farmName}), owner filter:`, farmScopeData);
     
     if (farmScopeData.rows && farmScopeData.rows.length > 0) {
-      console.log(`Found ${farmScopeData.rows.length} NFTs for ${account} in farm ${farmName}`);
+      console.log(`[Strategy 3] Found ${farmScopeData.rows.length} NFTs for ${account} in farm ${farmName}`);
       return farmScopeData.rows.map((row: Record<string, unknown>) => ({
         asset_id: String(row.asset_id),
         staker: account,
@@ -612,7 +699,7 @@ export async function fetchUserStakes(
       }));
     }
     
-    // Try 2: Query stakednfts with farm scope, no secondary index (get all, filter by owner)
+    // Strategy 4: Query stakednfts with farm scope, no secondary index (get all, filter by owner)
     const farmScopeAllResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -629,7 +716,7 @@ export async function fetchUserStakes(
     );
     
     const farmScopeAllData = await farmScopeAllResponse.json();
-    console.log(`stakednfts with farm scope (${farmName}), all rows:`, farmScopeAllData);
+    console.log(`[Strategy 4] stakednfts with farm scope (${farmName}), all rows:`, farmScopeAllData);
     
     if (farmScopeAllData.rows && farmScopeAllData.rows.length > 0) {
       // Filter by owner
@@ -638,7 +725,7 @@ export async function fetchUserStakes(
         return rowOwner === account;
       });
       
-      console.log(`Found ${userRows.length} NFTs for ${account} after filtering`);
+      console.log(`[Strategy 4] Found ${userRows.length} NFTs for ${account} after filtering`);
       
       if (userRows.length > 0) {
         return userRows.map((row: Record<string, unknown>) => ({
@@ -650,7 +737,7 @@ export async function fetchUserStakes(
       }
     }
     
-    // Try stakers table - V2 farms store staked asset_ids as array per user
+    // Strategy 5: Try stakers table - V2 farms store staked asset_ids as array per user
     // Query with farm scope
     const stakersResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
@@ -670,16 +757,16 @@ export async function fetchUserStakes(
     );
     
     const stakersData = await stakersResponse.json();
-    console.log("Stakers table result for", account, "in farm scope:", stakersData);
+    console.log(`[Strategy 5] Stakers table for ${account} in farm scope:`, stakersData);
     
     if (stakersData.rows && stakersData.rows.length > 0) {
       const stakerRow = stakersData.rows[0];
-      console.log("Staker row structure:", JSON.stringify(stakerRow));
+      console.log("[Strategy 5] Staker row structure:", JSON.stringify(stakerRow));
       
       // Check if staked_assets or asset_ids array exists
       const stakedAssets = stakerRow.staked_assets || stakerRow.asset_ids || stakerRow.assets || stakerRow.nfts || [];
       if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
-        console.log("Found staked assets in stakers table:", stakedAssets.length);
+        console.log(`[Strategy 5] Found ${stakedAssets.length} staked assets in stakers table`);
         return stakedAssets.map((assetId: string | number) => ({
           asset_id: String(assetId),
           staker: account,
@@ -689,7 +776,7 @@ export async function fetchUserStakes(
       }
     }
     
-    // Also try with user as scope (some contracts use this pattern)
+    // Strategy 6: Stakers table with user as scope
     const stakersUserScopeResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -706,7 +793,7 @@ export async function fetchUserStakes(
     );
     
     const stakersUserScopeData = await stakersUserScopeResponse.json();
-    console.log("Stakers table with user scope:", stakersUserScopeData);
+    console.log(`[Strategy 6] Stakers table with user scope:`, stakersUserScopeData);
     
     if (stakersUserScopeData.rows && stakersUserScopeData.rows.length > 0) {
       // Filter for this farm
@@ -714,9 +801,10 @@ export async function fetchUserStakes(
         r.farm_name === farmName || r.farmname === farmName
       );
       if (farmRow) {
-        console.log("Found farm row in user scope:", JSON.stringify(farmRow));
+        console.log("[Strategy 6] Found farm row in user scope:", JSON.stringify(farmRow));
         const stakedAssets = farmRow.staked_assets || farmRow.asset_ids || farmRow.assets || farmRow.nfts || [];
         if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+          console.log(`[Strategy 6] Found ${stakedAssets.length} staked assets`);
           return stakedAssets.map((assetId: string | number) => ({
             asset_id: String(assetId),
             staker: account,
@@ -727,7 +815,7 @@ export async function fetchUserStakes(
       }
     }
     
-    // Fallback: Try stakes table with secondary index on staker
+    // Strategy 7: Fallback - Try stakes table with secondary index on staker
     const stakesResponse = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -748,7 +836,7 @@ export async function fetchUserStakes(
     );
 
     const stakesData = await stakesResponse.json();
-    console.log("Stakes table result:", stakesData);
+    console.log("[Strategy 7] Stakes table result:", stakesData);
     
     if (stakesData.rows && stakesData.rows.length > 0) {
       return stakesData.rows.map((row: Record<string, unknown>) => ({

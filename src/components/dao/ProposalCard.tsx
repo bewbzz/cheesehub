@@ -307,7 +307,18 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     rejected: "bg-red-500/20 text-red-500",
     executed: "bg-purple-500/20 text-purple-500",
     expired: "bg-gray-500/20 text-gray-400",
+    finalized: "bg-cheese/20 text-cheese",
   };
+
+  // Determine display status - if we just finalized, show result based on threshold
+  const getDisplayStatus = () => {
+    if (isFinalized) {
+      return meetsThreshold ? "passed" : "rejected";
+    }
+    return proposal.status;
+  };
+  
+  const displayStatus = getDisplayStatus();
 
   const votingTypeIcons: Record<number, React.ReactNode> = {
     [PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN]: <Vote className="h-3 w-3" />,
@@ -318,6 +329,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   };
 
   const renderVotingPowerInfo = () => {
+    // Don't show voting power info for finalized/ended proposals
+    if (isFinalized || proposal.status === "passed" || proposal.status === "rejected" || proposal.status === "executed" || proposal.status === "expired") {
+      return null;
+    }
     if (!requiresStaking || !isConnected) return null;
     
     if (loadingStake) {
@@ -699,8 +714,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            <Badge className={statusColors[proposal.status] || "bg-muted"}>
-              {proposal.status}
+            <Badge className={statusColors[displayStatus] || "bg-muted"}>
+              {displayStatus}
             </Badge>
             <Badge variant="outline" className="text-xs flex items-center gap-1">
               {votingTypeIcons[proposal.voting_type]}

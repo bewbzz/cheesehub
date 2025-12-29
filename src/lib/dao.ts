@@ -547,38 +547,34 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       
       let votingType: number;
       
-      // Check for transfer proposals first (they use Yes/No voting but are categorized as TOKEN_TRANSFER)
-      if (actions.some(a => a.action === "transfer")) {
-        votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // 4
-      } else {
-        // Map contract proposal_type to our voting type constants
-        switch (contractProposalType) {
-          case 0:
-            votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // 1
-            break;
-          case 1:
-            // Check for [RANKED] marker in description to distinguish ranked choice from most votes wins
-            const description = (row.description as string) || "";
-            if (description.startsWith("[RANKED]")) {
-              votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE; // 3
-            } else {
-              votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS; // 2
-            }
-            break;
-          case 2:
-            votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER; // Token Transfer
-            break;
-          case 3:
-            votingType = PROPOSAL_VOTING_TYPES.NFT_TRANSFER; // NFT Transfer
-            break;
-          case 4:
-            // Legacy: proposal_type 4 was used for ranked choice, but contract overwrites choices to Yes/No/Abstain
-            // Treat it as ranked choice for display purposes, but note the choices may be wrong from contract
+      // Map contract proposal_type to our voting type constants
+      // Contract types: 0=Yes/No/Abstain, 1=Most Votes/Ranked, 2=Reserved, 3=Reserved, 4=Token Transfer, 5=NFT Transfer
+      switch (contractProposalType) {
+        case 0:
+          votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN;
+          break;
+        case 1:
+          // Check for [RANKED] marker in description to distinguish ranked choice from most votes wins
+          const description = (row.description as string) || "";
+          if (description.startsWith("[RANKED]")) {
             votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE;
-            break;
-          default:
-            votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN; // Default to Yes/No
-        }
+          } else {
+            votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS;
+          }
+          break;
+        case 4:
+          votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
+          break;
+        case 5:
+          votingType = PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+          break;
+        default:
+          votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN;
+      }
+      
+      // Fallback: Check for transfer actions in case contract type wasn't set correctly
+      if (votingType === PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN && actions.some(a => a.action === "transfer")) {
+        votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
       }
       
       console.log(`Proposal ${row.proposal_id}: contract_type=${contractProposalType}, voting_type=${votingType}, choices=`, choices);

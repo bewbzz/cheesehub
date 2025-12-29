@@ -3,6 +3,53 @@
 
 export const FARM_CONTRACT = "farms.waxdao";
 
+// Fetch all farm names where a user has staked
+export async function fetchUserStakedFarmNames(account: string): Promise<string[]> {
+  if (!account) return [];
+  
+  try {
+    // Query stakers table using secondary index by user (index 2)
+    // This returns all staker rows across all farms for this user
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT,
+          table: "stakers",
+          index_position: 2,
+          key_type: "name",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 1000,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (data.rows && data.rows.length > 0) {
+      // Extract unique farm names from the staker rows
+      const farmNames = new Set<string>();
+      for (const row of data.rows) {
+        if (row.farmname) {
+          farmNames.add(String(row.farmname));
+        }
+      }
+      console.log(`[fetchUserStakedFarmNames] Found ${farmNames.size} farms for ${account}`);
+      return Array.from(farmNames);
+    }
+    
+    return [];
+  } catch (e) {
+    console.error("[fetchUserStakedFarmNames] Error:", e);
+    return [];
+  }
+}
+
 // Fee constants for farm creation
 export const FARM_CREATION_FEES = {
   WAX: "250.00000000 WAX",

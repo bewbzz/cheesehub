@@ -167,7 +167,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the FARMS.WAXDAO smart contract and acting as an alternate front-end CHEESEFarm allows all WAX users to create and participate in V2 NFT staking farms
+                Powered by the FARMS.WAXDAO smart contract and acting as an alternate Front-end CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/farm">

@@ -485,100 +485,60 @@ export async function fetchUserFarms(account: string): Promise<FarmInfo[]> {
 }
 
 // Fetch farms where a user has staked NFTs
+// Uses per-farm scope queries which are more reliable than global table queries
 export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]> {
   try {
     console.log("fetchUserStakedFarms called for:", account);
     
-    const farmNames = new Set<string>();
-    
-    // Strategy 1: Secondary index query (fast path)
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "stakers",
-          index_position: 2,
-          key_type: "name",
-          lower_bound: account,
-          upper_bound: account,
-          limit: 1000,
-        }),
-      }
-    );
-
-    const data = await response.json();
-    console.log("Strategy 1 - Secondary index result:", data.rows?.length || 0, "rows");
-    
-    if (data.rows && data.rows.length > 0) {
-      for (const row of data.rows) {
-        const farmName = row.farmname || row.farm_name;
-        if (farmName) farmNames.add(farmName);
-      }
-    }
-    
-    // Strategy 2: Paginated fallback if secondary index returned empty
-    if (farmNames.size === 0) {
-      console.log("Secondary index empty, trying paginated search...");
-      let nextKey: string | undefined = undefined;
-      let iterations = 0;
-      const MAX_ITERATIONS = 15;
-      
-      while (iterations < MAX_ITERATIONS) {
-        const paginatedResponse = await fetch(
-          `https://wax.eosusa.io/v1/chain/get_table_rows`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: FARM_CONTRACT,
-              table: "stakers",
-              reverse: true,
-              limit: 1000,
-              ...(nextKey ? { upper_bound: nextKey } : {}),
-            }),
-          }
-        );
-        
-        const paginatedData = await paginatedResponse.json();
-        iterations++;
-        
-        if (!paginatedData.rows || paginatedData.rows.length === 0) break;
-        
-        // Find all rows for this user
-        for (const row of paginatedData.rows) {
-          if (row.user === account) {
-            const farmName = row.farmname || row.farm_name;
-            if (farmName) farmNames.add(farmName);
-          }
-        }
-        
-        if (!paginatedData.more) break;
-        
-        // Get the last row's primary key for pagination
-        const lastRow = paginatedData.rows[paginatedData.rows.length - 1];
-        nextKey = String(lastRow.id || lastRow.key);
-      }
-      
-      console.log(`Paginated search found ${farmNames.size} farms in ${iterations} batches`);
-    }
-
-    console.log("Unique farm names user is staked in:", Array.from(farmNames));
-
-    if (farmNames.size === 0) {
-      return [];
-    }
-
-    // Fetch all farms and filter to only staked ones
+    // Get all active farms first
     const allFarms = await fetchAllFarms();
-    const stakedFarms = allFarms.filter(farm => farmNames.has(farm.farm_name));
-    console.log("Matched staked farms:", stakedFarms);
+    const activeFarms = allFarms.filter(f => f.status === 1);
+    console.log(`Checking ${activeFarms.length} active farms for user stakes...`);
+    
+    const stakedFarms: FarmInfo[] = [];
+    const batchSize = 15;
+    
+    // Process farms in parallel batches
+    for (let i = 0; i < activeFarms.length; i += batchSize) {
+      const batch = activeFarms.slice(i, i + batchSize);
+      
+      const results = await Promise.all(
+        batch.map(async (farm) => {
+          try {
+            // Query stakers table with farm name as scope (smaller per-farm table)
+            const response = await fetch(
+              `https://wax.eosusa.io/v1/chain/get_table_rows`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  json: true,
+                  code: FARM_CONTRACT,
+                  scope: farm.farm_name,
+                  table: "stakers",
+                  index_position: 2,
+                  key_type: "name",
+                  lower_bound: account,
+                  upper_bound: account,
+                  limit: 1,
+                }),
+              }
+            );
+            const data = await response.json();
+            // If user has a row in this farm's stakers table, they're staked
+            return data.rows && data.rows.length > 0 ? farm : null;
+          } catch (err) {
+            console.warn(`Failed to check farm ${farm.farm_name}:`, err);
+            return null;
+          }
+        })
+      );
+      
+      // Add non-null results to stakedFarms
+      stakedFarms.push(...results.filter((f): f is FarmInfo => f !== null));
+    }
+    
+    console.log("User staked farms:", stakedFarms.map(f => f.farm_name));
     return stakedFarms;
   } catch (error) {
     console.error("Error fetching user staked farms:", error);

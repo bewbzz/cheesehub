@@ -127,6 +127,7 @@ export interface UserStake {
   staker: string;
   farm_name: string;
   last_claim: number;
+  claimable_balances?: Array<{ quantity: string; contract: string }>;
 }
 
 // Convert IPFS hash to full URL
@@ -1315,30 +1316,36 @@ export interface PendingReward {
 
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
   try {
-    // Try the stakers table first - rewards are often stored with stake info
-    const stakersResponse = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+    // Query stakers table by user index (index 2) - same strategy as fetchUserStakes
+    const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         json: true,
         code: FARM_CONTRACT,
-        scope: farmName,
+        scope: FARM_CONTRACT,
         table: "stakers",
+        index_position: 2,
+        key_type: "name",
         lower_bound: account,
         upper_bound: account,
-        limit: 1,
+        limit: 100,
       }),
     });
-    const stakersData = await stakersResponse.json();
-    console.log("Stakers table for rewards:", stakersData);
     
-    if (stakersData.rows && stakersData.rows.length > 0) {
-      const row = stakersData.rows[0];
-      // Check for claimable or pending rewards fields
-      const balances = row.claimable || row.pending || row.rewards || row.balances || [];
-      if (Array.isArray(balances) && balances.length > 0) {
-        return balances.map((b: string) => {
-          const parts = b.split(" ");
+    const data = await response.json();
+    console.log("Stakers table for rewards (by user index):", data);
+    
+    if (data.rows && data.rows.length > 0) {
+      // Find the row matching this farm
+      const farmRow = data.rows.find((row: Record<string, unknown>) => 
+        row.farmname === farmName || row.farm_name === farmName
+      );
+      
+      if (farmRow && farmRow.claimable_balances && Array.isArray(farmRow.claimable_balances)) {
+        // Parse the claimable_balances array of { quantity, contract } objects
+        return farmRow.claimable_balances.map((b: { quantity: string; contract: string }) => {
+          const parts = b.quantity.split(" ");
           const amount = parseFloat(parts[0]) || 0;
           const symbol = parts[1] || "";
           const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;

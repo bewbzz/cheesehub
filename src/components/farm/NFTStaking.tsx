@@ -15,6 +15,7 @@ import {
   Loader2,
   Image as ImageIcon,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +67,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [selectedToUnstake, setSelectedToUnstake] = useState<Set<string>>(new Set());
   const [isStaking, setIsStaking] = useState(false);
   const [isUnstaking, setIsUnstaking] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
   // Fetch stakable config
@@ -117,6 +119,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       stakableConfig.schemas.forEach(s => collectionsToFetch.add(s.collection));
       stakableConfig.templates.forEach(t => collectionsToFetch.add(t.collection));
       
+      // Cache-busting timestamp to bypass CDN caching
+      const cacheBuster = `_ts=${Date.now()}`;
+      
       // Fetch assets for each collection
       for (const collection of collectionsToFetch) {
         try {
@@ -125,7 +130,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             collection_name: collection,
             limit: "100",
           });
-          const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
+          const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
           const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
           const json = await response.json();
           
@@ -183,7 +188,8 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       return assets;
     },
     enabled: !!accountName && !!stakableConfig,
-    staleTime: 30000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch staked NFT details
@@ -368,6 +374,26 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const totalPendingRewards = pendingRewards.reduce((acc, r) => acc + r.amount, 0);
   const hasRewards = totalPendingRewards > 0;
 
+  // Manual refresh handler with cache invalidation
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Invalidate and refetch all NFT-related queries
+      await queryClient.invalidateQueries({ queryKey: ["eligibleNfts", accountName, farm.farm_name] });
+      await queryClient.invalidateQueries({ queryKey: ["userStakes", accountName, farm.farm_name] });
+      await queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
+      await Promise.all([refetchEligible(), refetchStaked()]);
+      toast({
+        title: "Refreshed",
+        description: "NFT list updated from blockchain",
+      });
+    } catch (error) {
+      console.error("Refresh failed:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Show stakeable assets for everyone, but staking UI only for connected users
   const renderStakeableAssets = () => (
     <Card className="border-border/50 bg-card/50">
@@ -528,13 +554,38 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                   <p className="text-xs text-muted-foreground mt-1">
                     This farm accepts: {stakableConfig?.collections.join(", ") || "specific collections/templates"}
                   </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="mt-3"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <p className="text-xs text-muted-foreground/70 mt-2">
+                    AtomicAssets indexing may have delays
+                  </p>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">
-                      {selectedToStake.size} selected
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedToStake.size} selected
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="h-7 px-2"
+                        title="Refresh NFT list"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                     <Button variant="ghost" size="sm" onClick={selectAllToStake}>
                       Select All
                     </Button>

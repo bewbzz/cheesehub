@@ -472,8 +472,11 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     
     return (data.rows || []).map((row: Record<string, unknown>) => {
       const choices = row.choices as ProposalChoice[] || [];
-      const outcome = row.outcome as number || 0;
+      // outcome can be 0 which is valid, so check for undefined/null explicitly
+      const outcome = typeof row.outcome === 'number' ? row.outcome : 0;
       const endTime = row.end_time as number || 0;
+      
+      console.log(`Proposal ${row.proposal_id} raw data: outcome=${row.outcome}, end_time=${endTime}, title=${row.title}`);
       
       // Extract vote counts from choices array
       let yesVotes = 0;
@@ -495,25 +498,34 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       });
       
       // Determine status based on outcome and end_time
+      // WaxDAO outcome codes: 0 = voting, 1 = voting, 2 = passed, 3 = rejected, 4 = executed
       let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" = "pending";
-      if ((outcome === 0 || outcome === 1) && endTime > now) {
-        status = "active";  // Voting in progress
-      } else if ((outcome === 0 || outcome === 1) && endTime <= now) {
-        // Check if it's been more than 30 days since end - mark as expired
-        if (now - endTime > EXPIRY_THRESHOLD) {
-          status = "expired"; // Old unfinalized proposal
-        } else {
-          status = "pending"; // Recently ended, awaiting finalization
-        }
-      } else if (outcome === 2) {
+      
+      // First check if outcome indicates already finalized
+      if (outcome === 2) {
         status = "passed";
       } else if (outcome === 3) {
         status = "rejected";
       } else if (outcome === 4) {
         status = "executed";
+      } else if (outcome >= 5) {
+        // Other finalized states
+        status = (OUTCOME_STATUS[outcome] as typeof status) || "passed";
       } else {
-        status = (OUTCOME_STATUS[outcome] as typeof status) || "pending";
+        // outcome is 0 or 1 - check if voting is still active or ended
+        if (endTime > now) {
+          status = "active";  // Voting in progress
+        } else if (endTime <= now) {
+          // Voting ended but not finalized
+          if (now - endTime > EXPIRY_THRESHOLD) {
+            status = "expired"; // Old unfinalized proposal
+          } else {
+            status = "pending"; // Recently ended, awaiting finalization
+          }
+        }
       }
+      
+      console.log(`Proposal ${row.proposal_id}: outcome=${outcome}, calculated status=${status}`);
       
       // Determine voting type based on contract's proposal_type field
       // Contract uses: 0 = Yes/No/Abstain, 1 = Most Votes Wins, 2 = Token Transfer, 3 = NFT Transfer, 4 = Ranked Choice

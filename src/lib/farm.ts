@@ -1,6 +1,8 @@
 // WaxDAO V2 Farm Contract Interface
 // Contract: farms.waxdao
 
+import { fetchTableRows } from "./waxRpcFallback";
+
 export const FARM_CONTRACT = "farms.waxdao";
 
 // Fee constants for farm creation
@@ -390,22 +392,13 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
 // Fetch all V2 farms from the contract
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "farms",
-          limit: 200,
-        }),
-      }
-    );
+    const data = await fetchTableRows({
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "farms",
+      limit: 200,
+    });
 
-    const data = await response.json();
     console.log("Raw farm data:", data);
 
     const now = Math.floor(Date.now() / 1000);
@@ -487,24 +480,15 @@ export async function fetchUserFarms(account: string): Promise<FarmInfo[]> {
 // Fetch details for a specific farm
 export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | null> {
   try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "farms",
-          lower_bound: farmName,
-          upper_bound: farmName,
-          limit: 1,
-        }),
-      }
-    );
+    const data = await fetchTableRows({
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "farms",
+      lower_bound: farmName,
+      upper_bound: farmName,
+      limit: 1,
+    });
 
-    const data = await response.json();
     console.log("Farm detail data:", data);
     
     if (data.rows && data.rows.length > 0) {
@@ -585,26 +569,17 @@ export async function fetchUserStakes(
     // Strategy 0: Query 'stakers' table by USER (index 2), filter by farmname
     // This is the most reliable method - finds user's row directly regardless of table size
     try {
-      const userIndexResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: FARM_CONTRACT,
-            table: "stakers",
-            index_position: 2, // Secondary index by 'user'
-            key_type: "name",
-            lower_bound: account,
-            upper_bound: account,
-            limit: 100, // User might stake in multiple farms
-          }),
-        }
-      );
+      const userIndexData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "stakers",
+        index_position: 2,
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 100,
+      });
       
-      const userIndexData = await userIndexResponse.json();
       console.log(`[Strategy 0] stakers by user index for ${account}:`, userIndexData.rows?.length || 0, "rows");
       
       if (userIndexData.rows && userIndexData.rows.length > 0) {
@@ -626,10 +601,10 @@ export async function fetchUserStakes(
               asset_id: String(assetId),
               staker: account,
               farm_name: farmName,
-              last_claim: (farmRow.last_claim || farmRow.last_state_change as number) || 0,
-              claimable_balances: farmRow.claimable_balances || [],
-              rates_per_hour: farmRow.rates_per_hour || [],
-              last_state_change: (farmRow.last_state_change as number) || 0,
+              last_claim: Number(farmRow.last_claim || farmRow.last_state_change) || 0,
+              claimable_balances: (farmRow.claimable_balances as Array<{ quantity: string; contract: string }>) || [],
+              rates_per_hour: (farmRow.rates_per_hour as Array<{ quantity: string; contract: string }>) || [],
+              last_state_change: Number(farmRow.last_state_change) || 0,
             }));
           }
         } else {
@@ -654,24 +629,15 @@ export async function fetchUserStakes(
       const MAX_ITERATIONS = 20; // Max 20k rows to search
       
       while (!foundRow && iterations < MAX_ITERATIONS) {
-        const paginatedResponse = await fetch(
-          `https://wax.eosusa.io/v1/chain/get_table_rows`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: FARM_CONTRACT,
-              table: "stakers",
-              reverse: true, // Newest entries first
-              limit: 1000,
-              ...(nextKey ? { upper_bound: nextKey } : {}),
-            }),
-          }
-        );
+        const paginatedData = await fetchTableRows({
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT,
+          table: "stakers",
+          reverse: true,
+          limit: 1000,
+          ...(nextKey ? { upper_bound: nextKey } : {}),
+        });
         
-        const paginatedData = await paginatedResponse.json();
         iterations++;
         
         if (iterations === 1) {
@@ -709,10 +675,10 @@ export async function fetchUserStakes(
             asset_id: String(assetId),
             staker: account,
             farm_name: farmName,
-            last_claim: (foundRow.last_claim || foundRow.last_state_change as number) || 0,
-            claimable_balances: foundRow.claimable_balances || [],
-            rates_per_hour: foundRow.rates_per_hour || [],
-            last_state_change: (foundRow.last_state_change as number) || 0,
+            last_claim: Number(foundRow.last_claim || foundRow.last_state_change) || 0,
+            claimable_balances: (foundRow.claimable_balances as Array<{ quantity: string; contract: string }>) || [],
+            rates_per_hour: (foundRow.rates_per_hour as Array<{ quantity: string; contract: string }>) || [],
+            last_state_change: Number(foundRow.last_state_change) || 0,
           }));
         }
       } else {
@@ -724,22 +690,13 @@ export async function fetchUserStakes(
     
     // Strategy 1: Query ALL rows from 'stakers' table with farm scope to see what's there
     try {
-      const allFarmStakersResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName, // Use farm name as scope
-            table: "stakers",
-            limit: 100, // Get first 100 rows to see structure
-          }),
-        }
-      );
+      const allFarmStakersData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stakers",
+        limit: 100,
+      });
       
-      const allFarmStakersData = await allFarmStakersResponse.json();
       console.log(`[Strategy 1] ALL stakers with scope=${farmName}:`, allFarmStakersData.rows?.length || 0, "rows");
       
       if (allFarmStakersData.rows && allFarmStakersData.rows.length > 0) {
@@ -773,22 +730,13 @@ export async function fetchUserStakes(
         console.log(`[Strategy 1] No stakers table with scope=${farmName} - trying 'stakednfts' table`);
         
         // Try stakednfts table with farm scope - get ALL rows
-        const stakednftsAllResponse = await fetch(
-          `https://wax.eosusa.io/v1/chain/get_table_rows`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: farmName,
-              table: "stakednfts",
-              limit: 100,
-            }),
-          }
-        );
+        const stakednftsAllData = await fetchTableRows({
+          code: FARM_CONTRACT,
+          scope: farmName,
+          table: "stakednfts",
+          limit: 100,
+        });
         
-        const stakednftsAllData = await stakednftsAllResponse.json();
         console.log(`[Strategy 1b] ALL stakednfts with scope=${farmName}:`, stakednftsAllData.rows?.length || 0, "rows");
         
         if (stakednftsAllData.rows && stakednftsAllData.rows.length > 0) {
@@ -802,22 +750,13 @@ export async function fetchUserStakes(
     // Strategy 2: Query 'stakednfts' table with farm scope, get ALL rows and filter by owner
     // This is for farms that store one row per staked NFT
     try {
-      const stakednftsResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: "stakednfts",
-            limit: 1000,
-          }),
-        }
-      );
+      const stakednftsData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stakednfts",
+        limit: 1000,
+      });
       
-      const stakednftsData = await stakednftsResponse.json();
       console.log(`[Strategy 2] stakednfts table (${farmName} scope), total rows: ${stakednftsData.rows?.length || 0}`);
       
       if (stakednftsData.rows && stakednftsData.rows.length > 0) {
@@ -846,22 +785,13 @@ export async function fetchUserStakes(
     
     // Strategy 3: Query 'stakednfts' with user account as scope
     try {
-      const userScopeResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: account,
-            table: "stakednfts",
-            limit: 1000,
-          }),
-        }
-      );
+      const userScopeData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: account,
+        table: "stakednfts",
+        limit: 1000,
+      });
       
-      const userScopeData = await userScopeResponse.json();
       console.log(`[Strategy 3] stakednfts with user scope (${account}):`, userScopeData);
       
       if (userScopeData.rows && userScopeData.rows.length > 0) {
@@ -889,22 +819,13 @@ export async function fetchUserStakes(
     
     // Strategy 4: Query 'stakers' with user account as scope (some contracts scope by user)
     try {
-      const stakersUserScopeResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: account,
-            table: "stakers",
-            limit: 100,
-          }),
-        }
-      );
+      const stakersUserData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: account,
+        table: "stakers",
+        limit: 100,
+      });
       
-      const stakersUserData = await stakersUserScopeResponse.json();
       console.log(`[Strategy 4] stakers with user scope:`, stakersUserData);
       
       if (stakersUserData.rows && stakersUserData.rows.length > 0) {
@@ -934,22 +855,13 @@ export async function fetchUserStakes(
     
     // Strategy 5: Query 'stakes' table with farm scope
     try {
-      const stakesResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: "stakes",
-            limit: 1000,
-          }),
-        }
-      );
+      const stakesData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stakes",
+        limit: 1000,
+      });
       
-      const stakesData = await stakesResponse.json();
       console.log(`[Strategy 5] stakes table (${farmName} scope):`, stakesData);
       
       if (stakesData.rows && stakesData.rows.length > 0) {
@@ -977,26 +889,17 @@ export async function fetchUserStakes(
     // Strategy 6: Query 'stakers' table using secondary index by name (index 2)
     // Some contracts use secondary index to find stakers by wallet name
     try {
-      const secondaryResponse = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: "stakers",
-            index_position: 2,
-            key_type: "name",
-            lower_bound: account,
-            upper_bound: account,
-            limit: 10,
-          }),
-        }
-      );
+      const secondaryData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "stakers",
+        index_position: 2,
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 10,
+      });
       
-      const secondaryData = await secondaryResponse.json();
       console.log(`[Strategy 6] stakers with secondary index:`, secondaryData);
       
       if (secondaryData.rows && secondaryData.rows.length > 0) {
@@ -1032,24 +935,15 @@ export async function fetchUserStakes(
     // Strategy 7: Query V1 contract (waxdaofarmer) as fallback
     // Some farms may still use the old custodial staking system
     try {
-      const v1Response = await fetch(
-        `https://wax.eosusa.io/v1/chain/get_table_rows`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            json: true,
-            code: "waxdaofarmer",
-            scope: farmName,
-            table: "stakers",
-            lower_bound: account,
-            upper_bound: account,
-            limit: 1,
-          }),
-        }
-      );
+      const v1Data = await fetchTableRows({
+        code: "waxdaofarmer",
+        scope: farmName,
+        table: "stakers",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 1,
+      });
       
-      const v1Data = await v1Response.json();
       console.log(`[Strategy 7] V1 waxdaofarmer stakers table:`, v1Data);
       
       if (v1Data.rows && v1Data.rows.length > 0) {
@@ -1163,18 +1057,12 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
 
     // Fetch templates from valuesbytemp
     try {
-      const templatesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: farmName,
-          table: "valuesbytemp",
-          limit: 500,
-        }),
+      const templatesData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "valuesbytemp",
+        limit: 500,
       });
-      const templatesData = await templatesRes.json();
       
       if (templatesData.rows && templatesData.rows.length > 0) {
         const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => {
@@ -1223,18 +1111,12 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
 
     // Fetch schemas from valuesbysch
     try {
-      const schemasRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: farmName,
-          table: "valuesbysch",
-          limit: 500,
-        }),
+      const schemasData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "valuesbysch",
+        limit: 500,
       });
-      const schemasData = await schemasRes.json();
       console.log(`[Farm ${farmName}] valuesbysch:`, schemasData);
       
       if (schemasData.rows && schemasData.rows.length > 0) {
@@ -1266,18 +1148,12 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
 
     // Fetch collections from valuesbycol
     try {
-      const collectionsRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: farmName,
-          table: "valuesbycol",
-          limit: 500,
-        }),
+      const collectionsData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "valuesbycol",
+        limit: 500,
       });
-      const collectionsData = await collectionsRes.json();
       console.log(`[Farm ${farmName}] valuesbycol:`, collectionsData);
       
       if (collectionsData.rows && collectionsData.rows.length > 0) {
@@ -1308,18 +1184,12 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
 
     // Fetch attributes from valuesbyatt
     try {
-      const attributesRes = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: farmName,
-          table: "valuesbyatt",
-          limit: 500,
-        }),
+      const attributesData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: farmName,
+        table: "valuesbyatt",
+        limit: 500,
       });
-      const attributesData = await attributesRes.json();
       console.log(`[Farm ${farmName}] valuesbyatt:`, attributesData);
       
       if (attributesData.rows && attributesData.rows.length > 0) {
@@ -1367,23 +1237,17 @@ export interface PendingReward {
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
   try {
     // Strategy 1: Query stakers table by farmname index (index 3) and filter by user
-    const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: FARM_CONTRACT,
-        table: "stakers",
-        index_position: 3,
-        key_type: "name",
-        lower_bound: farmName,
-        upper_bound: farmName,
-        limit: 500,
-      }),
+    const data = await fetchTableRows({
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "stakers",
+      index_position: 3,
+      key_type: "name",
+      lower_bound: farmName,
+      upper_bound: farmName,
+      limit: 500,
     });
     
-    const data = await response.json();
     console.log("Stakers table for rewards (by farmname index):", data);
     
     if (data.rows && data.rows.length > 0) {
@@ -1405,23 +1269,17 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
     }
     
     // Strategy 2: Fallback - query by user index (index 2)
-    const response2 = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: FARM_CONTRACT,
-        scope: FARM_CONTRACT,
-        table: "stakers",
-        index_position: 2,
-        key_type: "name",
-        lower_bound: account,
-        upper_bound: account,
-        limit: 100,
-      }),
+    const data2 = await fetchTableRows({
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "stakers",
+      index_position: 2,
+      key_type: "name",
+      lower_bound: account,
+      upper_bound: account,
+      limit: 100,
     });
     
-    const data2 = await response2.json();
     console.log("Stakers table for rewards (by user index):", data2);
     
     if (data2.rows && data2.rows.length > 0) {

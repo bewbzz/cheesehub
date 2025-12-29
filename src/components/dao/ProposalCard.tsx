@@ -315,7 +315,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   // Determine display status - if we just finalized, show result based on threshold
   const getDisplayStatus = () => {
     if (isFinalized) {
-      return meetsThreshold ? "passed" : "rejected";
+      // For yes/no type proposals, check threshold
+      if (isYesNoType) {
+        return meetsThreshold ? "passed" : "rejected";
+      }
+      // For ranked choice / most votes wins, they always "pass" (determine a winner)
+      return "passed";
     }
     return proposal.status;
   };

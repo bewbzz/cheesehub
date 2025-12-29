@@ -489,7 +489,9 @@ export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]>
   try {
     console.log("fetchUserStakedFarms called for:", account);
     
-    // Query stakers table using secondary index by user
+    const farmNames = new Set<string>();
+    
+    // Strategy 1: Secondary index query (fast path)
     const response = await fetch(
       `https://wax.eosusa.io/v1/chain/get_table_rows`,
       {
@@ -510,21 +512,61 @@ export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]>
     );
 
     const data = await response.json();
-    console.log("Stakers table response for user:", data);
+    console.log("Strategy 1 - Secondary index result:", data.rows?.length || 0, "rows");
     
-    if (!data.rows || data.rows.length === 0) {
-      console.log("No staker rows found for user:", account);
-      return [];
-    }
-
-    // Extract unique farm names from staker rows
-    const farmNames = new Set<string>();
-    for (const row of data.rows) {
-      const farmName = row.farmname || row.farm_name;
-      console.log("Found staker row:", row, "farmname:", farmName);
-      if (farmName) {
-        farmNames.add(farmName);
+    if (data.rows && data.rows.length > 0) {
+      for (const row of data.rows) {
+        const farmName = row.farmname || row.farm_name;
+        if (farmName) farmNames.add(farmName);
       }
+    }
+    
+    // Strategy 2: Paginated fallback if secondary index returned empty
+    if (farmNames.size === 0) {
+      console.log("Secondary index empty, trying paginated search...");
+      let nextKey: string | undefined = undefined;
+      let iterations = 0;
+      const MAX_ITERATIONS = 15;
+      
+      while (iterations < MAX_ITERATIONS) {
+        const paginatedResponse = await fetch(
+          `https://wax.eosusa.io/v1/chain/get_table_rows`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              json: true,
+              code: FARM_CONTRACT,
+              scope: FARM_CONTRACT,
+              table: "stakers",
+              reverse: true,
+              limit: 1000,
+              ...(nextKey ? { upper_bound: nextKey } : {}),
+            }),
+          }
+        );
+        
+        const paginatedData = await paginatedResponse.json();
+        iterations++;
+        
+        if (!paginatedData.rows || paginatedData.rows.length === 0) break;
+        
+        // Find all rows for this user
+        for (const row of paginatedData.rows) {
+          if (row.user === account) {
+            const farmName = row.farmname || row.farm_name;
+            if (farmName) farmNames.add(farmName);
+          }
+        }
+        
+        if (!paginatedData.more) break;
+        
+        // Get the last row's primary key for pagination
+        const lastRow = paginatedData.rows[paginatedData.rows.length - 1];
+        nextKey = String(lastRow.id || lastRow.key);
+      }
+      
+      console.log(`Paginated search found ${farmNames.size} farms in ${iterations} batches`);
     }
 
     console.log("Unique farm names user is staked in:", Array.from(farmNames));

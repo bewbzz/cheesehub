@@ -255,6 +255,18 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
         </div>
       </CardHeader>
       <CardContent>
+        {/* Proposal Cost Warning */}
+        {parseFloat(proposalCost.split(" ")[0]) > 0 && (
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <p className="text-sm text-amber-400 flex items-center gap-2">
+              <span className="text-amber-500">⚠️</span>
+              <span>
+                Creating a proposal costs <strong className="text-amber-300">{proposalCost}</strong> which will be transferred from your account to the DAO treasury.
+              </span>
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div className="space-y-2">

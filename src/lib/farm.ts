@@ -579,10 +579,10 @@ export async function fetchUserStakes(
   try {
     console.log("Querying staking data for", account, "in farm", farmName);
     
-    // Strategy 0 (NEW): Query 'stakers' table with farm scope and get ALL rows
-    // Then look for any row that matches the user - this handles different primary key structures
+    // Strategy 0 (CORRECT): Query 'stakers' table with scope 'farms.waxdao' (contract name)
+    // Use secondary index by 'user' field (index 2), then filter by farmname client-side
     try {
-      const allStakersResponse = await fetch(
+      const contractScopeResponse = await fetch(
         `https://wax.eosusa.io/v1/chain/get_table_rows`,
         {
           method: "POST",
@@ -590,36 +590,33 @@ export async function fetchUserStakes(
           body: JSON.stringify({
             json: true,
             code: FARM_CONTRACT,
-            scope: farmName,
+            scope: FARM_CONTRACT, // Use "farms.waxdao" as scope!
             table: "stakers",
-            limit: 500,
+            index_position: 2, // Secondary index by 'user'
+            key_type: "name",
+            lower_bound: account,
+            upper_bound: account,
+            limit: 100,
           }),
         }
       );
       
-      const allStakersData = await allStakersResponse.json();
-      console.log(`[Strategy 0] All stakers in farm (${farmName}), count: ${allStakersData.rows?.length || 0}`);
+      const contractScopeData = await contractScopeResponse.json();
+      console.log(`[Strategy 0] stakers with scope=${FARM_CONTRACT}, user index:`, contractScopeData);
       
-      if (allStakersData.rows && allStakersData.rows.length > 0) {
-        // Log first row to see structure
-        console.log("[Strategy 0] Sample staker row:", JSON.stringify(allStakersData.rows[0], null, 2));
+      if (contractScopeData.rows && contractScopeData.rows.length > 0) {
+        console.log("[Strategy 0] Sample row:", JSON.stringify(contractScopeData.rows[0], null, 2));
         
-        // Find user's row - check multiple field names for the user identifier
-        const userRow = allStakersData.rows.find((row: Record<string, unknown>) => {
-          const rowUser = row.wallet || row.user || row.staker || row.owner || row.account || "";
-          return rowUser === account;
+        // Filter by farmname to get only stakes for this specific farm
+        const farmRow = contractScopeData.rows.find((row: Record<string, unknown>) => {
+          return row.farmname === farmName;
         });
         
-        if (userRow) {
-          console.log("[Strategy 0] Found user row:", JSON.stringify(userRow, null, 2));
+        if (farmRow) {
+          console.log("[Strategy 0] Found matching farm row:", JSON.stringify(farmRow, null, 2));
           
-          // Check for asset IDs in various field names
-          const stakedAssets = userRow.staked_assets || 
-                              userRow.asset_ids || 
-                              userRow.assets || 
-                              userRow.nfts ||
-                              userRow.staked ||
-                              [];
+          // Extract asset_ids array
+          const stakedAssets = farmRow.asset_ids || farmRow.staked_assets || farmRow.assets || [];
           
           if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
             console.log(`[Strategy 0] Found ${stakedAssets.length} staked assets`);
@@ -627,7 +624,7 @@ export async function fetchUserStakes(
               asset_id: String(assetId),
               staker: account,
               farm_name: farmName,
-              last_claim: (userRow.last_claim as number) || 0,
+              last_claim: (farmRow.last_claim as number) || 0,
             }));
           }
         }

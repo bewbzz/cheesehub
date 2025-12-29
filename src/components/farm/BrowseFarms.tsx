@@ -26,15 +26,12 @@ export function BrowseFarms() {
     refetchOnMount: true,
   });
 
-  // Get all farm names to check for staking
-  const allFarmNames = useMemo(() => farms.map(f => f.farm_name), [farms]);
-  
-  // Fetch farm names where user is staked (checks each farm's stakers table)
+  // Fetch farm names where user is staked (uses secondary index on stakers table)
   const { data: stakedFarmNames = [], isLoading: isLoadingStaked } = useQuery({
-    queryKey: ["userStakedFarms", accountName, allFarmNames.length],
-    queryFn: () => fetchUserStakedFarmNames(accountName!, allFarmNames),
-    enabled: isConnected && !!accountName && showStakedOnly && allFarmNames.length > 0,
-    staleTime: 60000, // Cache for 1 minute since this is expensive
+    queryKey: ["userStakedFarms", accountName],
+    queryFn: () => fetchUserStakedFarmNames(accountName!),
+    enabled: isConnected && !!accountName && showStakedOnly,
+    staleTime: 60000, // Cache for 1 minute
   });
 
   // Debug log

@@ -41,70 +41,57 @@ async function fetchWithWaxFallback(
 }
 
 // Fetch all farm names where a user has staked
-// Must check each farm individually because stakers table is scoped per farm
-export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
-  if (!account || allFarmNames.length === 0) return [];
+// Uses the same approach as fetchUserStakes: query stakers table by user index
+export async function fetchUserStakedFarmNames(account: string): Promise<string[]> {
+  if (!account) return [];
   
-  const stakedFarms: string[] = [];
-  const endpoint = "https://wax.eosusa.io"; // Most reliable endpoint
+  const endpoint = "https://wax.eosusa.io";
   
-  // Process in small batches to avoid rate limiting
-  const batchSize = 3;
-  
-  for (let i = 0; i < allFarmNames.length; i += batchSize) {
-    const batch = allFarmNames.slice(i, i + batchSize);
+  try {
+    // Query stakers table using secondary index by user (index 2)
+    // scope is FARM_CONTRACT, and we find user's rows by secondary index
+    const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT, // KEY: Use contract as scope, not farm name!
+        table: "stakers",
+        index_position: 2, // Secondary index by 'user'
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 100, // User might stake in multiple farms
+      }),
+    });
     
-    const results = await Promise.allSettled(
-      batch.map(async (farmName) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        try {
-          const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: farmName, // KEY: Use farm name as scope!
-              table: "stakers",
-              lower_bound: account,
-              upper_bound: account,
-              limit: 1,
-            }),
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.rows && data.rows.length > 0) {
-              return farmName;
-            }
-          }
-          return null;
-        } catch {
-          clearTimeout(timeoutId);
-          return null;
+    if (!response.ok) {
+      console.error("[fetchUserStakedFarmNames] Response not OK:", response.status);
+      return [];
+    }
+    
+    const data = await response.json();
+    console.log(`[fetchUserStakedFarmNames] Found ${data.rows?.length || 0} staking rows for ${account}`);
+    
+    if (data.rows && data.rows.length > 0) {
+      // Extract unique farm names from the staker rows
+      const farmNames = new Set<string>();
+      for (const row of data.rows) {
+        const farmName = row.farmname || row.farm_name;
+        if (farmName) {
+          farmNames.add(String(farmName));
         }
-      })
-    );
-    
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value) {
-        stakedFarms.push(result.value);
       }
+      console.log(`[fetchUserStakedFarmNames] Staked farms:`, Array.from(farmNames));
+      return Array.from(farmNames);
     }
     
-    // Delay between batches to avoid rate limiting
-    if (i + batchSize < allFarmNames.length) {
-      await new Promise(resolve => setTimeout(resolve, 150));
-    }
+    return [];
+  } catch (e) {
+    console.error("[fetchUserStakedFarmNames] Error:", e);
+    return [];
   }
-  
-  console.log(`[fetchUserStakedFarmNames] Found ${stakedFarms.length} staked farms for ${account}:`, stakedFarms);
-  return stakedFarms;
 }
 
 // Fee constants for farm creation

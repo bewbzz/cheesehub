@@ -41,13 +41,12 @@ async function fetchWithWaxFallback(
 }
 
 // Fetch all farm names where a user has staked
-// The stakers table is scoped PER FARM, primary key is likely NOT user
-// We need to use secondary index (index_position: 2) to find by user
+// V2 farms use non-custodial staking - try both 'stakers' and 'stakednfts' tables
 export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
   if (!account || allFarmNames.length === 0) return [];
   
   const endpoint = "https://wax.eosusa.io";
-  const stakedFarms: string[] = [];
+  const stakedFarms = new Set<string>();
   const batchSize = 5;
   
   console.log(`[fetchUserStakedFarmNames] Checking ${allFarmNames.length} farms for user ${account}`);
@@ -56,53 +55,53 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
     const batch = allFarmNames.slice(i, i + batchSize);
     
     const results = await Promise.allSettled(
-      batch.map(async (farmName) => {
-        if (!farmName) return null;
+      batch.flatMap((farmName) => {
+        if (!farmName) return [];
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        
-        try {
-          // Use secondary index (index_position: 2) to lookup by user
-          // Primary key is likely asset_id or staker+asset combo, not username
-          const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: farmName,
-              table: "stakers",
-              index_position: 2,
-              key_type: "name",
-              lower_bound: account,
-              upper_bound: account,
-              limit: 1,
-            }),
-            signal: controller.signal,
-          });
+        // Try both tables: stakers and stakednfts
+        return ['stakers', 'stakednfts'].map(async (tableName) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
           
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) return null;
-          
-          const data = await response.json();
-          // Check if user has any staking entry in this farm
-          if (data.rows && data.rows.length > 0) {
-            console.log(`[fetchUserStakedFarmNames] Found stake in farm: ${farmName}`, data.rows[0]);
-            return farmName;
+          try {
+            const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                json: true,
+                code: FARM_CONTRACT,
+                scope: farmName,
+                table: tableName,
+                index_position: 2,
+                key_type: "name",
+                lower_bound: account,
+                upper_bound: account,
+                limit: 1,
+              }),
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            if (data.rows && data.rows.length > 0) {
+              console.log(`[fetchUserStakedFarmNames] Found stake in ${farmName} (${tableName})`, data.rows[0]);
+              return farmName;
+            }
+            return null;
+          } catch {
+            clearTimeout(timeoutId);
+            return null;
           }
-          return null;
-        } catch {
-          clearTimeout(timeoutId);
-          return null;
-        }
+        });
       })
     );
     
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value) {
-        stakedFarms.push(result.value);
+        stakedFarms.add(result.value);
       }
     }
     
@@ -112,8 +111,9 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
     }
   }
   
-  console.log(`[fetchUserStakedFarmNames] User staked in farms:`, stakedFarms);
-  return stakedFarms;
+  const farmsList = Array.from(stakedFarms);
+  console.log(`[fetchUserStakedFarmNames] User staked in farms:`, farmsList);
+  return farmsList;
 }
 
 // Fee constants for farm creation

@@ -576,7 +576,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               {stakableConfig.schemas.map((s, i) => (
                 <span key={i} className="inline-flex items-center">
                   <span className="text-primary">{s.collection}/{s.schema}</span>
-                  {s.hourly_rate && s.hourly_rate !== "0" && (
+                  {s.hourly_rates && s.hourly_rates.length > 0 ? (
+                    <span className="text-cheese ml-1">
+                      ({s.hourly_rates.map(r => r.quantity).join(' + ')}/hr)
+                    </span>
+                  ) : s.hourly_rate && s.hourly_rate !== "0" && (
                     <span className="text-cheese ml-1">({s.hourly_rate}/hr)</span>
                   )}
                 </span>
@@ -600,7 +604,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                   >
                     {c.collection}
                   </a>
-                  {c.hourly_rate && c.hourly_rate !== "0" && (
+                  {c.hourly_rates && c.hourly_rates.length > 0 ? (
+                    <span className="text-cheese ml-1">
+                      ({c.hourly_rates.map(r => r.quantity).join(' + ')}/hr)
+                    </span>
+                  ) : c.hourly_rate && c.hourly_rate !== "0" && (
                     <span className="text-cheese ml-1">({c.hourly_rate}/hr)</span>
                   )}
                 </span>
@@ -617,7 +625,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               {stakableConfig.attributes.map((a, i) => (
                 <span key={i} className="inline-flex items-center">
                   <span className="text-primary">{a.attribute_name}={a.attribute_value}</span>
-                  {a.hourly_rate && a.hourly_rate !== "0" && (
+                  {a.hourly_rates && a.hourly_rates.length > 0 ? (
+                    <span className="text-cheese ml-1">
+                      ({a.hourly_rates.map(r => r.quantity).join(' + ')}/hr)
+                    </span>
+                  ) : a.hourly_rate && a.hourly_rate !== "0" && (
                     <span className="text-cheese ml-1">({a.hourly_rate}/hr)</span>
                   )}
                 </span>

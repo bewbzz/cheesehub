@@ -12,6 +12,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      {/* Row 1: Logo + Primary Nav + Wallet/Cart */}
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
@@ -97,19 +98,6 @@ export function Header() {
               <Users className="h-4 w-4" />
               CHEESEDao
             </Link>
-            {/* CHEESEFarm */}
-            <Link
-              to="/farm"
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/farm"
-                  ? "bg-cheese/20 text-cheese"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Sprout className="h-4 w-4" />
-              CHEESEFarm
-            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">
@@ -128,6 +116,25 @@ export function Header() {
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Row 2: Secondary Nav */}
+      <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
+        <nav className="flex items-center gap-1">
+          {/* CHEESEFarm */}
+          <Link
+            to="/farm"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+              location.pathname === "/farm"
+                ? "bg-cheese/20 text-cheese"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            <Sprout className="h-4 w-4" />
+            CHEESEFarm
+          </Link>
+        </nav>
       </div>
     </header>
   );

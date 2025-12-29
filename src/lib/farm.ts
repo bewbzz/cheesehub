@@ -579,10 +579,10 @@ export async function fetchUserStakes(
   try {
     console.log("Querying staking data for", account, "in farm", farmName);
     
-    // Strategy 0: Query 'stakers' table by farmname (index 3), then filter by user
-    // This finds all stakers for this specific farm
+    // Strategy 0: Query 'stakers' table by USER (index 2), filter by farmname
+    // This is the most reliable method - finds user's row directly regardless of table size
     try {
-      const farmIndexResponse = await fetch(
+      const userIndexResponse = await fetch(
         `https://wax.eosusa.io/v1/chain/get_table_rows`,
         {
           method: "POST",
@@ -592,30 +592,30 @@ export async function fetchUserStakes(
             code: FARM_CONTRACT,
             scope: FARM_CONTRACT,
             table: "stakers",
-            index_position: 3, // Secondary index by 'farmname'
+            index_position: 2, // Secondary index by 'user'
             key_type: "name",
-            lower_bound: farmName,
-            upper_bound: farmName,
-            limit: 500,
+            lower_bound: account,
+            upper_bound: account,
+            limit: 100, // User might stake in multiple farms
           }),
         }
       );
       
-      const farmIndexData = await farmIndexResponse.json();
-      console.log(`[Strategy 0] stakers by farmname index for ${farmName}:`, farmIndexData.rows?.length || 0, "rows");
+      const userIndexData = await userIndexResponse.json();
+      console.log(`[Strategy 0] stakers by user index for ${account}:`, userIndexData.rows?.length || 0, "rows");
       
-      if (farmIndexData.rows && farmIndexData.rows.length > 0) {
-        console.log("[Strategy 0] First 3 stakers in farm:", JSON.stringify(farmIndexData.rows.slice(0, 3), null, 2));
+      if (userIndexData.rows && userIndexData.rows.length > 0) {
+        console.log("[Strategy 0] User's staking rows:", JSON.stringify(userIndexData.rows.slice(0, 3), null, 2));
         
-        // Find the row matching this user
-        const userRow = farmIndexData.rows.find((row: Record<string, unknown>) => {
-          return row.user === account;
+        // Find the row matching this farm
+        const farmRow = userIndexData.rows.find((row: Record<string, unknown>) => {
+          return row.farmname === farmName || row.farm_name === farmName;
         });
         
-        if (userRow) {
-          console.log("[Strategy 0] Found user's stake row:", JSON.stringify(userRow, null, 2));
+        if (farmRow) {
+          console.log("[Strategy 0] Found user's stake row for farm:", JSON.stringify(farmRow, null, 2));
           
-          const stakedAssets = userRow.asset_ids || userRow.staked_assets || userRow.assets || [];
+          const stakedAssets = farmRow.asset_ids || farmRow.staked_assets || farmRow.assets || [];
           
           if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
             console.log(`[Strategy 0] Found ${stakedAssets.length} staked assets`);
@@ -623,17 +623,96 @@ export async function fetchUserStakes(
               asset_id: String(assetId),
               staker: account,
               farm_name: farmName,
-              last_claim: (userRow.last_claim || userRow.last_state_change as number) || 0,
+              last_claim: (farmRow.last_claim || farmRow.last_state_change as number) || 0,
+              claimable_balances: farmRow.claimable_balances || [],
             }));
           }
         } else {
-          console.log(`[Strategy 0] User ${account} not found among ${farmIndexData.rows.length} stakers`);
+          console.log(`[Strategy 0] Farm ${farmName} not found in user's ${userIndexData.rows.length} staking rows`);
+          // Log available farms
+          const farms = userIndexData.rows.map((r: Record<string, unknown>) => r.farmname || r.farm_name);
+          console.log("[Strategy 0] User's staked farms:", farms);
         }
       } else {
-        console.log(`[Strategy 0] No stakers found for farm ${farmName}`);
+        console.log(`[Strategy 0] No staking rows found for user ${account}`);
       }
     } catch (e) {
       console.log("[Strategy 0] Failed:", e);
+    }
+    
+    // Strategy 0b: Query 'stakers' table with reverse order (newest first) + pagination
+    // For farms with 10k+ rows where secondary index doesn't work
+    try {
+      let foundRow = null;
+      let nextKey: string | undefined = undefined;
+      let iterations = 0;
+      const MAX_ITERATIONS = 20; // Max 20k rows to search
+      
+      while (!foundRow && iterations < MAX_ITERATIONS) {
+        const paginatedResponse = await fetch(
+          `https://wax.eosusa.io/v1/chain/get_table_rows`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              json: true,
+              code: FARM_CONTRACT,
+              scope: FARM_CONTRACT,
+              table: "stakers",
+              reverse: true, // Newest entries first
+              limit: 1000,
+              ...(nextKey ? { upper_bound: nextKey } : {}),
+            }),
+          }
+        );
+        
+        const paginatedData = await paginatedResponse.json();
+        iterations++;
+        
+        if (iterations === 1) {
+          console.log(`[Strategy 0b] Paginated stakers search, batch 1:`, paginatedData.rows?.length || 0, "rows");
+        }
+        
+        if (paginatedData.rows && paginatedData.rows.length > 0) {
+          // Find user's row for this farm
+          const userRow = paginatedData.rows.find((row: Record<string, unknown>) => {
+            return row.user === account && (row.farmname === farmName || row.farm_name === farmName);
+          });
+          
+          if (userRow) {
+            foundRow = userRow;
+            console.log(`[Strategy 0b] Found user's stake in batch ${iterations}:`, JSON.stringify(userRow, null, 2));
+            break;
+          }
+          
+          // Continue pagination if more rows exist
+          if (paginatedData.more && paginatedData.next_key) {
+            nextKey = paginatedData.next_key;
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+      
+      if (foundRow) {
+        const stakedAssets = foundRow.asset_ids || foundRow.staked_assets || foundRow.assets || [];
+        if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+          console.log(`[Strategy 0b] Found ${stakedAssets.length} staked assets after ${iterations} batches`);
+          return stakedAssets.map((assetId: string | number) => ({
+            asset_id: String(assetId),
+            staker: account,
+            farm_name: farmName,
+            last_claim: (foundRow.last_claim || foundRow.last_state_change as number) || 0,
+            claimable_balances: foundRow.claimable_balances || [],
+          }));
+        }
+      } else {
+        console.log(`[Strategy 0b] User not found after ${iterations} batches`);
+      }
+    } catch (e) {
+      console.log("[Strategy 0b] Failed:", e);
     }
     
     // Strategy 1: Query ALL rows from 'stakers' table with farm scope to see what's there

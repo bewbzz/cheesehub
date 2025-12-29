@@ -3,6 +3,43 @@
 
 export const FARM_CONTRACT = "farms.waxdao";
 
+// WAX API endpoints with fallback
+const WAX_API_ENDPOINTS = [
+  "https://wax.greymass.com",
+  "https://wax.eosusa.io",
+  "https://api.wax.alohaeos.com",
+  "https://wax.pink.gg",
+];
+
+// Helper to fetch with fallback endpoints
+async function fetchWithWaxFallback(
+  body: Record<string, unknown>,
+  timeoutMs = 8000
+): Promise<unknown> {
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.log(`[fetchWithWaxFallback] ${endpoint} failed:`, e);
+    }
+  }
+  throw new Error("All WAX API endpoints failed");
+}
+
 // Fetch all farm names where a user has staked
 export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
   if (!account || allFarmNames.length === 0) return [];
@@ -19,25 +56,15 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
     const results = await Promise.all(
       batch.map(async (farmName) => {
         try {
-          // Query stakers table with farm as scope, looking for user
-          const response = await fetch(
-            `https://wax.eosusa.io/v1/chain/get_table_rows`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                json: true,
-                code: FARM_CONTRACT,
-                scope: farmName,
-                table: "stakers",
-                lower_bound: account,
-                upper_bound: account,
-                limit: 1,
-              }),
-            }
-          );
-          
-          const data = await response.json();
+          const data = await fetchWithWaxFallback({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: "stakers",
+            lower_bound: account,
+            upper_bound: account,
+            limit: 1,
+          }) as { rows?: unknown[] };
           
           if (data.rows && data.rows.length > 0) {
             return farmName;
@@ -444,22 +471,14 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
 // Fetch all V2 farms from the contract
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "farms",
-          limit: 200,
-        }),
-      }
-    );
+    const data = await fetchWithWaxFallback({
+      json: true,
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "farms",
+      limit: 200,
+    }) as { rows?: Record<string, unknown>[] };
 
-    const data = await response.json();
     console.log("Raw farm data:", data);
 
     const now = Math.floor(Date.now() / 1000);

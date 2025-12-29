@@ -31,6 +31,7 @@ import {
 } from "@/lib/farm";
 import { ATOMIC_API, WAX_CHAIN } from "@/lib/waxConfig";
 import { fetchWithFallback } from "@/lib/fetchWithFallback";
+import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 
 // Verify asset ownership directly from blockchain (real-time, no indexer delay)
 async function verifyAssetOwnership(assetIds: string[], expectedOwner: string): Promise<Set<string>> {
@@ -174,6 +175,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const baseAmount = parseFloat(balanceParts[0]) || 0;
         const symbol = balanceParts[1] || "";
         const precision = balanceParts[0].includes(".") ? balanceParts[0].split(".")[1]?.length || 0 : 0;
+        const contract = balance.contract || "";
 
         // Find matching rate by symbol
         const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
@@ -182,7 +184,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         // Claimable = base + (rate * hours from completed periods)
         const claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-        return { symbol, amount: claimableAmount, precision };
+        return { symbol, amount: claimableAmount, precision, contract };
       });
 
       // Calculate pending rewards (one full payout period worth)
@@ -191,12 +193,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rateAmount = parseFloat(rateParts[0]) || 0;
         const symbol = rateParts[1] || "";
         const precision = rateParts[0].includes(".") ? rateParts[0].split(".")[1]?.length || 0 : 0;
+        const contract = rate.contract || "";
         
         // Pending = rate * hours_per_payout_period
         const hoursPerPeriod = payoutInterval / 3600;
         const pendingAmount = rateAmount * hoursPerPeriod;
 
-        return { symbol, amount: pendingAmount, precision };
+        return { symbol, amount: pendingAmount, precision, contract };
       });
 
       setLiveRewards(claimable);
@@ -887,9 +890,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Claimable Now</p>
                 {pendingRewards.length > 0 ? (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {pendingRewards.map((reward, i) => (
                       <div key={i} className="flex items-center gap-2">
+                        <img
+                          src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
+                          alt={reward.symbol}
+                          className="w-5 h-5 rounded-full"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                          }}
+                        />
                         <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
                           {reward.amount.toFixed(reward.precision)} {reward.symbol}
                         </Badge>
@@ -910,9 +921,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                       (in {Math.floor(nextPayoutIn / 60)}:{(nextPayoutIn % 60).toString().padStart(2, '0')})
                     </span>
                   </p>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {pendingNextPayout.map((reward, i) => (
                       <div key={i} className="flex items-center gap-2">
+                        <img
+                          src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
+                          alt={reward.symbol}
+                          className="w-4 h-4 rounded-full opacity-70"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                          }}
+                        />
                         <Badge variant="outline" className="text-muted-foreground border-border/50 text-xs">
                           +{reward.amount.toFixed(reward.precision)} {reward.symbol}
                         </Badge>

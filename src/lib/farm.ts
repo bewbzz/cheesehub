@@ -1318,6 +1318,7 @@ export interface PendingReward {
   symbol: string;
   amount: number;
   precision: number;
+  contract?: string;
 }
 
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {

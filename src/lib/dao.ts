@@ -498,7 +498,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       });
       
       // Determine status based on outcome and end_time
-      // WaxDAO outcome codes: 0 = voting, 1 = voting, 2 = passed, 3 = rejected, 4 = executed
+      // WaxDAO outcome codes: 0 = voting, 1 = voting, 2 = passed, 3 = rejected, 4 = executed, 5 = finalized (check votes)
       let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" = "pending";
       
       // First check if outcome indicates already finalized
@@ -508,9 +508,21 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         status = "rejected";
       } else if (outcome === 4) {
         status = "executed";
-      } else if (outcome >= 5) {
+      } else if (outcome === 5) {
+        // Outcome 5 means finalized - determine pass/fail from vote counts
+        // For Yes/No/Abstain proposals, calculate yes percentage
+        const totalVotesExcludingAbstain = yesVotes + noVotes;
+        if (totalVotesExcludingAbstain > 0) {
+          const yesPercent = (yesVotes / totalVotesExcludingAbstain) * 100;
+          // We don't have threshold here, but 51% is typical default
+          // Better to show as "passed" if yes > no, since contract finalized it
+          status = yesVotes > noVotes ? "passed" : "rejected";
+        } else {
+          status = "rejected"; // No votes = rejected
+        }
+      } else if (outcome >= 6) {
         // Other finalized states
-        status = (OUTCOME_STATUS[outcome] as typeof status) || "passed";
+        status = (OUTCOME_STATUS[outcome] as typeof status) || "rejected";
       } else {
         // outcome is 0 or 1 - check if voting is still active or ended
         if (endTime > now) {

@@ -364,9 +364,9 @@ export function buildUnstakeNftsAction(
     name: "unstake",
     authorization: [{ actor: staker, permission: "active" }],
     data: {
-      staker,
-      farm_name: farmName,
-      asset_ids: assetIds,
+      user: staker,
+      farmname: farmName,
+      assets_to_unstake: assetIds,
     },
   };
 }
@@ -378,8 +378,8 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
     name: "claim",
     authorization: [{ actor: staker, permission: "active" }],
     data: {
-      staker,
-      farm_name: farmName,
+      user: staker,
+      farmname: farmName,
     },
   };
 }

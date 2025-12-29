@@ -41,7 +41,8 @@ async function fetchWithWaxFallback(
 }
 
 // Fetch all farm names where a user has staked
-// The stakers table is scoped PER FARM, so we must check each farm individually
+// The stakers table is scoped PER FARM, primary key is likely NOT user
+// We need to use secondary index (index_position: 2) to find by user
 export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
   if (!account || allFarmNames.length === 0) return [];
   
@@ -62,14 +63,18 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
         const timeoutId = setTimeout(() => controller.abort(), 4000);
         
         try {
+          // Use secondary index (index_position: 2) to lookup by user
+          // Primary key is likely asset_id or staker+asset combo, not username
           const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               json: true,
               code: FARM_CONTRACT,
-              scope: farmName, // KEY: Scope is the farm name!
+              scope: farmName,
               table: "stakers",
+              index_position: 2,
+              key_type: "name",
               lower_bound: account,
               upper_bound: account,
               limit: 1,
@@ -84,7 +89,7 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
           const data = await response.json();
           // Check if user has any staking entry in this farm
           if (data.rows && data.rows.length > 0) {
-            console.log(`[fetchUserStakedFarmNames] Found stake in farm: ${farmName}`);
+            console.log(`[fetchUserStakedFarmNames] Found stake in farm: ${farmName}`, data.rows[0]);
             return farmName;
           }
           return null;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,7 @@ import {
   buildClaimRewardsAction,
   fetchUserStakes,
   fetchFarmStakableConfig,
-  fetchPendingRewards,
   FarmInfo,
-  UserStake,
   PendingReward,
 } from "@/lib/farm";
 import { ATOMIC_API, WAX_CHAIN } from "@/lib/waxConfig";
@@ -124,17 +122,22 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     staleTime: 30000,
   });
 
-  // Fetch user's pending rewards
-  const { data: pendingRewards = [], refetch: refetchRewards } = useQuery({
-    queryKey: ["pendingRewards", accountName, farm.farm_name],
-    queryFn: async () => {
-      const rewards = await fetchPendingRewards(accountName!, farm.farm_name);
-      console.log("Fetched pending rewards for", accountName, "in farm", farm.farm_name, ":", rewards);
-      return rewards;
-    },
-    enabled: !!accountName,
-    staleTime: 30000,
-  });
+  // Derive pending rewards from stakedNfts data (claimable_balances is per-user, not per-NFT)
+  const pendingRewards: PendingReward[] = useMemo(() => {
+    if (!stakedNfts.length) return [];
+    
+    // All staked NFTs share the same claimable_balances for a user in a farm
+    const claimableBalances = stakedNfts[0]?.claimable_balances;
+    if (!claimableBalances || !Array.isArray(claimableBalances)) return [];
+    
+    return claimableBalances.map((b: { quantity: string; contract: string }) => {
+      const parts = b.quantity.split(" ");
+      const amount = parseFloat(parts[0]) || 0;
+      const symbol = parts[1] || "";
+      const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
+      return { symbol, amount, precision };
+    });
+  }, [stakedNfts]);
 
   // Fetch user's eligible NFTs for staking (excludes already staked NFTs)
   const { data: eligibleNfts = [], isLoading: isLoadingEligible, refetch: refetchEligible } = useQuery({
@@ -302,7 +305,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       await Promise.all([
         refetchStaked(),
         refetchEligible(),
-        refetchRewards(),
       ]);
       queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
     } catch (error) {
@@ -342,7 +344,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       await Promise.all([
         refetchStaked(),
         refetchEligible(),
-        refetchRewards(),
       ]);
       queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
     } catch (error) {
@@ -371,7 +372,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         description: `Successfully claimed rewards from ${farm.farm_name}`,
       });
       
-      await refetchRewards();
+      await refetchStaked();
     } catch (error) {
       console.error("Claim failed:", error);
       toast({

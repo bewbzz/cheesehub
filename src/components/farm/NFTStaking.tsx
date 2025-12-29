@@ -172,7 +172,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     };
 
     calculateLiveRewards(); // Initial calculation
-    const interval = setInterval(calculateLiveRewards, 1000); // Update every second
+    const interval = setInterval(calculateLiveRewards, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
   }, [stakerData]);

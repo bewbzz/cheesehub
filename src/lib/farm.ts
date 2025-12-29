@@ -46,9 +46,11 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
   
   const stakedFarms: string[] = [];
   
-  // Query each farm's stakers table to check if user is staked
-  // We batch requests in parallel for efficiency
-  const batchSize = 10;
+  // Use a single fast endpoint for batch staker checks
+  const endpoint = "https://wax.greymass.com";
+  
+  // Query each farm's stakers table - smaller batch size to avoid rate limits
+  const batchSize = 5;
   
   for (let i = 0; i < allFarmNames.length; i += batchSize) {
     const batch = allFarmNames.slice(i, i + batchSize);
@@ -56,31 +58,49 @@ export async function fetchUserStakedFarmNames(account: string, allFarmNames: st
     const results = await Promise.all(
       batch.map(async (farmName) => {
         try {
-          const data = await fetchWithWaxFallback({
-            json: true,
-            code: FARM_CONTRACT,
-            scope: farmName,
-            table: "stakers",
-            lower_bound: account,
-            upper_bound: account,
-            limit: 1,
-          }) as { rows?: unknown[] };
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          if (data.rows && data.rows.length > 0) {
-            return farmName;
+          const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              json: true,
+              code: FARM_CONTRACT,
+              scope: farmName,
+              table: "stakers",
+              lower_bound: account,
+              upper_bound: account,
+              limit: 1,
+            }),
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.rows && data.rows.length > 0) {
+              return farmName;
+            }
           }
           return null;
         } catch (e) {
-          console.error(`[fetchUserStakedFarmNames] Error checking ${farmName}:`, e);
+          // Silent fail for individual farm checks
           return null;
         }
       })
     );
     
     stakedFarms.push(...results.filter((name): name is string => name !== null));
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + batchSize < allFarmNames.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
   
-  console.log(`[fetchUserStakedFarmNames] Found ${stakedFarms.length} farms for ${account}:`, stakedFarms);
+  console.log(`[fetchUserStakedFarmNames] Found ${stakedFarms.length} staked farms for ${account}:`, stakedFarms);
   return stakedFarms;
 }
 

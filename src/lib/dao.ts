@@ -113,10 +113,10 @@ export const VOTING_TYPE_LABELS: Record<number, string> = {
 export const OUTCOME_STATUS: Record<number, string> = {
   0: "active",   // Initial/voting state
   1: "active",   // Voting in progress
-  2: "passed",
-  3: "rejected",
-  4: "executed",
-  5: "pending",  // Finalization pending
+  2: "passed",   // Finalized - passed
+  3: "rejected", // Finalized - rejected (didn't meet threshold)
+  4: "executed", // Passed and executed
+  5: "rejected", // Finalized - rejected/closed
   6: "expired",  // Old unfinalized proposal
 };
 

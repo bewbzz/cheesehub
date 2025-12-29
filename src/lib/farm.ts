@@ -128,6 +128,8 @@ export interface UserStake {
   farm_name: string;
   last_claim: number;
   claimable_balances?: Array<{ quantity: string; contract: string }>;
+  rates_per_hour?: Array<{ quantity: string; contract: string }>;
+  last_state_change?: number;
 }
 
 // Convert IPFS hash to full URL
@@ -626,6 +628,8 @@ export async function fetchUserStakes(
               farm_name: farmName,
               last_claim: (farmRow.last_claim || farmRow.last_state_change as number) || 0,
               claimable_balances: farmRow.claimable_balances || [],
+              rates_per_hour: farmRow.rates_per_hour || [],
+              last_state_change: (farmRow.last_state_change as number) || 0,
             }));
           }
         } else {
@@ -707,6 +711,8 @@ export async function fetchUserStakes(
             farm_name: farmName,
             last_claim: (foundRow.last_claim || foundRow.last_state_change as number) || 0,
             claimable_balances: foundRow.claimable_balances || [],
+            rates_per_hour: foundRow.rates_per_hour || [],
+            last_state_change: (foundRow.last_state_change as number) || 0,
           }));
         }
       } else {

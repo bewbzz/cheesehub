@@ -26,11 +26,13 @@ export function BrowseFarms() {
     refetchOnMount: true,
   });
 
-  // Fetch farm names where user is staked
-  const { data: stakedFarmNames = [] } = useQuery({
-    queryKey: ["userStakedFarms", accountName],
-    queryFn: () => fetchUserStakedFarmNames(accountName!),
-    enabled: isConnected && !!accountName && showStakedOnly,
+  // Fetch farm names where user is staked (pass all farm names to check)
+  const allFarmNames = useMemo(() => farms.map(f => f.farm_name), [farms]);
+  
+  const { data: stakedFarmNames = [], isLoading: isLoadingStaked } = useQuery({
+    queryKey: ["userStakedFarms", accountName, allFarmNames.length],
+    queryFn: () => fetchUserStakedFarmNames(accountName!, allFarmNames),
+    enabled: isConnected && !!accountName && showStakedOnly && allFarmNames.length > 0,
     staleTime: 30000,
   });
 
@@ -45,12 +47,14 @@ export function BrowseFarms() {
       result = result.filter(farm => farm.is_active);
     }
 
-    // Filter by staked farms only
-    if (showStakedOnly && stakedFarmNames.length > 0) {
-      result = result.filter(farm => stakedFarmNames.includes(farm.farm_name));
-    } else if (showStakedOnly && stakedFarmNames.length === 0 && isConnected) {
-      // User has staked only enabled but no staked farms
-      result = [];
+    // Filter by staked farms only (skip filter while loading)
+    if (showStakedOnly && !isLoadingStaked) {
+      if (stakedFarmNames.length > 0) {
+        result = result.filter(farm => stakedFarmNames.includes(farm.farm_name));
+      } else if (isConnected) {
+        // User has staked only enabled but no staked farms
+        result = [];
+      }
     }
 
     // Filter by search query
@@ -80,7 +84,7 @@ export function BrowseFarms() {
     }
 
     return result;
-  }, [farms, searchQuery, showActiveOnly, showStakedOnly, stakedFarmNames, sortBy, isConnected]);
+  }, [farms, searchQuery, showActiveOnly, showStakedOnly, stakedFarmNames, sortBy, isConnected, isLoadingStaked]);
 
   if (isLoading) {
     return (

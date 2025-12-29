@@ -727,6 +727,17 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
             }`}>
               {displayStatus}
             </Badge>
+            {/* Show rejection reason for rejected proposals */}
+            {displayStatus === "rejected" && (
+              <span className="text-xs text-red-400 text-right max-w-[150px]">
+                {(() => {
+                  if (totalVotes === 0) return "No votes cast";
+                  if (proposal.no_votes > proposal.yes_votes) return "Voted down by majority";
+                  if (yesPercent < passThreshold) return `Did not reach ${passThreshold}% threshold`;
+                  return "Did not pass";
+                })()}
+              </span>
+            )}
             <Badge variant="outline" className="text-xs flex items-center gap-1">
               {votingTypeIcons[proposal.voting_type]}
               {VOTING_TYPE_LABELS[proposal.voting_type] || "Standard"}

@@ -67,7 +67,7 @@ export function buildAssertPointAction(user: string) {
 export function buildFinalizeProposalAction(user: string, daoName: string, proposalId: number) {
   return {
     account: DAO_CONTRACT,
-    name: "decideprop",
+    name: "finalize",
     authorization: [{ actor: user, permission: "active" }],
     data: {
       user: user,

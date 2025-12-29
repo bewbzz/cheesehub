@@ -11,7 +11,7 @@ export function Header() {
   const { totalItems, setIsOpen } = useCart();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-xl">
       {/* Row 1: Logo + Primary Nav + Wallet/Cart */}
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">

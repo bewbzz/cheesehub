@@ -41,67 +41,42 @@ async function fetchWithWaxFallback(
 }
 
 // Fetch all farm names where a user has staked
-export async function fetchUserStakedFarmNames(account: string, allFarmNames: string[]): Promise<string[]> {
-  if (!account || allFarmNames.length === 0) return [];
+// Uses secondary index on stakers table to find all farms for a user
+export async function fetchUserStakedFarmNames(account: string): Promise<string[]> {
+  if (!account) return [];
   
-  const stakedFarms: string[] = [];
-  
-  // Use a single fast endpoint for batch staker checks
-  const endpoint = "https://wax.greymass.com";
-  
-  // Query each farm's stakers table - smaller batch size to avoid rate limits
-  const batchSize = 5;
-  
-  for (let i = 0; i < allFarmNames.length; i += batchSize) {
-    const batch = allFarmNames.slice(i, i + batchSize);
+  try {
+    // Query stakers table using secondary index by user (index 2)
+    // scope is the contract, and we filter by user using secondary index
+    const data = await fetchWithWaxFallback({
+      json: true,
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "stakers",
+      index_position: 2,
+      key_type: "name",
+      lower_bound: account,
+      upper_bound: account,
+      limit: 100,
+    }) as { rows?: Array<{ farmname?: string }> };
     
-    const results = await Promise.all(
-      batch.map(async (farmName) => {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          const response = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              json: true,
-              code: FARM_CONTRACT,
-              scope: farmName,
-              table: "stakers",
-              lower_bound: account,
-              upper_bound: account,
-              limit: 1,
-            }),
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.rows && data.rows.length > 0) {
-              return farmName;
-            }
-          }
-          return null;
-        } catch (e) {
-          // Silent fail for individual farm checks
-          return null;
+    if (data.rows && data.rows.length > 0) {
+      // Extract unique farm names from the staker rows
+      const farmNames = new Set<string>();
+      for (const row of data.rows) {
+        if (row.farmname) {
+          farmNames.add(String(row.farmname));
         }
-      })
-    );
-    
-    stakedFarms.push(...results.filter((name): name is string => name !== null));
-    
-    // Small delay between batches to avoid rate limiting
-    if (i + batchSize < allFarmNames.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      console.log(`[fetchUserStakedFarmNames] Found ${farmNames.size} staked farms for ${account}:`, Array.from(farmNames));
+      return Array.from(farmNames);
     }
+    
+    return [];
+  } catch (e) {
+    console.error("[fetchUserStakedFarmNames] Error:", e);
+    return [];
   }
-  
-  console.log(`[fetchUserStakedFarmNames] Found ${stakedFarms.length} staked farms for ${account}:`, stakedFarms);
-  return stakedFarms;
 }
 
 // Fee constants for farm creation

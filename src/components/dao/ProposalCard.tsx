@@ -135,9 +135,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
   // Check if proposal needs finalization (voting ended but not yet finalized)
+  // Status is "pending" when voting ended but not finalized, or "active" with end_time_ts passed
   const now = Math.floor(Date.now() / 1000);
   const votingEnded = proposal.end_time_ts > 0 && proposal.end_time_ts <= now;
-  const needsFinalization = votingEnded && proposal.status === "active" && !isFinalized;
+  const needsFinalization = (proposal.status === "pending" || (proposal.status === "active" && votingEnded)) && !isFinalized;
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {

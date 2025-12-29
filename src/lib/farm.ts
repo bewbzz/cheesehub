@@ -484,6 +484,57 @@ export async function fetchUserFarms(account: string): Promise<FarmInfo[]> {
   }
 }
 
+// Fetch farms where a user has staked NFTs
+export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]> {
+  try {
+    // Query stakers table using secondary index by user
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT,
+          table: "stakers",
+          index_position: 2,
+          key_type: "name",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 1000,
+        }),
+      }
+    );
+
+    const data = await response.json();
+    
+    if (!data.rows || data.rows.length === 0) {
+      return [];
+    }
+
+    // Extract unique farm names from staker rows
+    const farmNames = new Set<string>();
+    for (const row of data.rows) {
+      const farmName = row.farmname || row.farm_name;
+      if (farmName) {
+        farmNames.add(farmName);
+      }
+    }
+
+    if (farmNames.size === 0) {
+      return [];
+    }
+
+    // Fetch all farms and filter to only staked ones
+    const allFarms = await fetchAllFarms();
+    return allFarms.filter(farm => farmNames.has(farm.farm_name));
+  } catch (error) {
+    console.error("Error fetching user staked farms:", error);
+    return [];
+  }
+}
+
 // Fetch details for a specific farm
 export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | null> {
   try {

@@ -135,10 +135,12 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
   // Check if proposal needs finalization (voting ended but not yet finalized)
-  // Status is "pending" when voting ended but not finalized, or "active" with end_time_ts passed
+  // Explicitly exclude already-finalized statuses
+  const isAlreadyFinalized = ["passed", "rejected", "executed"].includes(proposal.status);
   const now = Math.floor(Date.now() / 1000);
   const votingEnded = proposal.end_time_ts > 0 && proposal.end_time_ts <= now;
-  const needsFinalization = (proposal.status === "pending" || (proposal.status === "active" && votingEnded)) && !isFinalized;
+  const needsFinalization = !isAlreadyFinalized && !isFinalized && 
+    (proposal.status === "pending" || (proposal.status === "active" && votingEnded));
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
@@ -330,7 +332,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
 
   const renderVotingPowerInfo = () => {
     // Don't show voting power info for finalized/ended proposals
-    if (isFinalized || proposal.status === "passed" || proposal.status === "rejected" || proposal.status === "executed" || proposal.status === "expired") {
+    if (isFinalized || isAlreadyFinalized || proposal.status === "expired") {
       return null;
     }
     if (!requiresStaking || !isConnected) return null;

@@ -7,16 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Filter } from "lucide-react";
 import { FarmCard } from "./FarmCard";
-import { fetchAllFarms, fetchUserStakedFarmNames } from "@/lib/farm";
-import { useWax } from "@/context/WaxContext";
+import { fetchAllFarms, FarmInfo } from "@/lib/farm";
 
 type SortOption = "newest" | "staked" | "name";
 
 export function BrowseFarms() {
-  const { accountName, isConnected } = useWax();
   const [searchQuery, setSearchQuery] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(true);
-  const [showStakedOnly, setShowStakedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("name");
 
   const { data: farms = [], isLoading, error } = useQuery({
@@ -26,19 +23,8 @@ export function BrowseFarms() {
     refetchOnMount: true,
   });
 
-  // Get all farm names for staked check
-  const allFarmNames = useMemo(() => farms.map(f => f.farm_name).filter(Boolean), [farms]);
-
-  // Fetch farm names where user is staked (stakers table is scoped per farm)
-  const { data: stakedFarmNames = [], isLoading: isLoadingStaked } = useQuery({
-    queryKey: ["userStakedFarms", accountName, allFarmNames.length],
-    queryFn: () => fetchUserStakedFarmNames(accountName!, allFarmNames),
-    enabled: isConnected && !!accountName && showStakedOnly && allFarmNames.length > 0,
-    staleTime: 60000, // Cache for 1 minute
-  });
-
   // Debug log
-  console.log("Farms query state:", { isLoading, error, farmsCount: farms.length, stakedFarmNames, allFarmNames: allFarmNames.length });
+  console.log("Farms query state:", { isLoading, error, farmsCount: farms.length });
 
   const filteredFarms = useMemo(() => {
     let result = [...farms];
@@ -46,16 +32,6 @@ export function BrowseFarms() {
     // Filter by active status
     if (showActiveOnly) {
       result = result.filter(farm => farm.is_active);
-    }
-
-    // Filter by staked farms only (skip filter while loading)
-    if (showStakedOnly && !isLoadingStaked) {
-      if (stakedFarmNames.length > 0) {
-        result = result.filter(farm => stakedFarmNames.includes(farm.farm_name));
-      } else if (isConnected) {
-        // User has staked only enabled but no staked farms
-        result = [];
-      }
     }
 
     // Filter by search query
@@ -85,7 +61,7 @@ export function BrowseFarms() {
     }
 
     return result;
-  }, [farms, searchQuery, showActiveOnly, showStakedOnly, stakedFarmNames, sortBy, isConnected, isLoadingStaked]);
+  }, [farms, searchQuery, showActiveOnly, sortBy]);
 
   if (isLoading) {
     return (
@@ -128,19 +104,6 @@ export function BrowseFarms() {
               Active only
             </Label>
           </div>
-
-          {isConnected && (
-            <div className="flex items-center gap-2">
-              <Switch
-                id="staked-only"
-                checked={showStakedOnly}
-                onCheckedChange={setShowStakedOnly}
-              />
-              <Label htmlFor="staked-only" className="text-sm whitespace-nowrap">
-                Staked only
-              </Label>
-            </div>
-          )}
 
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
             <SelectTrigger className="w-40">

@@ -31,8 +31,43 @@ import {
   UserStake,
   PendingReward,
 } from "@/lib/farm";
-import { ATOMIC_API } from "@/lib/waxConfig";
+import { ATOMIC_API, WAX_CHAIN } from "@/lib/waxConfig";
 import { fetchWithFallback } from "@/lib/fetchWithFallback";
+
+// Verify asset ownership directly from blockchain (real-time, no indexer delay)
+async function verifyAssetOwnership(assetIds: string[], expectedOwner: string): Promise<Set<string>> {
+  const ownedAssets = new Set<string>();
+  
+  try {
+    // Query the atomicassets contract's assets table with the owner as scope
+    const response = await fetch(`${WAX_CHAIN.rpcUrls[1]}/v1/chain/get_table_rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        json: true,
+        code: 'atomicassets',
+        scope: expectedOwner,
+        table: 'assets',
+        limit: 1000,
+      }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.rows) {
+        for (const asset of data.rows) {
+          ownedAssets.add(String(asset.asset_id));
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error verifying asset ownership from blockchain:', error);
+    // If blockchain query fails, assume all assets are valid (fallback to API data)
+    assetIds.forEach(id => ownedAssets.add(id));
+  }
+  
+  return ownedAssets;
+}
 
 interface NFTAsset {
   asset_id: string;
@@ -122,7 +157,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       // Cache-busting timestamp to bypass CDN caching
       const cacheBuster = `_ts=${Date.now()}`;
       
-      // Fetch assets for each collection
+      // Fetch assets for each collection from AtomicAssets API
       for (const collection of collectionsToFetch) {
         try {
           const params = new URLSearchParams({
@@ -183,6 +218,20 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         } catch (error) {
           console.error(`Error fetching assets for collection ${collection}:`, error);
         }
+      }
+      
+      // Verify ownership directly from blockchain to filter out transferred NFTs
+      // This bypasses AtomicAssets indexer delays
+      if (assets.length > 0) {
+        const verifiedOwnership = await verifyAssetOwnership(
+          assets.map(a => a.asset_id),
+          accountName
+        );
+        
+        // Filter to only include assets confirmed owned on blockchain
+        const verifiedAssets = assets.filter(a => verifiedOwnership.has(a.asset_id));
+        console.log(`Blockchain verification: ${assets.length} from API, ${verifiedAssets.length} verified on-chain`);
+        return verifiedAssets;
       }
       
       return assets;

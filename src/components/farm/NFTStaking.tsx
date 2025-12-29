@@ -776,9 +776,21 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       {/* Rewards Card */}
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Coins className="h-5 w-5 text-cheese" />
-            Your Rewards
+          <CardTitle className="flex items-center justify-between text-lg">
+            <div className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-cheese" />
+              Your Rewards
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetchStaked()}
+              disabled={isLoadingStaked}
+              className="h-7 px-2"
+              title="Refresh rewards"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoadingStaked ? 'animate-spin' : ''}`} />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>

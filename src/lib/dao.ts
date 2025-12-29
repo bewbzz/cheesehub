@@ -63,6 +63,20 @@ export function buildAssertPointAction(user: string) {
   };
 }
 
+// Build action for finalizing a proposal after voting ends
+export function buildFinalizeProposalAction(user: string, daoName: string, proposalId: number) {
+  return {
+    account: DAO_CONTRACT,
+    name: "decideprop",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      proposal_id: proposalId,
+    },
+  };
+}
+
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {
   1: "Custodial NFT Farm",        // Requires gov_farm_name (waxdaofarmer)

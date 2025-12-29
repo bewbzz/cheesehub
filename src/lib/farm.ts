@@ -485,60 +485,58 @@ export async function fetchUserFarms(account: string): Promise<FarmInfo[]> {
 }
 
 // Fetch farms where a user has staked NFTs
-// Uses per-farm scope queries which are more reliable than global table queries
+// Uses global stakers table with secondary index by user (same as fetchUserStakes Strategy 0)
 export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]> {
   try {
     console.log("fetchUserStakedFarms called for:", account);
     
-    // Get all active farms first
-    const allFarms = await fetchAllFarms();
-    const activeFarms = allFarms.filter(f => f.status === 1);
-    console.log(`Checking ${activeFarms.length} active farms for user stakes...`);
+    const farmNames = new Set<string>();
     
-    const stakedFarms: FarmInfo[] = [];
-    const batchSize = 15;
+    // Query the global stakers table with secondary index by user
+    // This is the same approach used in fetchUserStakes Strategy 0
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT, // Global scope, not per-farm!
+          table: "stakers",
+          index_position: 2, // Secondary index by 'user'
+          key_type: "name",
+          lower_bound: account,
+          upper_bound: account,
+          limit: 100, // User might be staked in many farms
+        }),
+      }
+    );
+
+    const data = await response.json();
+    console.log(`fetchUserStakedFarms - stakers by user index:`, data.rows?.length || 0, "rows");
     
-    // Process farms in parallel batches
-    for (let i = 0; i < activeFarms.length; i += batchSize) {
-      const batch = activeFarms.slice(i, i + batchSize);
+    if (data.rows && data.rows.length > 0) {
+      console.log("User's staking rows (first 3):", JSON.stringify(data.rows.slice(0, 3), null, 2));
       
-      const results = await Promise.all(
-        batch.map(async (farm) => {
-          try {
-            // Query stakers table with farm name as scope (smaller per-farm table)
-            const response = await fetch(
-              `https://wax.eosusa.io/v1/chain/get_table_rows`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  json: true,
-                  code: FARM_CONTRACT,
-                  scope: farm.farm_name,
-                  table: "stakers",
-                  index_position: 2,
-                  key_type: "name",
-                  lower_bound: account,
-                  upper_bound: account,
-                  limit: 1,
-                }),
-              }
-            );
-            const data = await response.json();
-            // If user has a row in this farm's stakers table, they're staked
-            return data.rows && data.rows.length > 0 ? farm : null;
-          } catch (err) {
-            console.warn(`Failed to check farm ${farm.farm_name}:`, err);
-            return null;
-          }
-        })
-      );
-      
-      // Add non-null results to stakedFarms
-      stakedFarms.push(...results.filter((f): f is FarmInfo => f !== null));
+      for (const row of data.rows) {
+        const farmName = row.farmname || row.farm_name;
+        if (farmName) {
+          farmNames.add(farmName);
+        }
+      }
     }
     
-    console.log("User staked farms:", stakedFarms.map(f => f.farm_name));
+    console.log("Unique farm names user is staked in:", Array.from(farmNames));
+    
+    if (farmNames.size === 0) {
+      return [];
+    }
+    
+    // Fetch all farms and filter to only staked ones
+    const allFarms = await fetchAllFarms();
+    const stakedFarms = allFarms.filter(farm => farmNames.has(farm.farm_name));
+    console.log("Matched staked farms:", stakedFarms.map(f => f.farm_name));
     return stakedFarms;
   } catch (error) {
     console.error("Error fetching user staked farms:", error);

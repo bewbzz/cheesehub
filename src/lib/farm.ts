@@ -636,10 +636,9 @@ export async function fetchUserStakes(
       console.log("[Strategy 0] Failed:", e);
     }
     
-    // Strategy 1: Query the 'stakers' table with farmname as scope
-    // This table stores one row per user with all their staked asset IDs in an array
+    // Strategy 1: Query ALL rows from 'stakers' table with farm scope to see what's there
     try {
-      const stakersResponse = await fetch(
+      const allFarmStakersResponse = await fetch(
         `https://wax.eosusa.io/v1/chain/get_table_rows`,
         {
           method: "POST",
@@ -647,44 +646,67 @@ export async function fetchUserStakes(
           body: JSON.stringify({
             json: true,
             code: FARM_CONTRACT,
-            scope: farmName,
+            scope: farmName, // Use farm name as scope
             table: "stakers",
-            lower_bound: account,
-            upper_bound: account,
-            limit: 1,
+            limit: 100, // Get first 100 rows to see structure
           }),
         }
       );
       
-      const stakersData = await stakersResponse.json();
-      console.log(`[Strategy 1] stakers table with farm scope (${farmName}), user lookup:`, stakersData);
+      const allFarmStakersData = await allFarmStakersResponse.json();
+      console.log(`[Strategy 1] ALL stakers with scope=${farmName}:`, allFarmStakersData.rows?.length || 0, "rows");
       
-      if (stakersData.rows && stakersData.rows.length > 0) {
-        const stakerRow = stakersData.rows[0];
-        console.log("[Strategy 1] Full staker row:", JSON.stringify(stakerRow, null, 2));
+      if (allFarmStakersData.rows && allFarmStakersData.rows.length > 0) {
+        console.log("[Strategy 1] First 3 rows:", JSON.stringify(allFarmStakersData.rows.slice(0, 3), null, 2));
         
-        // WaxDAO V2 stakers table stores asset_ids in an array field
-        // Check multiple possible field names
-        const stakedAssets = stakerRow.staked_assets || 
-                            stakerRow.asset_ids || 
-                            stakerRow.assets || 
-                            stakerRow.nfts ||
-                            stakerRow.staked ||
-                            [];
+        // Find user's row - check both primary key and user field
+        const userRow = allFarmStakersData.rows.find((row: Record<string, unknown>) => {
+          // The primary key might be user name, or there might be a user/staker field
+          const possibleUser = row.user || row.staker || row.owner || row.wallet || "";
+          // Also check if the row key matches (for name-indexed tables)
+          return possibleUser === account;
+        });
         
-        if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
-          console.log(`[Strategy 1] Found ${stakedAssets.length} staked assets`);
-          return stakedAssets.map((assetId: string | number) => ({
-            asset_id: String(assetId),
-            staker: account,
-            farm_name: farmName,
-            last_claim: (stakerRow.last_claim as number) || 0,
-          }));
+        if (userRow) {
+          console.log("[Strategy 1] Found user row:", JSON.stringify(userRow, null, 2));
+          const stakedAssets = userRow.staked_assets || userRow.asset_ids || userRow.assets || userRow.nfts || [];
+          
+          if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+            console.log(`[Strategy 1] Found ${stakedAssets.length} staked assets`);
+            return stakedAssets.map((assetId: string | number) => ({
+              asset_id: String(assetId),
+              staker: account,
+              farm_name: farmName,
+              last_claim: (userRow.last_claim as number) || 0,
+            }));
+          }
+        } else {
+          console.log(`[Strategy 1] User ${account} not in first ${allFarmStakersData.rows.length} rows`);
         }
+      } else {
+        console.log(`[Strategy 1] No stakers table with scope=${farmName} - trying 'stakednfts' table`);
         
-        // If no array field, check if balance/claimable exists (user is staking but assets stored differently)
-        if (stakerRow.balance || stakerRow.claimable || stakerRow.last_claim) {
-          console.log("[Strategy 1] Found staker row but no asset array - assets may be in separate table");
+        // Try stakednfts table with farm scope - get ALL rows
+        const stakednftsAllResponse = await fetch(
+          `https://wax.eosusa.io/v1/chain/get_table_rows`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              json: true,
+              code: FARM_CONTRACT,
+              scope: farmName,
+              table: "stakednfts",
+              limit: 100,
+            }),
+          }
+        );
+        
+        const stakednftsAllData = await stakednftsAllResponse.json();
+        console.log(`[Strategy 1b] ALL stakednfts with scope=${farmName}:`, stakednftsAllData.rows?.length || 0, "rows");
+        
+        if (stakednftsAllData.rows && stakednftsAllData.rows.length > 0) {
+          console.log("[Strategy 1b] First 3 rows:", JSON.stringify(stakednftsAllData.rows.slice(0, 3), null, 2));
         }
       }
     } catch (e) {

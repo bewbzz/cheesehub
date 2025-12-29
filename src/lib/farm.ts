@@ -579,6 +579,63 @@ export async function fetchUserStakes(
   try {
     console.log("Querying staking data for", account, "in farm", farmName);
     
+    // Strategy 0 (NEW): Query 'stakers' table with farm scope and get ALL rows
+    // Then look for any row that matches the user - this handles different primary key structures
+    try {
+      const allStakersResponse = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: "stakers",
+            limit: 500,
+          }),
+        }
+      );
+      
+      const allStakersData = await allStakersResponse.json();
+      console.log(`[Strategy 0] All stakers in farm (${farmName}), count: ${allStakersData.rows?.length || 0}`);
+      
+      if (allStakersData.rows && allStakersData.rows.length > 0) {
+        // Log first row to see structure
+        console.log("[Strategy 0] Sample staker row:", JSON.stringify(allStakersData.rows[0], null, 2));
+        
+        // Find user's row - check multiple field names for the user identifier
+        const userRow = allStakersData.rows.find((row: Record<string, unknown>) => {
+          const rowUser = row.wallet || row.user || row.staker || row.owner || row.account || "";
+          return rowUser === account;
+        });
+        
+        if (userRow) {
+          console.log("[Strategy 0] Found user row:", JSON.stringify(userRow, null, 2));
+          
+          // Check for asset IDs in various field names
+          const stakedAssets = userRow.staked_assets || 
+                              userRow.asset_ids || 
+                              userRow.assets || 
+                              userRow.nfts ||
+                              userRow.staked ||
+                              [];
+          
+          if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
+            console.log(`[Strategy 0] Found ${stakedAssets.length} staked assets`);
+            return stakedAssets.map((assetId: string | number) => ({
+              asset_id: String(assetId),
+              staker: account,
+              farm_name: farmName,
+              last_claim: (userRow.last_claim as number) || 0,
+            }));
+          }
+        }
+      }
+    } catch (e) {
+      console.log("[Strategy 0] Failed:", e);
+    }
+    
     // Strategy 1: Query the 'stakers' table with farmname as scope
     // This table stores one row per user with all their staked asset IDs in an array
     try {
@@ -809,7 +866,62 @@ export async function fetchUserStakes(
       console.log("[Strategy 5] Failed:", e);
     }
     
-    // Strategy 6: Query V1 contract (waxdaofarmer) as fallback
+    // Strategy 6: Query 'stakers' table using secondary index by name (index 2)
+    // Some contracts use secondary index to find stakers by wallet name
+    try {
+      const secondaryResponse = await fetch(
+        `https://wax.eosusa.io/v1/chain/get_table_rows`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            json: true,
+            code: FARM_CONTRACT,
+            scope: farmName,
+            table: "stakers",
+            index_position: 2,
+            key_type: "name",
+            lower_bound: account,
+            upper_bound: account,
+            limit: 10,
+          }),
+        }
+      );
+      
+      const secondaryData = await secondaryResponse.json();
+      console.log(`[Strategy 6] stakers with secondary index:`, secondaryData);
+      
+      if (secondaryData.rows && secondaryData.rows.length > 0) {
+        console.log("[Strategy 6] Sample row:", JSON.stringify(secondaryData.rows[0], null, 2));
+        
+        // Extract staked assets from the row(s)
+        const allAssets: string[] = [];
+        for (const row of secondaryData.rows) {
+          const stakedAssets = row.staked_assets || row.asset_ids || row.assets || row.nfts || [];
+          if (Array.isArray(stakedAssets)) {
+            allAssets.push(...stakedAssets.map((a: string | number) => String(a)));
+          }
+          // Also check if this row itself represents a single staked asset
+          if (row.asset_id) {
+            allAssets.push(String(row.asset_id));
+          }
+        }
+        
+        if (allAssets.length > 0) {
+          console.log(`[Strategy 6] Found ${allAssets.length} staked assets via secondary index`);
+          return allAssets.map((assetId: string) => ({
+            asset_id: assetId,
+            staker: account,
+            farm_name: farmName,
+            last_claim: 0,
+          }));
+        }
+      }
+    } catch (e) {
+      console.log("[Strategy 6] Failed:", e);
+    }
+    
+    // Strategy 7: Query V1 contract (waxdaofarmer) as fallback
     // Some farms may still use the old custodial staking system
     try {
       const v1Response = await fetch(
@@ -830,15 +942,15 @@ export async function fetchUserStakes(
       );
       
       const v1Data = await v1Response.json();
-      console.log(`[Strategy 6] V1 waxdaofarmer stakers table:`, v1Data);
+      console.log(`[Strategy 7] V1 waxdaofarmer stakers table:`, v1Data);
       
       if (v1Data.rows && v1Data.rows.length > 0) {
         const stakerRow = v1Data.rows[0];
-        console.log("[Strategy 6] V1 staker row:", JSON.stringify(stakerRow, null, 2));
+        console.log("[Strategy 7] V1 staker row:", JSON.stringify(stakerRow, null, 2));
         
         const stakedAssets = stakerRow.staked_assets || stakerRow.asset_ids || stakerRow.assets || [];
         if (Array.isArray(stakedAssets) && stakedAssets.length > 0) {
-          console.log(`[Strategy 6] Found ${stakedAssets.length} staked assets in V1 contract`);
+          console.log(`[Strategy 7] Found ${stakedAssets.length} staked assets in V1 contract`);
           return stakedAssets.map((assetId: string | number) => ({
             asset_id: String(assetId),
             staker: account,
@@ -848,7 +960,7 @@ export async function fetchUserStakes(
         }
       }
     } catch (e) {
-      console.log("[Strategy 6] V1 fallback failed:", e);
+      console.log("[Strategy 7] V1 fallback failed:", e);
     }
     
     console.log("No staked NFTs found for", account, "in farm", farmName, "- check console for detailed query results");

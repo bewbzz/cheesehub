@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -122,11 +122,66 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     staleTime: 30000,
   });
 
-  // Derive pending rewards from stakedNfts data (claimable_balances is per-user, not per-NFT)
+  // State for live rewards that update in real-time
+  const [liveRewards, setLiveRewards] = useState<PendingReward[]>([]);
+
+  // Extract staking data for live calculation
+  const stakerData = useMemo(() => {
+    if (!stakedNfts.length) return null;
+    const firstStake = stakedNfts[0] as {
+      claimable_balances?: Array<{ quantity: string; contract: string }>;
+      rates_per_hour?: Array<{ quantity: string; contract: string }>;
+      last_state_change?: number;
+    };
+    return {
+      claimableBalances: firstStake.claimable_balances || [],
+      ratesPerHour: firstStake.rates_per_hour || [],
+      lastStateChange: firstStake.last_state_change || 0,
+    };
+  }, [stakedNfts]);
+
+  // Dynamic reward calculation that updates every second
+  useEffect(() => {
+    if (!stakerData || !stakerData.claimableBalances.length) {
+      setLiveRewards([]);
+      return;
+    }
+
+    const calculateLiveRewards = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const elapsedSeconds = now - stakerData.lastStateChange;
+      const elapsedHours = elapsedSeconds / 3600;
+
+      const rewards = stakerData.claimableBalances.map((balance) => {
+        const balanceParts = balance.quantity.split(" ");
+        const baseAmount = parseFloat(balanceParts[0]) || 0;
+        const symbol = balanceParts[1] || "";
+        const precision = balanceParts[0].includes(".") ? balanceParts[0].split(".")[1]?.length || 0 : 0;
+
+        // Find matching rate by symbol
+        const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
+        const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
+
+        // Calculate live amount: base + (rate * elapsed hours)
+        const liveAmount = baseAmount + (rateAmount * elapsedHours);
+
+        return { symbol, amount: liveAmount, precision };
+      });
+
+      setLiveRewards(rewards);
+    };
+
+    calculateLiveRewards(); // Initial calculation
+    const interval = setInterval(calculateLiveRewards, 1000); // Update every second
+
+    return () => clearInterval(interval);
+  }, [stakerData]);
+
+  // Fallback to static rewards if live calculation not available
   const pendingRewards: PendingReward[] = useMemo(() => {
+    if (liveRewards.length > 0) return liveRewards;
     if (!stakedNfts.length) return [];
     
-    // All staked NFTs share the same claimable_balances for a user in a farm
     const claimableBalances = stakedNfts[0]?.claimable_balances;
     if (!claimableBalances || !Array.isArray(claimableBalances)) return [];
     
@@ -137,7 +192,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
       return { symbol, amount, precision };
     });
-  }, [stakedNfts]);
+  }, [stakedNfts, liveRewards]);
 
   // Fetch user's eligible NFTs for staking (excludes already staked NFTs)
   const { data: eligibleNfts = [], isLoading: isLoadingEligible, refetch: refetchEligible } = useQuery({

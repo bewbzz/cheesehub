@@ -1080,27 +1080,36 @@ export async function fetchUserStakes(
 }
 
 // Stakable template with hourly rate
+export interface RewardRate {
+  quantity: string;
+  contract?: string;
+}
+
 export interface StakableTemplate {
   template_id: number;
   collection: string;
   hourly_rate: string;
+  hourly_rates?: RewardRate[];
 }
 
 export interface StakableSchema {
   collection: string;
   schema: string;
   hourly_rate: string;
+  hourly_rates?: RewardRate[];
 }
 
 export interface StakableCollection {
   collection: string;
   hourly_rate: string;
+  hourly_rates?: RewardRate[];
 }
 
 export interface StakableAttribute {
   attribute_name: string;
   attribute_value: string;
   hourly_rate: string;
+  hourly_rates?: RewardRate[];
 }
 
 // Fetch stakable collections/schemas/templates for a farm
@@ -1172,14 +1181,22 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => {
           // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
           let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0");
-          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
-          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
-            hourlyRate = rewardValues[0].quantity;
+          let hourlyRates: RewardRate[] = [];
+          const rewardValues = r.reward_values as Array<{ quantity?: string; contract?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0) {
+            if (rewardValues[0].quantity) {
+              hourlyRate = rewardValues[0].quantity;
+            }
+            hourlyRates = rewardValues.map(rv => ({
+              quantity: rv.quantity || "0",
+              contract: rv.contract || "",
+            }));
           }
           return {
             template_id: Number(r.template_id || r.templateid || r.id || 0),
             collection: String(r.collection_name || r.collection || ""),
             hourly_rate: hourlyRate,
+            hourly_rates: hourlyRates.length > 0 ? hourlyRates : undefined,
           };
         });
         
@@ -1222,14 +1239,22 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         config.schemas = schemasData.rows.map((r: Record<string, unknown>) => {
           // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
           let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
-          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
-          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
-            hourlyRate = rewardValues[0].quantity;
+          let hourlyRates: RewardRate[] = [];
+          const rewardValues = r.reward_values as Array<{ quantity?: string; contract?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0) {
+            if (rewardValues[0].quantity) {
+              hourlyRate = rewardValues[0].quantity;
+            }
+            hourlyRates = rewardValues.map(rv => ({
+              quantity: rv.quantity || "0",
+              contract: rv.contract || "",
+            }));
           }
           return {
             collection: String(r.collection_name || r.collection || ""),
             schema: String(r.schema_name || r.schema || ""),
             hourly_rate: hourlyRate,
+            hourly_rates: hourlyRates.length > 0 ? hourlyRates : undefined,
           };
         });
       }
@@ -1257,13 +1282,21 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         config.collections = collectionsData.rows.map((r: Record<string, unknown>) => {
           // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
           let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
-          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
-          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
-            hourlyRate = rewardValues[0].quantity;
+          let hourlyRates: RewardRate[] = [];
+          const rewardValues = r.reward_values as Array<{ quantity?: string; contract?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0) {
+            if (rewardValues[0].quantity) {
+              hourlyRate = rewardValues[0].quantity;
+            }
+            hourlyRates = rewardValues.map(rv => ({
+              quantity: rv.quantity || "0",
+              contract: rv.contract || "",
+            }));
           }
           return {
             collection: String(r.collection_name || r.collection || r.name || ""),
             hourly_rate: hourlyRate,
+            hourly_rates: hourlyRates.length > 0 ? hourlyRates : undefined,
           };
         });
       }
@@ -1291,14 +1324,22 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         config.attributes = attributesData.rows.map((r: Record<string, unknown>) => {
           // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
           let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || "0");
-          const rewardValues = r.reward_values as Array<{ quantity?: string }> | undefined;
-          if (rewardValues && rewardValues.length > 0 && rewardValues[0].quantity) {
-            hourlyRate = rewardValues[0].quantity;
+          let hourlyRates: RewardRate[] = [];
+          const rewardValues = r.reward_values as Array<{ quantity?: string; contract?: string }> | undefined;
+          if (rewardValues && rewardValues.length > 0) {
+            if (rewardValues[0].quantity) {
+              hourlyRate = rewardValues[0].quantity;
+            }
+            hourlyRates = rewardValues.map(rv => ({
+              quantity: rv.quantity || "0",
+              contract: rv.contract || "",
+            }));
           }
           return {
             attribute_name: String(r.attribute_name || r.attr_name || r.key || ""),
             attribute_value: String(r.attribute_value || r.attr_value || r.value || ""),
             hourly_rate: hourlyRate,
+            hourly_rates: hourlyRates.length > 0 ? hourlyRates : undefined,
           };
         });
       }

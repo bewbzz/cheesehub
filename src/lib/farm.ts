@@ -1175,15 +1175,16 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
         }),
       });
       const templatesData = await templatesRes.json();
-      console.log(`[Farm ${farmName}] valuesbytemp:`, templatesData);
       
       if (templatesData.rows && templatesData.rows.length > 0) {
         const rawTemplates = templatesData.rows.map((r: Record<string, unknown>) => {
           // Handle reward_values array format: [{quantity: "0.50000000 BLUE", contract: "..."}]
           let hourlyRate = String(r.hourly_rate || r.rate || r.staking_value || r.reward || "0");
           let hourlyRates: RewardRate[] = [];
+          
+          // Check for reward_values (array format)
           const rewardValues = r.reward_values as Array<{ quantity?: string; contract?: string }> | undefined;
-          if (rewardValues && rewardValues.length > 0) {
+          if (rewardValues && Array.isArray(rewardValues) && rewardValues.length > 0) {
             if (rewardValues[0].quantity) {
               hourlyRate = rewardValues[0].quantity;
             }
@@ -1192,6 +1193,7 @@ export async function fetchFarmStakableConfig(farmName: string): Promise<FarmSta
               contract: rv.contract || "",
             }));
           }
+          
           return {
             template_id: Number(r.template_id || r.templateid || r.id || 0),
             collection: String(r.collection_name || r.collection || ""),

@@ -12,6 +12,7 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   buildFinalizeProposalAction,
+  buildExecuteProposalAction,
   fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
@@ -19,7 +20,7 @@ import {
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel, Play } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -32,6 +33,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const { session, isConnected, accountName } = useWax();
   const [voting, setVoting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [rankings, setRankings] = useState<number[]>([]);
   const [stakedWeight, setStakedWeight] = useState<number | null>(null);
@@ -39,6 +41,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const [loadingStake, setLoadingStake] = useState(false);
   const [userVote, setUserVote] = useState<UserVote | null>(initialVote || null);
   const [isFinalized, setIsFinalized] = useState(false);
+  const [isExecuted, setIsExecuted] = useState(false);
 
   // Sync userVote with initialVote when it changes (e.g., after fetching from blockchain)
   useEffect(() => {
@@ -141,6 +144,13 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const votingEnded = proposal.end_time_ts > 0 && proposal.end_time_ts <= now;
   const needsFinalization = !isAlreadyFinalized && !isFinalized && 
     (proposal.status === "pending" || (proposal.status === "active" && votingEnded));
+
+  // Check if this is a transfer proposal that needs execution
+  const isTransferProposal = proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
+                              proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+  const proposalPassed = proposal.status === "passed" || (isFinalized && meetsThreshold);
+  const alreadyExecuted = proposal.status === "executed" || isExecuted;
+  const needsExecution = isTransferProposal && proposalPassed && !alreadyExecuted;
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
@@ -286,6 +296,34 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     }
   }
 
+  async function handleExecuteProposal() {
+    if (!session) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    setExecuting(true);
+    try {
+      const action = buildExecuteProposalAction(
+        String(session.actor),
+        proposal.dao_name,
+        proposal.proposal_id
+      );
+
+      await session.transact({ actions: [action] });
+      setIsExecuted(true);
+      toast.success("Proposal executed successfully! Funds have been transferred.");
+      // Trigger a refresh
+      onVote?.(proposal.proposal_id, { choice_index: -1, weight: 0 });
+    } catch (error) {
+      console.error("Execute failed:", error);
+      closeWharfkitModals();
+      toast.error(error instanceof Error ? error.message : "Failed to execute proposal");
+    } finally {
+      setExecuting(false);
+    }
+  }
+
   const moveRanking = (fromIndex: number, direction: "up" | "down") => {
     const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
     if (toIndex < 0 || toIndex >= rankings.length) return;
@@ -312,8 +350,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     finalized: "bg-cheese/20 text-cheese",
   };
 
-  // Determine display status - if we just finalized, show result based on threshold
+  // Determine display status - if we just finalized or executed, show result
   const getDisplayStatus = () => {
+    if (isExecuted || proposal.status === "executed") {
+      return "executed";
+    }
     if (isFinalized) {
       // For yes/no type proposals, check threshold
       if (isYesNoType) {
@@ -851,6 +892,35 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
                 <>
                   <Gavel className="h-4 w-4 mr-2" />
                   Finalize Proposal
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Execute Proposal Button - shown for passed transfer proposals */}
+        {needsExecution && isConnected && (
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex items-center gap-2 text-sm text-purple-400 mb-2 p-2 bg-purple-500/10 rounded-lg border border-purple-500/20">
+              <Send className="h-4 w-4 shrink-0" />
+              <span>
+                This {proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER ? "token" : "NFT"} transfer proposal passed! Execute to transfer the funds.
+              </span>
+            </div>
+            <Button
+              onClick={handleExecuteProposal}
+              disabled={executing}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {executing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Executing Transfer...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Execute {proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER ? "Token" : "NFT"} Transfer
                 </>
               )}
             </Button>

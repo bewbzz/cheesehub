@@ -11,6 +11,7 @@ import {
   buildVoteAction, 
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
+  buildFinalizeProposalAction,
   fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
@@ -18,7 +19,7 @@ import {
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel } from "lucide-react";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -30,12 +31,14 @@ interface ProposalCardProps {
 export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCardProps) {
   const { session, isConnected, accountName } = useWax();
   const [voting, setVoting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [rankings, setRankings] = useState<number[]>([]);
   const [stakedWeight, setStakedWeight] = useState<number | null>(null);
   const [stakedBalance, setStakedBalance] = useState<string | null>(null);
   const [loadingStake, setLoadingStake] = useState(false);
   const [userVote, setUserVote] = useState<UserVote | null>(initialVote || null);
+  const [isFinalized, setIsFinalized] = useState(false);
 
   // Sync userVote with initialVote when it changes (e.g., after fetching from blockchain)
   useEffect(() => {
@@ -130,6 +133,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
 
   // Calculate total votes from choices for multi-option proposals
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
+
+  // Check if proposal needs finalization (voting ended but not yet finalized)
+  const now = Math.floor(Date.now() / 1000);
+  const votingEnded = proposal.end_time_ts > 0 && proposal.end_time_ts <= now;
+  const needsFinalization = votingEnded && proposal.status === "active" && !isFinalized;
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {
     if (!session) {
@@ -244,6 +252,34 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
+    }
+  }
+
+  async function handleFinalizeProposal() {
+    if (!session) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    setFinalizing(true);
+    try {
+      const action = buildFinalizeProposalAction(
+        String(session.actor),
+        proposal.dao_name,
+        proposal.proposal_id
+      );
+
+      await session.transact({ actions: [action] });
+      setIsFinalized(true);
+      toast.success("Proposal finalized successfully!");
+      // Trigger a refresh by calling onVote with a dummy value
+      onVote?.(proposal.proposal_id, { choice_index: -1, weight: 0 });
+    } catch (error) {
+      console.error("Finalize failed:", error);
+      closeWharfkitModals();
+      toast.error(error instanceof Error ? error.message : "Failed to finalize proposal");
+    } finally {
+      setFinalizing(false);
     }
   }
 
@@ -749,6 +785,33 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
 
         {/* Voting UI */}
         {renderVotingUI()}
+
+        {/* Finalize Proposal Button - shown when voting ended but not finalized */}
+        {needsFinalization && isConnected && (
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex items-center gap-2 text-sm text-amber-500 mb-2 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>Voting has ended. This proposal needs to be finalized.</span>
+            </div>
+            <Button
+              onClick={handleFinalizeProposal}
+              disabled={finalizing}
+              className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+            >
+              {finalizing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Finalizing...
+                </>
+              ) : (
+                <>
+                  <Gavel className="h-4 w-4 mr-2" />
+                  Finalize Proposal
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -388,20 +388,58 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
 }
 
 // Fetch all V2 farms from the contract
-export async function fetchAllFarms(): Promise<FarmInfo[]> {
-  try {
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
+// WAX API endpoints with fallbacks
+const WAX_API_ENDPOINTS = [
+  "https://wax.eosusa.io",
+  "https://api.wax.alohaeos.com",
+  "https://wax.greymass.com",
+  "https://api.waxsweden.org",
+];
+
+// Helper to try multiple endpoints
+async function fetchWithFallbackEndpoints(
+  path: string,
+  body: object,
+  timeout = 10000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (const endpoint of WAX_API_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const response = await fetch(`${endpoint}${path}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT,
-          table: "farms",
-          limit: 200,
-        }),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        return response;
+      }
+    } catch (err) {
+      lastError = err as Error;
+      console.warn(`Endpoint ${endpoint} failed, trying next...`);
+    }
+  }
+  
+  throw lastError || new Error("All endpoints failed");
+}
+
+export async function fetchAllFarms(): Promise<FarmInfo[]> {
+  try {
+    const response = await fetchWithFallbackEndpoints(
+      "/v1/chain/get_table_rows",
+      {
+        json: true,
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "farms",
+        limit: 200,
       }
     );
 
@@ -493,23 +531,18 @@ export async function fetchUserStakedFarms(account: string): Promise<FarmInfo[]>
     const farmNames = new Set<string>();
     
     // Query the global stakers table with secondary index by user
-    // This is the same approach used in fetchUserStakes Strategy 0
-    const response = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+    const response = await fetchWithFallbackEndpoints(
+      "/v1/chain/get_table_rows",
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          json: true,
-          code: FARM_CONTRACT,
-          scope: FARM_CONTRACT, // Global scope, not per-farm!
-          table: "stakers",
-          index_position: 2, // Secondary index by 'user'
-          key_type: "name",
-          lower_bound: account,
-          upper_bound: account,
-          limit: 100, // User might be staked in many farms
-        }),
+        json: true,
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "stakers",
+        index_position: 2,
+        key_type: "name",
+        lower_bound: account,
+        upper_bound: account,
+        limit: 100,
       }
     );
 

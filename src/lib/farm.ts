@@ -1316,8 +1316,46 @@ export interface PendingReward {
 
 export async function fetchPendingRewards(account: string, farmName: string): Promise<PendingReward[]> {
   try {
-    // Query stakers table by user index (index 2) - same strategy as fetchUserStakes
+    // Strategy 1: Query stakers table by farmname index (index 3) and filter by user
     const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        json: true,
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "stakers",
+        index_position: 3,
+        key_type: "name",
+        lower_bound: farmName,
+        upper_bound: farmName,
+        limit: 500,
+      }),
+    });
+    
+    const data = await response.json();
+    console.log("Stakers table for rewards (by farmname index):", data);
+    
+    if (data.rows && data.rows.length > 0) {
+      // Find the row matching this user
+      const userRow = data.rows.find((row: Record<string, unknown>) => 
+        row.user === account
+      );
+      
+      if (userRow && userRow.claimable_balances && Array.isArray(userRow.claimable_balances)) {
+        // Parse the claimable_balances array of { quantity, contract } objects
+        return userRow.claimable_balances.map((b: { quantity: string; contract: string }) => {
+          const parts = b.quantity.split(" ");
+          const amount = parseFloat(parts[0]) || 0;
+          const symbol = parts[1] || "";
+          const precision = parts[0].includes(".") ? parts[0].split(".")[1]?.length || 0 : 0;
+          return { symbol, amount, precision };
+        });
+      }
+    }
+    
+    // Strategy 2: Fallback - query by user index (index 2)
+    const response2 = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1333,17 +1371,15 @@ export async function fetchPendingRewards(account: string, farmName: string): Pr
       }),
     });
     
-    const data = await response.json();
-    console.log("Stakers table for rewards (by user index):", data);
+    const data2 = await response2.json();
+    console.log("Stakers table for rewards (by user index):", data2);
     
-    if (data.rows && data.rows.length > 0) {
-      // Find the row matching this farm
-      const farmRow = data.rows.find((row: Record<string, unknown>) => 
+    if (data2.rows && data2.rows.length > 0) {
+      const farmRow = data2.rows.find((row: Record<string, unknown>) => 
         row.farmname === farmName || row.farm_name === farmName
       );
       
       if (farmRow && farmRow.claimable_balances && Array.isArray(farmRow.claimable_balances)) {
-        // Parse the claimable_balances array of { quantity, contract } objects
         return farmRow.claimable_balances.map((b: { quantity: string; contract: string }) => {
           const parts = b.quantity.split(" ");
           const amount = parseFloat(parts[0]) || 0;

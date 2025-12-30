@@ -144,6 +144,26 @@ export function getIpfsUrl(hash: string): string {
   return hash;
 }
 
+// Farm type numeric values matching contract
+export const FARM_TYPE_VALUES = {
+  collections: 1,
+  schemas: 2,
+  templates: 0,
+  attributes: 3,
+} as const;
+
+// Build action for assertpoint (required before fee payment)
+export function buildAssertPointAction(user: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "assertpoint",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+    },
+  };
+}
+
 // Build action for paying farm creation fee with WAX
 export function buildFarmCreationFeeWaxAction(sender: string) {
   return {
@@ -154,7 +174,7 @@ export function buildFarmCreationFeeWaxAction(sender: string) {
       from: sender,
       to: FARM_CONTRACT,
       quantity: FARM_CREATION_FEES.WAX,
-      memo: "|farm_payment|",
+      memo: "|create_farm|",
     },
   };
 }
@@ -162,14 +182,14 @@ export function buildFarmCreationFeeWaxAction(sender: string) {
 // Build action for paying farm creation fee with WAXDAO
 export function buildFarmCreationFeeWaxdaoAction(sender: string) {
   return {
-    account: "token.waxdao",
+    account: "mdcryptonfts",
     name: "transfer",
     authorization: [{ actor: sender, permission: "active" }],
     data: {
       from: sender,
       to: FARM_CONTRACT,
       quantity: FARM_CREATION_FEES.WAXDAO,
-      memo: "|farm_payment|",
+      memo: "|create_farm|",
     },
   };
 }
@@ -184,34 +204,49 @@ export function buildFarmCreationFeeWojakAction(sender: string, assetId: string)
       from: sender,
       to: FARM_CONTRACT,
       asset_ids: [assetId],
-      memo: "|farm_payment|",
+      memo: "|create_farm|",
     },
   };
 }
 
 // Build action for creating farm
 export function buildCreateFarmAction(
-  creator: string,
+  user: string,
   farmName: string,
-  logo: string,
-  payoutInterval: number,
-  expiration: number,
-  rewardTokens: RewardToken[]
+  farmType: FarmType,
+  hoursBetweenPayouts: number,
+  rewardTokens: RewardToken[],
+  profile: {
+    avatar: string;
+    cover_image: string;
+    description: string;
+  },
+  socials: {
+    website: string;
+    telegram: string;
+    discord: string;
+    twitter: string;
+    medium: string;
+    youtube: string;
+    atomichub: string;
+    waxdao: string;
+  }
 ) {
   return {
     account: FARM_CONTRACT,
     name: "createfarm",
-    authorization: [{ actor: creator, permission: "active" }],
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
-      logo,
-      payout_interval: payoutInterval,
-      expiration,
+      user,
+      farmname: farmName,
+      farm_type: FARM_TYPE_VALUES[farmType],
+      hours_between_payouts: hoursBetweenPayouts,
       reward_tokens: rewardTokens.map(t => ({
         contract: t.contract,
-        symbol: `${t.precision},${t.symbol}`,
+        token_symbol: `${t.precision},${t.symbol}`,
       })),
+      profile,
+      socials,
     },
   };
 }

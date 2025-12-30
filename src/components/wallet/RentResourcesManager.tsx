@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { usePowerupEstimate } from '@/hooks/usePowerupEstimate';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import cheeseLogo from '@/assets/cheese-logo.png';
@@ -155,22 +156,31 @@ export function RentResourcesManager({
 
     } catch (error) {
       console.error('Rent transaction failed:', error);
+      
+      // Clean up any stuck Anchor/WharfKit modals
+      closeWharfkitModals();
+      
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
 
-      const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
-                         errorMessage.toLowerCase().includes('billed') ||
-                         errorMessage.toLowerCase().includes('net usage') ||
-                         errorMessage.toLowerCase().includes('deadline exceeded');
-
-      if (isCpuError) {
-        toast.error('Transaction failed - insufficient resources', {
-          description: 'Enable Greymass Fuel in Anchor settings or use WAX Cloud Wallet for free CPU.',
-          duration: 8000,
-        });
+      // Don't show toast for user cancellation
+      if (errorMessage.includes('cancelled') || errorMessage.includes('canceled')) {
+        // User cancelled, no need for error toast
       } else {
-        toast.error('PowerUp failed', {
-          description: errorMessage,
-        });
+        const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
+                           errorMessage.toLowerCase().includes('billed') ||
+                           errorMessage.toLowerCase().includes('net usage') ||
+                           errorMessage.toLowerCase().includes('deadline exceeded');
+
+        if (isCpuError) {
+          toast.error('Transaction failed - insufficient resources', {
+            description: 'Enable Greymass Fuel in Anchor settings or use WAX Cloud Wallet for free CPU.',
+            duration: 8000,
+          });
+        } else {
+          toast.error('PowerUp failed', {
+            description: errorMessage,
+          });
+        }
       }
     } finally {
       setIsTransacting(false);

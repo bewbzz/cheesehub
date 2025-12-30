@@ -138,6 +138,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       rates_per_hour?: Array<{ quantity: string; contract: string }>;
       last_state_change?: number;
     };
+    console.log("Staker data extraction - firstStake:", JSON.stringify(firstStake, null, 2));
+    console.log("claimable_balances:", firstStake.claimable_balances);
+    console.log("rates_per_hour:", firstStake.rates_per_hour);
     return {
       claimableBalances: firstStake.claimable_balances || [],
       ratesPerHour: firstStake.rates_per_hour || [],

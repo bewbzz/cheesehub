@@ -63,14 +63,21 @@ function setCachedNFTs(owner: string, nfts: UserNFT[], assetIds: string[]): void
   }
 }
 
-// Fetch asset IDs directly from blockchain with parallel pagination
-async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
-  const ownedAssets = new Set<string>();
+interface OnChainAsset {
+  asset_id: string;
+  collection_name: string;
+  schema_name: string;
+  template_id: number;
+}
+
+// Fetch asset data directly from blockchain with parallel pagination
+async function getOwnedAssets(owner: string): Promise<Map<string, OnChainAsset>> {
+  const ownedAssets = new Map<string, OnChainAsset>();
   
   try {
-    // First fetch to get initial batch and estimate total
+    // First fetch to get initial batch
     const firstBatch = await waxRpcCall<{
-      rows: Array<{ asset_id: string }>;
+      rows: Array<{ asset_id: string; collection_name: string; schema_name: string; template_id: number }>;
       more: boolean;
       next_key: string;
     }>('/v1/chain/get_table_rows', {
@@ -83,7 +90,12 @@ async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
     
     if (firstBatch.rows) {
       for (const asset of firstBatch.rows) {
-        ownedAssets.add(String(asset.asset_id));
+        ownedAssets.set(String(asset.asset_id), {
+          asset_id: String(asset.asset_id),
+          collection_name: asset.collection_name,
+          schema_name: asset.schema_name,
+          template_id: asset.template_id,
+        });
       }
     }
     
@@ -93,7 +105,7 @@ async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
     
     while (more) {
       const data = await waxRpcCall<{
-        rows: Array<{ asset_id: string }>;
+        rows: Array<{ asset_id: string; collection_name: string; schema_name: string; template_id: number }>;
         more: boolean;
         next_key: string;
       }>('/v1/chain/get_table_rows', {
@@ -107,7 +119,12 @@ async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
       
       if (data.rows) {
         for (const asset of data.rows) {
-          ownedAssets.add(String(asset.asset_id));
+          ownedAssets.set(String(asset.asset_id), {
+            asset_id: String(asset.asset_id),
+            collection_name: asset.collection_name,
+            schema_name: asset.schema_name,
+            template_id: asset.template_id,
+          });
         }
       }
       
@@ -119,6 +136,27 @@ async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
   }
   
   return ownedAssets;
+}
+
+// Fetch template metadata from API (templates are usually indexed even when assets aren't)
+async function fetchTemplateMetadata(templateId: number, collectionName: string): Promise<{ name: string; image: string } | null> {
+  try {
+    const cacheBuster = `&_ts=${Date.now()}`;
+    const path = `/atomicassets/v1/templates/${collectionName}/${templateId}?${cacheBuster}`;
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const json = await response.json();
+    
+    if (json.success && json.data) {
+      const data = json.data.immutable_data || {};
+      return {
+        name: data.name || `Template #${templateId}`,
+        image: getImageUrl(data.img || data.image),
+      };
+    }
+  } catch (error) {
+    console.error(`Error fetching template ${templateId}:`, error);
+  }
+  return null;
 }
 
 // Fetch a single page of API metadata
@@ -274,9 +312,9 @@ export function useUserNFTs(accountName: string | null) {
         }
       }
 
-      // Phase 2: Parallel fetch - on-chain IDs and first API pages simultaneously
-      const [ownedAssetIds, firstPages] = await Promise.all([
-        getOwnedAssetIds(accountName),
+      // Phase 2: Parallel fetch - on-chain assets and first API pages simultaneously
+      const [ownedAssetsMap, firstPages] = await Promise.all([
+        getOwnedAssets(accountName),
         // Fetch first 5 pages in parallel
         Promise.all([
           fetchApiPage(accountName, 1, 100),
@@ -289,6 +327,7 @@ export function useUserNFTs(accountName: string | null) {
 
       if (abortRef.current) return;
 
+      const ownedAssetIds = new Set(ownedAssetsMap.keys());
       console.log(`[useUserNFTs] On-chain found ${ownedAssetIds.size} assets for ${accountName}`);
       
       if (ownedAssetIds.size === 0) {
@@ -371,7 +410,7 @@ export function useUserNFTs(accountName: string | null) {
       const missingAssetIds = Array.from(ownedAssetIds).filter(id => !fetchedAssetIds.has(id));
       
       if (missingAssetIds.length > 0) {
-        console.log(`[useUserNFTs] Fetching ${missingAssetIds.length} missing assets by ID`);
+        console.log(`[useUserNFTs] Fetching ${missingAssetIds.length} missing assets by ID:`, missingAssetIds);
         const missingAssets = await fetchAssetMetadata(missingAssetIds);
         
         if (abortRef.current) return;
@@ -379,21 +418,59 @@ export function useUserNFTs(accountName: string | null) {
         const fetchedMissingIds = new Set(missingAssets.map(a => a.asset_id));
         allNfts.push(...missingAssets);
         
-        // Create placeholders for any still missing (not indexed yet)
+        // Phase 5: For any still missing (not indexed), try to fetch template metadata
         const stillMissing = missingAssetIds.filter(id => !fetchedMissingIds.has(id));
         if (stillMissing.length > 0) {
-          console.log(`[useUserNFTs] Creating placeholders for ${stillMissing.length} unindexed assets`);
-          for (const assetId of stillMissing) {
-            allNfts.push({
+          console.log(`[useUserNFTs] Fetching template metadata for ${stillMissing.length} unindexed assets`);
+          
+          // Fetch template metadata in parallel for unindexed assets
+          const templatePromises = stillMissing.map(async (assetId) => {
+            const onChainAsset = ownedAssetsMap.get(assetId);
+            if (!onChainAsset || !onChainAsset.template_id) {
+              // No template - create basic placeholder
+              return {
+                asset_id: assetId,
+                name: `NFT #${assetId}`,
+                image: '/placeholder.svg',
+                collection: onChainAsset?.collection_name || 'Unknown',
+                schema: onChainAsset?.schema_name || '',
+                template_id: '',
+                mint: '?',
+              };
+            }
+            
+            // Try to fetch template metadata
+            const templateMeta = await fetchTemplateMetadata(
+              onChainAsset.template_id,
+              onChainAsset.collection_name
+            );
+            
+            if (templateMeta) {
+              return {
+                asset_id: assetId,
+                name: templateMeta.name,
+                image: templateMeta.image,
+                collection: onChainAsset.collection_name,
+                schema: onChainAsset.schema_name,
+                template_id: String(onChainAsset.template_id),
+                mint: '?', // Mint number not available without full asset data
+              };
+            }
+            
+            // Fallback placeholder with collection info
+            return {
               asset_id: assetId,
               name: `NFT #${assetId}`,
               image: '/placeholder.svg',
-              collection: 'Unknown (syncing...)',
-              schema: '',
-              template_id: '',
+              collection: onChainAsset.collection_name,
+              schema: onChainAsset.schema_name,
+              template_id: String(onChainAsset.template_id),
               mint: '?',
-            });
-          }
+            };
+          });
+          
+          const resolvedAssets = await Promise.all(templatePromises);
+          allNfts.push(...resolvedAssets);
         }
       }
 

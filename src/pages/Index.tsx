@@ -113,7 +113,7 @@ const Index = () => {
               </div>
                 <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span></h2>
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards
+                  A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Rent CPU and NET. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards
                 </p>
                 <Button 
                   size="lg" 

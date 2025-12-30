@@ -349,8 +349,8 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
 
       {/* Voting Status */}
       {!hasVoted && voterInfo !== null && (
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+        <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <p className="text-sm text-destructive">
             You must vote for block producers or set a proxy to earn voting rewards.
           </p>
         </div>

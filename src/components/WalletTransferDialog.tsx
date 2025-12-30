@@ -175,7 +175,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
-            Wallet
+            <span><span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Wallet</span></span>
           </DialogTitle>
           <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
         </DialogHeader>

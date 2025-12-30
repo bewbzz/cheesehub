@@ -661,13 +661,60 @@ export async function fetchUserStakes(
       console.log("[Strategy 0] Failed:", e);
     }
     
+    // Strategy 0a: Query 'stakers' table by FARMNAME (index 3), filter by user
+    // This is reliable for farms with many stakers - searches within the specific farm only
+    try {
+      const farmIndexData = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "stakers",
+        index_position: 3,
+        key_type: "name",
+        lower_bound: farmName,
+        upper_bound: farmName,
+        limit: 1000,
+      });
+      
+      console.log(`[Strategy 0a] stakers by farm index for ${farmName}:`, farmIndexData.rows?.length || 0, "rows");
+      
+      if (farmIndexData.rows && farmIndexData.rows.length > 0) {
+        // Find the row matching this user
+        const userRow = farmIndexData.rows.find((row: Record<string, unknown>) => {
+          return row.user === account;
+        });
+        
+        if (userRow) {
+          console.log("[Strategy 0a] Found user's stake row:", JSON.stringify(userRow, null, 2));
+          
+          const stakedAssets = userRow.asset_ids || userRow.staked_assets || userRow.assets || [];
+          
+          if (Array.isArray(stakedAssets)) {
+            console.log(`[Strategy 0a] Found ${stakedAssets.length} staked assets`);
+            return stakedAssets.map((assetId: string | number) => ({
+              asset_id: String(assetId),
+              staker: account,
+              farm_name: farmName,
+              last_claim: Number(userRow.last_claim || userRow.last_state_change) || 0,
+              claimable_balances: (userRow.claimable_balances as Array<{ quantity: string; contract: string }>) || [],
+              rates_per_hour: (userRow.rates_per_hour as Array<{ quantity: string; contract: string }>) || [],
+              last_state_change: Number(userRow.last_state_change) || 0,
+            }));
+          }
+        } else {
+          console.log(`[Strategy 0a] User ${account} not found in ${farmIndexData.rows.length} farm stakers`);
+        }
+      }
+    } catch (e) {
+      console.log("[Strategy 0a] Failed:", e);
+    }
+    
     // Strategy 0b: Query 'stakers' table with reverse order (newest first) + pagination
     // For farms with 10k+ rows where secondary index doesn't work
     try {
       let foundRow = null;
       let nextKey: string | undefined = undefined;
       let iterations = 0;
-      const MAX_ITERATIONS = 20; // Max 20k rows to search
+      const MAX_ITERATIONS = 50; // Max 50k rows to search (increased from 20)
       
       while (!foundRow && iterations < MAX_ITERATIONS) {
         const paginatedData = await fetchTableRows({

@@ -146,9 +146,9 @@ export function getIpfsUrl(hash: string): string {
 
 // Farm type numeric values matching contract
 export const FARM_TYPE_VALUES = {
-  collections: 1,
-  schemas: 2,
   templates: 0,
+  schemas: 1,
+  collections: 2,
   attributes: 3,
 } as const;
 

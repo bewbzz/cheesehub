@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WAX_CHAIN } from '@/lib/waxConfig';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
+import { waxRpcCall } from '@/lib/waxRpcFallback';
 
 export interface TokenWithBalance extends TokenConfig {
   balance: number;
@@ -19,23 +19,18 @@ export function useAllTokenBalances(accountName: string | null) {
 
     setIsLoading(true);
     try {
-      // Fetch all balances in parallel
+      // Fetch all balances in parallel using fallback RPC system
       const balancePromises = WAX_TOKENS.map(async (token) => {
         try {
-          const response = await fetch(
-            `${WAX_CHAIN.url}/v1/chain/get_currency_balance`,
+          const balances = await waxRpcCall<string[]>(
+            '/v1/chain/get_currency_balance',
             {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code: token.contract,
-                account: accountName,
-                symbol: token.symbol,
-              }),
+              code: token.contract,
+              account: accountName,
+              symbol: token.symbol,
             }
           );
 
-          const balances = await response.json();
           let balance = 0;
           if (balances && balances.length > 0) {
             balance = parseFloat(balances[0].split(' ')[0]);

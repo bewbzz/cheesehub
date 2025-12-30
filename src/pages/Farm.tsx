@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sprout, Search, FolderOpen, Plus, HelpCircle } from "lucide-react";
+import { Search, FolderOpen, Plus, HelpCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { BrowseFarms } from "@/components/farm/BrowseFarms";
 import { MyFarms } from "@/components/farm/MyFarms";
 import { CreateFarm } from "@/components/farm/CreateFarm";
 import { FarmFaq } from "@/components/farm/FarmFaq";
 import { FarmDetail } from "@/components/farm/FarmDetail";
+import cheeseLogo from "@/assets/cheese-logo.png";
 
 export default function Farm() {
   const { farmName } = useParams<{ farmName: string }>();
@@ -21,7 +22,7 @@ export default function Farm() {
   if (farmName) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+        <div className="min-h-screen">
           <div className="container py-8">
             <FarmDetail />
           </div>
@@ -32,24 +33,29 @@ export default function Farm() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
-        <div className="container py-8 space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-                <Sprout className="h-8 w-8 text-primary" />
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <section className="relative py-20 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
+          <div className="container relative z-10">
+            <div className="flex flex-col items-center text-center">
+              <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
+                <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
               </div>
-              <h1 className="text-4xl font-bold">
-                <span className="text-primary">CHEESE</span>
+
+              <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+                <span className="text-primary cheese-text-glow">CHEESE</span>
                 <span className="text-foreground">Farm</span>
               </h1>
+              <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+                Create and manage V2 NFT staking farms on WaxDAO. Reward your community 
+                with tokens for staking their NFTs.
+              </p>
             </div>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Create and manage V2 NFT staking farms on WaxDAO. Reward your community 
-              with tokens for staking their NFTs.
-            </p>
           </div>
+        </section>
+
+        <main className="container pb-12 space-y-8">
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -88,7 +94,7 @@ export default function Farm() {
               <FarmFaq />
             </TabsContent>
           </Tabs>
-        </div>
+        </main>
       </div>
     </Layout>
   );

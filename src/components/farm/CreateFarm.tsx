@@ -8,12 +8,10 @@ import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, Plus, Wallet, Trash2, Info, Sprout } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Separator } from "@/components/ui/separator";
 import {
   FARM_TYPES,
   FARM_TYPE_LABELS,
@@ -22,11 +20,10 @@ import {
   validateFarmName,
   buildAssertPointAction,
   buildFarmCreationFeeWaxAction,
-  buildFarmCreationFeeWaxdaoAction,
   buildCreateFarmAction,
 } from "@/lib/farm";
 
-type PaymentMethod = "wax" | "waxdao";
+
 
 const FAQ_ITEMS = [
   {
@@ -77,7 +74,6 @@ export function CreateFarm() {
     description: "",
     hoursBetweenPayouts: "1",
     farmType: FARM_TYPES.COLLECTIONS as FarmType,
-    paymentMethod: "wax" as PaymentMethod,
   });
 
   const [rewardTokens, setRewardTokens] = useState<RewardToken[]>([
@@ -137,10 +133,8 @@ export function CreateFarm() {
       // Build assertpoint action (required before fee payment)
       const assertAction = buildAssertPointAction(accountName);
       
-      // Build fee payment action
-      const feeAction = formData.paymentMethod === "wax" 
-        ? buildFarmCreationFeeWaxAction(accountName)
-        : buildFarmCreationFeeWaxdaoAction(accountName);
+      // Build fee payment action (250 WAX)
+      const feeAction = buildFarmCreationFeeWaxAction(accountName);
 
       // Build profile object
       const profile = {
@@ -187,7 +181,6 @@ export function CreateFarm() {
         description: "",
         hoursBetweenPayouts: "1",
         farmType: FARM_TYPES.COLLECTIONS,
-        paymentMethod: "wax",
       });
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
       
@@ -371,7 +364,7 @@ export function CreateFarm() {
             </div>
           </div>
 
-          <Separator />
+          <div className="border-t border-border/50" />
 
           {/* Reward Tokens Section */}
           <div className="space-y-4">
@@ -450,40 +443,12 @@ export function CreateFarm() {
             )}
           </div>
 
-          <Separator />
-
-          {/* Payment Method Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-cheese border-b border-border/50 pb-2">Payment Method</h3>
-            
-            <RadioGroup
-              value={formData.paymentMethod}
-              onValueChange={(v) => setFormData({ ...formData, paymentMethod: v as PaymentMethod })}
-              className="space-y-3"
-            >
-              <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50 hover:border-cheese/50 transition-colors">
-                <RadioGroupItem value="wax" id="wax" className="mt-0.5" />
-                <div className="flex-1">
-                  <Label htmlFor="wax" className="cursor-pointer font-medium">
-                    Pay with WAX
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    250 WAX creation fee
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50 hover:border-cheese/50 transition-colors">
-                <RadioGroupItem value="waxdao" id="waxdao" className="mt-0.5" />
-                <div className="flex-1">
-                  <Label htmlFor="waxdao" className="cursor-pointer font-medium">
-                    Pay with WAXDAO
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    25,000 WAXDAO token creation fee
-                  </p>
-                </div>
-              </div>
-            </RadioGroup>
+          {/* Payment Info */}
+          <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Creation Fee:</span>
+              <span className="text-sm font-semibold text-cheese">250 WAX</span>
+            </div>
           </div>
 
           {/* Submit Button */}

@@ -157,19 +157,21 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     const calculateLiveRewards = () => {
       const now = Math.floor(Date.now() / 1000);
       const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
-      const lastPayout = farm.last_payout || now;
       
-      // Calculate completed payout periods since last farm payout
-      const timeSinceLastPayout = now - lastPayout;
-      const completedPeriods = Math.floor(timeSinceLastPayout / payoutInterval);
+      // Use USER's last_state_change, not farm's last_payout
+      const userLastStateChange = stakerData.lastStateChange || now;
+      
+      // Calculate completed payout periods since USER's last state change
+      const timeSinceUserStateChange = now - userLastStateChange;
+      const completedPeriods = Math.floor(timeSinceUserStateChange / payoutInterval);
       const claimableHours = (completedPeriods * payoutInterval) / 3600;
       
-      // Time remaining in current incomplete period
-      const elapsedInCurrentPeriod = timeSinceLastPayout % payoutInterval;
+      // Time remaining in current incomplete period (for countdown)
+      const elapsedInCurrentPeriod = timeSinceUserStateChange % payoutInterval;
       const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
       setNextPayoutIn(secondsUntilNextPayout);
 
-      // Calculate claimable rewards (from completed periods only)
+      // Calculate claimable rewards (base + accumulated from completed periods)
       const claimable = stakerData.claimableBalances.map((balance) => {
         const balanceParts = balance.quantity.split(" ");
         const baseAmount = parseFloat(balanceParts[0]) || 0;
@@ -181,7 +183,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
         const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
 
-        // Claimable = base + (rate * hours from completed periods)
+        // Claimable = base + (rate * hours from completed periods since user's last state change)
         const claimableAmount = baseAmount + (rateAmount * claimableHours);
 
         return { symbol, amount: claimableAmount, precision, contract };
@@ -210,7 +212,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     const interval = setInterval(calculateLiveRewards, 1000); // Update countdown every second
 
     return () => clearInterval(interval);
-  }, [stakerData, farm.payout_interval, farm.last_payout]);
+  }, [stakerData, farm.payout_interval]);
 
   // Fallback to static rewards if live calculation not available
   const pendingRewards: PendingReward[] = useMemo(() => {

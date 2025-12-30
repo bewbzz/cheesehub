@@ -189,15 +189,16 @@ export const findFracForWax = (
 };
 
 export const usePowerupEstimate = (
-  cpuCheeseAmount: number,
-  netCheeseAmount: number
+  cpuAmount: number,
+  netAmount: number,
+  isWaxMode: boolean = false
 ): UsePowerupEstimateResult => {
   const [estimate, setEstimate] = useState<PowerUpEstimate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const debouncedCpu = useDebounce(cpuCheeseAmount, 500);
-  const debouncedNet = useDebounce(netCheeseAmount, 500);
+  const debouncedCpu = useDebounce(cpuAmount, 500);
+  const debouncedNet = useDebounce(netAmount, 500);
 
   const fetchEstimate = useCallback(async () => {
     if (debouncedCpu <= 0 && debouncedNet <= 0) {
@@ -210,8 +211,9 @@ export const usePowerupEstimate = (
     setError(null);
 
     try {
+      // For WAX mode, we don't need price data - amounts are already in WAX
       const [priceData, powerupState] = await Promise.all([
-        fetchCheesePrice(),
+        isWaxMode ? Promise.resolve({ priceInWax: 1, usdPrice: 0, waxUsdPrice: 0 }) : fetchCheesePrice(),
         fetchPowerupState(),
       ]);
 
@@ -219,9 +221,9 @@ export const usePowerupEstimate = (
         throw new Error("Failed to fetch PowerUp state");
       }
 
-      // Calculate WAX equivalents
-      const cpuWaxAmount = (debouncedCpu || 0) * priceData.priceInWax;
-      const netWaxAmount = (debouncedNet || 0) * priceData.priceInWax;
+      // Calculate WAX equivalents (for WAX mode, amounts are already in WAX)
+      const cpuWaxAmount = isWaxMode ? (debouncedCpu || 0) : (debouncedCpu || 0) * priceData.priceInWax;
+      const netWaxAmount = isWaxMode ? (debouncedNet || 0) : (debouncedNet || 0) * priceData.priceInWax;
 
       // Parse PowerUp state values
       const cpuWeight = parseFloat(powerupState.cpu.weight);
@@ -273,7 +275,7 @@ export const usePowerupEstimate = (
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedCpu, debouncedNet]);
+  }, [debouncedCpu, debouncedNet, isWaxMode]);
 
   useEffect(() => {
     fetchEstimate();

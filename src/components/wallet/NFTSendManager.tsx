@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -13,7 +13,7 @@ import {
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs, UserNFT } from '@/hooks/useUserNFTs';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Check, X, Loader2, Search, Image, Send } from 'lucide-react';
+import { Check, X, Loader2, Search, Image, Send, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { toast } from 'sonner';
@@ -31,7 +31,7 @@ function isValidWaxAccount(account: string): boolean {
 
 export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
   const { accountName, transferNFTs } = useWax();
-  const { nfts, isLoading, refetch, collections } = useUserNFTs(accountName);
+  const { nfts, isLoading, loadingProgress, refetch, collections } = useUserNFTs(accountName);
 
   const [recipient, setRecipient] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +42,7 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
   const [isSending, setIsSending] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const isValidRecipient = recipient.length > 0 && isValidWaxAccount(recipient);
   const canSend = isValidRecipient && selectedNFTs.size > 0 && !isSending;
@@ -83,6 +84,18 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
 
     return result;
   }, [nfts, collectionFilter, debouncedSearch, sortBy]);
+
+  // Virtual grid - 4 columns
+  const COLUMNS = 4;
+  const ROW_HEIGHT = 140; // Height of each NFT card row
+  const rowCount = Math.ceil(filteredNFTs.length / COLUMNS);
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 3,
+  });
 
   const toggleNFTSelection = useCallback((assetId: string) => {
     setSelectedNFTs((prev) => {
@@ -192,7 +205,18 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
 
       {/* Search and Filters */}
       <div className="space-y-2">
-        <Label>Select NFTs to Send</Label>
+        <div className="flex items-center justify-between">
+          <Label>Select NFTs to Send</Label>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="h-7 px-2"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+          </Button>
+        </div>
         <div className="flex gap-2">
           {/* Search */}
           <div className="relative flex-1">
@@ -235,10 +259,19 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
         </div>
       </div>
 
-      {/* Selection Actions */}
+      {/* Selection Actions & Loading Progress */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          {selectedNFTs.size} selected {selectedNFTs.size >= 50 && '(max 50)'}
+          {loadingProgress ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading {loadingProgress.loaded}/{loadingProgress.total}...
+            </span>
+          ) : (
+            <>
+              {selectedNFTs.size} selected {selectedNFTs.size >= 50 && '(max 50)'}
+            </>
+          )}
         </span>
         <div className="flex gap-2">
           <Button
@@ -260,9 +293,12 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
         </div>
       </div>
 
-      {/* NFT Grid */}
-      <ScrollArea className="h-[240px] rounded-md border border-border p-2">
-        {isLoading ? (
+      {/* Virtualized NFT Grid */}
+      <div
+        ref={parentRef}
+        className="h-[240px] overflow-auto rounded-md border border-border"
+      >
+        {isLoading && nfts.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <span className="ml-2 text-muted-foreground">Loading NFTs...</span>
@@ -273,18 +309,44 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
             <p>{nfts.length === 0 ? 'No NFTs in wallet' : 'No NFTs match filter'}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {filteredNFTs.map((nft) => (
-              <NFTCard
-                key={nft.asset_id}
-                nft={nft}
-                isSelected={selectedNFTs.has(nft.asset_id)}
-                onToggle={() => toggleNFTSelection(nft.asset_id)}
-              />
-            ))}
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const startIndex = virtualRow.index * COLUMNS;
+              const rowNFTs = filteredNFTs.slice(startIndex, startIndex + COLUMNS);
+
+              return (
+                <div
+                  key={virtualRow.key}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className="grid grid-cols-4 gap-2 p-1"
+                >
+                  {rowNFTs.map((nft) => (
+                    <NFTCard
+                      key={nft.asset_id}
+                      nft={nft}
+                      isSelected={selectedNFTs.has(nft.asset_id)}
+                      onToggle={() => toggleNFTSelection(nft.asset_id)}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Selected NFTs Summary */}
       {selectedNFTsList.length > 0 && (
@@ -341,7 +403,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     <button
       onClick={onToggle}
       className={cn(
-        'relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90',
+        'relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 h-[130px]',
         isSelected
           ? 'border-cheese ring-1 ring-cheese'
           : 'border-transparent hover:border-muted-foreground/30'
@@ -355,7 +417,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       )}
 
       {/* Image */}
-      <div className="aspect-square bg-muted">
+      <div className="aspect-square bg-muted h-[90px]">
         {imgError ? (
           <div className="w-full h-full flex items-center justify-center">
             <Image className="h-6 w-6 text-muted-foreground" />
@@ -365,6 +427,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
             src={nft.image}
             alt={nft.name}
             className="w-full h-full object-cover"
+            loading="lazy"
             onError={() => setImgError(true)}
           />
         )}

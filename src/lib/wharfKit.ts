@@ -41,20 +41,12 @@ export function closeWharfkitModals() {
     // Anchor wallet modals
     '[class*="anchor-link"]',
     '.anchor-link-modal',
-    'anchor-link',
-    // Common modal patterns
-    '[role="dialog"]',
   ];
   
   modalSelectors.forEach(selector => {
     try {
       const elements = document.querySelectorAll(selector);
-      elements.forEach((el) => {
-        // Don't remove Radix dialogs (our own modals)
-        if (!el.closest('[data-radix-portal]') && !el.hasAttribute('data-radix-portal')) {
-          el.remove();
-        }
-      });
+      elements.forEach((el) => el.remove());
     } catch (e) {
       // Ignore invalid selectors
     }
@@ -67,40 +59,25 @@ export function closeWharfkitModals() {
       (style.position === 'fixed' || style.position === 'absolute') &&
       style.zIndex && parseInt(style.zIndex) > 9000 &&
       el.id !== 'root' &&
-      !el.closest('[data-radix-portal]') &&
-      !el.hasAttribute('data-radix-portal')
+      !el.closest('[data-radix-portal]')
     ) {
       // Check if it looks like a wallet modal (dark overlay or modal-like)
-      if (style.backgroundColor?.includes('rgba') || el.querySelector('[class*="modal"]') || el.querySelector('[class*="anchor"]')) {
+      if (style.backgroundColor?.includes('rgba') || el.querySelector('[class*="modal"]')) {
         el.remove();
       }
     }
   });
-  
-  // Target Anchor Link web component specifically
-  const anchorElements = document.querySelectorAll('anchor-link, anchor-link-browser-transport');
-  anchorElements.forEach(el => el.remove());
   
   // Reset body scroll if it was locked
   document.body.style.overflow = '';
   document.body.style.pointerEvents = '';
   document.body.style.position = '';
   document.body.classList.remove('overflow-hidden', 'modal-open');
-  document.documentElement.style.overflow = '';
-  document.documentElement.style.pointerEvents = '';
   
   // Also clean up any shadow DOM elements from web components
   document.querySelectorAll('*').forEach(el => {
     if (el.shadowRoot) {
-      // Try to find and click close buttons in shadow DOM
-      const closeButtons = el.shadowRoot.querySelectorAll('button[class*="close"], [class*="close"], .x-button, [aria-label="Close"]');
-      closeButtons.forEach(btn => {
-        try {
-          (btn as HTMLElement).click();
-        } catch (e) {}
-      });
-      
-      const shadowModals = el.shadowRoot.querySelectorAll('[class*="modal"], [class*="overlay"], [class*="dialog"]');
+      const shadowModals = el.shadowRoot.querySelectorAll('[class*="modal"], [class*="overlay"]');
       shadowModals.forEach(modal => {
         try {
           modal.remove();
@@ -108,20 +85,8 @@ export function closeWharfkitModals() {
           // Shadow DOM might not allow removal
         }
       });
-      
-      // If the host element itself looks like a modal wrapper, remove it
-      if (el.tagName.toLowerCase().includes('anchor') || el.tagName.toLowerCase().includes('wharf')) {
-        el.remove();
-      }
     }
   });
-  
-  // Run cleanup again after a small delay to catch async-rendered elements
-  setTimeout(() => {
-    document.querySelectorAll('anchor-link, anchor-link-browser-transport, [class*="anchor-link"]').forEach(el => el.remove());
-    document.body.style.overflow = '';
-    document.body.style.pointerEvents = '';
-  }, 100);
 }
 
 export { webRenderer };

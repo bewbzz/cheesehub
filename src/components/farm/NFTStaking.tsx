@@ -145,7 +145,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     };
   }, [stakedNfts]);
 
-  // Dynamic reward calculation based on completed payout periods
+  // Dynamic reward calculation based on user's last_state_change
   useEffect(() => {
     if (!stakerData || !stakerData.claimableBalances.length) {
       setLiveRewards([]);
@@ -157,19 +157,24 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     const calculateLiveRewards = () => {
       const now = Math.floor(Date.now() / 1000);
       const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
-      const lastPayout = farm.last_payout || now;
+      const lastStateChange = stakerData.lastStateChange || now;
       
-      // Calculate completed payout periods since last farm payout
-      const timeSinceLastPayout = now - lastPayout;
-      const completedPeriods = Math.floor(timeSinceLastPayout / payoutInterval);
-      const claimableHours = (completedPeriods * payoutInterval) / 3600;
+      // Calculate time elapsed since user's last state change (stake/unstake/claim)
+      // The claimable_balances is updated at last_state_change, so we calculate
+      // additional rewards earned since then
+      const timeSinceStateChange = Math.max(0, now - lastStateChange);
+      const hoursSinceStateChange = timeSinceStateChange / 3600;
       
-      // Time remaining in current incomplete period
-      const elapsedInCurrentPeriod = timeSinceLastPayout % payoutInterval;
+      // Calculate countdown to next payout based on farm's payout interval
+      const farmLastPayout = farm.last_payout || now;
+      const timeSinceFarmPayout = now - farmLastPayout;
+      const elapsedInCurrentPeriod = timeSinceFarmPayout % payoutInterval;
       const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
       setNextPayoutIn(secondsUntilNextPayout);
 
-      // Calculate claimable rewards (from completed periods only)
+      // Calculate claimable rewards
+      // claimable_balances contains rewards accumulated up to last_state_change
+      // We add rewards earned since last_state_change using rates_per_hour
       const claimable = stakerData.claimableBalances.map((balance) => {
         const balanceParts = balance.quantity.split(" ");
         const baseAmount = parseFloat(balanceParts[0]) || 0;
@@ -181,13 +186,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
         const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
 
-        // Claimable = base + (rate * hours from completed periods)
-        const claimableAmount = baseAmount + (rateAmount * claimableHours);
+        // Claimable = base (from last state change) + (rate * hours since state change)
+        const claimableAmount = baseAmount + (rateAmount * hoursSinceStateChange);
 
         return { symbol, amount: claimableAmount, precision, contract };
       });
 
-      // Calculate pending rewards (one full payout period worth)
+      // Calculate pending rewards (one full payout period worth) for display
       const pending = stakerData.ratesPerHour.map((rate) => {
         const rateParts = rate.quantity.split(" ");
         const rateAmount = parseFloat(rateParts[0]) || 0;

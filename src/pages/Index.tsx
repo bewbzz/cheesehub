@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import cheeseCoin from "@/assets/cheese-coin.png";
+import walletIcon from "@/assets/wallet-icon.png";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 import { CheesePriceBar } from "@/components/home/CheesePriceBar";
 import { CheeseHistorySection } from "@/components/home/CheeseHistorySection";
@@ -107,9 +108,9 @@ const Index = () => {
             {/* CHEESEWallet CTA */}
             <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
               <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">👛</span>
-                </div>
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <img src={walletIcon} alt="Wallet" className="h-12 w-12 object-contain" />
+              </div>
                 <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span></h2>
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                   A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards

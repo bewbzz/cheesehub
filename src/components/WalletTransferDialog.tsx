@@ -25,9 +25,10 @@ import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
+import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 interface WalletTransferDialogProps {
@@ -35,7 +36,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'send' | 'send-nfts' | 'stake' | 'ram' | 'vote' | 'rewards';
+type WalletSection = 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -46,6 +47,7 @@ const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] =
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
   { id: 'send-nfts', label: 'Send NFTs', icon: <Image className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
+  { id: 'rent', label: 'Rent CPU/NET', icon: <Zap className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
   { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
@@ -375,6 +377,14 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {activeSection === 'stake' && (
                 <StakeManager 
                   resources={resources} 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Rent CPU/NET Section */}
+              {activeSection === 'rent' && (
+                <RentResourcesManager 
                   onTransactionComplete={handleTransactionComplete}
                   onTransactionSuccess={showSuccessDialog}
                 />

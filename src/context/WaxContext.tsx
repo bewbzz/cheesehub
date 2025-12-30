@@ -45,31 +45,45 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
-      const response = await fetch(
-        `${WAX_CHAIN.url}/v1/chain/get_currency_balance`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: CHEESE_CONFIG.tokenContract,
-            account: session.actor.toString(),
-            symbol: CHEESE_CONFIG.tokenSymbol,
-          }),
-        }
-      );
+    const endpoints = WAX_CHAIN.rpcUrls || [WAX_CHAIN.url];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(
+          `${endpoint}/v1/chain/get_currency_balance`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: CHEESE_CONFIG.tokenContract,
+              account: session.actor.toString(),
+              symbol: CHEESE_CONFIG.tokenSymbol,
+            }),
+          }
+        );
 
-      const balances = await response.json();
-      if (balances && balances.length > 0) {
-        const balance = parseFloat(balances[0].split(' ')[0]);
-        setCheeseBalance(balance);
-      } else {
-        setCheeseBalance(0);
+        if (!response.ok) {
+          continue; // Try next endpoint
+        }
+
+        const balances = await response.json();
+        if (balances && balances.length > 0) {
+          const balance = parseFloat(balances[0].split(' ')[0]);
+          setCheeseBalance(balance);
+          return; // Success, exit
+        } else {
+          setCheeseBalance(0);
+          return;
+        }
+      } catch (error) {
+        console.error(`Failed to fetch CHEESE balance from ${endpoint}:`, error);
+        // Continue to next endpoint
       }
-    } catch (error) {
-      console.error('Failed to fetch CHEESE balance:', error);
-      setCheeseBalance(0);
     }
+    
+    // All endpoints failed
+    console.error('All RPC endpoints failed for CHEESE balance');
+    setCheeseBalance(0);
   }, [session]);
 
   useEffect(() => {

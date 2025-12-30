@@ -15,6 +15,8 @@ import { useUserNFTs, UserNFT } from '@/hooks/useUserNFTs';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Check, X, Loader2, Search, Image, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { closeWharfkitModals } from '@/lib/wharfKit';
+import { toast } from 'sonner';
 
 interface NFTSendManagerProps {
   onTransactionSuccess: (title: string, description: string, txId: string | null) => void;
@@ -125,8 +127,32 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
         setSelectedNFTs(new Set());
         refetch();
       }
+    } catch (error) {
+      console.error('NFT transfer failed:', error);
+      
+      // Close any stuck WharfKit modals
+      closeWharfkitModals();
+      
+      const errorMessage = error instanceof Error ? error.message : 'Transfer failed';
+      const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
+                         errorMessage.toLowerCase().includes('billed') ||
+                         errorMessage.toLowerCase().includes('net usage') ||
+                         errorMessage.toLowerCase().includes('deadline exceeded');
+
+      if (isCpuError) {
+        toast.error('Transaction failed - insufficient resources', {
+          description: 'Enable Greymass Fuel in Anchor settings, or use the CHEESEUp page to rent CPU.',
+          duration: 8000,
+        });
+      } else if (!errorMessage.toLowerCase().includes('cancel')) {
+        toast.error('NFT transfer failed', {
+          description: errorMessage,
+        });
+      }
     } finally {
       setIsSending(false);
+      // Always try to clean up modals after transaction attempt
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 

@@ -23,19 +23,70 @@ export const sessionKit = new SessionKit({
   ],
 });
 
-// Utility to close any stuck Wharfkit modals
+// Utility to close any stuck Wharfkit modals - more aggressive cleanup
 export function closeWharfkitModals() {
-  // Remove any Wharfkit modal elements from the DOM
-  const modals = document.querySelectorAll('wharf-modal, .wharf-modal, [class*="wharfkit"]');
-  modals.forEach((modal) => modal.remove());
+  // Remove any Wharfkit modal elements from the DOM (multiple selectors for thoroughness)
+  const modalSelectors = [
+    'wharf-modal',
+    '.wharf-modal',
+    '[class*="wharfkit"]',
+    '[class*="wharf-"]',
+    'wharfkit-modal',
+    '.wharfkit-modal',
+    '[data-wharfkit]',
+    // WebRenderer specific elements
+    '.prompt-modal',
+    '.prompt-overlay',
+    '[class*="prompt-"]',
+    // Anchor wallet modals
+    '[class*="anchor-link"]',
+    '.anchor-link-modal',
+  ];
   
-  // Also try to remove any overlay/backdrop elements
-  const overlays = document.querySelectorAll('.wharf-overlay, [class*="wharfkit-overlay"]');
-  overlays.forEach((overlay) => overlay.remove());
+  modalSelectors.forEach(selector => {
+    try {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach((el) => el.remove());
+    } catch (e) {
+      // Ignore invalid selectors
+    }
+  });
+  
+  // Remove any fixed/absolute positioned overlays that might be blocking
+  document.querySelectorAll('body > div').forEach(el => {
+    const style = window.getComputedStyle(el);
+    if (
+      (style.position === 'fixed' || style.position === 'absolute') &&
+      style.zIndex && parseInt(style.zIndex) > 9000 &&
+      el.id !== 'root' &&
+      !el.closest('[data-radix-portal]')
+    ) {
+      // Check if it looks like a wallet modal (dark overlay or modal-like)
+      if (style.backgroundColor?.includes('rgba') || el.querySelector('[class*="modal"]')) {
+        el.remove();
+      }
+    }
+  });
   
   // Reset body scroll if it was locked
   document.body.style.overflow = '';
   document.body.style.pointerEvents = '';
+  document.body.style.position = '';
+  document.body.classList.remove('overflow-hidden', 'modal-open');
+  
+  // Also clean up any shadow DOM elements from web components
+  document.querySelectorAll('*').forEach(el => {
+    if (el.shadowRoot) {
+      const shadowModals = el.shadowRoot.querySelectorAll('[class*="modal"], [class*="overlay"]');
+      shadowModals.forEach(modal => {
+        try {
+          modal.remove();
+        } catch (e) {
+          // Shadow DOM might not allow removal
+        }
+      });
+    }
+  });
 }
 
 export { webRenderer };

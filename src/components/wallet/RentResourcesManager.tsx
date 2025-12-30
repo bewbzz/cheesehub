@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
-import { usePowerupEstimate } from '@/hooks/usePowerupEstimate';
+import { usePowerupEstimate, fetchPowerupState, findFracForWax, parsePriceWax } from '@/hooks/usePowerupEstimate';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -103,7 +103,7 @@ export function RentResourcesManager({
         };
 
         const result = await session.transact({ actions: [action] });
-        const txId = result?.response?.transaction_id || null;
+        const txId = result.resolved?.transaction?.id?.toString() || null;
 
         onTransactionSuccess?.(
           'PowerUp Successful!',
@@ -112,14 +112,33 @@ export function RentResourcesManager({
         );
       } else {
         // WAX payment via native eosio::powerup
-        // Calculate frac values based on WAX amounts
-        // The powerup action expects cpu_frac and net_frac as integers (max 10^15)
-        const POWERUP_FRAC = 1e15;
-        
-        // Simple allocation: if only CPU or NET, put all in that resource
-        // If both, split proportionally
-        const cpuFrac = totalAmount > 0 ? Math.floor((cpuNumeric / totalAmount) * POWERUP_FRAC * 0.001) : 0;
-        const netFrac = totalAmount > 0 ? Math.floor((netNumeric / totalAmount) * POWERUP_FRAC * 0.001) : 0;
+        // Fetch current powerup pool state to calculate correct frac values
+        const powerupState = await fetchPowerupState();
+        if (!powerupState) {
+          throw new Error('Failed to fetch PowerUp pool state. Please try again.');
+        }
+
+        // Parse CPU pool parameters
+        const cpuWeight = parseFloat(powerupState.cpu.weight);
+        const cpuAdjustedUtil = parseFloat(powerupState.cpu.adjusted_utilization);
+        const cpuMinPrice = parsePriceWax(powerupState.cpu.min_price);
+        const cpuMaxPrice = parsePriceWax(powerupState.cpu.max_price);
+        const cpuExponent = powerupState.cpu.exponent;
+
+        // Parse NET pool parameters
+        const netWeight = parseFloat(powerupState.net.weight);
+        const netAdjustedUtil = parseFloat(powerupState.net.adjusted_utilization);
+        const netMinPrice = parsePriceWax(powerupState.net.min_price);
+        const netMaxPrice = parsePriceWax(powerupState.net.max_price);
+        const netExponent = powerupState.net.exponent;
+
+        // Calculate correct frac values using binary search
+        const cpuFrac = cpuNumeric > 0 
+          ? findFracForWax(cpuNumeric, cpuWeight, cpuAdjustedUtil, cpuMinPrice, cpuMaxPrice, cpuExponent)
+          : 0;
+        const netFrac = netNumeric > 0 
+          ? findFracForWax(netNumeric, netWeight, netAdjustedUtil, netMinPrice, netMaxPrice, netExponent)
+          : 0;
 
         // Add 5% buffer to max_payment
         const maxPayment = (totalAmount * 1.05).toFixed(8);
@@ -139,7 +158,7 @@ export function RentResourcesManager({
         };
 
         const result = await session.transact({ actions: [action] });
-        const txId = result?.response?.transaction_id || null;
+        const txId = result.resolved?.transaction?.id?.toString() || null;
 
         onTransactionSuccess?.(
           'PowerUp Successful!',

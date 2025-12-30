@@ -156,7 +156,7 @@ const Index = () => {
                 </div>
                 <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the WAXDALOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users the ability to time-lock tokens and/or LP tokens
+                  Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
                 </p>
                 <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                   <Link to="/locker">

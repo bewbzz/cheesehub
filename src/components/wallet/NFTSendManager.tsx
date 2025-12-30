@@ -299,9 +299,12 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
         className="h-[240px] overflow-auto rounded-md border border-border"
       >
         {isLoading && nfts.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-muted-foreground">Loading NFTs...</span>
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            <div className="flex items-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading NFTs...</span>
+            </div>
+            <span className="text-xs text-muted-foreground/70">May take up to 30 seconds, please be patient</span>
           </div>
         ) : filteredNFTs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

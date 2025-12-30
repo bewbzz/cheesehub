@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FolderOpen, Plus, HelpCircle } from "lucide-react";
+import { Search, FolderOpen, Plus } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { BrowseFarms } from "@/components/farm/BrowseFarms";
 import { MyFarms } from "@/components/farm/MyFarms";
 import { CreateFarm } from "@/components/farm/CreateFarm";
-import { FarmFaq } from "@/components/farm/FarmFaq";
 import { FarmDetail } from "@/components/farm/FarmDetail";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
@@ -57,9 +56,8 @@ export default function Farm() {
 
         <main className="container pb-12 space-y-8">
 
-          {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 bg-muted/50">
+            <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 bg-muted/50">
               <TabsTrigger value="browse" className="flex items-center gap-2">
                 <Search className="h-4 w-4" />
                 <span className="hidden sm:inline">Browse</span>
@@ -71,10 +69,6 @@ export default function Farm() {
               <TabsTrigger value="create" className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Create</span>
-              </TabsTrigger>
-              <TabsTrigger value="faq" className="flex items-center gap-2">
-                <HelpCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">FAQ</span>
               </TabsTrigger>
             </TabsList>
 
@@ -88,10 +82,6 @@ export default function Farm() {
 
             <TabsContent value="create" className="mt-6">
               <CreateFarm />
-            </TabsContent>
-
-            <TabsContent value="faq" className="mt-6">
-              <FarmFaq />
             </TabsContent>
           </Tabs>
         </main>

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { usePowerupEstimate } from '@/hooks/usePowerupEstimate';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import cheeseLogo from '@/assets/cheese-logo.png';
@@ -155,6 +156,7 @@ export function RentResourcesManager({
 
     } catch (error) {
       console.error('Rent transaction failed:', error);
+      closeWharfkitModals();
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
 
       const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
@@ -174,6 +176,7 @@ export function RentResourcesManager({
       }
     } finally {
       setIsTransacting(false);
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 

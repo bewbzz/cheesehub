@@ -114,11 +114,13 @@ const Index = () => {
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                   A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards
                 </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <span className="cursor-pointer" onClick={() => document.querySelector<HTMLButtonElement>('[data-wallet-connect]')?.click()}>
-                    Connect Wallet
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </span>
+                <Button 
+                  size="lg" 
+                  className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold"
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-cheese-wallet'))}
+                >
+                  Open Wallet
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </CardContent>
             </Card>

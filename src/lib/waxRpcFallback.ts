@@ -3,9 +3,11 @@
 
 export const WAX_RPC_ENDPOINTS = [
   "https://wax.eosusa.io",
+  "https://api.wax.alohaeos.com",
+  "https://wax.eosphere.io",
+  "https://wax.pink.gg",
   "https://api.waxsweden.org",
   "https://wax.greymass.com",
-  "https://wax.cryptolions.io",
 ];
 
 interface TableRowsParams {

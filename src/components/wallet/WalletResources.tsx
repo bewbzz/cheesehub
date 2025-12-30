@@ -76,11 +76,17 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
 
   return (
     <div className="space-y-4">
-      {/* Liquid Balance */}
+      {/* Account & Liquid Balance */}
       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-        <div className="text-sm">
-          <span className="text-muted-foreground">Liquid: </span>
-          <span className="font-medium text-cheese">{waxBalance.toFixed(8)} WAX</span>
+        <div className="text-sm space-y-1">
+          <div>
+            <span className="text-muted-foreground">Account: </span>
+            <span className="font-medium text-foreground">{accountName}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Liquid: </span>
+            <span className="font-medium text-cheese">{waxBalance.toFixed(8)} WAX</span>
+          </div>
         </div>
         <Button
           variant="ghost"

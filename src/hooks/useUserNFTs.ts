@@ -213,12 +213,32 @@ export function useUserNFTs(accountName: string | null) {
       const missingAssetIds = Array.from(ownedAssetIds).filter(id => !fetchedAssetIds.has(id));
       
       if (missingAssetIds.length > 0) {
-        console.log(`[useUserNFTs] Fetching ${missingAssetIds.length} missing assets by ID`);
+        console.log(`[useUserNFTs] Fetching ${missingAssetIds.length} missing assets by ID:`, missingAssetIds);
         const missingAssets = await fetchAssetMetadata(missingAssetIds);
+        
+        // Track which IDs were successfully fetched
+        const fetchedMissingIds = new Set(missingAssets.map(a => a.asset_id));
         allNfts.push(...missingAssets);
+        
+        // For any assets still missing (not indexed yet), create placeholder entries
+        const stillMissing = missingAssetIds.filter(id => !fetchedMissingIds.has(id));
+        if (stillMissing.length > 0) {
+          console.log(`[useUserNFTs] Creating placeholders for ${stillMissing.length} unindexed assets:`, stillMissing);
+          for (const assetId of stillMissing) {
+            allNfts.push({
+              asset_id: assetId,
+              name: `NFT #${assetId}`,
+              image: '/placeholder.svg',
+              collection: 'Unknown (syncing...)',
+              schema: '',
+              template_id: '',
+              mint: '?',
+            });
+          }
+        }
       }
 
-      console.log(`[useUserNFTs] Final verified NFT count: ${allNfts.length} (on-chain: ${ownedAssetIds.size})`);
+      console.log(`[useUserNFTs] Final NFT count: ${allNfts.length} (on-chain: ${ownedAssetIds.size})`);
       
       // Sort by asset_id descending (newest first)
       allNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));

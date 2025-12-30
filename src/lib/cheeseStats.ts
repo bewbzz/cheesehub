@@ -1,13 +1,8 @@
 // CHEESE Token Stats Fetching Utilities
-import { CHEESE_CONFIG } from './waxConfig';
+import { CHEESE_CONFIG, WAX_CHAIN } from './waxConfig';
 
-// WAX API endpoints for fallback
-const WAX_API_ENDPOINTS = [
-  'https://wax.greymass.com',
-  'https://api.wax.alohaeos.com',
-  'https://wax.eosrio.io',
-  'https://api.waxsweden.org',
-];
+// Use centralized WAX API endpoints for fallback
+const WAX_API_ENDPOINTS = WAX_CHAIN.rpcUrls;
 
 // WaxDAO locker contract
 const WAXDAO_LOCKER = 'waxdaolocker';

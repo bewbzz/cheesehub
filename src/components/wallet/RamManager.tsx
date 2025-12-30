@@ -47,7 +47,8 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
   const [buyAmount, setBuyAmount] = useState('');
   
   // Sell RAM state
-  const [sellBytes, setSellBytes] = useState('');
+  const [sellMode, setSellMode] = useState<'wax' | 'bytes'>('bytes');
+  const [sellAmount, setSellAmount] = useState('');
 
   // Fetch RAM price from eosio rammarket table
   const fetchRamPrice = useCallback(async () => {
@@ -122,9 +123,16 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
     ? ((parseInt(buyAmount) || 0) * ramPricePerByte).toFixed(8)
     : null;
   
+  // Calculate bytes to sell based on sell mode
+  const sellBytes = sellMode === 'bytes' 
+    ? parseInt(sellAmount) || 0
+    : ramPricePerByte && sellAmount
+      ? Math.floor((parseFloat(sellAmount) / ramPricePerByte) / 0.995) // Account for 0.5% fee
+      : 0;
+
   // Calculate estimated WAX return for selling RAM
   const estimatedWaxReturn = ramPricePerByte && sellBytes
-    ? (parseInt(sellBytes) * ramPricePerByte * 0.995).toFixed(8) // 0.5% fee
+    ? (sellBytes * ramPricePerByte * 0.995).toFixed(8) // 0.5% fee
     : null;
 
   // Format price for display (scientific notation for very small numbers)
@@ -178,11 +186,10 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
   };
 
   const handleSellRam = async () => {
-    if (!session || !sellBytes) return;
+    if (!session || !sellAmount) return;
     
-    const bytes = parseInt(sellBytes);
-    if (bytes <= 0) {
-      toast.error('Enter a valid amount of bytes to sell');
+    if (sellBytes <= 0) {
+      toast.error('Enter a valid amount to sell');
       return;
     }
 
@@ -194,16 +201,16 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
         authorization: [session.permissionLevel],
         data: {
           account: accountName,
-          bytes: bytes,
+          bytes: sellBytes,
         },
       }];
 
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
-      const sellDesc = `Sold ${formatBytes(bytes)} (${bytes.toLocaleString()} bytes) of RAM`;
+      const sellDesc = `Sold ${formatBytes(sellBytes)} (${sellBytes.toLocaleString()} bytes) of RAM`;
       onTransactionSuccess?.('RAM Sold!', sellDesc, txId);
-      setSellBytes('');
+      setSellAmount('');
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Sell RAM error:', error);
@@ -369,36 +376,63 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
           <span className="text-muted-foreground ml-1">({availableRam.toLocaleString()} bytes)</span>
         </div>
 
+        {/* Sell Mode */}
+        <div className="space-y-2">
+          <Label>Sell in WAX or Bytes?</Label>
+          <RadioGroup
+            value={sellMode}
+            onValueChange={(v) => {
+              setSellMode(v as 'wax' | 'bytes');
+              setSellAmount('');
+            }}
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="wax" id="sell-wax" />
+              <Label htmlFor="sell-wax" className="cursor-pointer">WAX</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="bytes" id="sell-bytes" />
+              <Label htmlFor="sell-bytes" className="cursor-pointer">Bytes</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
         {/* Sell Amount */}
         <div className="space-y-2">
-          <Label>Amount of Bytes to Sell</Label>
+          <Label>
+            {sellMode === 'wax' ? 'Amount of WAX to Receive' : 'Amount of Bytes to Sell'}
+          </Label>
           <div className="flex gap-2">
             <Input
               type="number"
-              placeholder="Bytes to sell"
-              value={sellBytes}
-              onChange={(e) => setSellBytes(e.target.value)}
+              placeholder={sellMode === 'wax' ? 'Amount of WAX' : 'Bytes to sell'}
+              value={sellAmount}
+              onChange={(e) => setSellAmount(e.target.value)}
               min={0}
-              step={1}
+              step={sellMode === 'wax' ? 0.00000001 : 1}
             />
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setSellBytes(availableRam.toString())}
+              onClick={() => setSellAmount(sellMode === 'bytes' ? availableRam.toString() : (ramPricePerByte ? (availableRam * ramPricePerByte * 0.995).toFixed(8) : '0'))}
               className="shrink-0"
             >
               Max
             </Button>
           </div>
-          {sellBytes && estimatedWaxReturn && (
+          {sellMode === 'bytes' && sellAmount && estimatedWaxReturn && (
             <p className="text-xs text-muted-foreground">≈ {estimatedWaxReturn} WAX (after 0.5% fee)</p>
+          )}
+          {sellMode === 'wax' && sellAmount && sellBytes > 0 && (
+            <p className="text-xs text-muted-foreground">≈ {formatBytes(sellBytes)} ({sellBytes.toLocaleString()} bytes)</p>
           )}
         </div>
 
         <Button
           onClick={handleSellRam}
-          disabled={!sellBytes || parseInt(sellBytes) <= 0 || isTransacting}
+          disabled={!sellAmount || sellBytes <= 0 || isTransacting}
           className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
         >
           {isTransacting ? (

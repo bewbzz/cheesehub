@@ -25,8 +25,9 @@ import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 interface WalletTransferDialogProps {
@@ -34,7 +35,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'send' | 'stake' | 'ram' | 'vote' | 'rewards';
+type WalletSection = 'send' | 'send-nfts' | 'stake' | 'ram' | 'vote' | 'rewards';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -43,6 +44,7 @@ function isValidWaxAccount(account: string): boolean {
 
 const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
+  { id: 'send-nfts', label: 'Send NFTs', icon: <Image className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
   { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
@@ -361,6 +363,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                     )}
                   </Button>
                 </div>
+              )}
+
+              {/* Stake CPU/NET Section */}
+              {/* Send NFTs Section */}
+              {activeSection === 'send-nfts' && (
+                <NFTSendManager onTransactionSuccess={showSuccessDialog} />
               )}
 
               {/* Stake CPU/NET Section */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +24,19 @@ export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+
+  // Listen for custom event to open wallet
+  useEffect(() => {
+    const handleOpenWallet = () => {
+      if (isConnected) {
+        setWalletOpen(true);
+      } else {
+        setOpen(true);
+      }
+    };
+    window.addEventListener('open-cheese-wallet', handleOpenWallet);
+    return () => window.removeEventListener('open-cheese-wallet', handleOpenWallet);
+  }, [isConnected]);
 
   const handleLogin = async () => {
     await login();

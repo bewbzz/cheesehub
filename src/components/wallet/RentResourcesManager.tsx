@@ -51,13 +51,9 @@ export function RentResourcesManager({
   const netNumeric = parseFloat(netAmount) || 0;
   const totalAmount = cpuNumeric + netNumeric;
 
-  // For CHEESE mode, use the hook directly
-  // For WAX mode, we need to calculate differently (direct powerup)
+  // Powerup estimate - works for both CHEESE and WAX modes
   const { estimate, isLoading: isEstimateLoading, error: estimateError, refetch: refetchEstimate } = 
-    usePowerupEstimate(
-      paymentMode === 'cheese' ? cpuNumeric : 0,
-      paymentMode === 'cheese' ? netNumeric : 0
-    );
+    usePowerupEstimate(cpuNumeric, netNumeric, paymentMode === 'wax');
 
   // Sync recipient when account changes
   useEffect(() => {
@@ -322,8 +318,8 @@ export function RentResourcesManager({
         </div>
       </div>
 
-      {/* Estimate Display (CHEESE mode only for now) */}
-      {paymentMode === 'cheese' && (cpuNumeric > 0 || netNumeric > 0) && (
+      {/* Estimate Display (both modes) */}
+      {(cpuNumeric > 0 || netNumeric > 0) && (
         <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Estimated Resources</span>
@@ -359,10 +355,12 @@ export function RentResourcesManager({
                   <span>~{formatBytes(estimate.estimatedNetBytes)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border">
-                <span>CHEESE/WAX:</span>
-                <span>{estimate.cheesePriceInWax.toFixed(6)}</span>
-              </div>
+              {paymentMode === 'cheese' && (
+                <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border">
+                  <span>CHEESE/WAX:</span>
+                  <span>{estimate.cheesePriceInWax.toFixed(6)}</span>
+                </div>
+              )}
             </div>
           ) : null}
         </div>

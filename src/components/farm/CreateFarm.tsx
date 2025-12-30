@@ -31,6 +31,7 @@ import {
   StakableAsset,
   RewardToken,
   validateFarmName,
+  buildAssertPointAction,
   buildFarmCreationFeeWaxAction,
   buildFarmCreationFeeWaxdaoAction,
   buildCreateFarmAction,
@@ -242,11 +243,16 @@ export function CreateFarm() {
 
     try {
       const values = form.getValues();
-      const expirationTimestamp = Math.floor(expirationDate.getTime() / 1000);
+      
+      // Convert payout interval from seconds to hours
+      const hoursBetweenPayouts = Math.floor(payoutInterval / 3600);
 
       // Build actions array
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const actions: any[] = [];
+
+      // Add assertpoint action first
+      actions.push(buildAssertPointAction(accountName));
 
       // Add payment action
       if (paymentMethod === "wax") {
@@ -256,15 +262,35 @@ export function CreateFarm() {
       }
       // Note: Wojak NFT payment would require asset selection UI
 
+      // Build profile object
+      const profile = {
+        avatar: values.logo || "",
+        cover_image: "",
+        description: values.description || "",
+      };
+
+      // Build socials object (empty for now, could add UI for these later)
+      const socials = {
+        website: "",
+        telegram: "",
+        discord: "",
+        twitter: "",
+        medium: "",
+        youtube: "",
+        atomichub: "",
+        waxdao: "",
+      };
+
       // Add create farm action
       actions.push(
         buildCreateFarmAction(
           accountName,
           values.farmName,
-          values.logo || "",
-          payoutInterval,
-          expirationTimestamp,
-          rewardTokens
+          farmType,
+          hoursBetweenPayouts,
+          rewardTokens,
+          profile,
+          socials
         )
       );
 

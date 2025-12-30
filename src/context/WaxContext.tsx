@@ -23,6 +23,7 @@ interface WaxContextType {
     amount: number,
     memo: string
   ) => Promise<string | null>;
+  transferNFTs: (to: string, assetIds: string[], memo: string) => Promise<string | null>;
   claimDrop: (dropId: string, quantity: number, totalPrice: number) => Promise<string | null>;
   joinDao: (daoName: string) => Promise<string | null>;
   leaveDao: (daoName: string) => Promise<string | null>;
@@ -235,6 +236,48 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const transferNFTs = async (
+    to: string,
+    assetIds: string[],
+    memo: string
+  ): Promise<string | null> => {
+    if (!session) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    try {
+      const action = {
+        account: 'atomicassets',
+        name: 'transfer',
+        authorization: [session.permissionLevel],
+        data: {
+          from: session.actor.toString(),
+          to,
+          asset_ids: assetIds,
+          memo,
+        },
+      };
+
+      const result = await session.transact({ actions: [action] });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      return txId;
+    } catch (error) {
+      console.error('NFT transfer failed:', error);
+      toast({
+        title: 'Transfer Failed',
+        description: error instanceof Error ? error.message : 'Failed to send NFTs',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   const claimDrop = async (
     dropId: string,
     quantity: number,
@@ -391,6 +434,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         refreshBalance,
         transferCheese,
         transferToken,
+        transferNFTs,
         claimDrop,
         joinDao,
         leaveDao,

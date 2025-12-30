@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Loader2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AccountResources, formatBytes } from './WalletResources';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { AreaChart, Area, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 const WAX_ENDPOINTS = [
   'https://wax.greymass.com',
@@ -28,10 +29,17 @@ interface RamMarketRow {
   quote: { balance: string; weight: string };
 }
 
+interface PricePoint {
+  time: number;
+  price: number;
+}
+
 export function RamManager({ resources, onTransactionComplete, onTransactionSuccess }: RamManagerProps) {
   const { session, accountName } = useWax();
   const [isTransacting, setIsTransacting] = useState(false);
   const [ramPricePerByte, setRamPricePerByte] = useState<number | null>(null);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Buy RAM state
   const [buyReceiver, setBuyReceiver] = useState('');
@@ -70,6 +78,13 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
         // Price per byte = quote / base
         const pricePerByte = quoteBalance / baseBalance;
         setRamPricePerByte(pricePerByte);
+        
+        // Add to price history (keep last 20 points)
+        setPriceHistory(prev => {
+          const newPoint: PricePoint = { time: Date.now(), price: pricePerByte };
+          const updated = [...prev, newPoint].slice(-20);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Failed to fetch RAM price:', error);
@@ -78,6 +93,15 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
 
   useEffect(() => {
     fetchRamPrice();
+    
+    // Set up interval to fetch price every 30 seconds
+    intervalRef.current = setInterval(fetchRamPrice, 30000);
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [fetchRamPrice]);
 
   useEffect(() => {
@@ -102,6 +126,11 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
   const estimatedWaxReturn = ramPricePerByte && sellBytes
     ? (parseInt(sellBytes) * ramPricePerByte * 0.995).toFixed(8) // 0.5% fee
     : null;
+
+  // Format price for display (scientific notation for very small numbers)
+  const formatPrice = (price: number) => {
+    return price.toFixed(8);
+  };
 
   const handleBuyRam = async () => {
     if (!session || !buyReceiver || !buyAmount) return;
@@ -188,11 +217,67 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
   const availableRam = resources ? resources.ram_quota - resources.ram_usage : 0;
 
   return (
-    <Tabs defaultValue="buy" className="w-full">
-      <TabsList className="w-full">
-        <TabsTrigger value="buy" className="flex-1">Buy RAM</TabsTrigger>
-        <TabsTrigger value="sell" className="flex-1">Sell RAM</TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      {/* RAM Price Mini Chart */}
+      <div className="p-3 bg-muted/50 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-muted-foreground">RAM Price</span>
+          {ramPricePerByte && (
+            <span className="text-sm font-medium text-cheese">
+              {formatPrice(ramPricePerByte)} WAX/byte
+            </span>
+          )}
+        </div>
+        
+        {priceHistory.length >= 2 ? (
+          <div className="h-12">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={priceHistory} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="ramPriceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--cheese))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--cheese))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis domain={['dataMin', 'dataMax']} hide />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-background/95 border border-border px-2 py-1 rounded text-xs">
+                          {formatPrice(payload[0].value as number)} WAX
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  stroke="hsl(var(--cheese))"
+                  strokeWidth={1.5}
+                  fill="url(#ramPriceGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-12 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">Building price history...</span>
+          </div>
+        )}
+        
+        <p className="text-[10px] text-muted-foreground mt-1 text-center">
+          Updates every 30s • Session data only
+        </p>
+      </div>
+
+      <Tabs defaultValue="buy" className="w-full">
+        <TabsList className="w-full">
+          <TabsTrigger value="buy" className="flex-1">Buy RAM</TabsTrigger>
+          <TabsTrigger value="sell" className="flex-1">Sell RAM</TabsTrigger>
+        </TabsList>
 
       <TabsContent value="buy" className="space-y-4 mt-4">
         {/* RAM Receiver */}
@@ -326,6 +411,7 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
           )}
         </Button>
       </TabsContent>
-    </Tabs>
+      </Tabs>
+    </div>
   );
 }

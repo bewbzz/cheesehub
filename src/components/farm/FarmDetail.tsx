@@ -22,7 +22,8 @@ import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
-
+import { ManageStakableAssets } from "./ManageStakableAssets";
+import { useWax } from "@/context/WaxContext";
 // Farm type labels based on WaxDAO contract
 const FARM_TYPE_LABELS: Record<number, string> = {
   0: "Collections",
@@ -37,6 +38,7 @@ export function FarmDetail() {
   const { farmName } = useParams<{ farmName: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { accountName } = useWax();
   const [copied, setCopied] = useState(false);
 
   const { data: farm, isLoading, error } = useQuery({
@@ -146,11 +148,14 @@ export function FarmDetail() {
           <p className="text-muted-foreground mb-3">
             Created by <span className="text-foreground font-medium">{farm.creator}</span>
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={handleCopyFarmName}>
               {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
               Copy Name
             </Button>
+            {accountName && accountName === farm.creator && (
+              <ManageStakableAssets farm={farm} onSuccess={() => {}} />
+            )}
           </div>
         </div>
       </div>

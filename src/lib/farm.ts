@@ -251,86 +251,92 @@ export function buildCreateFarmAction(
   };
 }
 
-// Build action for adding a collection to the farm
-export function buildAddCollectionAction(
-  creator: string,
-  farmName: string,
-  collection: string,
-  rewardPerHour: string
+// RewardValue type for V2 farm stakable assets
+export interface RewardValue {
+  quantity: string;
+  contract: string;
+}
+
+// Build action for setting template values (V2)
+export function buildSetTemplateValuesAction(
+  user: string,
+  farmname: string,
+  templateId: number,
+  rewardValues: RewardValue[]
 ) {
   return {
     account: FARM_CONTRACT,
-    name: "addcollection",
-    authorization: [{ actor: creator, permission: "active" }],
+    name: "settmpvalues",
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
-      collection_name: collection,
-      hourly_rate: rewardPerHour,
+      user,
+      farmname,
+      template_id: templateId,
+      reward_values: rewardValues,
     },
   };
 }
 
-// Build action for adding a schema to the farm
-export function buildAddSchemaAction(
-  creator: string,
-  farmName: string,
-  collection: string,
-  schema: string,
-  rewardPerHour: string
+// Build action for setting schema values (V2)
+export function buildSetSchemaValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string,
+  schemaName: string,
+  rewardValues: RewardValue[]
 ) {
   return {
     account: FARM_CONTRACT,
-    name: "addschema",
-    authorization: [{ actor: creator, permission: "active" }],
+    name: "setschvalues",
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
-      collection_name: collection,
-      schema_name: schema,
-      hourly_rate: rewardPerHour,
+      user,
+      farmname,
+      collection_name: collectionName,
+      schema_name: schemaName,
+      reward_values: rewardValues,
     },
   };
 }
 
-// Build action for adding a template to the farm
-export function buildAddTemplateAction(
-  creator: string,
-  farmName: string,
-  templateId: string,
-  rewardPerHour: string
+// Build action for setting collection values (V2)
+export function buildSetCollectionValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string,
+  rewardValues: RewardValue[]
 ) {
   return {
     account: FARM_CONTRACT,
-    name: "addtemplate",
-    authorization: [{ actor: creator, permission: "active" }],
+    name: "setcolvalues",
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
-      template_id: parseInt(templateId),
-      hourly_rate: rewardPerHour,
+      user,
+      farmname,
+      collection_name: collectionName,
+      reward_values: rewardValues,
     },
   };
 }
 
-// Build action for adding an attribute to the farm
-export function buildAddAttributeAction(
-  creator: string,
-  farmName: string,
-  attributeKey: string,
+// Build action for setting attribute values (V2)
+export function buildSetAttributeValuesAction(
+  user: string,
+  farmname: string,
+  attributeName: string,
   attributeValue: string,
-  rewardPerHour: string
+  rewardValues: RewardValue[]
 ) {
   return {
     account: FARM_CONTRACT,
-    name: "addattribute",
-    authorization: [{ actor: creator, permission: "active" }],
+    name: "setattvalues",
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
-      attribute_key: attributeKey,
+      user,
+      farmname,
+      attribute_name: attributeName,
       attribute_value: attributeValue,
-      hourly_rate: rewardPerHour,
+      reward_values: rewardValues,
     },
   };
 }

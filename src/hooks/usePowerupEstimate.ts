@@ -72,7 +72,7 @@ const CPU_MS_PER_FRAC = 78.45 / 3.45e9;  // ~22.7 microseconds per frac unit
 const NET_BYTES_PER_FRAC = 1.4e9 / 4.2e9;  // Estimated from typical NET transactions
 
 // Parse price values (WAX has 8 decimals, prices are in string format like "8750.00000000 WAX")
-const parsePriceWax = (priceStr: string): number => {
+export const parsePriceWax = (priceStr: string): number => {
   const match = priceStr.match(/^([\d.]+)/);
   return match ? parseFloat(match[1]) * 1e8 : 0; // Convert to 8-decimal units
 };
@@ -99,7 +99,7 @@ async function fetchCheesePrice(): Promise<{ priceInWax: number; usdPrice: numbe
   }
 }
 
-async function fetchPowerupState(): Promise<PowerUpStateRow | null> {
+export async function fetchPowerupState(): Promise<PowerUpStateRow | null> {
   for (const baseUrl of WAX_ENDPOINTS) {
     try {
       const response = await fetch(`${baseUrl}/v1/chain/get_table_rows`, {
@@ -159,7 +159,7 @@ const estimatePowerupFee = (
 };
 
 // Binary search to find frac that costs <= target_fee
-const findFracForWax = (
+export const findFracForWax = (
   targetWax: number,  // WAX amount in regular units (not 8-decimal)
   weight: number,
   adjustedUtil: number,

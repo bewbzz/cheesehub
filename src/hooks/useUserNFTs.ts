@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
-import { ATOMIC_API, WAX_CHAIN } from '@/lib/waxConfig';
+import { ATOMIC_API } from '@/lib/waxConfig';
 import { waxRpcCall } from '@/lib/waxRpcFallback';
 
 export interface UserNFT {
@@ -24,7 +24,7 @@ function getImageUrl(img: string | undefined): string {
   return img || '/placeholder.svg';
 }
 
-// Verify asset ownership directly from blockchain (real-time, no indexer delay)
+// Fetch asset IDs directly from blockchain (real-time, no indexer delay)
 async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
   const ownedAssets = new Set<string>();
   
@@ -62,6 +62,57 @@ async function getOwnedAssetIds(owner: string): Promise<Set<string>> {
   return ownedAssets;
 }
 
+// Fetch metadata for specific asset IDs that weren't returned by the bulk query
+async function fetchAssetMetadata(assetIds: string[]): Promise<UserNFT[]> {
+  if (assetIds.length === 0) return [];
+  
+  const results: UserNFT[] = [];
+  
+  // Batch requests in groups of 50 to avoid URL length limits
+  const batchSize = 50;
+  for (let i = 0; i < assetIds.length; i += batchSize) {
+    const batch = assetIds.slice(i, i + batchSize);
+    const idsParam = batch.join(',');
+    
+    try {
+      const cacheBuster = `&_ts=${Date.now()}`;
+      const path = `${ATOMIC_API.paths.assets}?ids=${idsParam}${cacheBuster}`;
+      const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+      const json = await response.json();
+      
+      if (json.success && json.data) {
+        const assets = json.data as Array<{
+          asset_id: string;
+          name: string;
+          template_mint: string;
+          collection: { collection_name: string };
+          schema: { schema_name: string };
+          template?: { template_id: string };
+          data?: { img?: string; image?: string; name?: string };
+          immutable_data?: { img?: string; image?: string; name?: string };
+        }>;
+        
+        for (const asset of assets) {
+          const data = { ...asset.immutable_data, ...asset.data };
+          results.push({
+            asset_id: asset.asset_id,
+            name: data.name || asset.name || `NFT #${asset.asset_id}`,
+            image: getImageUrl(data.img || data.image),
+            collection: asset.collection.collection_name,
+            schema: asset.schema.schema_name,
+            template_id: asset.template?.template_id || '',
+            mint: asset.template_mint || '1',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching asset metadata for batch:', error);
+    }
+  }
+  
+  return results;
+}
+
 export function useUserNFTs(accountName: string | null) {
   const [nfts, setNfts] = useState<UserNFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +130,7 @@ export function useUserNFTs(accountName: string | null) {
     try {
       // Step 1: Get verified asset IDs directly from blockchain (real-time)
       const ownedAssetIds = await getOwnedAssetIds(accountName);
-      console.log(`[useUserNFTs] On-chain verification found ${ownedAssetIds.size} assets for ${accountName}`);
+      console.log(`[useUserNFTs] On-chain found ${ownedAssetIds.size} assets for ${accountName}`);
       
       if (ownedAssetIds.size === 0) {
         setNfts([]);
@@ -87,7 +138,8 @@ export function useUserNFTs(accountName: string | null) {
         return;
       }
 
-      // Step 2: Fetch metadata from AtomicAssets API with cache-busting
+      // Step 2: Fetch metadata from AtomicAssets API with pagination
+      const fetchedAssetIds = new Set<string>();
       const allNfts: UserNFT[] = [];
       let page = 1;
       const limit = 100;
@@ -105,52 +157,72 @@ export function useUserNFTs(accountName: string | null) {
         // Add cache-busting timestamp
         const cacheBuster = `&_ts=${Date.now()}`;
         const path = `${ATOMIC_API.paths.assets}?${params.toString()}${cacheBuster}`;
-        const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-        const json = await response.json();
+        
+        try {
+          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+          const json = await response.json();
 
-        if (!json.success || !json.data) {
+          if (!json.success || !json.data) {
+            break;
+          }
+
+          const assets = json.data as Array<{
+            asset_id: string;
+            name: string;
+            template_mint: string;
+            collection: { collection_name: string };
+            schema: { schema_name: string };
+            template?: { template_id: string };
+            data?: { img?: string; image?: string; name?: string };
+            immutable_data?: { img?: string; image?: string; name?: string };
+          }>;
+
+          // Only include assets that are verified on-chain
+          const mappedAssets = assets
+            .filter((asset) => ownedAssetIds.has(asset.asset_id))
+            .map((asset) => {
+              fetchedAssetIds.add(asset.asset_id);
+              const data = { ...asset.immutable_data, ...asset.data };
+              return {
+                asset_id: asset.asset_id,
+                name: data.name || asset.name || `NFT #${asset.asset_id}`,
+                image: getImageUrl(data.img || data.image),
+                collection: asset.collection.collection_name,
+                schema: asset.schema.schema_name,
+                template_id: asset.template?.template_id || '',
+                mint: asset.template_mint || '1',
+              };
+            });
+
+          allNfts.push(...mappedAssets);
+
+          if (assets.length < limit) {
+            hasMore = false;
+          } else {
+            page++;
+            // Safety limit
+            if (page > 50) hasMore = false;
+          }
+        } catch (err) {
+          console.error('Error fetching page', page, err);
           break;
-        }
-
-        const assets = json.data as Array<{
-          asset_id: string;
-          name: string;
-          template_mint: string;
-          collection: { collection_name: string };
-          schema: { schema_name: string };
-          template?: { template_id: string };
-          data?: { img?: string; image?: string; name?: string };
-          immutable_data?: { img?: string; image?: string; name?: string };
-        }>;
-
-        // Step 3: Only include assets that are verified on-chain
-        const mappedAssets = assets
-          .filter((asset) => ownedAssetIds.has(asset.asset_id))
-          .map((asset) => {
-            const data = { ...asset.immutable_data, ...asset.data };
-            return {
-              asset_id: asset.asset_id,
-              name: data.name || asset.name || `NFT #${asset.asset_id}`,
-              image: getImageUrl(data.img || data.image),
-              collection: asset.collection.collection_name,
-              schema: asset.schema.schema_name,
-              template_id: asset.template?.template_id || '',
-              mint: asset.template_mint || '1',
-            };
-          });
-
-        allNfts.push(...mappedAssets);
-
-        if (assets.length < limit) {
-          hasMore = false;
-        } else {
-          page++;
-          // Safety limit
-          if (page > 20) hasMore = false;
         }
       }
 
-      console.log(`[useUserNFTs] Final verified NFT count: ${allNfts.length}`);
+      // Step 3: Find any assets that are on-chain but weren't returned by the API
+      const missingAssetIds = Array.from(ownedAssetIds).filter(id => !fetchedAssetIds.has(id));
+      
+      if (missingAssetIds.length > 0) {
+        console.log(`[useUserNFTs] Fetching ${missingAssetIds.length} missing assets by ID`);
+        const missingAssets = await fetchAssetMetadata(missingAssetIds);
+        allNfts.push(...missingAssets);
+      }
+
+      console.log(`[useUserNFTs] Final verified NFT count: ${allNfts.length} (on-chain: ${ownedAssetIds.size})`);
+      
+      // Sort by asset_id descending (newest first)
+      allNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
+      
       setNfts(allNfts);
     } catch (err) {
       console.error('Failed to fetch user NFTs:', err);

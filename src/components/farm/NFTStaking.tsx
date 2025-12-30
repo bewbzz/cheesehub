@@ -145,7 +145,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     };
   }, [stakedNfts]);
 
-  // Dynamic reward calculation based on user's last_state_change
+  // Reward calculation - claimable shows contract balance, pending shows next payout amount
   useEffect(() => {
     if (!stakerData || !stakerData.claimableBalances.length) {
       setLiveRewards([]);
@@ -154,16 +154,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       return;
     }
 
-    const calculateLiveRewards = () => {
+    const calculateRewards = () => {
       const now = Math.floor(Date.now() / 1000);
       const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
-      const lastStateChange = stakerData.lastStateChange || now;
-      
-      // Calculate time elapsed since user's last state change (stake/unstake/claim)
-      // The claimable_balances is updated at last_state_change, so we calculate
-      // additional rewards earned since then
-      const timeSinceStateChange = Math.max(0, now - lastStateChange);
-      const hoursSinceStateChange = timeSinceStateChange / 3600;
       
       // Calculate countdown to next payout based on farm's payout interval
       const farmLastPayout = farm.last_payout || now;
@@ -172,9 +165,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
       setNextPayoutIn(secondsUntilNextPayout);
 
-      // Calculate claimable rewards
-      // claimable_balances contains rewards accumulated up to last_state_change
-      // We add rewards earned since last_state_change using rates_per_hour
+      // Claimable = exactly what's in claimable_balances (no dynamic addition)
       const claimable = stakerData.claimableBalances.map((balance) => {
         const balanceParts = balance.quantity.split(" ");
         const baseAmount = parseFloat(balanceParts[0]) || 0;
@@ -182,17 +173,10 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const precision = balanceParts[0].includes(".") ? balanceParts[0].split(".")[1]?.length || 0 : 0;
         const contract = balance.contract || "";
 
-        // Find matching rate by symbol
-        const rate = stakerData.ratesPerHour.find(r => r.quantity.includes(symbol));
-        const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
-
-        // Claimable = base (from last state change) + (rate * hours since state change)
-        const claimableAmount = baseAmount + (rateAmount * hoursSinceStateChange);
-
-        return { symbol, amount: claimableAmount, precision, contract };
+        return { symbol, amount: baseAmount, precision, contract };
       });
 
-      // Calculate pending rewards (one full payout period worth) for display
+      // Pending = one full payout period worth of rewards (what will be added at next payout)
       const pending = stakerData.ratesPerHour.map((rate) => {
         const rateParts = rate.quantity.split(" ");
         const rateAmount = parseFloat(rateParts[0]) || 0;
@@ -211,8 +195,8 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       setPendingNextPayout(pending);
     };
 
-    calculateLiveRewards(); // Initial calculation
-    const interval = setInterval(calculateLiveRewards, 1000); // Update countdown every second
+    calculateRewards(); // Initial calculation
+    const interval = setInterval(calculateRewards, 1000); // Update countdown every second
 
     return () => clearInterval(interval);
   }, [stakerData, farm.payout_interval, farm.last_payout]);

@@ -28,25 +28,19 @@ import {
   PAYOUT_INTERVALS,
   FARM_CREATION_FEES,
   FarmType,
-  StakableAsset,
   RewardToken,
   validateFarmName,
   buildAssertPointAction,
   buildFarmCreationFeeWaxAction,
   buildFarmCreationFeeWaxdaoAction,
   buildCreateFarmAction,
-  buildAddCollectionAction,
-  buildAddSchemaAction,
-  buildAddTemplateAction,
-  buildAddAttributeAction,
 } from "@/lib/farm";
 
 const STEPS = [
   { id: 1, title: "Basic Info", description: "Farm name and details" },
-  { id: 2, title: "Stakable Assets", description: "What NFTs can be staked" },
-  { id: 3, title: "Reward Tokens", description: "Up to 3 reward tokens" },
-  { id: 4, title: "Configuration", description: "Payout and expiration" },
-  { id: 5, title: "Review & Pay", description: "Confirm and create" },
+  { id: 2, title: "Reward Tokens", description: "Up to 3 reward tokens" },
+  { id: 3, title: "Configuration", description: "Payout and expiration" },
+  { id: 4, title: "Review & Pay", description: "Confirm and create" },
 ];
 
 const FAQ_ITEMS = [
@@ -113,9 +107,6 @@ export function CreateFarm() {
 
   // Form state
   const [farmType, setFarmType] = useState<FarmType>(FARM_TYPES.COLLECTIONS);
-  const [stakableAssets, setStakableAssets] = useState<StakableAsset[]>([
-    { collection: "", rewardPerHour: 1 }
-  ]);
   const [rewardTokens, setRewardTokens] = useState<RewardToken[]>([
     { contract: "eosio.token", symbol: "WAX", precision: 8 }
   ]);
@@ -131,39 +122,6 @@ export function CreateFarm() {
       description: "",
     },
   });
-
-  const addStakableAsset = () => {
-    const newAsset: StakableAsset = { rewardPerHour: 1 };
-    switch (farmType) {
-      case FARM_TYPES.COLLECTIONS:
-        newAsset.collection = "";
-        break;
-      case FARM_TYPES.SCHEMAS:
-        newAsset.collection = "";
-        newAsset.schema = "";
-        break;
-      case FARM_TYPES.TEMPLATES:
-        newAsset.templateId = "";
-        break;
-      case FARM_TYPES.ATTRIBUTES:
-        newAsset.attributeKey = "";
-        newAsset.attributeValue = "";
-        break;
-    }
-    setStakableAssets([...stakableAssets, newAsset]);
-  };
-
-  const removeStakableAsset = (index: number) => {
-    if (stakableAssets.length > 1) {
-      setStakableAssets(stakableAssets.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateStakableAsset = (index: number, field: keyof StakableAsset, value: string | number) => {
-    const updated = [...stakableAssets];
-    updated[index] = { ...updated[index], [field]: value };
-    setStakableAssets(updated);
-  };
 
   const addRewardToken = () => {
     if (rewardTokens.length < 3) {
@@ -183,29 +141,6 @@ export function CreateFarm() {
     setRewardTokens(updated);
   };
 
-  const handleFarmTypeChange = (newType: FarmType) => {
-    setFarmType(newType);
-    // Reset stakable assets for new type
-    const newAsset: StakableAsset = { rewardPerHour: 1 };
-    switch (newType) {
-      case FARM_TYPES.COLLECTIONS:
-        newAsset.collection = "";
-        break;
-      case FARM_TYPES.SCHEMAS:
-        newAsset.collection = "";
-        newAsset.schema = "";
-        break;
-      case FARM_TYPES.TEMPLATES:
-        newAsset.templateId = "";
-        break;
-      case FARM_TYPES.ATTRIBUTES:
-        newAsset.attributeKey = "";
-        newAsset.attributeValue = "";
-        break;
-    }
-    setStakableAssets([newAsset]);
-  };
-
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -213,16 +148,8 @@ export function CreateFarm() {
         const validation = validateFarmName(values.farmName);
         return validation.valid;
       case 2:
-        return stakableAssets.every(asset => {
-          if (farmType === FARM_TYPES.COLLECTIONS) return asset.collection?.trim();
-          if (farmType === FARM_TYPES.SCHEMAS) return asset.collection?.trim() && asset.schema?.trim();
-          if (farmType === FARM_TYPES.TEMPLATES) return asset.templateId?.trim();
-          if (farmType === FARM_TYPES.ATTRIBUTES) return asset.attributeKey?.trim() && asset.attributeValue?.trim();
-          return false;
-        }) && stakableAssets.every(a => a.rewardPerHour > 0);
-      case 3:
         return rewardTokens.every(t => t.contract.trim() && t.symbol.trim() && t.precision >= 0);
-      case 4:
+      case 3:
         return payoutInterval > 0 && expirationDate > new Date();
       default:
         return true;
@@ -294,46 +221,18 @@ export function CreateFarm() {
         )
       );
 
-      // Add stakable asset actions
-      for (const asset of stakableAssets) {
-        const rewardStr = `${asset.rewardPerHour.toFixed(rewardTokens[0].precision)} ${rewardTokens[0].symbol}`;
-        
-        switch (farmType) {
-          case FARM_TYPES.COLLECTIONS:
-            actions.push(
-              buildAddCollectionAction(accountName, values.farmName, asset.collection!, rewardStr)
-            );
-            break;
-          case FARM_TYPES.SCHEMAS:
-            actions.push(
-              buildAddSchemaAction(accountName, values.farmName, asset.collection!, asset.schema!, rewardStr)
-            );
-            break;
-          case FARM_TYPES.TEMPLATES:
-            actions.push(
-              buildAddTemplateAction(accountName, values.farmName, asset.templateId!, rewardStr)
-            );
-            break;
-          case FARM_TYPES.ATTRIBUTES:
-            actions.push(
-              buildAddAttributeAction(accountName, values.farmName, asset.attributeKey!, asset.attributeValue!, rewardStr)
-            );
-            break;
-        }
-      }
-
       // Execute transaction
       await session.transact({ actions });
 
       toast({
         title: "Farm Created!",
-        description: `Your farm "${values.farmName}" has been created successfully.`,
+        description: `Your farm "${values.farmName}" has been created successfully. You can now add stakable assets via the set actions.`,
       });
 
       // Reset form
       form.reset();
       setCurrentStep(1);
-      setStakableAssets([{ collection: "", rewardPerHour: 1 }]);
+      setFarmType(FARM_TYPES.COLLECTIONS);
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
 
     } catch (error) {
@@ -511,7 +410,7 @@ export function CreateFarm() {
             </Form>
           )}
 
-          {/* Step 2: Stakable Assets */}
+          {/* Step 2: Reward Tokens */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
@@ -521,7 +420,7 @@ export function CreateFarm() {
                 </p>
                 <RadioGroup
                   value={farmType}
-                  onValueChange={(v) => handleFarmTypeChange(v as FarmType)}
+                  onValueChange={(v) => setFarmType(v as FarmType)}
                   className="grid grid-cols-2 gap-4"
                 >
                   {Object.entries(FARM_TYPE_LABELS).map(([key, label]) => (
@@ -537,99 +436,59 @@ export function CreateFarm() {
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <Label className="text-base">Stakable Assets</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addStakableAsset}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Asset
-                  </Button>
+                  <div>
+                    <Label className="text-base">Reward Tokens</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Configure up to 3 reward tokens
+                    </p>
+                  </div>
+                  {rewardTokens.length < 3 && (
+                    <Button type="button" variant="outline" size="sm" onClick={addRewardToken}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Token
+                    </Button>
+                  )}
                 </div>
 
-                {stakableAssets.map((asset, index) => (
+                {rewardTokens.map((token, index) => (
                   <Card key={index} className="p-4 border-border/50">
                     <div className="flex gap-4 items-end">
-                      <div className="flex-1 space-y-4">
-                        {farmType === FARM_TYPES.COLLECTIONS && (
-                          <div>
-                            <Label>Collection Name</Label>
-                            <Input
-                              value={asset.collection || ""}
-                              onChange={(e) => updateStakableAsset(index, "collection", e.target.value)}
-                              placeholder="mycollection"
-                            />
-                          </div>
-                        )}
-
-                        {farmType === FARM_TYPES.SCHEMAS && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Collection</Label>
-                              <Input
-                                value={asset.collection || ""}
-                                onChange={(e) => updateStakableAsset(index, "collection", e.target.value)}
-                                placeholder="collection"
-                              />
-                            </div>
-                            <div>
-                              <Label>Schema</Label>
-                              <Input
-                                value={asset.schema || ""}
-                                onChange={(e) => updateStakableAsset(index, "schema", e.target.value)}
-                                placeholder="schema"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {farmType === FARM_TYPES.TEMPLATES && (
-                          <div>
-                            <Label>Template ID</Label>
-                            <Input
-                              value={asset.templateId || ""}
-                              onChange={(e) => updateStakableAsset(index, "templateId", e.target.value)}
-                              placeholder="123456"
-                            />
-                          </div>
-                        )}
-
-                        {farmType === FARM_TYPES.ATTRIBUTES && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Attribute Key</Label>
-                              <Input
-                                value={asset.attributeKey || ""}
-                                onChange={(e) => updateStakableAsset(index, "attributeKey", e.target.value)}
-                                placeholder="rarity"
-                              />
-                            </div>
-                            <div>
-                              <Label>Attribute Value</Label>
-                              <Input
-                                value={asset.attributeValue || ""}
-                                onChange={(e) => updateStakableAsset(index, "attributeValue", e.target.value)}
-                                placeholder="legendary"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="w-48">
-                          <Label>Reward Per Hour</Label>
+                      <div className="flex-1 grid grid-cols-3 gap-4">
+                        <div>
+                          <Label>Token Contract</Label>
+                          <Input
+                            value={token.contract}
+                            onChange={(e) => updateRewardToken(index, "contract", e.target.value)}
+                            placeholder="eosio.token"
+                          />
+                        </div>
+                        <div>
+                          <Label>Symbol</Label>
+                          <Input
+                            value={token.symbol}
+                            onChange={(e) => updateRewardToken(index, "symbol", e.target.value.toUpperCase())}
+                            placeholder="WAX"
+                            className="uppercase"
+                          />
+                        </div>
+                        <div>
+                          <Label>Precision</Label>
                           <Input
                             type="number"
                             min="0"
-                            step="0.00000001"
-                            value={asset.rewardPerHour}
-                            onChange={(e) => updateStakableAsset(index, "rewardPerHour", parseFloat(e.target.value) || 0)}
+                            max="18"
+                            value={token.precision}
+                            onChange={(e) => updateRewardToken(index, "precision", parseInt(e.target.value) || 0)}
                           />
                         </div>
                       </div>
 
-                      {stakableAssets.length > 1 && (
+                      {rewardTokens.length > 1 && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeStakableAsset(index)}
+                          onClick={() => removeRewardToken(index)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -638,84 +497,16 @@ export function CreateFarm() {
                     </div>
                   </Card>
                 ))}
+
+                <p className="text-xs text-muted-foreground">
+                  Common tokens: eosio.token (WAX), token.waxdao (WAXDAO), cheesetoken1 (CHEESE)
+                </p>
               </div>
             </div>
           )}
 
-          {/* Step 3: Reward Tokens */}
+          {/* Step 3: Configuration */}
           {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <Label className="text-base">Reward Tokens</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Configure up to 3 reward tokens
-                  </p>
-                </div>
-                {rewardTokens.length < 3 && (
-                  <Button type="button" variant="outline" size="sm" onClick={addRewardToken}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Token
-                  </Button>
-                )}
-              </div>
-
-              {rewardTokens.map((token, index) => (
-                <Card key={index} className="p-4 border-border/50">
-                  <div className="flex gap-4 items-end">
-                    <div className="flex-1 grid grid-cols-3 gap-4">
-                      <div>
-                        <Label>Token Contract</Label>
-                        <Input
-                          value={token.contract}
-                          onChange={(e) => updateRewardToken(index, "contract", e.target.value)}
-                          placeholder="eosio.token"
-                        />
-                      </div>
-                      <div>
-                        <Label>Symbol</Label>
-                        <Input
-                          value={token.symbol}
-                          onChange={(e) => updateRewardToken(index, "symbol", e.target.value.toUpperCase())}
-                          placeholder="WAX"
-                          className="uppercase"
-                        />
-                      </div>
-                      <div>
-                        <Label>Precision</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="18"
-                          value={token.precision}
-                          onChange={(e) => updateRewardToken(index, "precision", parseInt(e.target.value) || 0)}
-                        />
-                      </div>
-                    </div>
-
-                    {rewardTokens.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRewardToken(index)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              ))}
-
-              <p className="text-xs text-muted-foreground">
-                Common tokens: eosio.token (WAX), token.waxdao (WAXDAO), cheesetoken1 (CHEESE)
-              </p>
-            </div>
-          )}
-
-          {/* Step 4: Configuration */}
-          {currentStep === 4 && (
             <div className="space-y-6">
               <div>
                 <Label className="text-base">Payout Interval</Label>
@@ -772,8 +563,8 @@ export function CreateFarm() {
             </div>
           )}
 
-          {/* Step 5: Review & Pay */}
-          {currentStep === 5 && (
+          {/* Step 4: Review & Pay */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               {/* Summary */}
               <div className="space-y-4">
@@ -786,10 +577,6 @@ export function CreateFarm() {
                   <div>
                     <span className="text-muted-foreground">Farm Type:</span>
                     <p className="font-medium">{FARM_TYPE_LABELS[farmType]}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Stakable Assets:</span>
-                    <p className="font-medium">{stakableAssets.length} configured</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Reward Tokens:</span>

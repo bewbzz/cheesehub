@@ -14,11 +14,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { cn } from "@/lib/utils";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, Plus, Trash2, ArrowLeft, ArrowRight, Loader2, Check, Sprout, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, ArrowLeft, ArrowRight, Loader2, Check, Sprout, AlertTriangle, Info } from "lucide-react";
 import {
   FARM_TYPES,
   FARM_TYPE_LABELS,
@@ -43,6 +46,49 @@ const STEPS = [
   { id: 3, title: "Reward Tokens", description: "Up to 3 reward tokens" },
   { id: 4, title: "Configuration", description: "Payout and expiration" },
   { id: 5, title: "Review & Pay", description: "Confirm and create" },
+];
+
+const FAQ_ITEMS = [
+  {
+    question: "What is the correct format for my farm name?",
+    answer: "Farm names must be 12 characters or less and can only contain lowercase letters (a-z), numbers (1-5), and periods. Names cannot start or end with a period, and cannot contain consecutive periods.",
+  },
+  {
+    question: "How much does it cost to create a farm?",
+    answer: "You can create a farm by paying 250 WAX, 25,000 WAXDAO tokens, or by using 1 NFT from the Wojak collection (ourwojaksart). These payment options help support the WaxDAO ecosystem.",
+  },
+  {
+    question: "What are the different farm types?",
+    answer: "Collections: stake any NFT from specified collections. Schemas: stake NFTs from specific schemas within collections. Templates: stake specific template IDs. Attributes: stake NFTs with matching attribute key/value pairs.",
+  },
+  {
+    question: "Is there a limit to how many NFTs can be staked?",
+    answer: "There is no hard limit on the number of NFTs that can be staked in a V2 farm. However, you should ensure you have enough reward tokens deposited to cover payouts for all stakers.",
+  },
+  {
+    question: "Can I have multiple reward tokens?",
+    answer: "Yes! V2 farms support up to 3 different reward tokens. You can configure different tokens when creating the farm, allowing you to reward stakers with multiple tokens simultaneously.",
+  },
+  {
+    question: "How often are rewards paid out?",
+    answer: "Rewards accumulate continuously based on the hourly rate you set. The payout interval determines how often the farm processes payouts, but stakers can claim anytime after the minimum interval.",
+  },
+  {
+    question: "How far in the future should I set the expiration date?",
+    answer: "Set the expiration date based on how long you want your farm to run. A minimum of 30 days is recommended. You can always extend the expiration later, but you cannot shorten it.",
+  },
+  {
+    question: "Can I kick/ban certain users from staking?",
+    answer: "V2 farms do not support kicking or banning individual users. All users who hold eligible NFTs can stake in your farm. Consider your stakable asset configuration carefully before creating the farm.",
+  },
+  {
+    question: "I added the wrong token. Can I remove it?",
+    answer: "Unfortunately, reward tokens cannot be removed once added to a farm. You can stop adding rewards for that token, and any remaining balance will stay in the farm until claimed or the farm expires.",
+  },
+  {
+    question: "Are staked NFTs safe?",
+    answer: "V2 farms are non-custodial in the sense that only you can unstake your NFTs. The smart contract ensures NFTs can only be returned to the original staker. WaxDAO has been audited and running since 2021.",
+  },
 ];
 
 const basicInfoSchema = z.object({
@@ -328,8 +374,48 @@ export function CreateFarm() {
       {/* Step Content */}
       <Card className="border-border/50 bg-card/50">
         <CardHeader>
-          <CardTitle>{STEPS[currentStep - 1].title}</CardTitle>
-          <CardDescription>{STEPS[currentStep - 1].description}</CardDescription>
+          <div className="flex items-center gap-3 mb-2">
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-cheese" />
+              Create a New Farm
+            </CardTitle>
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
+                V2 Non-Custodial
+              </span>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
+                    <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
+                    <span className="text-xs text-cheese font-medium">click me for help</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[85vh]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                      <Info className="h-5 w-5 text-cheese" />
+                      Farm Creation Guide
+                    </DialogTitle>
+                  </DialogHeader>
+                  <ScrollArea className="max-h-[65vh] pr-4">
+                    <Accordion type="single" collapsible className="space-y-2">
+                      {FAQ_ITEMS.map((item, index) => (
+                        <AccordionItem key={index} value={`item-${index}`} className="border border-border/50 rounded-lg px-4">
+                          <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                            {item.question}
+                          </AccordionTrigger>
+                          <AccordionContent className="text-sm text-foreground">
+                            {item.answer}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </ScrollArea>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+          <CardDescription>Step {currentStep}: {STEPS[currentStep - 1].description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Step 1: Basic Info */}

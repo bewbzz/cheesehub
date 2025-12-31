@@ -27,10 +27,17 @@ interface TacoPair {
   pool2: { contract: string; quantity: string };
 }
 
+interface NeftyPool {
+  code: string;
+  pool1: { contract: string; quantity: string };
+  pool2: { contract: string; quantity: string };
+}
+
 export interface TVLData {
   alcor: number;
   defibox: number;
   taco: number;
+  nefty: number;
   totalUSD: number;
   totalWAX: number;
 }
@@ -135,20 +142,57 @@ export async function fetchTacoCheeseTVL(waxUsdPrice: number): Promise<number> {
   }
 }
 
+export async function fetchNeftyCheeseTVL(waxUsdPrice: number): Promise<number> {
+  try {
+    const response = await fetchTableRows<NeftyPool>({
+      code: 'swap.nefty',
+      scope: 'swap.nefty',
+      table: 'pools',
+      limit: 500,
+    });
+    
+    // Filter for CHEESE pools
+    const cheesePools = response.rows.filter(pool =>
+      pool.pool1.contract === CHEESE_CONTRACT || pool.pool2.contract === CHEESE_CONTRACT
+    );
+    
+    let totalTVL = 0;
+    
+    for (const pool of cheesePools) {
+      const pool1 = parseQuantity(pool.pool1.quantity);
+      const pool2 = parseQuantity(pool.pool2.quantity);
+      
+      // If one side is WAX, use WAX price to get USD value
+      if (pool.pool1.contract === 'eosio.token' && pool1.symbol === 'WAX') {
+        totalTVL += pool1.amount * waxUsdPrice * 2;
+      } else if (pool.pool2.contract === 'eosio.token' && pool2.symbol === 'WAX') {
+        totalTVL += pool2.amount * waxUsdPrice * 2;
+      }
+    }
+    
+    return totalTVL;
+  } catch (error) {
+    console.warn('Failed to fetch Nefty CHEESE TVL:', error);
+    return 0;
+  }
+}
+
 export async function fetchCheeseTotalTVL(waxUsdPrice: number): Promise<TVLData> {
-  const [alcor, defibox, taco] = await Promise.all([
+  const [alcor, defibox, taco, nefty] = await Promise.all([
     fetchAlcorCheeseTVL(),
     fetchDefiboxCheeseTVL(waxUsdPrice),
     fetchTacoCheeseTVL(waxUsdPrice),
+    fetchNeftyCheeseTVL(waxUsdPrice),
   ]);
   
-  const totalUSD = alcor + defibox + taco;
+  const totalUSD = alcor + defibox + taco + nefty;
   const totalWAX = waxUsdPrice > 0 ? totalUSD / waxUsdPrice : 0;
   
   return {
     alcor,
     defibox,
     taco,
+    nefty,
     totalUSD,
     totalWAX,
   };

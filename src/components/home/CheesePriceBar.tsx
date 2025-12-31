@@ -46,7 +46,8 @@ export function CheesePriceBar() {
   const waxUsdPrice = priceData && priceData.waxPrice > 0 
     ? priceData.usdPrice / priceData.waxPrice 
     : undefined;
-  const { data: tvlData, isLoading: tvlLoading } = useCheeseTVL(waxUsdPrice);
+  const cheeseUsdPrice = priceData?.usdPrice;
+  const { data: tvlData, isLoading: tvlLoading } = useCheeseTVL(waxUsdPrice, cheeseUsdPrice);
 
   const isLoading = priceLoading || statsLoading;
 

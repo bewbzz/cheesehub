@@ -27,12 +27,6 @@ interface TacoPair {
   pool2: { contract: string; quantity: string };
 }
 
-interface NeftyPool {
-  code: string;
-  pool1: { contract: string; quantity: string };
-  pool2: { contract: string; quantity: string };
-}
-
 export interface TVLData {
   alcor: number;
   defibox: number;
@@ -142,53 +136,39 @@ export async function fetchTacoCheeseTVL(waxUsdPrice: number): Promise<number> {
   }
 }
 
-export async function fetchNeftyCheeseTVL(waxUsdPrice: number): Promise<number> {
+export async function fetchNeftyCheeseTVL(cheeseUsdPrice: number): Promise<number> {
   try {
-    const response = await fetchTableRows<NeftyPool>({
-      code: 'swap.nefty',
-      scope: 'swap.nefty',
-      table: 'pools',
-      limit: 500,
+    // Query CHEESE balance held by swap.nefty directly
+    const response = await fetch('https://api.wax.alohaeos.com/v1/chain/get_currency_balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: CHEESE_CONTRACT,
+        account: 'swap.nefty',
+        symbol: CHEESE_SYMBOL,
+      }),
     });
     
-    // Filter for CHEESE pools - check contract, pool code, or quantity symbol
-    const cheesePools = response.rows.filter(pool => {
-      const pool1Qty = parseQuantity(pool.pool1.quantity);
-      const pool2Qty = parseQuantity(pool.pool2.quantity);
-      return pool.pool1.contract === CHEESE_CONTRACT || 
-             pool.pool2.contract === CHEESE_CONTRACT ||
-             pool.code === 'WAXCHE' ||
-             pool1Qty.symbol === CHEESE_SYMBOL ||
-             pool2Qty.symbol === CHEESE_SYMBOL;
-    });
+    if (!response.ok) throw new Error('Failed to fetch Nefty CHEESE balance');
     
-    let totalTVL = 0;
+    const balances: string[] = await response.json();
+    if (!balances || balances.length === 0) return 0;
     
-    for (const pool of cheesePools) {
-      const pool1 = parseQuantity(pool.pool1.quantity);
-      const pool2 = parseQuantity(pool.pool2.quantity);
-      
-      // If one side is WAX, use WAX price to get USD value
-      if (pool.pool1.contract === 'eosio.token' && pool1.symbol === 'WAX') {
-        totalTVL += pool1.amount * waxUsdPrice * 2;
-      } else if (pool.pool2.contract === 'eosio.token' && pool2.symbol === 'WAX') {
-        totalTVL += pool2.amount * waxUsdPrice * 2;
-      }
-    }
-    
-    return totalTVL;
+    const { amount } = parseQuantity(balances[0]);
+    // TVL = CHEESE amount × price × 2 (for the paired asset)
+    return amount * cheeseUsdPrice * 2;
   } catch (error) {
     console.warn('Failed to fetch Nefty CHEESE TVL:', error);
     return 0;
   }
 }
 
-export async function fetchCheeseTotalTVL(waxUsdPrice: number): Promise<TVLData> {
+export async function fetchCheeseTotalTVL(waxUsdPrice: number, cheeseUsdPrice: number): Promise<TVLData> {
   const [alcor, defibox, taco, nefty] = await Promise.all([
     fetchAlcorCheeseTVL(),
     fetchDefiboxCheeseTVL(waxUsdPrice),
     fetchTacoCheeseTVL(waxUsdPrice),
-    fetchNeftyCheeseTVL(waxUsdPrice),
+    fetchNeftyCheeseTVL(cheeseUsdPrice),
   ]);
   
   const totalUSD = alcor + defibox + taco + nefty;

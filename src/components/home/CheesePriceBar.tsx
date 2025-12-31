@@ -1,7 +1,8 @@
 import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
+import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Lock } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
 
 function formatPrice(price: number, decimals: number = 8): string {
@@ -19,7 +20,7 @@ function formatUsdPrice(price: number): string {
   return price.toFixed(2);
 }
 
-function formatMarketCap(value: number): string {
+function formatLargeValue(value: number): string {
   if (value >= 1_000_000) {
     return `$${(value / 1_000_000).toFixed(2)}M`;
   } else if (value >= 1_000) {
@@ -28,9 +29,24 @@ function formatMarketCap(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+function formatWaxValue(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M WAX`;
+  } else if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(2)}K WAX`;
+  }
+  return `${value.toFixed(2)} WAX`;
+}
+
 export function CheesePriceBar() {
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
+  
+  // Need WAX/USD price for TVL calculation - derive from CHEESE prices
+  const waxUsdPrice = priceData && priceData.waxPrice > 0 
+    ? priceData.usdPrice / priceData.waxPrice 
+    : undefined;
+  const { data: tvlData, isLoading: tvlLoading } = useCheeseTVL(waxUsdPrice);
 
   const isLoading = priceLoading || statsLoading;
 
@@ -95,8 +111,28 @@ export function CheesePriceBar() {
             <Skeleton className="h-5 w-20" />
           ) : (
             <span className="font-semibold text-foreground">
-              {formatMarketCap(marketCap)}
+              {formatLargeValue(marketCap)}
             </span>
+          )}
+        </div>
+      </div>
+
+      {/* TVL */}
+      <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
+        <Lock className="w-5 h-5 text-cheese" />
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground">TVL (All DEXs)</span>
+          {tvlLoading || !tvlData ? (
+            <Skeleton className="h-5 w-24" />
+          ) : (
+            <div className="flex flex-col">
+              <span className="font-semibold text-foreground">
+                {formatLargeValue(tvlData.totalUSD)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatWaxValue(tvlData.totalWAX)}
+              </span>
+            </div>
           )}
         </div>
       </div>

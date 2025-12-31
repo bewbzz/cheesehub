@@ -1,6 +1,14 @@
 // WAX RPC API fallback utility for reliability
 // Automatically retries requests across multiple endpoints
 
+// Hyperion endpoints for get_tokens (faster for balance queries)
+const HYPERION_ENDPOINTS = [
+  "https://wax.eosusa.io",
+  "https://api.wax.alohaeos.com",
+  "https://wax.eosphere.io",
+  "https://wax.pink.gg",
+];
+
 export const WAX_RPC_ENDPOINTS = [
   "https://wax.eosusa.io",
   "https://api.wax.alohaeos.com",
@@ -113,4 +121,59 @@ export async function waxRpcCall<T = unknown>(
   }
 
   throw lastError || new Error("All WAX RPC endpoints failed");
+}
+
+// Hyperion API types
+export interface HyperionToken {
+  symbol: string;
+  amount: number;
+  contract: string;
+  precision?: number;
+}
+
+interface HyperionTokensResponse {
+  account: string;
+  tokens: HyperionToken[];
+}
+
+/**
+ * Fetch ALL token balances for an account using Hyperion API
+ * This is much faster than querying each contract individually
+ */
+export async function fetchAllTokenBalances(
+  account: string,
+  timeout: number = 8000
+): Promise<HyperionToken[]> {
+  let lastError: Error | null = null;
+
+  for (const baseUrl of HYPERION_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const response = await fetch(
+        `${baseUrl}/v2/state/get_tokens?account=${account}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = (await response.json()) as HyperionTokensResponse;
+        console.log(`[Hyperion] Got ${data.tokens?.length || 0} tokens from ${baseUrl}`);
+        return data.tokens || [];
+      }
+
+      console.warn(`Hyperion endpoint ${baseUrl} returned ${response.status}, trying next...`);
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Hyperion endpoint ${baseUrl} failed:`, (error as Error).message);
+    }
+  }
+
+  throw lastError || new Error("All Hyperion endpoints failed");
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +64,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [resources, setResources] = useState<AccountResources | null>(null);
   const [resourcesKey, setResourcesKey] = useState(0);
   const [tokenSearch, setTokenSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Success dialog state
   const [successOpen, setSuccessOpen] = useState(false);
@@ -283,17 +284,33 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                       <SelectContent className="max-h-72">
                         <div 
                           className="p-2 sticky top-0 bg-popover border-b border-border z-10"
-                          onKeyDown={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
                         >
                           <Input
+                            ref={searchInputRef}
                             placeholder="Search tokens..."
                             value={tokenSearch}
-                            onChange={(e) => setTokenSearch(e.target.value)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setTokenSearch(e.target.value);
+                              // Keep focus on input after state update
+                              requestAnimationFrame(() => {
+                                searchInputRef.current?.focus();
+                              });
+                            }}
                             className="h-8"
                             autoComplete="off"
+                            onPointerDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                             onKeyUp={(e) => e.stopPropagation()}
                             onKeyPress={(e) => e.stopPropagation()}
+                            onFocus={(e) => e.stopPropagation()}
+                            onBlur={(e) => {
+                              // Prevent blur when clicking on items
+                              if (e.relatedTarget?.closest('[role="option"]')) {
+                                return;
+                              }
+                            }}
                           />
                         </div>
                         {isLoadingBalances ? (

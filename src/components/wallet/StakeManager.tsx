@@ -339,7 +339,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
                 variant="outline"
                 size="sm"
                 onClick={() => setPercentage('cpu', percent)}
-                className="flex-1 text-xs"
+                className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
               >
                 {percent}%
               </Button>
@@ -366,7 +366,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
                 variant="outline"
                 size="sm"
                 onClick={() => setPercentage('net', percent)}
-                className="flex-1 text-xs"
+                className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
               >
                 {percent}%
               </Button>

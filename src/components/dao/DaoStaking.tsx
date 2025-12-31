@@ -341,6 +341,15 @@ export function DaoStaking({ dao }: DaoStakingProps) {
             <h4 className="font-medium flex items-center gap-2">
               <Plus className="h-4 w-4" /> Stake Tokens
             </h4>
+            
+            {/* Stake Note */}
+            <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-sm text-amber-200">
+                <strong>Note:</strong> Tokens can be staked at any time but vote weight will not increase for any proposals already voted upon.
+              </AlertDescription>
+            </Alert>
+            
             <div className="flex gap-2">
               <Input
                 type="number"

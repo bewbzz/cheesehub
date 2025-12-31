@@ -90,15 +90,15 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       setAmount('');
       setMemo('');
       setActiveSection('send');
-      // Select first token with balance, or first token
-      const firstWithBalance = tokens.find(t => t.balance > 0);
-      const defaultToken = firstWithBalance || tokens[0];
-      if (defaultToken) {
-        setSelectedTokenKey(`${defaultToken.contract}-${defaultToken.symbol}`);
-      }
-      refetch();
     }
   }, [open]);
+
+  // Refetch balances when dialog opens AND accountName is available
+  useEffect(() => {
+    if (open && accountName) {
+      refetch();
+    }
+  }, [open, accountName, refetch]);
 
   // Update selection when tokens load
   useEffect(() => {

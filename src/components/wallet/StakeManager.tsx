@@ -1,19 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
+import { useWalletData } from '@/context/WalletDataContext';
 import { Loader2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AccountResources, parseWaxBalance } from './WalletResources';
-import { fetchWithFallback } from '@/lib/fetchWithFallback';
-
-const WAX_ENDPOINTS = [
-  'https://wax.greymass.com',
-  'https://api.wax.alohaeos.com',
-  'https://wax.eosphere.io',
-];
 
 interface StakeManagerProps {
   resources: AccountResources | null;
@@ -21,15 +15,9 @@ interface StakeManagerProps {
   onTransactionSuccess?: (title: string, description: string, txId: string | null) => void;
 }
 
-interface RefundRow {
-  owner: string;
-  request_time: string;
-  net_amount: string;
-  cpu_amount: string;
-}
-
 export function StakeManager({ resources, onTransactionComplete, onTransactionSuccess }: StakeManagerProps) {
   const { session, accountName } = useWax();
+  const { accountData, refetch: refetchAccountData } = useWalletData();
   const [isTransacting, setIsTransacting] = useState(false);
   
   // Stake state
@@ -40,83 +28,18 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
   // Unstake state
   const [cpuUnstakeAmount, setCpuUnstakeAmount] = useState('');
   const [netUnstakeAmount, setNetUnstakeAmount] = useState('');
-  
-  // Refund state
-  const [refundInfo, setRefundInfo] = useState<RefundRow | null>(null);
-  const [isLoadingRefund, setIsLoadingRefund] = useState(false);
 
-  // Get staked amounts from resources
-  const [stakedCpu, setStakedCpu] = useState(0);
-  const [stakedNet, setStakedNet] = useState(0);
-
-  const liquidBalance = parseWaxBalance(resources?.core_liquid_balance);
+  // Get data from context
+  const liquidBalance = accountData?.liquidBalance ?? parseWaxBalance(resources?.core_liquid_balance);
+  const stakedCpu = accountData?.stakedCpu ?? 0;
+  const stakedNet = accountData?.stakedNet ?? 0;
+  const refundInfo = accountData?.refundRequest ?? null;
 
   useEffect(() => {
     if (accountName) {
       setStakeReceiver(accountName);
-      fetchStakedResources();
-      fetchRefundInfo();
     }
   }, [accountName]);
-
-  const fetchStakedResources = async () => {
-    if (!accountName) return;
-    try {
-      const response = await fetchWithFallback(
-        WAX_ENDPOINTS,
-        '/v1/chain/get_account',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ account_name: accountName }),
-        }
-      );
-      const data = await response.json();
-      
-      // Parse self-delegated bandwidth
-      if (data.self_delegated_bandwidth) {
-        const cpuWeight = parseFloat(data.self_delegated_bandwidth.cpu_weight?.split(' ')[0] || '0');
-        const netWeight = parseFloat(data.self_delegated_bandwidth.net_weight?.split(' ')[0] || '0');
-        setStakedCpu(cpuWeight);
-        setStakedNet(netWeight);
-      }
-    } catch (error) {
-      console.error('Failed to fetch staked resources:', error);
-    }
-  };
-
-  const fetchRefundInfo = async () => {
-    if (!accountName) return;
-    setIsLoadingRefund(true);
-    try {
-      const response = await fetchWithFallback(
-        WAX_ENDPOINTS,
-        '/v1/chain/get_table_rows',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: 'eosio',
-            scope: accountName,
-            table: 'refunds',
-            json: true,
-            limit: 1,
-          }),
-        }
-      );
-      const data = await response.json();
-      
-      if (data.rows && data.rows.length > 0) {
-        setRefundInfo(data.rows[0]);
-      } else {
-        setRefundInfo(null);
-      }
-    } catch (error) {
-      console.error('Failed to fetch refund info:', error);
-    } finally {
-      setIsLoadingRefund(false);
-    }
-  };
 
   const handleStake = async () => {
     if (!session || !stakeReceiver) return;
@@ -159,7 +82,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       onTransactionSuccess?.('Staked Successfully!', `Staked ${stakeDesc.join(' and ')} for ${stakeReceiver}`, txId);
       setCpuStakeAmount('');
       setNetStakeAmount('');
-      fetchStakedResources();
+      refetchAccountData();
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Stake error:', error);
@@ -214,8 +137,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       onTransactionSuccess?.('Unstaked Successfully!', `Unstaked ${unstakeDesc.join(' and ')}. Refund available in 3 days.`, txId);
       setCpuUnstakeAmount('');
       setNetUnstakeAmount('');
-      fetchStakedResources();
-      fetchRefundInfo();
+      refetchAccountData();
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -247,7 +169,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       const totalRefund = cpuRefund + netRefund;
       
       onTransactionSuccess?.('Refund Claimed!', `Refunded ${totalRefund.toFixed(8)} WAX to your account`, txId);
-      setRefundInfo(null);
+      refetchAccountData();
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Refund error:', error);
@@ -474,11 +396,7 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       </TabsContent>
 
       <TabsContent value="refund" className="space-y-4 mt-4">
-        {isLoadingRefund ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : refundStatus ? (
+        {refundStatus ? (
           <>
             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -506,14 +424,15 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
               ) : refundStatus.available ? (
                 'Claim Refund'
               ) : (
-                `Refund Available in ${refundStatus.timeLeft}`
+                `Available in ${refundStatus.timeLeft}`
               )}
             </Button>
           </>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No pending refunds</p>
-            <p className="text-xs mt-2">Unstake CPU or NET to create a refund request.</p>
+          <div className="p-4 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground text-center">
+              No pending refunds
+            </p>
           </div>
         )}
       </TabsContent>

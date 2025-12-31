@@ -218,7 +218,7 @@ export function RentResourcesManager({
 
         <TabsContent value="cheese" className="mt-4 space-y-4">
           <div className="text-xs text-muted-foreground text-center">
-            CHEESE is converted to WAX automatically via cheesepowerz
+            Powered by the CHEESEPOWERZ Smart Contract
           </div>
         </TabsContent>
 

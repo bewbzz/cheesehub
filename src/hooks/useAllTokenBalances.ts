@@ -47,10 +47,6 @@ export function useAllTokenBalances(accountName: string | null) {
       // Single API call to get ALL token balances
       const hyperionTokens = await fetchAllTokenBalances(accountName);
       
-      // Log eth.token balances specifically for debugging
-      const ethTokenBalances = hyperionTokens.filter((t: HyperionToken) => t.contract === 'eth.token');
-      console.log('[Balance] eth.token balances from Hyperion:', ethTokenBalances);
-      
       // Map Hyperion response to our TokenWithBalance format
       const results: TokenWithBalance[] = hyperionTokens.map((ht: HyperionToken) => {
         const key = `${ht.contract}:${ht.symbol}`;

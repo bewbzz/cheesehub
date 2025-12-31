@@ -1,17 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
-import { fetchAllTokenBalances, HyperionToken } from '@/lib/waxRpcFallback';
+import { fetchAllTokenBalances, fetchSingleTokenBalance, HyperionToken } from '@/lib/waxRpcFallback';
 
 export interface TokenWithBalance extends TokenConfig {
   balance: number;
+  isLpToken: boolean;
 }
 
 // Create a lookup map for our known tokens
 const TOKEN_REGISTRY_MAP = new Map<string, TokenConfig>();
 WAX_TOKENS.forEach(token => {
-  // Key by contract:symbol for exact matching
   TOKEN_REGISTRY_MAP.set(`${token.contract}:${token.symbol}`, token);
 });
+
+// LP token contracts
+const LP_TOKEN_CONTRACTS = ['lptoken.box', 'swap.taco'];
+
+// Critical tokens that must always be checked via fallback if missing
+const CRITICAL_TOKENS = [
+  { symbol: 'CHEESE', contract: 'cheeseburger', precision: 8, displayName: 'CHEESE' },
+  { symbol: 'WAX', contract: 'eosio.token', precision: 8, displayName: 'WAX' },
+];
+
+function isLpToken(contract: string): boolean {
+  return LP_TOKEN_CONTRACTS.includes(contract);
+}
 
 export function useAllTokenBalances(accountName: string | null) {
   const [tokens, setTokens] = useState<TokenWithBalance[]>([]);
@@ -36,33 +49,62 @@ export function useAllTokenBalances(accountName: string | null) {
         const knownToken = TOKEN_REGISTRY_MAP.get(key);
         
         if (knownToken) {
-          // Use our registry info (has logo, display name, etc.)
           return {
             ...knownToken,
             balance: ht.amount,
+            isLpToken: isLpToken(ht.contract),
           };
         } else {
-          // Unknown token - create entry from Hyperion data
           return {
             symbol: ht.symbol,
             contract: ht.contract,
             precision: ht.precision || 8,
             displayName: ht.symbol,
             balance: ht.amount,
+            isLpToken: isLpToken(ht.contract),
           };
         }
       });
       
-      // Sort: tokens with balance first (by balance desc), then alphabetically
+      // Fallback: Check for missing critical tokens
+      for (const critical of CRITICAL_TOKENS) {
+        const found = results.find(t => 
+          t.symbol === critical.symbol && t.contract === critical.contract
+        );
+        if (!found) {
+          console.log(`[Balance] ${critical.symbol} missing from Hyperion, fetching directly...`);
+          const balance = await fetchSingleTokenBalance(
+            accountName,
+            critical.contract,
+            critical.symbol
+          );
+          if (balance > 0) {
+            const knownToken = TOKEN_REGISTRY_MAP.get(`${critical.contract}:${critical.symbol}`);
+            results.push({
+              ...(knownToken || critical),
+              balance,
+              isLpToken: false,
+            });
+          }
+        }
+      }
+      
+      // Sort: regular tokens first (by balance desc), then LP tokens (by balance desc)
       const sorted = results
-        .filter(t => t.balance > 0) // Only show tokens with balance
+        .filter(t => t.balance > 0)
         .sort((a, b) => {
-          // Sort by balance descending
+          // LP tokens go to bottom
+          if (a.isLpToken && !b.isLpToken) return 1;
+          if (!a.isLpToken && b.isLpToken) return -1;
+          // Within same category, sort by balance descending
           if (b.balance !== a.balance) return b.balance - a.balance;
           return a.symbol.localeCompare(b.symbol);
         });
 
-      console.log('[Balance] Found', sorted.length, 'tokens with balance:', sorted.map(t => t.symbol).join(', '));
+      console.log('[Balance] Found', sorted.length, 'tokens:', 
+        sorted.filter(t => !t.isLpToken).map(t => t.symbol).join(', '),
+        '| LP:', sorted.filter(t => t.isLpToken).map(t => t.symbol).join(', ')
+      );
       setTokens(sorted);
     } catch (error) {
       console.error('[Balance] Hyperion failed:', error);

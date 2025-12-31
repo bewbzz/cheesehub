@@ -93,15 +93,14 @@ export function useAllTokenBalances(accountName: string | null) {
         }
       }
       
-      // Sort: regular tokens first (by balance desc), then LP tokens (by balance desc)
+      // Sort: alphabetically, with LP tokens at bottom
       const sorted = results
         .filter(t => t.balance > 0)
         .sort((a, b) => {
           // LP tokens go to bottom
           if (a.isLpToken && !b.isLpToken) return 1;
           if (!a.isLpToken && b.isLpToken) return -1;
-          // Within same category, sort by balance descending
-          if (b.balance !== a.balance) return b.balance - a.balance;
+          // Within same category, sort alphabetically
           return a.symbol.localeCompare(b.symbol);
         });
 

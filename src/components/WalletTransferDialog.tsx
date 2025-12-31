@@ -120,11 +120,11 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
     }
   }, [open, accountName, refetch]);
 
-  // Update selection when tokens load
+  // Update selection when tokens load - default to CHEESE
   useEffect(() => {
     if (tokens.length > 0 && !selectedTokenKey) {
-      const firstWithBalance = tokens.find(t => t.balance > 0);
-      const defaultToken = firstWithBalance || tokens[0];
+      const cheeseToken = tokens.find(t => t.symbol === 'CHEESE' && t.contract === 'cheeseburger');
+      const defaultToken = cheeseToken || tokens[0];
       setSelectedTokenKey(`${defaultToken.contract}-${defaultToken.symbol}`);
     }
   }, [tokens, selectedTokenKey]);

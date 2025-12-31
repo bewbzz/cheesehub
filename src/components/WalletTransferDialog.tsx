@@ -189,6 +189,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   }, []);
 
   return (
+    <WalletDataProvider>
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
@@ -488,5 +489,6 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       txId={successTxId}
     />
     </>
+    </WalletDataProvider>
   );
 }

@@ -76,10 +76,18 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const filteredTokens = useMemo(() => {
     if (!tokenSearch.trim()) return tokens;
     const search = tokenSearch.toLowerCase();
-    return tokens.filter(t => 
+    const filtered = tokens.filter(t => 
       t.symbol.toLowerCase().includes(search) || 
       t.contract.toLowerCase().includes(search)
     );
+    // Sort: tokens starting with search first, then alphabetically
+    return filtered.sort((a, b) => {
+      const aStartsWithSymbol = a.symbol.toLowerCase().startsWith(search);
+      const bStartsWithSymbol = b.symbol.toLowerCase().startsWith(search);
+      if (aStartsWithSymbol && !bStartsWithSymbol) return -1;
+      if (!aStartsWithSymbol && bStartsWithSymbol) return 1;
+      return a.symbol.localeCompare(b.symbol);
+    });
   }, [tokens, tokenSearch]);
 
   const selectedToken = useMemo(() => {
@@ -273,14 +281,19 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="max-h-72">
-                        <div className="p-2 sticky top-0 bg-popover border-b border-border">
+                        <div 
+                          className="p-2 sticky top-0 bg-popover border-b border-border z-10"
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
                           <Input
                             placeholder="Search tokens..."
                             value={tokenSearch}
                             onChange={(e) => setTokenSearch(e.target.value)}
                             className="h-8"
-                            onClick={(e) => e.stopPropagation()}
+                            autoComplete="off"
                             onKeyDown={(e) => e.stopPropagation()}
+                            onKeyUp={(e) => e.stopPropagation()}
+                            onKeyPress={(e) => e.stopPropagation()}
                           />
                         </div>
                         {isLoadingBalances ? (

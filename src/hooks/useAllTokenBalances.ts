@@ -20,10 +20,10 @@ const LP_TOKEN_CONTRACTS = ['lptoken.box', 'swap.taco'];
 const CRITICAL_TOKENS = [
   { symbol: 'CHEESE', contract: 'cheeseburger', precision: 4, displayName: 'CHEESE' },
   { symbol: 'WAX', contract: 'eosio.token', precision: 8, displayName: 'WAX' },
-  { symbol: 'WAXWBTC', contract: 'tethertether', precision: 8, displayName: 'WAXWBTC' },
-  { symbol: 'WAXWETH', contract: 'tethertether', precision: 8, displayName: 'WAXWETH' },
-  { symbol: 'WAXUSDC', contract: 'tethertether', precision: 6, displayName: 'WAXUSDC' },
-  { symbol: 'WAXUSDT', contract: 'tethertether', precision: 6, displayName: 'WAXUSDT' },
+  { symbol: 'WAXWBTC', contract: 'eth.token', precision: 8, displayName: 'WAXWBTC' },
+  { symbol: 'WAXWETH', contract: 'eth.token', precision: 8, displayName: 'WAXWETH' },
+  { symbol: 'WAXUSDC', contract: 'eth.token', precision: 6, displayName: 'WAXUSDC' },
+  { symbol: 'WAXUSDT', contract: 'eth.token', precision: 6, displayName: 'WAXUSDT' },
 ];
 
 function isLpToken(contract: string): boolean {

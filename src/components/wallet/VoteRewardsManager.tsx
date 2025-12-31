@@ -1,223 +1,94 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useWax } from '@/context/WaxContext';
+import { useWalletData } from '@/context/WalletDataContext';
 import { Loader2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
-import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { cn } from '@/lib/utils';
-
-const WAX_ENDPOINTS = [
-  'https://wax.greymass.com',
-  'https://wax.eosusa.io',
-  'https://api.wax.alohaeos.com',
-  'https://wax.pink.gg',
-  'https://wax.cryptolions.io',
-];
+import { VoterInfo, GlobalState } from '@/lib/waxRpcFallback';
 
 interface VoteRewardsManagerProps {
   onTransactionComplete?: () => void;
   onTransactionSuccess?: (title: string, description: string, txId: string | null) => void;
 }
 
-interface VoterInfo {
-  owner: string;
-  proxy: string;
-  producers: string[];
-  staked: number;
-  last_vote_weight: string;
-  proxied_vote_weight: string;
-  is_proxy: number;
-  flags1: number;
-  reserved2: number;
-  reserved3: string;
-  unpaid_voteshare: string;
-  unpaid_voteshare_last_updated: number;
-  unpaid_voteshare_change_rate: string;
-}
-
-interface GlobalState {
-  total_unpaid_voteshare: string;
-  total_voteshare_change_rate: string;
-  total_unpaid_voteshare_last_updated: string;
-  voters_bucket: string;
-  pervote_bucket: number;
-  total_activated_stake: string;
-  last_pervote_bucket_fill: string;
-}
-
 export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess }: VoteRewardsManagerProps) {
   const { session, accountName } = useWax();
+  const { accountData, isLoading, refetch } = useWalletData();
   const [isTransacting, setIsTransacting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [voterInfo, setVoterInfo] = useState<VoterInfo | null>(null);
-  const [globalState, setGlobalState] = useState<GlobalState | null>(null);
-  const [estimatedRewards, setEstimatedRewards] = useState<number>(0);
-  const [lastClaimTime, setLastClaimTime] = useState<Date | null>(null);
-  const [nextClaimTime, setNextClaimTime] = useState<string>('');
-  const [canClaim, setCanClaim] = useState(false);
-  const [hasVoted, setHasVoted] = useState(false);
 
-  useEffect(() => {
-    if (accountName) {
-      fetchVoterData();
-    }
-  }, [accountName]);
+  // Get voter info and global state from context
+  const voterInfo = accountData?.voterInfo ?? null;
+  const globalState = accountData?.globalState ?? null;
+  const hasVoted = accountData?.hasVoted ?? false;
 
-  const fetchVoterData = async () => {
-    if (!accountName) return;
-    setIsLoading(true);
-    
-    try {
-      // Fetch voter info
-      const voterResponse = await fetchWithFallback(
-        WAX_ENDPOINTS,
-        '/v1/chain/get_table_rows',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: 'eosio',
-            scope: 'eosio',
-            table: 'voters',
-            lower_bound: accountName,
-            upper_bound: accountName,
-            limit: 1,
-            json: true,
-          }),
-        }
-      );
-      const voterData = await voterResponse.json();
-      console.log('Voter data response:', voterData);
-      
-      // Fetch global state for reward calculation - try global4 first, fallback to global3
-      let globalData: any = { rows: [] };
-      try {
-        const global4Response = await fetchWithFallback(
-          WAX_ENDPOINTS,
-          '/v1/chain/get_table_rows',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              code: 'eosio',
-              scope: 'eosio',
-              table: 'global4',
-              limit: 1,
-              json: true,
-            }),
-          }
-        );
-        globalData = await global4Response.json();
-        console.log('Global4 data:', globalData);
-      } catch (e) {
-        console.log('Global4 fetch failed, trying global3:', e);
-        // Fallback - calculate from voters bucket in global state
-        try {
-          const globalResponse = await fetchWithFallback(
-            WAX_ENDPOINTS,
-            '/v1/chain/get_table_rows',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code: 'eosio',
-                scope: 'eosio',
-                table: 'global',
-                limit: 1,
-                json: true,
-              }),
-            }
-          );
-          globalData = await globalResponse.json();
-          console.log('Global data fallback:', globalData);
-        } catch (e2) {
-          console.log('Global fetch also failed:', e2);
-        }
-      }
-      
-      if (voterData.rows && voterData.rows.length > 0) {
-        const voter = voterData.rows[0] as VoterInfo;
-        console.log('Voter info:', voter);
-        setVoterInfo(voter);
-        
-        // Check if user is voting (either directly for producers or via proxy)
-        const isVoting = (voter.producers && voter.producers.length > 0) || 
-                         (voter.proxy && voter.proxy.length > 0 && voter.proxy !== '');
-        console.log('Is voting:', isVoting, 'Proxy:', voter.proxy, 'Producers:', voter.producers?.length);
-        setHasVoted(isVoting);
-        
-        // Calculate last claim time from unpaid_voteshare_last_updated
-        // This can be either a timestamp string or unix seconds
-        let lastUpdatedTime: Date;
-        if (typeof voter.unpaid_voteshare_last_updated === 'string') {
-          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated + 'Z');
-        } else if (voter.unpaid_voteshare_last_updated > 0) {
-          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated * 1000);
-        } else {
-          lastUpdatedTime = new Date(0);
-        }
-        
-        setLastClaimTime(lastUpdatedTime);
-        
-        // Calculate next claim time - 24 hours from last claim
-        const now = new Date();
-        const CLAIM_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-        const nextClaimDate = new Date(lastUpdatedTime.getTime() + CLAIM_COOLDOWN_MS);
-        
-        if (lastUpdatedTime.getTime() === 0) {
-          // Never claimed before
-          setNextClaimTime('Now!');
-          setCanClaim(true);
-        } else if (now >= nextClaimDate) {
-          // 24 hours have passed
-          setNextClaimTime('Now!');
-          setCanClaim(true);
-        } else {
-          // Calculate time remaining
-          const remaining = nextClaimDate.getTime() - now.getTime();
-          const hours = Math.floor(remaining / (1000 * 60 * 60));
-          const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-          setNextClaimTime(`${hours}h ${minutes}m`);
-          setCanClaim(false);
-        }
-        
-        // Calculate estimated rewards - try even if globalData is incomplete
-        if (globalData.rows && globalData.rows.length > 0) {
-          const global = globalData.rows[0] as GlobalState;
-          setGlobalState(global);
-          
-          const rewards = calculateRewards(voter, global);
-          setEstimatedRewards(rewards);
-          console.log('Calculated rewards:', rewards);
-        } else {
-          // Even without global data, show that user has some rewards based on voteshare
-          const hasRewards = parseFloat(voter.unpaid_voteshare || '0') > 0 || 
-                            parseFloat(voter.unpaid_voteshare_change_rate || '0') > 0;
-          if (hasRewards) {
-            setEstimatedRewards(-1); // -1 means "some rewards available but amount unknown"
-          }
-        }
-      } else {
-        setVoterInfo(null);
-        setHasVoted(false);
-        setEstimatedRewards(0);
-        setLastClaimTime(null);
-        setNextClaimTime('N/A');
-      }
-    } catch (error) {
-      console.error('Failed to fetch voter data:', error);
-      toast.error('Failed to load voter information');
-    } finally {
-      setIsLoading(false);
+  // Calculate claim times and rewards
+  const { lastClaimTime, nextClaimTime, canClaim, estimatedRewards } = useMemo(() => {
+    if (!voterInfo) {
+      return {
+        lastClaimTime: null,
+        nextClaimTime: 'N/A',
+        canClaim: false,
+        estimatedRewards: 0,
+      };
     }
-  };
+
+    // Calculate last claim time from unpaid_voteshare_last_updated
+    let lastUpdatedTime: Date;
+    if (typeof voterInfo.unpaid_voteshare_last_updated === 'string') {
+      lastUpdatedTime = new Date(voterInfo.unpaid_voteshare_last_updated + 'Z');
+    } else if (voterInfo.unpaid_voteshare_last_updated > 0) {
+      lastUpdatedTime = new Date(voterInfo.unpaid_voteshare_last_updated * 1000);
+    } else {
+      lastUpdatedTime = new Date(0);
+    }
+
+    // Calculate next claim time - 24 hours from last claim
+    const now = new Date();
+    const CLAIM_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const nextClaimDate = new Date(lastUpdatedTime.getTime() + CLAIM_COOLDOWN_MS);
+
+    let canClaimNow = false;
+    let nextClaimStr = '';
+
+    if (lastUpdatedTime.getTime() === 0) {
+      nextClaimStr = 'Now!';
+      canClaimNow = true;
+    } else if (now >= nextClaimDate) {
+      nextClaimStr = 'Now!';
+      canClaimNow = true;
+    } else {
+      const remaining = nextClaimDate.getTime() - now.getTime();
+      const hours = Math.floor(remaining / (1000 * 60 * 60));
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      nextClaimStr = `${hours}h ${minutes}m`;
+      canClaimNow = false;
+    }
+
+    // Calculate estimated rewards
+    let rewards = 0;
+    if (globalState) {
+      rewards = calculateRewards(voterInfo, globalState);
+    } else {
+      const hasRewards = parseFloat(voterInfo.unpaid_voteshare || '0') > 0 || 
+                        parseFloat(voterInfo.unpaid_voteshare_change_rate || '0') > 0;
+      if (hasRewards) {
+        rewards = -1; // -1 means "some rewards available but amount unknown"
+      }
+    }
+
+    return {
+      lastClaimTime: lastUpdatedTime,
+      nextClaimTime: nextClaimStr,
+      canClaim: canClaimNow,
+      estimatedRewards: rewards,
+    };
+  }, [voterInfo, globalState]);
 
   const calculateRewards = (voter: VoterInfo, global: GlobalState): number => {
     try {
-      // Get current time and last update time
       const now = Math.floor(Date.now() / 1000);
       
-      // Parse last updated - can be string date or unix timestamp
       let lastUpdated: number;
       if (typeof voter.unpaid_voteshare_last_updated === 'string') {
         lastUpdated = Math.floor(new Date(voter.unpaid_voteshare_last_updated + 'Z').getTime() / 1000);
@@ -225,7 +96,6 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         lastUpdated = voter.unpaid_voteshare_last_updated || 0;
       }
       
-      // Parse global last updated
       let globalLastUpdated: number;
       if (typeof global.total_unpaid_voteshare_last_updated === 'string') {
         globalLastUpdated = Math.floor(new Date(global.total_unpaid_voteshare_last_updated + 'Z').getTime() / 1000);
@@ -236,37 +106,23 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       const timeDelta = now - lastUpdated;
       const globalTimeDelta = now - globalLastUpdated;
       
-      // Parse values - these are very large numbers, use BigInt-like approach
       const unpaidVoteshare = parseFloat(voter.unpaid_voteshare || '0');
       const changeRate = parseFloat(voter.unpaid_voteshare_change_rate || '0');
       const totalUnpaidVoteshare = parseFloat(global.total_unpaid_voteshare || '0');
       const totalChangeRate = parseFloat(global.total_voteshare_change_rate || '0');
       
-      // Calculate current voteshare
       const currentVoteshare = unpaidVoteshare + (changeRate * timeDelta);
       const currentTotalVoteshare = totalUnpaidVoteshare + (totalChangeRate * globalTimeDelta);
       
-      // Voters bucket in WAX (stored with 8 decimal precision, so divide by 100000000)
       const votersBucketRaw = parseFloat(global.voters_bucket || '0');
       const votersBucket = votersBucketRaw / 100000000;
-      
-      console.log('Reward calc:', {
-        currentVoteshare,
-        currentTotalVoteshare,
-        votersBucket,
-        timeDelta,
-        globalTimeDelta
-      });
       
       if (currentTotalVoteshare <= 0 || votersBucket <= 0) {
         return 0;
       }
       
-      // Calculate share of the bucket
       const share = currentVoteshare / currentTotalVoteshare;
       const estimatedReward = share * votersBucket;
-      
-      console.log('Share:', share, 'Estimated:', estimatedReward);
       
       return estimatedReward > 0 ? estimatedReward : 0;
     } catch (error) {
@@ -299,8 +155,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         txId
       );
       
-      // Refresh data
-      await fetchVoterData();
+      await refetch();
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim vote error:', error);
@@ -317,7 +172,6 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
 
   const formatDate = (date: Date | null): string => {
     if (!date) return 'N/A';
-    // Check if it's the unix epoch (never claimed)
     if (date.getTime() === 0) {
       return 'Never';
     }
@@ -445,7 +299,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       {/* Refresh Button */}
       <Button
         variant="outline"
-        onClick={fetchVoterData}
+        onClick={refetch}
         disabled={isLoading}
         className="w-full"
       >

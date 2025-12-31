@@ -2,7 +2,7 @@ import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
 
 function formatPrice(price: number, decimals: number = 8): string {
@@ -47,7 +47,7 @@ export function CheesePriceBar() {
     ? priceData.usdPrice / priceData.waxPrice 
     : undefined;
   const cheeseUsdPrice = priceData?.usdPrice;
-  const { data: tvlData, isLoading: tvlLoading } = useCheeseTVL(waxUsdPrice, cheeseUsdPrice);
+  const { data: tvlData, isLoading: tvlLoading, refetch: refetchTvl, isFetching: tvlFetching } = useCheeseTVL(waxUsdPrice, cheeseUsdPrice);
 
   const isLoading = priceLoading || statsLoading;
 
@@ -136,6 +136,14 @@ export function CheesePriceBar() {
             </div>
           )}
         </div>
+        <button
+          onClick={() => refetchTvl()}
+          disabled={tvlFetching}
+          className="p-1 rounded hover:bg-cheese/20 transition-colors disabled:opacity-50"
+          title="Refresh TVL"
+        >
+          <RefreshCw className={`w-3 h-3 text-muted-foreground ${tvlFetching ? 'animate-spin' : ''}`} />
+        </button>
       </div>
     </div>
   );

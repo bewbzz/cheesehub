@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
@@ -281,7 +282,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                           )}
                         </SelectValue>
                       </SelectTrigger>
-                      <SelectContent className="max-h-72">
+                      <SelectContent className="p-0">
                         <div 
                           className="p-2 sticky top-0 bg-popover border-b border-border z-10"
                           onPointerDown={(e) => e.stopPropagation()}
@@ -293,7 +294,6 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                             onChange={(e) => {
                               e.stopPropagation();
                               setTokenSearch(e.target.value);
-                              // Keep focus on input after state update
                               requestAnimationFrame(() => {
                                 searchInputRef.current?.focus();
                               });
@@ -306,43 +306,46 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                             onKeyPress={(e) => e.stopPropagation()}
                             onFocus={(e) => e.stopPropagation()}
                             onBlur={(e) => {
-                              // Prevent blur when clicking on items
                               if (e.relatedTarget?.closest('[role="option"]')) {
                                 return;
                               }
                             }}
                           />
                         </div>
-                        {isLoadingBalances ? (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            <span className="text-sm text-muted-foreground">Loading balances...</span>
-                          </div>
-                        ) : filteredTokens.length === 0 ? (
-                          <div className="py-4 text-center text-sm text-muted-foreground">
-                            No tokens found
-                          </div>
-                        ) : (
-                          filteredTokens.map((token) => (
-                            <SelectItem 
-                              key={`${token.contract}-${token.symbol}`} 
-                              value={`${token.contract}-${token.symbol}`}
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                <TokenLogo 
-                                  contract={token.contract} 
-                                  symbol={token.symbol} 
-                                  size="sm" 
-                                />
-                                <span className="font-medium">{token.symbol}</span>
-                                <span className="text-muted-foreground text-xs">({token.contract})</span>
-                                <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                  {token.balance.toFixed(token.precision)}
-                                </span>
+                        <ScrollArea className="h-64">
+                          <div className="p-1">
+                            {isLoadingBalances ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <span className="text-sm text-muted-foreground">Loading balances...</span>
                               </div>
-                            </SelectItem>
-                          ))
-                        )}
+                            ) : filteredTokens.length === 0 ? (
+                              <div className="py-4 text-center text-sm text-muted-foreground">
+                                No tokens found
+                              </div>
+                            ) : (
+                              filteredTokens.map((token) => (
+                                <SelectItem 
+                                  key={`${token.contract}-${token.symbol}`} 
+                                  value={`${token.contract}-${token.symbol}`}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <TokenLogo 
+                                      contract={token.contract} 
+                                      symbol={token.symbol} 
+                                      size="sm" 
+                                    />
+                                    <span className="font-medium">{token.symbol}</span>
+                                    <span className="text-muted-foreground text-xs">({token.contract})</span>
+                                    <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                      {token.balance.toFixed(token.precision)}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
                   </div>

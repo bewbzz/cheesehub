@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
-import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
+import { useRentBalances } from '@/hooks/useRentBalances';
 import { usePowerupEstimate, fetchPowerupState, findFracForWax, parsePriceWax } from '@/hooks/usePowerupEstimate';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
@@ -33,7 +33,7 @@ export function RentResourcesManager({
   onTransactionSuccess 
 }: RentResourcesManagerProps) {
   const { accountName, session } = useWax();
-  const { tokens, refetch: refetchBalances } = useAllTokenBalances(accountName);
+  const { balances, refetch: refetchBalances } = useRentBalances(accountName);
   
   const [paymentMode, setPaymentMode] = useState<'cheese' | 'wax'>('cheese');
   const [recipient, setRecipient] = useState(accountName || '');
@@ -41,11 +41,9 @@ export function RentResourcesManager({
   const [netAmount, setNetAmount] = useState('');
   const [isTransacting, setIsTransacting] = useState(false);
 
-  // Get balances
-  const cheeseToken = tokens.find(t => t.symbol === 'CHEESE' && t.contract === 'cheeseburger');
-  const waxToken = tokens.find(t => t.symbol === 'WAX' && t.contract === 'eosio.token');
-  const cheeseBalance = cheeseToken?.balance || 0;
-  const waxBalance = waxToken?.balance || 0;
+  // Get balances - now only fetches CHEESE and WAX
+  const cheeseBalance = balances.cheese;
+  const waxBalance = balances.wax;
 
   const cpuNumeric = parseFloat(cpuAmount) || 0;
   const netNumeric = parseFloat(netAmount) || 0;

@@ -51,6 +51,11 @@ export const WAX_TOKENS: TokenConfig[] = [
   { symbol: 'CAIT', contract: 'caittoken111', precision: 4, displayName: 'CAIT' },
   { symbol: 'NEON', contract: 'neonstoicwax', precision: 8, displayName: 'NEON' },
   { symbol: 'WUFFI', contract: 'wuffi', precision: 8, displayName: 'WUFFI' },
+  // Wrapped tokens via eth.token bridge
+  { symbol: 'WAXWBTC', contract: 'eth.token', precision: 8, displayName: 'WAXWBTC' },
+  { symbol: 'WAXWETH', contract: 'eth.token', precision: 8, displayName: 'WAXWETH' },
+  { symbol: 'WAXUSDC', contract: 'eth.token', precision: 6, displayName: 'WAXUSDC' },
+  { symbol: 'WAXUSDT', contract: 'eth.token', precision: 6, displayName: 'WAXUSDT' },
 ];
 
 // Get token config by symbol

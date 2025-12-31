@@ -276,7 +276,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                               />
                               <span className="font-medium">{selectedToken.symbol}</span>
                               <span className="text-muted-foreground text-xs">
-                                ({balance.toLocaleString()})
+                                ({balance.toFixed(selectedToken.precision)})
                               </span>
                             </div>
                           )}
@@ -364,7 +364,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                               size="sm" 
                               className="h-3 w-3"
                             />
-                            {balance.toLocaleString()} {selectedToken.symbol}
+                            {balance.toFixed(selectedToken.precision)} {selectedToken.symbol}
                           </>
                         )}
                       </div>

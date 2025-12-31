@@ -190,308 +190,303 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent 
-          className="sm:max-w-[850px] max-h-[90vh] overflow-hidden"
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          {open && (
-            <WalletDataProvider>
-              <DialogHeader>
-                <DialogTitle className="text-xl flex items-center gap-2">
-                  <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
-                  <span><span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Wallet</span></span>
-                </DialogTitle>
-                <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
-              </DialogHeader>
-              
-              <div className="flex gap-4 h-[810px]">
-                {/* Left Sidebar Menu */}
-                <div className="w-40 shrink-0 border-r border-border pr-4 space-y-1">
-                  {menuItems.map((item) => (
-                    <Button
-                      key={item.id}
-                      variant="ghost"
-                      onClick={() => setActiveSection(item.id)}
-                      className={cn(
-                        "w-full justify-start gap-2 text-left h-auto py-3",
-                        activeSection === item.id 
-                          ? "bg-cheese/20 text-cheese hover:bg-cheese/30 hover:text-cheese" 
-                          : "hover:bg-muted"
-                      )}
-                    >
-                      {item.icon}
-                      <span className="text-sm">{item.label}</span>
-                    </Button>
-                  ))}
-                </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent 
+        className="sm:max-w-[850px] max-h-[90vh] overflow-hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <img src={cheeseLogo} alt="Cheese" className="h-6 w-6" />
+            <span><span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Wallet</span></span>
+          </DialogTitle>
+          <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex gap-4 h-[810px]">
+          {/* Left Sidebar Menu */}
+          <div className="w-40 shrink-0 border-r border-border pr-4 space-y-1">
+            {menuItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                onClick={() => setActiveSection(item.id)}
+                className={cn(
+                  "w-full justify-start gap-2 text-left h-auto py-3",
+                  activeSection === item.id 
+                    ? "bg-cheese/20 text-cheese hover:bg-cheese/30 hover:text-cheese" 
+                    : "hover:bg-muted"
+                )}
+              >
+                {item.icon}
+                <span className="text-sm">{item.label}</span>
+              </Button>
+            ))}
+          </div>
 
-                {/* Right Content Area */}
-                <div className="flex-1 overflow-y-auto pr-2 flex flex-col">
-                  {/* Resources display - always visible */}
-                  <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
+          {/* Right Content Area */}
+          <div className="flex-1 overflow-y-auto pr-2 flex flex-col">
+            {/* Resources display - always visible */}
+            <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
 
-                  <div className="mt-4">
-                    {/* Send Tokens Section */}
-                    {activeSection === 'send' && (
-                      <div className="space-y-4">
-                        {/* Recipient */}
-                        <div className="space-y-2">
-                          <Label htmlFor="recipient">Recipient</Label>
-                          <div className="relative">
-                            <Input
-                              id="recipient"
-                              placeholder="Enter WAX account"
-                              value={recipient}
-                              onChange={(e) => setRecipient(e.target.value.toLowerCase())}
-                              className="pr-10"
-                            />
-                            {recipient.length > 0 && (
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                {isValidRecipient ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <X className="h-4 w-4 text-destructive" />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          {recipient.length > 0 && !isValidRecipient && (
-                            <p className="text-xs text-destructive">
-                              Invalid account name (1-12 chars, a-z, 1-5, periods)
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Token Select with Logos */}
-                        <div className="space-y-2">
-                          <Label>Token</Label>
-                          <Select value={selectedTokenKey} onValueChange={handleTokenChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select token">
-                                {selectedToken && (
-                                  <div className="flex items-center gap-2">
-                                    <TokenLogo 
-                                      contract={selectedToken.contract} 
-                                      symbol={selectedToken.symbol} 
-                                      size="sm" 
-                                    />
-                                    <span className="font-medium">{selectedToken.symbol}</span>
-                                    <span className="text-muted-foreground text-xs">
-                                      ({balance.toFixed(selectedToken.precision)})
-                                    </span>
-                                  </div>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent className="p-0">
-                              <div 
-                                className="p-2 sticky top-0 bg-popover border-b border-border z-10"
-                                onPointerDown={(e) => e.stopPropagation()}
-                              >
-                                <Input
-                                  ref={searchInputRef}
-                                  placeholder="Search tokens..."
-                                  value={tokenSearch}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    setTokenSearch(e.target.value);
-                                    requestAnimationFrame(() => {
-                                      searchInputRef.current?.focus();
-                                    });
-                                  }}
-                                  className="h-8"
-                                  autoComplete="off"
-                                  onPointerDown={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                  onKeyUp={(e) => e.stopPropagation()}
-                                  onKeyPress={(e) => e.stopPropagation()}
-                                  onFocus={(e) => e.stopPropagation()}
-                                  onBlur={(e) => {
-                                    if (e.relatedTarget?.closest('[role="option"]')) {
-                                      return;
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <ScrollArea className="h-64">
-                                <div className="p-1">
-                                  {isLoadingBalances ? (
-                                    <div className="flex items-center justify-center py-4">
-                                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                      <span className="text-sm text-muted-foreground">Loading balances...</span>
-                                    </div>
-                                  ) : filteredTokens.length === 0 ? (
-                                    <div className="py-4 text-center text-sm text-muted-foreground">
-                                      No tokens found
-                                    </div>
-                                  ) : (
-                                    filteredTokens.map((token) => (
-                                      <SelectItem 
-                                        key={`${token.contract}-${token.symbol}`} 
-                                        value={`${token.contract}-${token.symbol}`}
-                                      >
-                                        <div className="flex items-center gap-2 w-full">
-                                          <TokenLogo 
-                                            contract={token.contract} 
-                                            symbol={token.symbol} 
-                                            size="sm" 
-                                          />
-                                          <span className="font-medium">{token.symbol}</span>
-                                          <span className="text-muted-foreground text-xs">({token.contract})</span>
-                                          <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {token.balance.toFixed(token.precision)}
-                                          </span>
-                                        </div>
-                                      </SelectItem>
-                                    ))
-                                  )}
-                                </div>
-                              </ScrollArea>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Amount */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="amount">Amount</Label>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              Balance: 
-                              {selectedToken && (
-                                <>
-                                  <TokenLogo 
-                                    contract={selectedToken.contract} 
-                                    symbol={selectedToken.symbol} 
-                                    size="sm" 
-                                    className="h-3 w-3"
-                                  />
-                                  {balance.toFixed(selectedToken.precision)} {selectedToken.symbol}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              id="amount"
-                              type="number"
-                              placeholder="0.00"
-                              value={amount}
-                              onChange={(e) => setAmount(e.target.value)}
-                              min={0}
-                              step={selectedToken ? Math.pow(10, -selectedToken.precision) : 0.01}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleMaxClick}
-                              className="shrink-0"
-                            >
-                              Max
-                            </Button>
-                          </div>
-                          {parsedAmount > balance && (
-                            <p className="text-xs text-destructive">Insufficient balance</p>
-                          )}
-                        </div>
-
-                        {/* Memo */}
-                        <div className="space-y-2">
-                          <Label htmlFor="memo">Memo (optional)</Label>
-                          <Input
-                            id="memo"
-                            placeholder="Enter memo"
-                            value={memo}
-                            onChange={(e) => setMemo(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Send Button */}
-                        <Button
-                          onClick={handleSend}
-                          disabled={!canSend}
-                          className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
-                        >
-                          {isSending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending...
-                            </>
+            <div className="mt-4">
+              {/* Send Tokens Section */}
+              {activeSection === 'send' && (
+                <div className="space-y-4">
+                  {/* Recipient */}
+                  <div className="space-y-2">
+                    <Label htmlFor="recipient">Recipient</Label>
+                    <div className="relative">
+                      <Input
+                        id="recipient"
+                        placeholder="Enter WAX account"
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value.toLowerCase())}
+                        className="pr-10"
+                      />
+                      {recipient.length > 0 && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {isValidRecipient ? (
+                            <Check className="h-4 w-4 text-green-500" />
                           ) : (
-                            <>
-                              <Send className="mr-2 h-4 w-4" />
-                              Send {selectedToken?.symbol || 'Tokens'}
-                            </>
+                            <X className="h-4 w-4 text-destructive" />
                           )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Send NFTs Section */}
-                    {activeSection === 'send-nfts' && (
-                      <NFTSendManager 
-                        onTransactionSuccess={showSuccessDialog}
-                      />
-                    )}
-
-                    {/* Stake Section */}
-                    {activeSection === 'stake' && (
-                      <StakeManager 
-                        resources={resources}
-                        onTransactionComplete={handleTransactionComplete}
-                        onTransactionSuccess={showSuccessDialog}
-                      />
-                    )}
-
-                    {/* Rent CPU/NET Section */}
-                    {activeSection === 'rent' && (
-                      <RentResourcesManager 
-                        onTransactionComplete={handleTransactionComplete}
-                        onTransactionSuccess={showSuccessDialog}
-                      />
-                    )}
-
-                    {/* RAM Section */}
-                    {activeSection === 'ram' && (
-                      <RamManager 
-                        resources={resources}
-                        onTransactionComplete={handleTransactionComplete}
-                        onTransactionSuccess={showSuccessDialog}
-                      />
-                    )}
-
-                    {/* Vote Section */}
-                    {activeSection === 'vote' && (
-                      <VoteManager 
-                        onTransactionComplete={handleTransactionComplete}
-                        onTransactionSuccess={showSuccessDialog}
-                      />
-                    )}
-
-                    {/* Vote Rewards Section */}
-                    {activeSection === 'rewards' && (
-                      <VoteRewardsManager 
-                        onTransactionComplete={handleTransactionComplete}
-                        onTransactionSuccess={showSuccessDialog}
-                      />
+                        </div>
+                      )}
+                    </div>
+                    {recipient.length > 0 && !isValidRecipient && (
+                      <p className="text-xs text-destructive">
+                        Invalid account name (1-12 chars, a-z, 1-5, periods)
+                      </p>
                     )}
                   </div>
-                </div>
-              </div>
-            </WalletDataProvider>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      <TransactionSuccessDialog
-        open={successOpen}
-        onOpenChange={handleSuccessClose}
-        title={successTitle}
-        description={successDescription}
-        txId={successTxId}
-      />
+                  {/* Token Select with Logos */}
+                  <div className="space-y-2">
+                    <Label>Token</Label>
+                    <Select value={selectedTokenKey} onValueChange={handleTokenChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select token">
+                          {selectedToken && (
+                            <div className="flex items-center gap-2">
+                              <TokenLogo 
+                                contract={selectedToken.contract} 
+                                symbol={selectedToken.symbol} 
+                                size="sm" 
+                              />
+                              <span className="font-medium">{selectedToken.symbol}</span>
+                              <span className="text-muted-foreground text-xs">
+                                ({balance.toFixed(selectedToken.precision)})
+                              </span>
+                            </div>
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="p-0">
+                        <div 
+                          className="p-2 sticky top-0 bg-popover border-b border-border z-10"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <Input
+                            ref={searchInputRef}
+                            placeholder="Search tokens..."
+                            value={tokenSearch}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setTokenSearch(e.target.value);
+                              requestAnimationFrame(() => {
+                                searchInputRef.current?.focus();
+                              });
+                            }}
+                            className="h-8"
+                            autoComplete="off"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                            onKeyUp={(e) => e.stopPropagation()}
+                            onKeyPress={(e) => e.stopPropagation()}
+                            onFocus={(e) => e.stopPropagation()}
+                            onBlur={(e) => {
+                              if (e.relatedTarget?.closest('[role="option"]')) {
+                                return;
+                              }
+                            }}
+                          />
+                        </div>
+                        <ScrollArea className="h-64">
+                          <div className="p-1">
+                            {isLoadingBalances ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <span className="text-sm text-muted-foreground">Loading balances...</span>
+                              </div>
+                            ) : filteredTokens.length === 0 ? (
+                              <div className="py-4 text-center text-sm text-muted-foreground">
+                                No tokens found
+                              </div>
+                            ) : (
+                              filteredTokens.map((token) => (
+                                <SelectItem 
+                                  key={`${token.contract}-${token.symbol}`} 
+                                  value={`${token.contract}-${token.symbol}`}
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <TokenLogo 
+                                      contract={token.contract} 
+                                      symbol={token.symbol} 
+                                      size="sm" 
+                                    />
+                                    <span className="font-medium">{token.symbol}</span>
+                                    <span className="text-muted-foreground text-xs">({token.contract})</span>
+                                    <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                      {token.balance.toFixed(token.precision)}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="amount">Amount</Label>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        Balance: 
+                        {selectedToken && (
+                          <>
+                            <TokenLogo 
+                              contract={selectedToken.contract} 
+                              symbol={selectedToken.symbol} 
+                              size="sm" 
+                              className="h-3 w-3"
+                            />
+                            {balance.toFixed(selectedToken.precision)} {selectedToken.symbol}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        id="amount"
+                        type="number"
+                        placeholder="0.00"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        min={0}
+                        step={selectedToken ? Math.pow(10, -selectedToken.precision) : 0.01}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleMaxClick}
+                        className="shrink-0"
+                      >
+                        Max
+                      </Button>
+                    </div>
+                    {parsedAmount > balance && (
+                      <p className="text-xs text-destructive">Insufficient balance</p>
+                    )}
+                  </div>
+
+                  {/* Memo */}
+                  <div className="space-y-2">
+                    <Label htmlFor="memo">Memo (optional)</Label>
+                    <Input
+                      id="memo"
+                      placeholder="Enter memo"
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Send Button */}
+                  <Button
+                    onClick={handleSend}
+                    disabled={!canSend}
+                    className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
+                  >
+                    {isSending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send {selectedToken?.symbol || 'Tokens'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Stake CPU/NET Section */}
+              {/* Send NFTs Section */}
+              {activeSection === 'send-nfts' && (
+                <NFTSendManager onTransactionSuccess={showSuccessDialog} />
+              )}
+
+              {/* Stake CPU/NET Section */}
+              {activeSection === 'stake' && (
+                <StakeManager 
+                  resources={resources} 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Rent CPU/NET Section */}
+              {activeSection === 'rent' && (
+                <RentResourcesManager 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Trade RAM Section */}
+              {activeSection === 'ram' && (
+                <RamManager 
+                  resources={resources} 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Vote Section */}
+              {activeSection === 'vote' && (
+                <VoteManager 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Vote Rewards Section */}
+              {activeSection === 'rewards' && (
+                <VoteRewardsManager 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <TransactionSuccessDialog
+      open={successOpen}
+      onOpenChange={handleSuccessClose}
+      title={successTitle}
+      description={successDescription}
+      txId={successTxId}
+    />
     </>
   );
 }

@@ -332,12 +332,28 @@ export interface GlobalState {
 
 /**
  * Fetch global state for vote reward calculation
- * Uses 'global' table directly (global4 doesn't exist on WAX)
  */
 export async function fetchGlobalState(
   timeout: number = 8000
 ): Promise<GlobalState | null> {
   try {
+    // Try global4 first
+    const data = await fetchTableRows<GlobalState>({
+      code: 'eosio',
+      scope: 'eosio',
+      table: 'global4',
+      limit: 1,
+    }, timeout);
+    
+    if (data.rows && data.rows.length > 0) {
+      return data.rows[0];
+    }
+  } catch (e) {
+    console.log('[GlobalState] global4 failed, trying global...');
+  }
+
+  try {
+    // Fallback to global table
     const data = await fetchTableRows<GlobalState>({
       code: 'eosio',
       scope: 'eosio',
@@ -349,7 +365,7 @@ export async function fetchGlobalState(
       return data.rows[0];
     }
   } catch (e) {
-    console.log('[GlobalState] Failed to fetch global state:', e);
+    console.log('[GlobalState] global fetch also failed');
   }
 
   return null;

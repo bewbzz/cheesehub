@@ -136,15 +136,15 @@ export function WalletDataProvider({ children }: WalletDataProviderProps) {
     }
   }, [accountName]);
 
-  // Fetch data when account changes - only trigger on accountName change
+  // Fetch data when account changes
   useEffect(() => {
-    if (accountName && !isInitialized) {
+    if (accountName) {
       fetchData();
-    } else if (!accountName) {
+    } else {
       setAccountData(null);
       setIsInitialized(false);
     }
-  }, [accountName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accountName, fetchData]);
 
   const value: WalletDataContextType = {
     accountData,

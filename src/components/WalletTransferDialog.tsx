@@ -63,6 +63,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [isSending, setIsSending] = useState(false);
   const [resources, setResources] = useState<AccountResources | null>(null);
   const [resourcesKey, setResourcesKey] = useState(0);
+  const [tokenSearch, setTokenSearch] = useState('');
   
   // Success dialog state
   const [successOpen, setSuccessOpen] = useState(false);
@@ -71,6 +72,15 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [successTxId, setSuccessTxId] = useState<string | null>(null);
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
+
+  const filteredTokens = useMemo(() => {
+    if (!tokenSearch.trim()) return tokens;
+    const search = tokenSearch.toLowerCase();
+    return tokens.filter(t => 
+      t.symbol.toLowerCase().includes(search) || 
+      t.contract.toLowerCase().includes(search)
+    );
+  }, [tokens, tokenSearch]);
 
   const selectedToken = useMemo(() => {
     return tokens.find(t => `${t.contract}-${t.symbol}` === selectedTokenKey) || null;
@@ -89,6 +99,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       setRecipient('');
       setAmount('');
       setMemo('');
+      setTokenSearch('');
       setActiveSection('send');
     }
   }, [open]);
@@ -262,13 +273,27 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="max-h-72">
+                        <div className="p-2 sticky top-0 bg-popover border-b border-border">
+                          <Input
+                            placeholder="Search tokens..."
+                            value={tokenSearch}
+                            onChange={(e) => setTokenSearch(e.target.value)}
+                            className="h-8"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                          />
+                        </div>
                         {isLoadingBalances ? (
                           <div className="flex items-center justify-center py-4">
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             <span className="text-sm text-muted-foreground">Loading balances...</span>
                           </div>
+                        ) : filteredTokens.length === 0 ? (
+                          <div className="py-4 text-center text-sm text-muted-foreground">
+                            No tokens found
+                          </div>
                         ) : (
-                          tokens.map((token) => (
+                          filteredTokens.map((token) => (
                             <SelectItem 
                               key={`${token.contract}-${token.symbol}`} 
                               value={`${token.contract}-${token.symbol}`}

@@ -6,8 +6,8 @@ export function useCheeseTVL(waxUsdPrice: number | undefined) {
     queryKey: ['cheese-tvl', waxUsdPrice],
     queryFn: () => fetchCheeseTotalTVL(waxUsdPrice || 0),
     enabled: !!waxUsdPrice && waxUsdPrice > 0,
-    staleTime: 60 * 60 * 1000, // 1 hour
-    refetchInterval: 60 * 60 * 1000, // Refresh every hour
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    refetchInterval: 15 * 60 * 1000, // Refresh every 15 minutes
     retry: 2,
   });
 }

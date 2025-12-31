@@ -5,31 +5,23 @@ import { CartDrawer } from "@/components/drops/CartDrawer";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllDrops, fetchNFTHiveDrops, fetchCheeseDropStats } from "@/services/atomicApi";
+import { fetchAllDrops, fetchCheeseDropStats } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import type { NFTDrop } from "@/types/drop";
 import { Package, Plus, Grid, Sandwich, RefreshCw } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const Drops = () => {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch all drops for Browse tab
+  // Fetch all drops (includes cheesenftwax drops already)
   const { data: drops, isLoading, error } = useQuery({
     queryKey: ['drops'],
     queryFn: fetchAllDrops,
-    staleTime: 1000 * 60 * 2,
-    refetchInterval: 1000 * 60 * 5,
-  });
-
-  // Fetch cheesenftwax drops directly for CHEESE tab
-  const { data: cheeseDrops = [], isLoading: isLoadingCheese } = useQuery({
-    queryKey: ['cheese-drops', CHEESE_CONFIG.collectionName],
-    queryFn: () => fetchNFTHiveDrops(CHEESE_CONFIG.collectionName),
     staleTime: 1000 * 60 * 2,
     refetchInterval: 1000 * 60 * 5,
   });
@@ -44,11 +36,15 @@ const Drops = () => {
 
   const displayDrops: NFTDrop[] = drops || [];
 
+  // Filter CHEESE drops from the already-fetched drops data (no extra API call)
+  const cheeseDrops = useMemo(() => {
+    return displayDrops.filter(drop => drop.collectionName === CHEESE_CONFIG.collectionName);
+  }, [displayDrops]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['drops'] }),
-      queryClient.invalidateQueries({ queryKey: ['cheese-drops'] }),
       queryClient.invalidateQueries({ queryKey: ['cheese-drop-stats'] }),
     ]);
     setIsRefreshing(false);
@@ -83,7 +79,7 @@ const Drops = () => {
               variant="outline"
               size="icon"
               onClick={handleRefresh}
-              disabled={isRefreshing || isLoading || isLoadingCheese}
+              disabled={isRefreshing || isLoading}
               className="shrink-0"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -148,7 +144,7 @@ const Drops = () => {
               <p className="text-muted-foreground mt-2">Drops purchasable with $CHEESE token</p>
             </div>
 
-            {isLoadingCheese ? (
+            {isLoading ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">

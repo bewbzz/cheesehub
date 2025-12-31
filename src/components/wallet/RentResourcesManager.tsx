@@ -399,9 +399,6 @@ export function RentResourcesManager({
         )}
       </Button>
 
-      <p className="text-center text-xs text-muted-foreground">
-        Resources are rented for 24 hours from the PowerUp pool
-      </p>
     </div>
   );
 }

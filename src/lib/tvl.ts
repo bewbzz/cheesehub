@@ -151,10 +151,16 @@ export async function fetchNeftyCheeseTVL(waxUsdPrice: number): Promise<number> 
       limit: 500,
     });
     
-    // Filter for CHEESE pools
-    const cheesePools = response.rows.filter(pool =>
-      pool.pool1.contract === CHEESE_CONTRACT || pool.pool2.contract === CHEESE_CONTRACT
-    );
+    // Filter for CHEESE pools - check contract, pool code, or quantity symbol
+    const cheesePools = response.rows.filter(pool => {
+      const pool1Qty = parseQuantity(pool.pool1.quantity);
+      const pool2Qty = parseQuantity(pool.pool2.quantity);
+      return pool.pool1.contract === CHEESE_CONTRACT || 
+             pool.pool2.contract === CHEESE_CONTRACT ||
+             pool.code === 'WAXCHE' ||
+             pool1Qty.symbol === CHEESE_SYMBOL ||
+             pool2Qty.symbol === CHEESE_SYMBOL;
+    });
     
     let totalTVL = 0;
     

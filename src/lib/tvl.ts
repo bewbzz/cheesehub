@@ -10,6 +10,16 @@ interface AlcorPool {
   tvlUSD: number;
 }
 
+interface AlcorTicker {
+  ticker_id: string;
+  base_currency: string;
+  target_currency: string;
+  bid: number;
+  ask: number;
+  base_volume: number;
+  target_volume: number;
+}
+
 interface DefiboxPair {
   id: number;
   token0: { contract: string; symbol: string };
@@ -28,7 +38,8 @@ interface TacoPair {
 }
 
 export interface TVLData {
-  alcor: number;
+  alcorSwap: number;
+  alcorSpot: number;
   defibox: number;
   taco: number;
   nefty: number;
@@ -44,7 +55,7 @@ function parseQuantity(quantity: string): { amount: number; symbol: string } {
   };
 }
 
-export async function fetchAlcorCheeseTVL(): Promise<number> {
+export async function fetchAlcorSwapCheeseTVL(): Promise<number> {
   try {
     const response = await fetch('https://wax.alcor.exchange/api/v2/swap/pools');
     if (!response.ok) throw new Error('Failed to fetch Alcor pools');
@@ -60,7 +71,38 @@ export async function fetchAlcorCheeseTVL(): Promise<number> {
     // Sum up TVL from all CHEESE pools
     return cheesePools.reduce((sum, pool) => sum + (pool.tvlUSD || 0), 0);
   } catch (error) {
-    console.warn('Failed to fetch Alcor CHEESE TVL:', error);
+    console.warn('Failed to fetch Alcor Swap CHEESE TVL:', error);
+    return 0;
+  }
+}
+
+export async function fetchAlcorSpotCheeseTVL(waxUsdPrice: number): Promise<number> {
+  try {
+    // Fetch CHEESE spot orderbook markets
+    const response = await fetch('https://wax.alcor.exchange/api/v2/tickers');
+    if (!response.ok) throw new Error('Failed to fetch Alcor tickers');
+    
+    const tickers: AlcorTicker[] = await response.json();
+    
+    // Filter for CHEESE markets
+    const cheeseMarkets = tickers.filter(ticker => 
+      ticker.base_currency === 'cheese-cheeseburger' || 
+      ticker.target_currency === 'cheese-cheeseburger'
+    );
+    
+    // Sum up the target volume (WAX side) from spot orderbooks
+    // The volume represents liquidity in open orders
+    let totalSpotTVL = 0;
+    for (const market of cheeseMarkets) {
+      // target_volume is typically in WAX, multiply by USD price
+      if (market.target_currency === 'wax-eosio.token') {
+        totalSpotTVL += (market.target_volume || 0) * waxUsdPrice;
+      }
+    }
+    
+    return totalSpotTVL;
+  } catch (error) {
+    console.warn('Failed to fetch Alcor Spot CHEESE TVL:', error);
     return 0;
   }
 }
@@ -164,18 +206,20 @@ export async function fetchNeftyCheeseTVL(cheeseUsdPrice: number): Promise<numbe
 }
 
 export async function fetchCheeseTotalTVL(waxUsdPrice: number, cheeseUsdPrice: number): Promise<TVLData> {
-  const [alcor, defibox, taco, nefty] = await Promise.all([
-    fetchAlcorCheeseTVL(),
+  const [alcorSwap, alcorSpot, defibox, taco, nefty] = await Promise.all([
+    fetchAlcorSwapCheeseTVL(),
+    fetchAlcorSpotCheeseTVL(waxUsdPrice),
     fetchDefiboxCheeseTVL(waxUsdPrice),
     fetchTacoCheeseTVL(waxUsdPrice),
     fetchNeftyCheeseTVL(cheeseUsdPrice),
   ]);
   
-  const totalUSD = alcor + defibox + taco + nefty;
+  const totalUSD = alcorSwap + alcorSpot + defibox + taco + nefty;
   const totalWAX = waxUsdPrice > 0 ? totalUSD / waxUsdPrice : 0;
   
   return {
-    alcor,
+    alcorSwap,
+    alcorSpot,
     defibox,
     taco,
     nefty,

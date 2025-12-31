@@ -2,7 +2,7 @@ import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExternalLink, Lock } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
 
 function formatPrice(price: number, decimals: number = 8): string {
@@ -119,7 +119,7 @@ export function CheesePriceBar() {
 
       {/* TVL */}
       <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
-        <Lock className="w-5 h-5 text-cheese" />
+        <span className="text-lg">💰</span>
         <div className="flex flex-col">
           <span className="text-xs text-muted-foreground">TVL (All DEXs)</span>
           {tvlLoading || !tvlData ? (

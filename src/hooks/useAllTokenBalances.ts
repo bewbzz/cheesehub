@@ -16,14 +16,10 @@ WAX_TOKENS.forEach(token => {
 // LP token contracts
 const LP_TOKEN_CONTRACTS = ['lptoken.box', 'swap.taco'];
 
-// Critical tokens that must always be checked via fallback if missing
+// Critical tokens that must always be checked via fallback if missing from Hyperion
+// Only CHEESE is critical - WAX and other tokens are reliably returned by Hyperion
 const CRITICAL_TOKENS = [
   { symbol: 'CHEESE', contract: 'cheeseburger', precision: 4, displayName: 'CHEESE' },
-  { symbol: 'WAX', contract: 'eosio.token', precision: 8, displayName: 'WAX' },
-  { symbol: 'WAXWBTC', contract: 'eth.token', precision: 8, displayName: 'WAXWBTC' },
-  { symbol: 'WAXWETH', contract: 'eth.token', precision: 8, displayName: 'WAXWETH' },
-  { symbol: 'WAXUSDC', contract: 'eth.token', precision: 6, displayName: 'WAXUSDC' },
-  { symbol: 'WAXUSDT', contract: 'eth.token', precision: 6, displayName: 'WAXUSDT' },
 ];
 
 function isLpToken(contract: string): boolean {

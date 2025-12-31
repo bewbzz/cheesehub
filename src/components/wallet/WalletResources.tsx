@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useWax } from '@/context/WaxContext';
+import { waxRpcCall } from '@/lib/waxRpcFallback';
 import { RefreshCw } from 'lucide-react';
 
 export interface AccountResources {
@@ -41,12 +42,10 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
     if (!accountName) return;
     setIsLoading(true);
     try {
-      const response = await fetch('https://wax.eosphere.io/v1/chain/get_account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_name: accountName }),
-      });
-      const data = await response.json();
+      const data = await waxRpcCall<AccountResources & Record<string, unknown>>(
+        '/v1/chain/get_account',
+        { account_name: accountName }
+      );
       const newResources = {
         ram_quota: data.ram_quota || 0,
         ram_usage: data.ram_usage || 0,

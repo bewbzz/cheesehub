@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
-import { useRentBalances } from '@/hooks/useRentBalances';
+import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { usePowerupEstimate, fetchPowerupState, findFracForWax, parsePriceWax } from '@/hooks/usePowerupEstimate';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
@@ -15,6 +15,8 @@ import waxLogo from '@/assets/wax-token.png';
 interface RentResourcesManagerProps {
   onTransactionComplete?: () => void;
   onTransactionSuccess?: (title: string, description: string, txId: string | null) => void;
+  tokenBalances?: { cheese: number; wax: number };
+  onRefetchBalances?: () => void;
 }
 
 function isValidWaxAccount(account: string): boolean {
@@ -30,10 +32,14 @@ const formatBytes = (bytes: number) => {
 
 export function RentResourcesManager({ 
   onTransactionComplete,
-  onTransactionSuccess 
+  onTransactionSuccess,
+  tokenBalances,
+  onRefetchBalances
 }: RentResourcesManagerProps) {
   const { accountName, session } = useWax();
-  const { balances, refetch: refetchBalances } = useRentBalances(accountName);
+  
+  // Use passed balances if available, otherwise fetch directly (fallback)
+  const { tokens, refetch: refetchTokens } = useAllTokenBalances(tokenBalances ? null : accountName);
   
   const [paymentMode, setPaymentMode] = useState<'cheese' | 'wax'>('cheese');
   const [recipient, setRecipient] = useState(accountName || '');
@@ -41,9 +47,9 @@ export function RentResourcesManager({
   const [netAmount, setNetAmount] = useState('');
   const [isTransacting, setIsTransacting] = useState(false);
 
-  // Get balances - now only fetches CHEESE and WAX
-  const cheeseBalance = balances.cheese;
-  const waxBalance = balances.wax;
+  // Get balances from props or from hook
+  const cheeseBalance = tokenBalances?.cheese ?? tokens.find(t => t.symbol === 'CHEESE')?.balance ?? 0;
+  const waxBalance = tokenBalances?.wax ?? tokens.find(t => t.symbol === 'WAX' && t.contract === 'eosio.token')?.balance ?? 0;
 
   const cpuNumeric = parseFloat(cpuAmount) || 0;
   const netNumeric = parseFloat(netAmount) || 0;
@@ -64,6 +70,8 @@ export function RentResourcesManager({
   const currentBalance = paymentMode === 'cheese' ? cheeseBalance : waxBalance;
   const hasEnoughBalance = totalAmount > 0 && totalAmount <= currentBalance;
   const canRent = isValidRecipient && hasEnoughBalance && !isTransacting && session;
+  
+  const handleRefetchBalances = onRefetchBalances ?? refetchTokens;
 
   const handleRent = async () => {
     if (!session || !canRent) return;
@@ -164,7 +172,7 @@ export function RentResourcesManager({
       // Reset form
       setCpuAmount('');
       setNetAmount('');
-      refetchBalances();
+      handleRefetchBalances();
       onTransactionComplete?.();
 
     } catch (error) {

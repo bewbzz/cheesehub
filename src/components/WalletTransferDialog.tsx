@@ -182,7 +182,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
         </DialogHeader>
         
-        <div className="flex gap-4 h-[500px]">
+        <div className="flex gap-4 h-[550px]">
           {/* Left Sidebar Menu */}
           <div className="w-40 shrink-0 border-r border-border pr-4 space-y-1">
             {menuItems.map((item) => (

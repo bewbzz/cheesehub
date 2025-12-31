@@ -72,6 +72,7 @@ export async function fetchTableRows<T = Record<string, unknown>>(
 
 /**
  * Generic WAX RPC call with fallback
+ * For get_currency_balance, a 400 error means the contract doesn't exist - return empty array
  */
 export async function waxRpcCall<T = unknown>(
   path: string,
@@ -96,6 +97,12 @@ export async function waxRpcCall<T = unknown>(
 
       if (response.ok) {
         return (await response.json()) as T;
+      }
+
+      // For get_currency_balance, 400/500 with account_query_exception means contract doesn't exist
+      // Return empty array instead of retrying - this is a valid response
+      if (path === '/v1/chain/get_currency_balance' && (response.status === 400 || response.status === 500)) {
+        return [] as T;
       }
 
       console.warn(`WAX endpoint ${baseUrl} returned ${response.status}, trying next...`);

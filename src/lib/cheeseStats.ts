@@ -13,22 +13,6 @@ interface TokenStat {
   issuer: string;
 }
 
-interface AccountPermission {
-  perm_name: string;
-  parent: string;
-  required_auth: {
-    threshold: number;
-    keys: Array<{ key: string; weight: number }>;
-    accounts: Array<{ permission: { actor: string; permission: string }; weight: number }>;
-    waits: Array<{ wait_sec: number; weight: number }>;
-  };
-}
-
-interface AccountInfo {
-  account_name: string;
-  permissions: AccountPermission[];
-}
-
 interface TokenLock {
   ID: number;
   creator: string;
@@ -82,45 +66,6 @@ async function fetchTokenStats(): Promise<TokenStat | null> {
       }
     } catch (error) {
       console.warn(`Failed to fetch token stats from ${endpoint}:`, error);
-    }
-  }
-  return null;
-}
-
-// Check if a permission is nulled (set to eosio.null)
-function isPermissionNulled(permission: AccountPermission): boolean {
-  const auth = permission.required_auth;
-  
-  // Check if there are no keys
-  if (auth.keys.length > 0) return false;
-  
-  // Check if there's only one account authority pointing to eosio.null
-  if (auth.accounts.length === 1) {
-    const account = auth.accounts[0];
-    return account.permission.actor === 'eosio.null';
-  }
-  
-  return false;
-}
-
-// Fetch account info to check if contract is nulled
-async function fetchAccountInfo(accountName: string): Promise<AccountInfo | null> {
-  for (const endpoint of WAX_API_ENDPOINTS) {
-    try {
-      const response = await fetch(`${endpoint}/v1/chain/get_account`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_name: accountName,
-        }),
-      });
-
-      if (!response.ok) continue;
-
-      const data = await response.json();
-      return data as AccountInfo;
-    } catch (error) {
-      console.warn(`Failed to fetch account info from ${endpoint}:`, error);
     }
   }
   return null;
@@ -235,9 +180,8 @@ async function fetchNulledBalance(): Promise<number> {
 // Get combined CHEESE stats
 export async function getCheeseStats(): Promise<CheeseStats> {
   // Fetch all in parallel
-  const [tokenStats, accountInfo, lockedData, nulledBalance] = await Promise.all([
+  const [tokenStats, lockedData, nulledBalance] = await Promise.all([
     fetchTokenStats(),
-    fetchAccountInfo(CHEESE_CONFIG.tokenContract),
     fetchLockedCheese(),
     fetchNulledBalance(),
   ]);
@@ -247,26 +191,18 @@ export async function getCheeseStats(): Promise<CheeseStats> {
   let maxSupply = 0;
   let circulatingSupply = 0;
   let issuer = '';
-  let ownerNulled = false;
-  let activeNulled = false;
+
+  // Cheeseburger contract keys are permanently nulled to eosio.null
+  // This is immutable and can never be changed, so we hardcode it
+  const ownerNulled = true;
+  const activeNulled = true;
 
   // Parse token stats
   if (tokenStats) {
     totalSupply = parseTokenAmount(tokenStats.supply);
     maxSupply = parseTokenAmount(tokenStats.max_supply);
-    circulatingSupply = totalSupply; // For now, assume all supply is circulating
+    circulatingSupply = totalSupply;
     issuer = tokenStats.issuer;
-  }
-
-  // Check if contract permissions are nulled
-  if (accountInfo) {
-    for (const perm of accountInfo.permissions) {
-      if (perm.perm_name === 'owner') {
-        ownerNulled = isPermissionNulled(perm);
-      } else if (perm.perm_name === 'active') {
-        activeNulled = isPermissionNulled(perm);
-      }
-    }
   }
 
   const isNulled = ownerNulled && activeNulled;

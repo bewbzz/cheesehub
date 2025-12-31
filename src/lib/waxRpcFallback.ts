@@ -177,3 +177,31 @@ export async function fetchAllTokenBalances(
 
   throw lastError || new Error("All Hyperion endpoints failed");
 }
+
+/**
+ * Fetch a single token balance using get_currency_balance
+ * Used as fallback for critical tokens that may be missing from Hyperion
+ */
+export async function fetchSingleTokenBalance(
+  account: string,
+  contract: string,
+  symbol: string,
+  timeout: number = 5000
+): Promise<number> {
+  try {
+    const balances = await waxRpcCall<string[]>(
+      '/v1/chain/get_currency_balance',
+      { code: contract, account, symbol },
+      timeout
+    );
+    
+    if (balances && balances.length > 0) {
+      // Parse "123.45678900 CHEESE" format
+      const parts = balances[0].split(' ');
+      return parseFloat(parts[0]) || 0;
+    }
+  } catch (error) {
+    console.warn(`[Fallback] Failed to fetch ${symbol} balance:`, error);
+  }
+  return 0;
+}

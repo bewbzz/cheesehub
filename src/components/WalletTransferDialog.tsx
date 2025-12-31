@@ -280,8 +280,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                                   size="sm" 
                                 />
                                 <span className="font-medium">{token.symbol}</span>
+                                <span className="text-muted-foreground text-xs">({token.contract})</span>
                                 <span className={`text-xs ml-auto ${token.balance > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                  {token.balance.toLocaleString()}
+                                  {token.balance.toFixed(token.precision)}
                                 </span>
                               </div>
                             </SelectItem>

@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useWalletData } from '@/context/WalletDataContext';
+import { useWax } from '@/context/WaxContext';
 import { RefreshCw } from 'lucide-react';
 
 export interface AccountResources {
@@ -32,26 +33,46 @@ interface WalletResourcesProps {
 }
 
 export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
-  const { accountData, isLoading, refetch } = useWalletData();
+  const { accountName } = useWax();
+  const [resources, setResources] = useState<AccountResources | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Convert to legacy format for onResourcesUpdate callback
-  const resources: AccountResources | null = accountData ? {
-    ram_quota: accountData.ramQuota,
-    ram_usage: accountData.ramUsage,
-    cpu_limit: accountData.cpuLimit,
-    net_limit: accountData.netLimit,
-    core_liquid_balance: `${accountData.liquidBalance.toFixed(8)} WAX`,
-  } : null;
+  const fetchResources = async () => {
+    if (!accountName) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://wax.eosphere.io/v1/chain/get_account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_name: accountName }),
+      });
+      const data = await response.json();
+      const newResources = {
+        ram_quota: data.ram_quota || 0,
+        ram_usage: data.ram_usage || 0,
+        cpu_limit: data.cpu_limit || { used: 0, max: 0 },
+        net_limit: data.net_limit || { used: 0, max: 0 },
+        core_liquid_balance: data.core_liquid_balance,
+      };
+      setResources(newResources);
+      onResourcesUpdate?.(newResources);
+    } catch (error) {
+      console.error('Failed to fetch resources:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Call onResourcesUpdate when data changes
-  if (onResourcesUpdate && resources) {
-    onResourcesUpdate(resources);
-  }
+  useEffect(() => {
+    if (accountName) {
+      fetchResources();
+    }
+  }, [accountName]);
 
-  const waxBalance = accountData?.liquidBalance ?? 0;
-  const ramUsagePercent = accountData ? Math.round((accountData.ramUsage / accountData.ramQuota) * 100) : 0;
-  const cpuPercent = accountData ? Math.min(100, Math.round((accountData.cpuLimit.used / accountData.cpuLimit.max) * 100)) : 0;
-  const netPercent = accountData ? Math.min(100, Math.round((accountData.netLimit.used / accountData.netLimit.max) * 100)) : 0;
+  const waxBalance = parseWaxBalance(resources?.core_liquid_balance);
+  const ramUsagePercent = resources ? Math.round((resources.ram_usage / resources.ram_quota) * 100) : 0;
+  const cpuPercent = resources ? Math.min(100, Math.round((resources.cpu_limit.used / resources.cpu_limit.max) * 100)) : 0;
+  const netPercent = resources ? Math.min(100, Math.round((resources.net_limit.used / resources.net_limit.max) * 100)) : 0;
 
   return (
     <div className="space-y-4">
@@ -60,7 +81,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         <div className="text-sm space-y-1">
           <div>
             <span className="text-muted-foreground">Account: </span>
-            <span className="font-medium text-foreground">{accountData?.accountName}</span>
+            <span className="font-medium text-foreground">{accountName}</span>
           </div>
           <div>
             <span className="text-muted-foreground">Liquid: </span>
@@ -70,7 +91,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={refetch}
+          onClick={fetchResources}
           disabled={isLoading}
           className="h-8 w-8"
         >
@@ -79,7 +100,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
       </div>
 
       {/* Resource Circles */}
-      {accountData && (
+      {resources && (
         <div className="grid grid-cols-3 gap-3 text-center text-xs">
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -109,7 +130,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
               </span>
             </div>
             <div className="text-muted-foreground">RAM</div>
-            <div>{formatBytes(accountData.ramUsage)} / {formatBytes(accountData.ramQuota)}</div>
+            <div>{formatBytes(resources.ram_usage)} / {formatBytes(resources.ram_quota)}</div>
           </div>
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -131,7 +152,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
               </span>
             </div>
             <div className="text-muted-foreground">CPU</div>
-            <div>{formatCpu(accountData.cpuLimit.used)} / {formatCpu(accountData.cpuLimit.max)}</div>
+            <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
           </div>
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -153,7 +174,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
               </span>
             </div>
             <div className="text-muted-foreground">NET</div>
-            <div>{formatBytes(accountData.netLimit.used)} / {formatBytes(accountData.netLimit.max)}</div>
+            <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
           </div>
         </div>
       )}

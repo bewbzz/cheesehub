@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWax } from '@/context/WaxContext';
-import { WalletDataProvider } from '@/context/WalletDataContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';

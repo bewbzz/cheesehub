@@ -195,11 +195,16 @@ export async function fetchSingleTokenBalance(
       timeout
     );
     
+    console.log(`[Fallback] ${symbol}@${contract} response:`, balances);
+    
     if (balances && balances.length > 0) {
       // Parse "123.45678900 CHEESE" format
       const parts = balances[0].split(' ');
-      return parseFloat(parts[0]) || 0;
+      const amount = parseFloat(parts[0]) || 0;
+      console.log(`[Fallback] ${symbol} balance: ${amount}`);
+      return amount;
     }
+    console.log(`[Fallback] ${symbol} returned empty array`);
   } catch (error) {
     console.warn(`[Fallback] Failed to fetch ${symbol} balance:`, error);
   }

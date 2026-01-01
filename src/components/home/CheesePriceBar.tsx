@@ -42,6 +42,7 @@ function formatWaxValue(value: number): string {
 
 export function CheesePriceBar() {
   const [swapOpen, setSwapOpen] = useState(false);
+  const [swapInputToken, setSwapInputToken] = useState<'WAX' | 'WAXUSDC'>('WAX');
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
   
@@ -64,12 +65,12 @@ export function CheesePriceBar() {
 
   return (
     <>
-      <CheeseSwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
+      <CheeseSwapDialog open={swapOpen} onOpenChange={setSwapOpen} inputToken={swapInputToken} />
       
       <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
         {/* CHEESE/WAX Price - Click to open swap */}
         <button
-          onClick={() => setSwapOpen(true)}
+          onClick={() => { setSwapInputToken('WAX'); setSwapOpen(true); }}
           className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
         >
           <img src={waxToken} alt="WAX" className="w-6 h-6 rounded-full" />
@@ -88,7 +89,7 @@ export function CheesePriceBar() {
 
         {/* CHEESE/USD Price - Click to open swap */}
         <button
-          onClick={() => setSwapOpen(true)}
+          onClick={() => { setSwapInputToken('WAXUSDC'); setSwapOpen(true); }}
           className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
         >
           <span className="text-lg font-bold text-green-500">$</span>

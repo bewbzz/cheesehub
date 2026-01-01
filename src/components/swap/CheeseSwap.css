@@ -1,0 +1,87 @@
+/* CHEESE-themed WaxOnEdge Swap Widget Styling */
+.cheese-swap-dialog {
+  --waxonedge-bg: hsl(var(--background));
+  --waxonedge-bg-secondary: hsl(var(--card));
+  --waxonedge-highlight: hsl(var(--cheese));
+  --waxonedge-success: hsl(142 76% 36%);
+  --waxonedge-error: hsl(0 84% 60%);
+  --waxonedge-color: hsl(var(--foreground));
+  --waxonedge-color-secondary: hsl(var(--muted-foreground));
+  --waxonedge-border: hsl(var(--border));
+  --waxonedge-shadow: hsla(var(--cheese) / 0.15);
+  --waxonedge-radius: 0.75rem;
+}
+
+.cheese-swap-container {
+  min-height: 400px;
+}
+
+/* Override internal widget styles */
+.cheese-swap-container waxonedge-swap {
+  --primary: hsl(var(--cheese));
+  --primary-foreground: hsl(20 14.3% 4.1%);
+}
+
+/* Button styling overrides */
+.cheese-swap-container waxonedge-swap::part(button) {
+  background: linear-gradient(135deg, hsl(var(--cheese)), hsl(var(--cheese-dark)));
+  color: hsl(20 14.3% 4.1%);
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.cheese-swap-container waxonedge-swap::part(button):hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 20px hsla(var(--cheese) / 0.4);
+}
+
+/* Input styling */
+.cheese-swap-container waxonedge-swap::part(input) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+.cheese-swap-container waxonedge-swap::part(input):focus {
+  border-color: hsl(var(--cheese));
+  box-shadow: 0 0 0 2px hsla(var(--cheese) / 0.2);
+}
+
+/* Token selector styling */
+.cheese-swap-container waxonedge-swap::part(token-selector) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+}
+
+.cheese-swap-container waxonedge-swap::part(token-selector):hover {
+  border-color: hsl(var(--cheese) / 0.5);
+}
+
+/* Swap container card */
+.cheese-swap-container waxonedge-swap::part(swap-container) {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+
+/* Route info styling */
+.cheese-swap-container waxonedge-swap::part(route-info) {
+  background: hsla(var(--cheese) / 0.1);
+  border: 1px solid hsla(var(--cheese) / 0.2);
+  border-radius: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+/* Swap arrow button */
+.cheese-swap-container waxonedge-swap::part(swap-arrow) {
+  background: hsl(var(--cheese));
+  color: hsl(20 14.3% 4.1%);
+  border-radius: 50%;
+}
+
+.cheese-swap-container waxonedge-swap::part(swap-arrow):hover {
+  background: hsl(var(--cheese-dark));
+}

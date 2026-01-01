@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
+import { CheeseSwapDialog } from '@/components/swap/CheeseSwapDialog';
 
 function formatPrice(price: number, decimals: number = 8): string {
   return price.toFixed(decimals);
@@ -39,6 +41,7 @@ function formatWaxValue(value: number): string {
 }
 
 export function CheesePriceBar() {
+  const [swapOpen, setSwapOpen] = useState(false);
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
   
@@ -60,48 +63,47 @@ export function CheesePriceBar() {
   }
 
   return (
-    <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
-      {/* CHEESE/WAX Price */}
-      <a
-        href="https://alcor.exchange/swap?output=CHEESE-cheeseburger"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
-      >
-        <img src={waxToken} alt="WAX" className="w-6 h-6 rounded-full" />
-        <div className="flex flex-col">
-          <span className="text-xs text-muted-foreground">CHEESE/WAX</span>
-          {isLoading ? (
-            <Skeleton className="h-5 w-24" />
-          ) : (
-            <span className="font-semibold text-foreground">
-              {formatPrice(priceData?.waxPrice ?? 0, 4)} WAX
-            </span>
-          )}
-        </div>
-        <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </a>
+    <>
+      <CheeseSwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
+      
+      <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
+        {/* CHEESE/WAX Price - Click to open swap */}
+        <button
+          onClick={() => setSwapOpen(true)}
+          className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
+        >
+          <img src={waxToken} alt="WAX" className="w-6 h-6 rounded-full" />
+          <div className="flex flex-col items-start">
+            <span className="text-xs text-muted-foreground">CHEESE/WAX</span>
+            {isLoading ? (
+              <Skeleton className="h-5 w-24" />
+            ) : (
+              <span className="font-semibold text-foreground">
+                {formatPrice(priceData?.waxPrice ?? 0, 4)} WAX
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-cheese opacity-0 group-hover:opacity-100 transition-opacity">Trade</span>
+        </button>
 
-      {/* CHEESE/USD Price */}
-      <a
-        href="https://wax.alcor.exchange/swap?output=WAXUSDC-eth.token"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 transition-colors group"
-      >
-        <span className="text-lg font-bold text-green-500">$</span>
-        <div className="flex flex-col">
-          <span className="text-xs text-muted-foreground">CHEESE/USD</span>
-          {isLoading ? (
-            <Skeleton className="h-5 w-20" />
-          ) : (
-            <span className="font-semibold text-foreground">
-              ${formatUsdPrice(priceData?.usdPrice ?? 0)}
-            </span>
-          )}
-        </div>
-        <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-      </a>
+        {/* CHEESE/USD Price - Click to open swap */}
+        <button
+          onClick={() => setSwapOpen(true)}
+          className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
+        >
+          <span className="text-lg font-bold text-green-500">$</span>
+          <div className="flex flex-col items-start">
+            <span className="text-xs text-muted-foreground">CHEESE/USD</span>
+            {isLoading ? (
+              <Skeleton className="h-5 w-20" />
+            ) : (
+              <span className="font-semibold text-foreground">
+                ${formatUsdPrice(priceData?.usdPrice ?? 0)}
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-cheese opacity-0 group-hover:opacity-100 transition-opacity">Trade</span>
+        </button>
 
       {/* Market Cap */}
       <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
@@ -146,5 +148,6 @@ export function CheesePriceBar() {
         </button>
       </div>
     </div>
+    </>
   );
 }

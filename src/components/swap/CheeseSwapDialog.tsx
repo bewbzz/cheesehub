@@ -10,9 +10,12 @@ import { useWax } from '@/context/WaxContext';
 import '@waxonedge/swap';
 import './CheeseSwap.css';
 
+type InputToken = 'WAX' | 'WAXUSDC';
+
 interface CheeseSwapDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  inputToken?: InputToken;
 }
 
 declare global {
@@ -27,7 +30,7 @@ declare global {
   }
 }
 
-export function CheeseSwapDialog({ open, onOpenChange }: CheeseSwapDialogProps) {
+export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: CheeseSwapDialogProps) {
   const { session, login } = useWax();
   const swapRef = useRef<HTMLElement>(null);
 
@@ -36,9 +39,13 @@ export function CheeseSwapDialog({ open, onOpenChange }: CheeseSwapDialogProps) 
     permission: String(session.permission),
   }) : undefined;
 
-  // Set default tokens - WAX in, CHEESE out
+  // Set default tokens based on inputToken prop
+  const inputTokenConfig = inputToken === 'WAXUSDC' 
+    ? 'alclorstable_WAXUSDC' 
+    : 'eosio.token_WAX';
+  
   const defaultTokens = JSON.stringify({
-    in: 'eosio.token_WAX',
+    in: inputTokenConfig,
     out: 'cheeseburger_CHEESE'
   });
 

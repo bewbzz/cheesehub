@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -20,6 +21,7 @@ declare global {
       'waxonedge-swap': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
         wallet?: string;
         lock?: string;
+        default?: string;
       };
     }
   }
@@ -34,9 +36,10 @@ export function CheeseSwapDialog({ open, onOpenChange }: CheeseSwapDialogProps) 
     permission: String(session.permission),
   }) : undefined;
 
-  // Lock to CHEESE/WAX pair
-  const lockConfig = JSON.stringify({
-    out: 'cheese-cheeseburger'
+  // Set default tokens - WAX in, CHEESE out
+  const defaultTokens = JSON.stringify({
+    in: 'eosio.token_WAX',
+    out: 'cheeseburger_CHEESE'
   });
 
   useEffect(() => {
@@ -84,12 +87,15 @@ export function CheeseSwapDialog({ open, onOpenChange }: CheeseSwapDialogProps) 
             <span className="text-cheese">CHEESE</span>
             <span className="text-foreground">Swap</span>
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-sm">
+            Swap tokens with best rates across all WAX DEXs
+          </DialogDescription>
         </DialogHeader>
         <div className="cheese-swap-container p-4">
           <waxonedge-swap
             ref={swapRef}
             wallet={walletInfo}
-            lock={lockConfig}
+            default={defaultTokens}
           />
         </div>
       </DialogContent>

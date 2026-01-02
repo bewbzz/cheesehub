@@ -240,14 +240,8 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {/* Account Section */}
               {activeSection === 'account' && (
                 <div className="space-y-4">
-                  {/* Rent Resources at top */}
-                  <RentResourcesManager 
-                    onTransactionComplete={handleTransactionComplete}
-                    onTransactionSuccess={showSuccessDialog}
-                  />
-                  
                   {/* Token Balances */}
-                  <div className="border-t border-border pt-4">
+                  <div>
                     <h3 className="text-sm font-medium mb-3">Token Balances</h3>
                     {isLoadingBalances ? (
                       <div className="flex items-center justify-center py-4">

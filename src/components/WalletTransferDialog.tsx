@@ -156,6 +156,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       if (txId) {
         const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
         showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
+        refetch(); // Refresh token balances immediately
       }
     } finally {
       setIsSending(false);

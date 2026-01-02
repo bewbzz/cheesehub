@@ -26,7 +26,7 @@ import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
@@ -38,7 +38,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards';
+type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -46,6 +46,7 @@ function isValidWaxAccount(account: string): boolean {
 }
 
 const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'account', label: 'Account', icon: <Wallet className="h-4 w-4" /> },
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
   { id: 'send-nfts', label: 'Send NFTs', icon: <Image className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
@@ -111,7 +112,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       setAmount('');
       setMemo('');
       setTokenSearch('');
-      setActiveSection('send');
+      setActiveSection('account');
     }
   }, [open]);
 
@@ -236,6 +237,58 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
             <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
 
             <div className="mt-4">
+              {/* Account Section */}
+              {activeSection === 'account' && (
+                <div className="space-y-4">
+                  {/* Rent Resources at top */}
+                  <RentResourcesManager 
+                    onTransactionComplete={handleTransactionComplete}
+                    onTransactionSuccess={showSuccessDialog}
+                  />
+                  
+                  {/* Token Balances */}
+                  <div className="border-t border-border pt-4">
+                    <h3 className="text-sm font-medium mb-3">Token Balances</h3>
+                    {isLoadingBalances ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <span className="text-sm text-muted-foreground">Loading balances...</span>
+                      </div>
+                    ) : tokens.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No tokens found</p>
+                    ) : (
+                      <ScrollArea className="h-[300px]">
+                        <div className="space-y-2 pr-2">
+                          {tokens.map((token) => (
+                            <div 
+                              key={`${token.contract}-${token.symbol}`}
+                              className="flex items-center gap-3 p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors"
+                            >
+                              <TokenLogo 
+                                contract={token.contract} 
+                                symbol={token.symbol} 
+                                size="sm" 
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{token.symbol}</span>
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    ({token.contract})
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="font-mono text-sm">
+                                {token.balance.toFixed(token.precision)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Send Tokens Section */}
               {activeSection === 'send' && (
                 <div className="space-y-4">

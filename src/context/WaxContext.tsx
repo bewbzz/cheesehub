@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@wharfkit/session';
-import { sessionKit } from '@/lib/wharfKit';
+import { sessionKit, closeWharfkitModals } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
 
@@ -179,12 +179,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('Transfer failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Transaction Failed',
         description: error instanceof Error ? error.message : 'Failed to send CHEESE',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -227,12 +230,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('Transfer failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Transaction Failed',
         description: error instanceof Error ? error.message : 'Failed to send tokens',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -269,12 +275,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('NFT transfer failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Transfer Failed',
         description: error instanceof Error ? error.message : 'Failed to send NFTs',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -330,12 +339,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('Claim drop failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Claim Failed',
         description: error instanceof Error ? error.message : 'Failed to claim drop',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -371,12 +383,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('Join DAO failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Join Failed',
         description: error instanceof Error ? error.message : 'Failed to join DAO',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -412,12 +427,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return txId;
     } catch (error) {
       console.error('Leave DAO failed:', error);
+      closeWharfkitModals();
       toast({
         title: 'Leave Failed',
         description: error instanceof Error ? error.message : 'Failed to leave DAO',
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 

@@ -30,6 +30,7 @@ import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap } from 
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 interface WalletTransferDialogProps {
@@ -158,6 +159,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       }
     } finally {
       setIsSending(false);
+      closeWharfkitModals();
     }
   };
 
@@ -189,7 +191,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) closeWharfkitModals();
+      onOpenChange(isOpen);
+    }}>
       <DialogContent 
         className="sm:max-w-[850px] max-h-[90vh] overflow-hidden"
         onInteractOutside={(e) => e.preventDefault()}

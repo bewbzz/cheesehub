@@ -19,9 +19,10 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchUserCollections, fetchTemplateById, fetchUserAssets } from "@/services/atomicApi";
+import { fetchUserCollections, fetchTemplateById } from "@/services/atomicApi";
 import { useQuery } from "@tanstack/react-query";
 import { TokenPriceInput, PriceOption } from "./TokenPriceInput";
+import { PremintNFTPicker } from "./PremintNFTPicker";
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
@@ -61,12 +62,10 @@ export function CreateDrop() {
     tokensToBack: [],
   });
 
-  // Fetch user's NFTs for pre-mint when collection is selected
-  const { data: userAssets = [], isLoading: assetsLoading } = useQuery({
-    queryKey: ['userAssets', accountName, formData.collectionName],
-    queryFn: () => fetchUserAssets(accountName, formData.collectionName || undefined),
-    enabled: !!accountName && formData.dropType === 'premint',
-  });
+  // Handle asset selection change for premint
+  const handleAssetSelectionChange = (assetIds: string[]) => {
+    setFormData(prev => ({ ...prev, assetIds }));
+  };
 
   // Fetch template preview when templateId changes
   useEffect(() => {
@@ -498,97 +497,11 @@ export function CreateDrop() {
           {formData.dropType === 'premint' && (
             <div className="space-y-3">
               <Label>Select NFTs to Drop *</Label>
-              {!formData.collectionName ? (
-                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
-                  <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Select a collection first to see your NFTs
-                  </p>
-                </div>
-              ) : assetsLoading ? (
-                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
-                  <Loader2 className="h-8 w-8 mx-auto text-cheese animate-spin mb-2" />
-                  <p className="text-sm text-muted-foreground">Loading your NFTs...</p>
-                </div>
-              ) : userAssets.length === 0 ? (
-                <div className="p-6 border border-dashed border-border/50 rounded-lg text-center">
-                  <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No NFTs found in this collection
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">
-                      {formData.assetIds.length} of {userAssets.length} selected
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (formData.assetIds.length === userAssets.length) {
-                          setFormData(prev => ({ ...prev, assetIds: [] }));
-                        } else {
-                          setFormData(prev => ({ ...prev, assetIds: userAssets.map(a => a.asset_id) }));
-                        }
-                      }}
-                    >
-                      {formData.assetIds.length === userAssets.length ? 'Deselect All' : 'Select All'}
-                    </Button>
-                  </div>
-                  <ScrollArea className="h-64 border border-border/50 rounded-lg">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2">
-                      {userAssets.map((asset) => {
-                        const isSelected = formData.assetIds.includes(asset.asset_id);
-                        return (
-                          <button
-                            key={asset.asset_id}
-                            type="button"
-                            onClick={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                assetIds: isSelected
-                                  ? prev.assetIds.filter(id => id !== asset.asset_id)
-                                  : [...prev.assetIds, asset.asset_id],
-                              }));
-                            }}
-                            className={cn(
-                              "relative flex flex-col items-center p-2 rounded-lg border-2 transition-all",
-                              isSelected
-                                ? "border-cheese bg-cheese/10"
-                                : "border-transparent bg-muted/50 hover:border-cheese/50"
-                            )}
-                          >
-                            <div className="relative w-full aspect-square rounded overflow-hidden mb-2">
-                              <img
-                                src={asset.image}
-                                alt={asset.name}
-                                className="w-full h-full object-cover"
-                              />
-                              {isSelected && (
-                                <div className="absolute inset-0 bg-cheese/20 flex items-center justify-center">
-                                  <Check className="h-8 w-8 text-cheese" />
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs font-medium truncate w-full text-center">
-                              {asset.name}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              #{asset.mint || asset.asset_id}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                  <p className="text-xs text-muted-foreground">
-                    These NFTs will be transferred to the drop contract when you create the drop.
-                  </p>
-                </>
-              )}
+              <PremintNFTPicker
+                collectionName={formData.collectionName}
+                selectedAssetIds={formData.assetIds}
+                onSelectionChange={handleAssetSelectionChange}
+              />
             </div>
           )}
 

@@ -283,11 +283,11 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<UserNFT[]> {
   return results;
 }
 
-export function useUserNFTs(accountName: string | null) {
+export function useUserNFTs(accountName: string | null, collectionFilter?: string) {
   const [nfts, setNfts] = useState<UserNFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState<{ loaded: number; total: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
+  const [error, setError] = useState<string>("");
   const abortRef = useRef(false);
 
   const fetchNFTs = useCallback(async (skipCache = false) => {
@@ -298,8 +298,8 @@ export function useUserNFTs(accountName: string | null) {
 
     abortRef.current = false;
     setIsLoading(true);
-    setError(null);
-    setLoadingProgress(null);
+    setError("");
+    setLoadingProgress({ loaded: 0, total: 0 });
 
     try {
       // Phase 1: Check cache first for instant display
@@ -476,12 +476,19 @@ export function useUserNFTs(accountName: string | null) {
 
       console.log(`[useUserNFTs] Final NFT count: ${allNfts.length} (on-chain: ${ownedAssetIds.size})`);
       
-      // Final sort and update
-      allNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
-      setNfts(allNfts);
-      setLoadingProgress({ loaded: allNfts.length, total: ownedAssetIds.size });
+      // Filter by collection if specified
+      let finalNfts = allNfts;
+      if (collectionFilter) {
+        finalNfts = allNfts.filter(nft => nft.collection === collectionFilter);
+        console.log(`[useUserNFTs] Filtered by collection ${collectionFilter}: ${finalNfts.length} NFTs`);
+      }
       
-      // Cache the results
+      // Final sort and update
+      finalNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
+      setNfts(finalNfts);
+      setLoadingProgress({ loaded: finalNfts.length, total: collectionFilter ? finalNfts.length : ownedAssetIds.size });
+      
+      // Cache the results (always cache unfiltered data)
       setCachedNFTs(accountName, allNfts, Array.from(ownedAssetIds));
       
     } catch (err) {
@@ -489,9 +496,8 @@ export function useUserNFTs(accountName: string | null) {
       setError(err instanceof Error ? err.message : 'Failed to fetch NFTs');
     } finally {
       setIsLoading(false);
-      setLoadingProgress(null);
     }
-  }, [accountName]);
+  }, [accountName, collectionFilter]);
 
   // Cleanup on unmount or account change
   useEffect(() => {

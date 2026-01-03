@@ -105,17 +105,20 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
 
   // Calculate WAX values
   const ramWaxValue = resources && ramPrice ? (resources.ram_quota * ramPrice) : null;
-  // cpu_weight and net_weight can be strings like "10.0000 WAX" or numbers
-  const cpuStaked = resources?.cpu_weight 
-    ? (typeof resources.cpu_weight === 'string' 
-        ? parseFloat(resources.cpu_weight.replace(' WAX', '')) 
-        : Number(resources.cpu_weight) / 100000000) 
-    : 0;
-  const netStaked = resources?.net_weight 
-    ? (typeof resources.net_weight === 'string' 
-        ? parseFloat(resources.net_weight.replace(' WAX', '')) 
-        : Number(resources.net_weight) / 100000000) 
-    : 0;
+  // cpu_weight and net_weight can be strings like "10.0000 WAX" or raw numbers (divide by 10^8)
+  const parseStakedWeight = (weight: string | number | undefined): number => {
+    if (!weight) return 0;
+    if (typeof weight === 'string') {
+      if (weight.includes(' WAX')) {
+        return parseFloat(weight.replace(' WAX', ''));
+      }
+      // Raw number as string - divide by 10^8
+      return Number(weight) / 100000000;
+    }
+    return Number(weight) / 100000000;
+  };
+  const cpuStaked = parseStakedWeight(resources?.cpu_weight);
+  const netStaked = parseStakedWeight(resources?.net_weight);
 
   return (
     <div className="space-y-4">

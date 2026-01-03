@@ -10,6 +10,8 @@ export interface AccountResources {
   cpu_limit: { used: number; max: number };
   net_limit: { used: number; max: number };
   core_liquid_balance?: string;
+  cpu_weight?: string;
+  net_weight?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -36,7 +38,32 @@ interface WalletResourcesProps {
 export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
   const { accountName } = useWax();
   const [resources, setResources] = useState<AccountResources | null>(null);
+  const [ramPrice, setRamPrice] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const fetchRamPrice = async () => {
+    try {
+      const data = await waxRpcCall<{ rows: Array<{ quote: { balance: string }; base: { balance: string } }> }>(
+        '/v1/chain/get_table_rows',
+        {
+          code: 'eosio',
+          scope: 'eosio',
+          table: 'rammarket',
+          limit: 1,
+          json: true,
+        }
+      );
+      if (data.rows?.[0]) {
+        const quoteBalance = parseFloat(data.rows[0].quote.balance.replace(' WAX', ''));
+        const baseBalance = parseFloat(data.rows[0].base.balance.replace(' RAM', ''));
+        // Price per KB of RAM
+        const pricePerByte = quoteBalance / baseBalance;
+        setRamPrice(pricePerByte);
+      }
+    } catch (error) {
+      console.error('Failed to fetch RAM price:', error);
+    }
+  };
 
   const fetchResources = async () => {
     if (!accountName) return;
@@ -52,6 +79,8 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         cpu_limit: data.cpu_limit || { used: 0, max: 0 },
         net_limit: data.net_limit || { used: 0, max: 0 },
         core_liquid_balance: data.core_liquid_balance,
+        cpu_weight: data.cpu_weight as string | undefined,
+        net_weight: data.net_weight as string | undefined,
       };
       setResources(newResources);
       onResourcesUpdate?.(newResources);
@@ -65,6 +94,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
   useEffect(() => {
     if (accountName) {
       fetchResources();
+      fetchRamPrice();
     }
   }, [accountName]);
 
@@ -72,6 +102,11 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
   const ramUsagePercent = resources ? Math.round((resources.ram_usage / resources.ram_quota) * 100) : 0;
   const cpuPercent = resources ? Math.min(100, Math.round((resources.cpu_limit.used / resources.cpu_limit.max) * 100)) : 0;
   const netPercent = resources ? Math.min(100, Math.round((resources.net_limit.used / resources.net_limit.max) * 100)) : 0;
+
+  // Calculate WAX values
+  const ramWaxValue = resources && ramPrice ? (resources.ram_quota * ramPrice) : null;
+  const cpuStaked = resources?.cpu_weight ? parseFloat(resources.cpu_weight.replace(' WAX', '')) : 0;
+  const netStaked = resources?.net_weight ? parseFloat(resources.net_weight.replace(' WAX', '')) : 0;
 
   return (
     <div className="space-y-4">
@@ -130,6 +165,9 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             </div>
             <div className="text-muted-foreground">RAM</div>
             <div>{formatBytes(resources.ram_usage)} / {formatBytes(resources.ram_quota)}</div>
+            <div className="text-cheese text-[10px]">
+              {ramWaxValue !== null ? `${ramWaxValue.toFixed(4)} WAX` : '...'}
+            </div>
           </div>
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -152,6 +190,9 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             </div>
             <div className="text-muted-foreground">CPU</div>
             <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
+            <div className="text-green-500 text-[10px]">
+              {cpuStaked.toFixed(4)} WAX staked
+            </div>
           </div>
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
@@ -174,6 +215,9 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             </div>
             <div className="text-muted-foreground">NET</div>
             <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
+            <div className="text-blue-500 text-[10px]">
+              {netStaked.toFixed(4)} WAX staked
+            </div>
           </div>
         </div>
       )}

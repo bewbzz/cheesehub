@@ -24,7 +24,8 @@ import { RamManager } from '@/components/wallet/RamManager';
 import { StakeManager } from '@/components/wallet/StakeManager';
 import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
-import { WalletResources, AccountResources } from '@/components/wallet/WalletResources';
+import { WalletResources, AccountResources, StakedResourcesSection } from '@/components/wallet/WalletResources';
+import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -76,6 +77,29 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [successTxId, setSuccessTxId] = useState<string | null>(null);
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
+  const { data: waxUsdPrice = 0 } = useWaxPrice();
+
+  // Calculate total portfolio value in WAX and USD
+  const portfolioValue = useMemo(() => {
+    if (!tokens.length) return { wax: 0, usd: 0 };
+    
+    // For now, we calculate WAX value based on what we can estimate
+    // WAX tokens are 1:1, other tokens need price data
+    let totalWax = 0;
+    
+    tokens.forEach(token => {
+      if (token.symbol === 'WAX' && token.contract === 'eosio.token') {
+        totalWax += token.balance;
+      }
+      // For other tokens, we'd need their WAX price from Alcor
+      // For now, just count WAX tokens directly
+    });
+    
+    return {
+      wax: totalWax,
+      usd: totalWax * waxUsdPrice,
+    };
+  }, [tokens, waxUsdPrice]);
 
   const filteredTokens = useMemo(() => {
     if (!tokenSearch.trim()) return tokens;
@@ -240,9 +264,26 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {/* Account Section */}
               {activeSection === 'account' && (
                 <div className="space-y-4">
+                  {/* Staked Resources Section */}
+                  <StakedResourcesSection resources={resources} />
+
                   {/* Token Balances */}
                   <div>
-                    <h3 className="text-sm font-medium mb-3">Token Balances</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium">Token Balances</h3>
+                      {!isLoadingBalances && tokens.length > 0 && (
+                        <div className="text-xs text-right">
+                          <span className="text-cheese font-medium">
+                            {portfolioValue.wax.toFixed(4)} WAX
+                          </span>
+                          {waxUsdPrice > 0 && (
+                            <span className="text-muted-foreground ml-2">
+                              (${portfolioValue.usd.toFixed(2)})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {isLoadingBalances ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -251,7 +292,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                     ) : tokens.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No tokens found</p>
                     ) : (
-                      <ScrollArea className="h-[300px]">
+                      <ScrollArea className="h-[260px]">
                         <div className="space-y-2 pr-2">
                           {tokens.map((token) => (
                             <div 

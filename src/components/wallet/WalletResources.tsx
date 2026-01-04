@@ -12,6 +12,14 @@ export interface AccountResources {
   core_liquid_balance?: string;
   cpu_weight?: string;
   net_weight?: string;
+  self_delegated_bandwidth?: {
+    cpu_weight: string;
+    net_weight: string;
+  };
+  total_resources?: {
+    cpu_weight: string;
+    net_weight: string;
+  };
 }
 
 function formatBytes(bytes: number): string {
@@ -29,6 +37,18 @@ function formatCpu(us: number): string {
 function parseWaxBalance(balance: string | undefined): number {
   if (!balance) return 0;
   return parseFloat(balance.replace(' WAX', '')) || 0;
+}
+
+// Parse staked weight which can be string "10.0000 WAX" or raw number
+function parseStakedWeight(weight: string | number | undefined): number {
+  if (!weight) return 0;
+  if (typeof weight === 'string') {
+    if (weight.includes(' WAX')) {
+      return parseFloat(weight.replace(' WAX', ''));
+    }
+    return Number(weight) / 100000000;
+  }
+  return Number(weight) / 100000000;
 }
 
 interface WalletResourcesProps {
@@ -56,7 +76,6 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
       if (data.rows?.[0]) {
         const quoteBalance = parseFloat(data.rows[0].quote.balance.replace(' WAX', ''));
         const baseBalance = parseFloat(data.rows[0].base.balance.replace(' RAM', ''));
-        // Price per KB of RAM
         const pricePerByte = quoteBalance / baseBalance;
         setRamPrice(pricePerByte);
       }
@@ -81,6 +100,8 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         core_liquid_balance: data.core_liquid_balance,
         cpu_weight: data.cpu_weight as string | undefined,
         net_weight: data.net_weight as string | undefined,
+        self_delegated_bandwidth: data.self_delegated_bandwidth as AccountResources['self_delegated_bandwidth'],
+        total_resources: data.total_resources as AccountResources['total_resources'],
       };
       setResources(newResources);
       onResourcesUpdate?.(newResources);
@@ -105,20 +126,18 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
 
   // Calculate WAX values
   const ramWaxValue = resources && ramPrice ? (resources.ram_quota * ramPrice) : null;
-  // cpu_weight and net_weight can be strings like "10.0000 WAX" or raw numbers (divide by 10^8)
-  const parseStakedWeight = (weight: string | number | undefined): number => {
-    if (!weight) return 0;
-    if (typeof weight === 'string') {
-      if (weight.includes(' WAX')) {
-        return parseFloat(weight.replace(' WAX', ''));
-      }
-      // Raw number as string - divide by 10^8
-      return Number(weight) / 100000000;
-    }
-    return Number(weight) / 100000000;
-  };
-  const cpuStaked = parseStakedWeight(resources?.cpu_weight);
-  const netStaked = parseStakedWeight(resources?.net_weight);
+  
+  // Self-staked values (what YOU staked for yourself)
+  const selfCpuStaked = parseStakedWeight(resources?.self_delegated_bandwidth?.cpu_weight);
+  const selfNetStaked = parseStakedWeight(resources?.self_delegated_bandwidth?.net_weight);
+  
+  // Total resources (includes powerup and others staking for you)
+  const totalCpuWeight = parseStakedWeight(resources?.total_resources?.cpu_weight);
+  const totalNetWeight = parseStakedWeight(resources?.total_resources?.net_weight);
+  
+  // Staked by others = total - self (includes powerup allocations)
+  const cpuStakedByOthers = Math.max(0, totalCpuWeight - selfCpuStaked);
+  const netStakedByOthers = Math.max(0, totalNetWeight - selfNetStaked);
 
   return (
     <div className="space-y-4">
@@ -203,7 +222,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             <div className="text-muted-foreground">CPU</div>
             <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
             <div className="text-green-500 text-[10px]">
-              {cpuStaked.toFixed(4)} WAX staked
+              {selfCpuStaked.toFixed(4)} WAX staked
             </div>
           </div>
           <div className="space-y-1">
@@ -228,7 +247,7 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             <div className="text-muted-foreground">NET</div>
             <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
             <div className="text-blue-500 text-[10px]">
-              {netStaked.toFixed(4)} WAX staked
+              {selfNetStaked.toFixed(4)} WAX staked
             </div>
           </div>
         </div>
@@ -237,4 +256,49 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
   );
 }
 
-export { formatBytes, parseWaxBalance };
+// Extended resources component for Account section with staked details
+export function StakedResourcesSection({ resources }: { resources: AccountResources | null }) {
+  if (!resources) return null;
+
+  // Self-staked values
+  const selfCpuStaked = parseStakedWeight(resources.self_delegated_bandwidth?.cpu_weight);
+  const selfNetStaked = parseStakedWeight(resources.self_delegated_bandwidth?.net_weight);
+  
+  // Total resources (includes powerup and others staking for you)
+  const totalCpuWeight = parseStakedWeight(resources.total_resources?.cpu_weight);
+  const totalNetWeight = parseStakedWeight(resources.total_resources?.net_weight);
+  
+  // Staked by others = total - self (includes powerup allocations)
+  const cpuStakedByOthers = Math.max(0, totalCpuWeight - selfCpuStaked);
+  const netStakedByOthers = Math.max(0, totalNetWeight - selfNetStaked);
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium">Staked Resources</h3>
+      <div className="grid grid-cols-3 gap-3 text-sm">
+        {/* CPU Stake */}
+        <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+          <div className="text-muted-foreground text-xs">CPU Stake</div>
+          <div className="font-medium text-green-500">{selfCpuStaked.toFixed(4)} WAX</div>
+        </div>
+        {/* NET Stake */}
+        <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+          <div className="text-muted-foreground text-xs">NET Stake</div>
+          <div className="font-medium text-blue-500">{selfNetStaked.toFixed(4)} WAX</div>
+        </div>
+        {/* Staked by Others */}
+        <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+          <div className="text-muted-foreground text-xs">Staked by Others</div>
+          <div className="font-medium text-purple-400">
+            {(cpuStakedByOthers + netStakedByOthers).toFixed(4)} WAX
+          </div>
+          <div className="text-[10px] text-muted-foreground">
+            CPU: {cpuStakedByOthers.toFixed(2)} / NET: {netStakedByOthers.toFixed(2)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { formatBytes, parseWaxBalance, parseStakedWeight };

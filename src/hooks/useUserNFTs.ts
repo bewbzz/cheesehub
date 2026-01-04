@@ -289,13 +289,23 @@ export function useUserNFTs(accountName: string | null, collectionFilter?: strin
   const [loadingProgress, setLoadingProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
   const [error, setError] = useState<string>("");
   const abortRef = useRef(false);
+  const fetchingRef = useRef(false);
+  
+  // Stabilize collectionFilter to prevent dependency instability
+  const stableCollectionFilter = collectionFilter || '';
 
   const fetchNFTs = useCallback(async (skipCache = false) => {
+    // Prevent concurrent fetches
+    if (fetchingRef.current) {
+      console.log('[useUserNFTs] Fetch already in progress, skipping');
+      return;
+    }
     if (!accountName) {
       setNfts([]);
       return;
     }
 
+    fetchingRef.current = true;
     abortRef.current = false;
     setIsLoading(true);
     setError("");
@@ -478,15 +488,15 @@ export function useUserNFTs(accountName: string | null, collectionFilter?: strin
       
       // Filter by collection if specified
       let finalNfts = allNfts;
-      if (collectionFilter) {
-        finalNfts = allNfts.filter(nft => nft.collection === collectionFilter);
-        console.log(`[useUserNFTs] Filtered by collection ${collectionFilter}: ${finalNfts.length} NFTs`);
+      if (stableCollectionFilter) {
+        finalNfts = allNfts.filter(nft => nft.collection === stableCollectionFilter);
+        console.log(`[useUserNFTs] Filtered by collection ${stableCollectionFilter}: ${finalNfts.length} NFTs`);
       }
       
       // Final sort and update
       finalNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
       setNfts(finalNfts);
-      setLoadingProgress({ loaded: finalNfts.length, total: collectionFilter ? finalNfts.length : ownedAssetIds.size });
+      setLoadingProgress({ loaded: finalNfts.length, total: stableCollectionFilter ? finalNfts.length : ownedAssetIds.size });
       
       // Cache the results (always cache unfiltered data)
       setCachedNFTs(accountName, allNfts, Array.from(ownedAssetIds));
@@ -496,8 +506,9 @@ export function useUserNFTs(accountName: string | null, collectionFilter?: strin
       setError(err instanceof Error ? err.message : 'Failed to fetch NFTs');
     } finally {
       setIsLoading(false);
+      fetchingRef.current = false;
     }
-  }, [accountName, collectionFilter]);
+  }, [accountName, stableCollectionFilter]);
 
   // Cleanup on unmount or account change
   useEffect(() => {

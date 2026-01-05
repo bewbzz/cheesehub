@@ -26,6 +26,7 @@ import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources, StakedResourcesSection } from '@/components/wallet/WalletResources';
 import { useWaxPrice } from '@/hooks/useWaxPrice';
+import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -78,28 +79,30 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
   const { data: waxUsdPrice = 0 } = useWaxPrice();
+  const { data: cheesePrice } = useCheesePriceData();
 
   // Calculate total portfolio value in WAX and USD
   const portfolioValue = useMemo(() => {
     if (!tokens.length) return { wax: 0, usd: 0 };
     
-    // For now, we calculate WAX value based on what we can estimate
-    // WAX tokens are 1:1, other tokens need price data
     let totalWax = 0;
     
     tokens.forEach(token => {
       if (token.symbol === 'WAX' && token.contract === 'eosio.token') {
+        // WAX is 1:1
         totalWax += token.balance;
+      } else if (token.symbol === 'CHEESE' && token.contract === 'cheeseburger' && cheesePrice) {
+        // CHEESE valued via Alcor price
+        totalWax += token.balance * cheesePrice.waxPrice;
       }
-      // For other tokens, we'd need their WAX price from Alcor
-      // For now, just count WAX tokens directly
+      // Other tokens would need their own price feeds
     });
     
     return {
       wax: totalWax,
       usd: totalWax * waxUsdPrice,
     };
-  }, [tokens, waxUsdPrice]);
+  }, [tokens, waxUsdPrice, cheesePrice]);
 
   const filteredTokens = useMemo(() => {
     if (!tokenSearch.trim()) return tokens;

@@ -20,6 +20,8 @@ export interface AccountResources {
     cpu_weight: string;
     net_weight: string;
   };
+  created?: string;
+  creator?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -92,6 +94,23 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         '/v1/chain/get_account',
         { account_name: accountName }
       );
+      
+      // Fetch account creation info from Hyperion
+      let created: string | undefined;
+      let creator: string | undefined;
+      try {
+        const creationRes = await fetch(
+          `https://wax.eosusa.io/v2/history/get_creator?account=${accountName}`
+        );
+        if (creationRes.ok) {
+          const creationData = await creationRes.json();
+          created = creationData.timestamp;
+          creator = creationData.creator;
+        }
+      } catch (e) {
+        console.warn('Failed to fetch account creation info:', e);
+      }
+
       const newResources = {
         ram_quota: data.ram_quota || 0,
         ram_usage: data.ram_usage || 0,
@@ -102,6 +121,8 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
         net_weight: data.net_weight as string | undefined,
         self_delegated_bandwidth: data.self_delegated_bandwidth as AccountResources['self_delegated_bandwidth'],
         total_resources: data.total_resources as AccountResources['total_resources'],
+        created,
+        creator,
       };
       setResources(newResources);
       onResourcesUpdate?.(newResources);
@@ -255,6 +276,42 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Account details section showing creation date and creator
+export function AccountDetailsSection({ resources }: { resources: AccountResources | null }) {
+  if (!resources) return null;
+
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return 'Unknown';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium">Account Details</h3>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+          <div className="text-muted-foreground text-xs">Date Created</div>
+          <div className="font-medium">{formatDate(resources.created)}</div>
+        </div>
+        <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+          <div className="text-muted-foreground text-xs">Creator Account</div>
+          <div className="font-medium text-cheese">{resources.creator || 'Unknown'}</div>
+        </div>
+      </div>
     </div>
   );
 }

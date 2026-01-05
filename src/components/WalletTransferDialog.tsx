@@ -24,7 +24,7 @@ import { RamManager } from '@/components/wallet/RamManager';
 import { StakeManager } from '@/components/wallet/StakeManager';
 import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
-import { WalletResources, AccountResources, StakedResourcesSection } from '@/components/wallet/WalletResources';
+import { WalletResources, AccountResources, StakedResourcesSection, AccountDetailsSection } from '@/components/wallet/WalletResources';
 import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
@@ -270,6 +270,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {/* Account Section */}
               {activeSection === 'account' && (
                 <div className="space-y-4">
+                  {/* Account Details Section */}
+                  <AccountDetailsSection resources={resources} />
+                  
                   {/* Staked Resources Section */}
                   <StakedResourcesSection resources={resources} />
 

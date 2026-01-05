@@ -26,7 +26,7 @@ import { VoteManager } from '@/components/wallet/VoteManager';
 import { VoteRewardsManager } from '@/components/wallet/VoteRewardsManager';
 import { WalletResources, AccountResources, StakedResourcesSection } from '@/components/wallet/WalletResources';
 import { useWaxPrice } from '@/hooks/useWaxPrice';
-import { useCheesePriceData } from '@/hooks/useCheesePriceData';
+import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -79,7 +79,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
 
   const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
   const { data: waxUsdPrice = 0 } = useWaxPrice();
-  const { data: cheesePrice } = useCheesePriceData();
+  const { data: tokenPrices } = useAlcorTokenPrices();
 
   // Calculate total portfolio value in WAX and USD
   const portfolioValue = useMemo(() => {
@@ -91,18 +91,21 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       if (token.symbol === 'WAX' && token.contract === 'eosio.token') {
         // WAX is 1:1
         totalWax += token.balance;
-      } else if (token.symbol === 'CHEESE' && token.contract === 'cheeseburger' && cheesePrice) {
-        // CHEESE valued via Alcor price
-        totalWax += token.balance * cheesePrice.waxPrice;
+      } else if (tokenPrices) {
+        // Look up price in Alcor price map
+        const key = `${token.contract}:${token.symbol}`;
+        const priceInWax = tokenPrices.get(key);
+        if (priceInWax) {
+          totalWax += token.balance * priceInWax;
+        }
       }
-      // Other tokens would need their own price feeds
     });
     
     return {
       wax: totalWax,
       usd: totalWax * waxUsdPrice,
     };
-  }, [tokens, waxUsdPrice, cheesePrice]);
+  }, [tokens, waxUsdPrice, tokenPrices]);
 
   const filteredTokens = useMemo(() => {
     if (!tokenSearch.trim()) return tokens;

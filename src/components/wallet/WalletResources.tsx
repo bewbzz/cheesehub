@@ -167,6 +167,59 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
       {/* Resource Circles */}
       {resources && (
         <div className="grid grid-cols-3 gap-3 text-center text-xs">
+          {/* CPU */}
+          <div className="space-y-1">
+            <div className="relative w-12 h-12 mx-auto">
+              <svg className="w-12 h-12 transform -rotate-90">
+                <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeDasharray={`${cpuPercent * 1.26} 126`}
+                  className="text-green-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center font-medium text-xs">
+                {cpuPercent}%
+              </span>
+            </div>
+            <div className="text-muted-foreground">CPU</div>
+            <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
+            <div className="text-green-500 text-[10px]">
+              {selfCpuStaked.toFixed(4)} WAX staked
+            </div>
+          </div>
+          {/* NET */}
+          <div className="space-y-1">
+            <div className="relative w-12 h-12 mx-auto">
+              <svg className="w-12 h-12 transform -rotate-90">
+                <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeDasharray={`${netPercent * 1.26} 126`}
+                  className="text-blue-500"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center font-medium text-xs">
+                {netPercent}%
+              </span>
+            </div>
+            <div className="text-muted-foreground">NET</div>
+            <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
+            <div className="text-blue-500 text-[10px]">
+              {selfNetStaked.toFixed(4)} WAX staked
+            </div>
+          </div>
+          {/* RAM */}
           <div className="space-y-1">
             <div className="relative w-12 h-12 mx-auto">
               <svg className="w-12 h-12 transform -rotate-90">
@@ -198,56 +251,6 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             <div>{formatBytes(resources.ram_usage)} / {formatBytes(resources.ram_quota)}</div>
             <div className="text-cheese text-[10px]">
               {ramWaxValue !== null ? `${ramWaxValue.toFixed(4)} WAX` : '...'}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <div className="relative w-12 h-12 mx-auto">
-              <svg className="w-12 h-12 transform -rotate-90">
-                <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeDasharray={`${cpuPercent * 1.26} 126`}
-                  className="text-green-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center font-medium text-xs">
-                {cpuPercent}%
-              </span>
-            </div>
-            <div className="text-muted-foreground">CPU</div>
-            <div>{formatCpu(resources.cpu_limit.used)} / {formatCpu(resources.cpu_limit.max)}</div>
-            <div className="text-green-500 text-[10px]">
-              {selfCpuStaked.toFixed(4)} WAX staked
-            </div>
-          </div>
-          <div className="space-y-1">
-            <div className="relative w-12 h-12 mx-auto">
-              <svg className="w-12 h-12 transform -rotate-90">
-                <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeDasharray={`${netPercent * 1.26} 126`}
-                  className="text-blue-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center font-medium text-xs">
-                {netPercent}%
-              </span>
-            </div>
-            <div className="text-muted-foreground">NET</div>
-            <div>{formatBytes(resources.net_limit.used)} / {formatBytes(resources.net_limit.max)}</div>
-            <div className="text-blue-500 text-[10px]">
-              {selfNetStaked.toFixed(4)} WAX staked
             </div>
           </div>
         </div>

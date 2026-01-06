@@ -332,18 +332,42 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
             step={0.00000001}
           />
           <div className="flex gap-2">
-            {[25, 50, 75, 100].map((percent) => (
-              <Button
-                key={percent}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPercentage('cpu', percent)}
-                className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
-              >
-                {percent}%
-              </Button>
-            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('cpu', 25)}
+              className="flex-1 text-xs bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-500"
+            >
+              25%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('cpu', 50)}
+              className="flex-1 text-xs bg-blue-500/20 border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-500"
+            >
+              50%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('cpu', 75)}
+              className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
+            >
+              75%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('cpu', 100)}
+              className="flex-1 text-xs bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30 hover:border-purple-500"
+            >
+              100%
+            </Button>
           </div>
         </div>
 
@@ -359,18 +383,42 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
             step={0.00000001}
           />
           <div className="flex gap-2">
-            {[25, 50, 75, 100].map((percent) => (
-              <Button
-                key={percent}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPercentage('net', percent)}
-                className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
-              >
-                {percent}%
-              </Button>
-            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('net', 25)}
+              className="flex-1 text-xs bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-500"
+            >
+              25%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('net', 50)}
+              className="flex-1 text-xs bg-blue-500/20 border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-500"
+            >
+              50%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('net', 75)}
+              className="flex-1 text-xs bg-cheese/20 border-cheese/50 text-cheese hover:bg-cheese/30 hover:border-cheese"
+            >
+              75%
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPercentage('net', 100)}
+              className="flex-1 text-xs bg-purple-500/20 border-purple-500/50 text-purple-400 hover:bg-purple-500/30 hover:border-purple-500"
+            >
+              100%
+            </Button>
           </div>
         </div>
 

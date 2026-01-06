@@ -55,9 +55,11 @@ function parseStakedWeight(weight: string | number | undefined): number {
 
 interface WalletResourcesProps {
   onResourcesUpdate?: (resources: AccountResources | null) => void;
+  showTotalWaxBalance?: boolean;
+  waxUsdPrice?: number;
 }
 
-export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
+export function WalletResources({ onResourcesUpdate, showTotalWaxBalance, waxUsdPrice = 0 }: WalletResourcesProps) {
   const { accountName } = useWax();
   const [resources, setResources] = useState<AccountResources | null>(null);
   const [ramPrice, setRamPrice] = useState<number | null>(null);
@@ -160,6 +162,10 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
   const cpuStakedByOthers = Math.max(0, totalCpuWeight - selfCpuStaked);
   const netStakedByOthers = Math.max(0, totalNetWeight - selfNetStaked);
 
+  // Calculate Total WAX Balance (liquid + all staked)
+  const totalWaxBalance = waxBalance + selfCpuStaked + selfNetStaked;
+  const totalWaxUsd = totalWaxBalance * waxUsdPrice;
+
   return (
     <div className="space-y-4">
       {/* Account & Liquid Balance */}
@@ -174,15 +180,27 @@ export function WalletResources({ onResourcesUpdate }: WalletResourcesProps) {
             <span className="font-medium text-cheese">{waxBalance.toFixed(8)} WAX</span>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={fetchResources}
-          disabled={isLoading}
-          className="h-8 w-8"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Total WAX Balance - only on Account page */}
+          {showTotalWaxBalance && resources && (
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Total WAX Balance</div>
+              <div className="text-lg font-semibold text-cheese">{totalWaxBalance.toFixed(4)} WAX</div>
+              {waxUsdPrice > 0 && (
+                <div className="text-xs text-muted-foreground">${totalWaxUsd.toFixed(2)} USD</div>
+              )}
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={fetchResources}
+            disabled={isLoading}
+            className="h-8 w-8"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Resource Circles */}

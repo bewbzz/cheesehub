@@ -264,7 +264,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           {/* Right Content Area */}
           <div className="flex-1 overflow-y-auto pr-2 flex flex-col">
             {/* Resources display - always visible */}
-            <WalletResources key={resourcesKey} onResourcesUpdate={handleResourcesUpdate} />
+            <WalletResources 
+              key={resourcesKey} 
+              onResourcesUpdate={handleResourcesUpdate} 
+              showTotalWaxBalance={activeSection === 'account'}
+              waxUsdPrice={waxUsdPrice}
+            />
 
             <div className="mt-4">
               {/* Account Section */}

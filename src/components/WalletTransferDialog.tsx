@@ -320,10 +320,24 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium">{token.symbol}</span>
-                                  <span className="text-xs text-muted-foreground truncate">
+                                  <a 
+                                    href={`https://waxblock.io/account/${token.contract}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium hover:text-cheese hover:underline transition-colors cursor-pointer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {token.symbol}
+                                  </a>
+                                  <a 
+                                    href={`https://waxblock.io/account/${token.contract}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-muted-foreground truncate hover:text-cheese hover:underline transition-colors cursor-pointer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     ({token.contract})
-                                  </span>
+                                  </a>
                                 </div>
                               </div>
                               <span className="font-mono text-sm">

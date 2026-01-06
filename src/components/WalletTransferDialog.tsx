@@ -308,7 +308,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                     ) : (
                       <ScrollArea className="h-[260px]">
                         <div className="space-y-2 pr-2">
-                          {tokens.map((token) => (
+                          {tokens.filter(t => !(t.symbol === 'WAX' && t.contract === 'eosio.token')).map((token) => (
                             <div 
                               key={`${token.contract}-${token.symbol}`}
                               className="flex items-center gap-3 p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
-import { buildDropCreationActions, validateDropFormData, DropFormData, DropType, TokenBacking } from "@/lib/drops";
+import { buildDropCreationActions, validateDropFormData, fetchCollectionRamBalance, DropFormData, DropType, TokenBacking, RamBalance } from "@/lib/drops";
 import { toast } from "sonner";
-import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X, HardDrive } from "lucide-react";
+import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X, HardDrive, AlertTriangle } from "lucide-react";
 import { ManageRamDialog } from "./ManageRamDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -52,7 +52,7 @@ export function CreateDrop() {
     name: "",
     description: "",
     prices: [{ token: 'CHEESE', amount: 0 }],
-    maxClaimable: 100,
+    maxClaimable: 0,
     accountLimit: 1,
     startTime: new Date(),
     endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -61,6 +61,66 @@ export function CreateDrop() {
     assetIds: [],
     tokensToBack: [],
   });
+
+  // RAM balance tracking for mint-on-demand drops
+  const [ramBalance, setRamBalance] = useState<RamBalance | null>(null);
+  const [loadingRamBalance, setLoadingRamBalance] = useState(false);
+
+  // ~151 bytes per NFT for mint-on-demand (consistent with ManageRamDialog)
+  const BYTES_PER_NFT = 151;
+  const WAX_PER_KB = 0.01; // Approximate cost
+
+  // Fetch RAM balance when collection changes for mint-on-demand
+  const fetchRamBalanceForCollection = useCallback(async (collectionName: string) => {
+    if (!collectionName) {
+      setRamBalance(null);
+      return;
+    }
+    setLoadingRamBalance(true);
+    try {
+      const balance = await fetchCollectionRamBalance(collectionName);
+      setRamBalance(balance);
+    } catch (error) {
+      console.error('Failed to fetch RAM balance:', error);
+      setRamBalance(null);
+    } finally {
+      setLoadingRamBalance(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (formData.dropType === 'mint-on-demand' && formData.collectionName) {
+      fetchRamBalanceForCollection(formData.collectionName);
+    } else {
+      setRamBalance(null);
+    }
+  }, [formData.collectionName, formData.dropType, fetchRamBalanceForCollection]);
+
+  // Calculate RAM shortage for mint-on-demand drops
+  const ramShortage = (() => {
+    if (formData.dropType !== 'mint-on-demand' || formData.maxClaimable <= 0) {
+      return null;
+    }
+    
+    const requiredBytes = formData.maxClaimable * BYTES_PER_NFT;
+    const availableBytes = ramBalance?.bytes || 0;
+    
+    if (availableBytes >= requiredBytes) {
+      return null; // Sufficient RAM
+    }
+    
+    const shortageBytes = requiredBytes - availableBytes;
+    const availableNFTs = Math.floor(availableBytes / BYTES_PER_NFT);
+    const estimatedWax = (shortageBytes / 1024) * WAX_PER_KB;
+    
+    return {
+      shortageBytes,
+      availableNFTs,
+      availableBytes,
+      requiredBytes,
+      estimatedWax: estimatedWax.toFixed(2),
+    };
+  })();
 
   // Handle asset selection change for premint
   const handleAssetSelectionChange = (assetIds: string[]) => {
@@ -134,7 +194,7 @@ export function CreateDrop() {
         name: "",
         description: "",
         prices: [{ token: 'CHEESE', amount: 0 }],
-        maxClaimable: 100,
+        maxClaimable: 0,
         accountLimit: 1,
         startTime: new Date(),
         endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -143,6 +203,7 @@ export function CreateDrop() {
         assetIds: [],
         tokensToBack: [],
       });
+      setRamBalance(null);
       setTemplatePreview(null);
     } catch (error) {
       console.error("Failed to create drop:", error);
@@ -542,16 +603,46 @@ export function CreateDrop() {
               <Input
                 id="maxClaimable"
                 type="number"
-                min="1"
+                min="0"
                 placeholder="e.g. 100"
                 value={formData.dropType === 'premint' ? formData.assetIds.length : formData.maxClaimable}
                 disabled={formData.dropType === 'premint'}
-                onChange={(e) => setFormData(prev => ({ ...prev, maxClaimable: parseInt(e.target.value) || 1 }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, maxClaimable: parseInt(e.target.value) || 0 }))}
               />
               {formData.dropType === 'premint' && (
                 <p className="text-xs text-muted-foreground">
                   Auto-set based on selected NFTs
                 </p>
+              )}
+              {/* RAM Warning for Mint-on-Demand */}
+              {formData.dropType === 'mint-on-demand' && loadingRamBalance && formData.collectionName && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Checking RAM balance...
+                </div>
+              )}
+              {formData.dropType === 'mint-on-demand' && ramShortage && !loadingRamBalance && (
+                <div className="mt-2 p-3 rounded-lg border border-destructive/50 bg-destructive/10 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-destructive">
+                        Insufficient RAM allocated
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Your collection has ~{ramShortage.availableNFTs} NFTs worth of RAM ({ramShortage.availableBytes.toLocaleString()} bytes) 
+                        but you're creating a drop for {formData.maxClaimable} NFTs.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Shortfall:</span> ~{ramShortage.shortageBytes.toLocaleString()} bytes 
+                        (approximately {ramShortage.estimatedWax} WAX)
+                      </p>
+                      <p className="text-xs text-cheese font-medium mt-2">
+                        Use <span className="underline">Manage RAM</span> at the top of this page to deposit more before creating this drop.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
             

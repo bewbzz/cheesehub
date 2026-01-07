@@ -206,7 +206,7 @@ export function CreateDrop() {
                       </p>
                       <p>
                         Drops are powered by the <strong className="text-cheese">nfthivedrops</strong> smart contract 
-                        and all sales are priced in <strong className="text-cheese">CHEESE</strong> tokens.
+                        and can be priced in various tokens including <strong className="text-cheese">CHEESE</strong>, WAX, and others.
                       </p>
                     </AccordionContent>
                   </AccordionItem>

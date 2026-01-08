@@ -5,6 +5,7 @@ import { Loader2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { cn } from '@/lib/utils';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 
 const WAX_ENDPOINTS = [
   'https://wax.greymass.com',
@@ -304,13 +305,17 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim vote error:', error);
+      closeWharfkitModals();
       const errorMsg = error?.message || 'Failed to claim vote rewards';
       if (errorMsg.includes('nothing to claim')) {
         toast.error('No vote rewards available to claim');
+      } else if (errorMsg.includes('expired')) {
+        toast.error('Request expired - please try again');
       } else {
         toast.error(errorMsg);
       }
     } finally {
+      closeWharfkitModals();
       setIsTransacting(false);
     }
   };

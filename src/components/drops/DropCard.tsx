@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ShoppingCart, Coins, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -11,6 +11,30 @@ import cheeseLogo from "@/assets/cheese-logo.png";
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
 };
+
+// IPFS gateway fallbacks for image loading
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  // Extract hash from various IPFS URL formats
+  const patterns = [
+    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+)/,
+    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+)/,
+    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+)/,
+    /dweb\.link\/ipfs\/([a-zA-Z0-9]+)/,
+    /\/ipfs\/([a-zA-Z0-9]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: string } {
   const currency = drop.currency || (drop.listingPrice?.split(' ')[1]) || 'WAX';
@@ -27,7 +51,21 @@ interface DropCardProps {
 export function DropCard({ drop }: DropCardProps) {
   const { addToCart } = useCart();
   const [imageError, setImageError] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(drop.image);
+  const [gatewayIndex, setGatewayIndex] = useState(0);
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
+
+  const handleImageError = useCallback(() => {
+    // Try to extract IPFS hash and use next gateway
+    const hash = extractIpfsHash(currentImageUrl);
+    if (hash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
+      const nextIndex = gatewayIndex + 1;
+      setGatewayIndex(nextIndex);
+      setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
+    } else {
+      setImageError(true);
+    }
+  }, [currentImageUrl, gatewayIndex]);
 
   return (
     <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover-cheese-glow">
@@ -39,10 +77,10 @@ export function DropCard({ drop }: DropCardProps) {
             </div>
           ) : (
             <img
-              src={drop.image}
+              src={currentImageUrl}
               alt={drop.name}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              onError={() => setImageError(true)}
+              onError={handleImageError}
               loading="lazy"
             />
           )}

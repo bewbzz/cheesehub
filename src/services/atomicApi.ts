@@ -2,18 +2,49 @@ import { ATOMIC_API, CHEESE_CONFIG, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop } from '@/types/drop';
 
-// Use reliable IPFS gateways
-const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+// Use reliable IPFS gateways with fallbacks
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+// Get the primary IPFS gateway URL
+function getIpfsUrl(hash: string): string {
+  return `${IPFS_GATEWAYS[0]}${hash}`;
+}
 
 function getImageUrl(img: string | undefined): string {
   if (!img) return '/placeholder.svg';
-  // Handle direct URLs
-  if (img.startsWith('http')) return img;
-  // Handle IPFS hashes (both CIDv0 starting with Qm and CIDv1 starting with bafy)
-  if (img.startsWith('Qm') || img.startsWith('bafy')) {
-    return `${IPFS_GATEWAY}${img}`;
+  
+  // Handle direct URLs (http/https)
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    return img;
   }
-  // Fallback for any other format
+  
+  // Handle IPFS protocol URLs (ipfs://...)
+  if (img.startsWith('ipfs://')) {
+    const hash = img.replace('ipfs://', '');
+    return getIpfsUrl(hash);
+  }
+  
+  // Handle IPFS hashes - CIDv0 (Qm...) and CIDv1 (bafy..., bafk...)
+  if (img.startsWith('Qm') || img.startsWith('bafy') || img.startsWith('bafk')) {
+    return getIpfsUrl(img);
+  }
+  
+  // Handle paths that might be relative IPFS paths
+  if (img.startsWith('/ipfs/')) {
+    return `https://ipfs.io${img}`;
+  }
+  
+  // Fallback: assume it's an IPFS hash if it looks like one (starts with alphanumeric, 46+ chars)
+  if (/^[a-zA-Z0-9]{46,}$/.test(img)) {
+    return getIpfsUrl(img);
+  }
+  
+  // Return as-is if we can't determine the format
   return img || '/placeholder.svg';
 }
 

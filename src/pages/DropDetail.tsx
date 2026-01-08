@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -12,11 +12,33 @@ import { mockDrops } from "@/data/mockDrops";
 import { useCart } from "@/context/CartContext";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import type { NFTDrop } from "@/types/drop";
-import { Coins } from "lucide-react";
 
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
 };
+
+// IPFS gateway fallbacks for image loading
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  const patterns = [
+    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+)/,
+    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+)/,
+    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+)/,
+    /dweb\.link\/ipfs\/([a-zA-Z0-9]+)/,
+    /\/ipfs\/([a-zA-Z0-9]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: string } {
   const currency = drop.currency || (drop.listingPrice?.split(' ')[1]) || 'WAX';
@@ -30,6 +52,8 @@ const DropDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
   const [imageError, setImageError] = useState(false);
+  const [gatewayIndex, setGatewayIndex] = useState(0);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
 
   const { data: drop, isLoading } = useQuery({
     queryKey: ['drop', id],
@@ -44,6 +68,21 @@ const DropDetail = () => {
     },
     enabled: !!id,
   });
+
+  // Initialize currentImageUrl when drop loads
+  const imageUrl = currentImageUrl ?? drop?.image;
+
+  const handleImageError = useCallback(() => {
+    if (!imageUrl) return;
+    const hash = extractIpfsHash(imageUrl);
+    if (hash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
+      const nextIndex = gatewayIndex + 1;
+      setGatewayIndex(nextIndex);
+      setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
+    } else {
+      setImageError(true);
+    }
+  }, [imageUrl, gatewayIndex]);
 
   if (isLoading) {
     return (
@@ -110,10 +149,10 @@ const DropDetail = () => {
               </div>
             ) : (
               <img
-                src={drop.image}
+                src={imageUrl}
                 alt={drop.name}
                 className="max-w-full max-h-[600px] w-auto h-auto object-contain"
-                onError={() => setImageError(true)}
+                onError={handleImageError}
               />
             )}
           </div>

@@ -12,6 +12,19 @@ import { mockDrops } from "@/data/mockDrops";
 import { useCart } from "@/context/CartContext";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import type { NFTDrop } from "@/types/drop";
+import { Coins } from "lucide-react";
+
+const CURRENCY_LOGOS: Record<string, string> = {
+  CHEESE: cheeseLogo,
+};
+
+function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: string } {
+  const currency = drop.currency || (drop.listingPrice?.split(' ')[1]) || 'WAX';
+  return {
+    logo: CURRENCY_LOGOS[currency] || null,
+    symbol: currency,
+  };
+}
 
 const DropDetail = () => {
   const { id } = useParams();
@@ -90,7 +103,7 @@ const DropDetail = () => {
         </Link>
 
         <div className="grid gap-10 lg:grid-cols-2">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-border/50 bg-card/50">
+          <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 flex items-center justify-center min-h-[400px]">
             {imageError ? (
               <div className="flex h-full w-full items-center justify-center bg-muted/50">
                 <ImageOff className="h-16 w-16 text-muted-foreground/50" />
@@ -99,11 +112,10 @@ const DropDetail = () => {
               <img
                 src={drop.image}
                 alt={drop.name}
-                className="h-full w-full object-cover"
+                className="max-w-full max-h-[600px] w-auto h-auto object-contain"
                 onError={() => setImageError(true)}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
           </div>
 
           <div className="flex flex-col">
@@ -131,9 +143,16 @@ const DropDetail = () => {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Price</span>
                 <div className="flex items-center gap-2">
-                  <img src={cheeseLogo} alt="CHEESE" className="h-8 w-8" />
+                  {(() => {
+                    const { logo, symbol } = getCurrencyDisplay(drop);
+                    return logo ? (
+                      <img src={logo} alt={symbol} className="h-8 w-8" />
+                    ) : (
+                      <Coins className="h-7 w-7 text-muted-foreground" />
+                    );
+                  })()}
                   <span className="font-display text-3xl font-bold text-primary">
-                    {drop.price.toLocaleString()}
+                    {drop.price.toLocaleString()} {getCurrencyDisplay(drop).symbol}
                   </span>
                 </div>
               </div>

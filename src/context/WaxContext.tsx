@@ -101,8 +101,20 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
+  // Initial balance refresh on session change
   useEffect(() => {
     refreshBalance();
+  }, [session, refreshBalance]);
+
+  // Periodic balance refresh every 30 seconds when connected
+  useEffect(() => {
+    if (!session) return;
+    
+    const intervalId = setInterval(() => {
+      refreshBalance();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(intervalId);
   }, [session, refreshBalance]);
 
   const login = async () => {

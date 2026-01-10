@@ -89,4 +89,39 @@ export function closeWharfkitModals() {
   });
 }
 
+// Function to ensure WharfKit modals are always on top
+export function ensureModalOnTop() {
+  const wharfkitEl = document.getElementById('wharfkit-web-ui');
+  if (wharfkitEl) {
+    wharfkitEl.style.zIndex = '999999';
+    wharfkitEl.style.position = 'fixed';
+    
+    // Also check shadow DOM for the dialog
+    if (wharfkitEl.shadowRoot) {
+      const dialog = wharfkitEl.shadowRoot.querySelector('dialog');
+      if (dialog) {
+        (dialog as HTMLElement).style.zIndex = '999999';
+      }
+    }
+  }
+}
+
+// Auto-elevate WharfKit modals when they appear in the DOM
+if (typeof window !== 'undefined') {
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node instanceof HTMLElement) {
+          if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
+            node.style.zIndex = '999999';
+            node.style.position = 'fixed';
+          }
+        }
+      }
+    }
+  });
+  
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 export { webRenderer };

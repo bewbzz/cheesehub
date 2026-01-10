@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@wharfkit/session';
-import { sessionKit, closeWharfkitModals } from '@/lib/wharfKit';
+import { sessionKit, closeWharfkitModals, setLoginInProgress } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
 
@@ -119,6 +119,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
 
   const login = async () => {
     setIsLoading(true);
+    setLoginInProgress(true);
     try {
       const response = await sessionKit.login();
       setSession(response.session);
@@ -134,6 +135,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         variant: 'destructive',
       });
     } finally {
+      setLoginInProgress(false);
       setIsLoading(false);
     }
   };

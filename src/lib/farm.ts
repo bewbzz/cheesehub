@@ -430,66 +430,36 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
   };
 }
 
-// Fetch all V2 farms from the contract with pagination
+// Fetch all V2 farms from the contract
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
+    // Fetch all farms in a single request - WAX tables support large limits
+    const data = await fetchTableRows({
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: "farms",
+      limit: 500,
+    });
+
+    // Deduplicate by farm name in case of any RPC inconsistencies
     const seenFarmNames = new Set<string>();
-    const allRows: Record<string, unknown>[] = [];
-    let hasMore = true;
-    const BATCH_SIZE = 1000; // Request large batch
-    let iterations = 0;
-    const MAX_ITERATIONS = 10;
-    let lastId: number | null = null;
-
-    while (hasMore && iterations < MAX_ITERATIONS) {
-      const params: {
-        code: string;
-        scope: string;
-        table: string;
-        limit: number;
-        lower_bound?: string;
-      } = {
-        code: FARM_CONTRACT,
-        scope: FARM_CONTRACT,
-        table: "farms",
-        limit: BATCH_SIZE,
-      };
+    const uniqueRows: Record<string, unknown>[] = [];
+    
+    for (const row of (data.rows || [])) {
+      const farmRow = row as Record<string, unknown>;
+      const farmName = (farmRow.farmname || farmRow.farm_name || "") as string;
       
-      // Only set lower_bound after first iteration
-      if (lastId !== null) {
-        params.lower_bound = String(lastId + 1);
+      if (farmName && !seenFarmNames.has(farmName)) {
+        seenFarmNames.add(farmName);
+        uniqueRows.push(farmRow);
       }
-
-      const data = await fetchTableRows(params);
-
-      if (data.rows && data.rows.length > 0) {
-        for (const row of data.rows) {
-          const farmRow = row as Record<string, unknown>;
-          const farmName = (farmRow.farmname || farmRow.farm_name || "") as string;
-          const id = farmRow.id as number;
-          
-          if (farmName && !seenFarmNames.has(farmName)) {
-            seenFarmNames.add(farmName);
-            allRows.push(farmRow);
-          }
-          
-          // Track the highest ID we've seen
-          if (id !== undefined && (lastId === null || id > lastId)) {
-            lastId = id;
-          }
-        }
-      }
-
-      // Stop if no more rows or we got less than requested
-      hasMore = data.more === true && data.rows && data.rows.length > 0;
-      iterations++;
     }
 
-    console.log(`Fetched ${allRows.length} unique farms in ${iterations} iteration(s)`);
+    console.log(`Fetched ${uniqueRows.length} unique farms (raw: ${data.rows?.length || 0})`);
 
     const now = Math.floor(Date.now() / 1000);
 
-    return allRows.map((row: Record<string, unknown>, index: number) => {
+    return uniqueRows.map((row: Record<string, unknown>, index: number) => {
       // Handle actual WaxDAO V2 farm structure
       const farmName = (row.farmname || row.farm_name || `farm_${index}`) as string;
       const expiration = (row.expiration || 0) as number;

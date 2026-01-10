@@ -433,8 +433,9 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
 // Fetch all V2 farms from the contract with pagination
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
+    const seenFarmNames = new Set<string>();
     const allRows: Record<string, unknown>[] = [];
-    let lowerBound = "";
+    let lowerBound: string | undefined = undefined;
     let hasMore = true;
     const BATCH_SIZE = 100;
     let iterations = 0;
@@ -446,25 +447,36 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
         scope: FARM_CONTRACT,
         table: "farms",
         limit: BATCH_SIZE,
-        lower_bound: lowerBound || undefined,
+        lower_bound: lowerBound,
       });
 
       if (data.rows && data.rows.length > 0) {
-        // Skip the first row on subsequent iterations (it's the same as last row from previous batch)
-        const rowsToAdd = lowerBound ? data.rows.slice(1) : data.rows;
-        allRows.push(...rowsToAdd);
+        // Deduplicate by farm name
+        for (const row of data.rows) {
+          const farmRow = row as Record<string, unknown>;
+          const farmName = (farmRow.farmname || farmRow.farm_name || "") as string;
+          if (farmName && !seenFarmNames.has(farmName)) {
+            seenFarmNames.add(farmName);
+            allRows.push(farmRow);
+          }
+        }
         
-        // Get the last row's primary key for pagination
-        const lastRow = data.rows[data.rows.length - 1] as Record<string, unknown>;
-        const lastId = lastRow.id || lastRow.farmname || lastRow.farm_name;
-        lowerBound = String(lastId);
+        // Get the next_key for pagination if available, otherwise use last row's primary key
+        if (data.next_key) {
+          lowerBound = data.next_key;
+        } else {
+          const lastRow = data.rows[data.rows.length - 1] as Record<string, unknown>;
+          // Use numeric ID + 1 to avoid including the same row
+          const lastId = lastRow.id as number;
+          lowerBound = String(lastId + 1);
+        }
       }
 
-      hasMore = data.more === true && data.rows && data.rows.length === BATCH_SIZE;
+      hasMore = data.more === true && data.rows && data.rows.length > 0;
       iterations++;
     }
 
-    console.log(`Fetched ${allRows.length} farms in ${iterations} iterations`);
+    console.log(`Fetched ${allRows.length} unique farms in ${iterations} iterations`);
 
     const now = Math.floor(Date.now() / 1000);
 

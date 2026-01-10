@@ -56,13 +56,18 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
 }
 
 /**
- * @brief Provides WAX to user and burns CHEESE - must be bundled with creation action
+ * @brief Provides WAXDAO to user - must be bundled with creation action
+ * Does NOT transfer CHEESE to eosio.null - that happens in finalise
  */
-void cheesefeefee::providewax(name user, string fee_type, name entity_name) {
+void cheesefeefee::provide(name user, string fee_type, name entity_name, asset waxdao_amount) {
     require_auth(user);
     
     check(fee_type == "dao" || fee_type == "farm", 
         "Invalid fee type. Use 'dao' or 'farm'");
+    
+    // Validate WAXDAO amount
+    check(waxdao_amount.symbol == WAXDAO_SYMBOL, "Must provide WAXDAO amount");
+    check(waxdao_amount.amount > 0, "Amount must be positive");
     
     // Verify the creation action exists in the current transaction
     check(has_creation_action(fee_type, entity_name, user), 
@@ -85,23 +90,17 @@ void cheesefeefee::providewax(name user, string fee_type, name entity_name) {
                 row.used = true;
             });
             
-            // Send 250 WAX to user (they'll use it to pay the creation fee)
-            asset wax_amount = asset(WAX_FEE_AMOUNT, WAX_SYMBOL);
+            // Send WAXDAO to user (they'll use it to pay the creation fee)
             action(
                 permission_level{get_self(), "active"_n},
-                WAX_CONTRACT,
+                WAXDAO_CONTRACT,
                 "transfer"_n,
-                make_tuple(get_self(), user, wax_amount, string("WAX for ") + fee_type + " creation fee")
+                make_tuple(get_self(), user, waxdao_amount, 
+                    string("WAXDAO for ") + fee_type + " creation fee")
             ).send();
             
-            // Burn the CHEESE by sending to eosio.null
-            action(
-                permission_level{get_self(), "active"_n},
-                CHEESE_CONTRACT,
-                "transfer"_n,
-                make_tuple(get_self(), NULL_ACCOUNT, itr->cheese_paid, 
-                    string("CHEESE burned for ") + fee_type + " creation: " + entity_name.to_string())
-            ).send();
+            // NOTE: CHEESE is NOT transferred to eosio.null here
+            // That happens in the finalise action at the end of the transaction
             
             break;
         }
@@ -109,6 +108,33 @@ void cheesefeefee::providewax(name user, string fee_type, name entity_name) {
     }
     
     check(found, "No valid prepayment found. Please send CHEESE first with memo 'daofee|name' or 'farmfee|name'");
+}
+
+/**
+ * @brief Finalises the transaction by transferring CHEESE to eosio.null
+ * Called at the END of the bundled transaction after successful creation
+ */
+void cheesefeefee::finalise(name user, uint64_t prepayment_id) {
+    require_auth(user);
+    
+    prepayments_table prepayments(get_self(), get_self().value);
+    auto itr = prepayments.find(prepayment_id);
+    
+    check(itr != prepayments.end(), "Prepayment not found");
+    check(itr->user == user, "Not your prepayment");
+    check(itr->used, "Prepayment not yet used by provide action");
+    
+    // Transfer CHEESE to eosio.null
+    action(
+        permission_level{get_self(), "active"_n},
+        CHEESE_CONTRACT,
+        "transfer"_n,
+        make_tuple(get_self(), NULL_ACCOUNT, itr->cheese_paid, 
+            string("CHEESE fee payment for ") + itr->fee_type + ": " + itr->entity_name.to_string())
+    ).send();
+    
+    // Delete the prepayment record
+    prepayments.erase(itr);
 }
 
 /**
@@ -136,20 +162,20 @@ void cheesefeefee::refund(uint64_t prepayment_id) {
 }
 
 /**
- * @brief Admin action to withdraw WAX from the pool
+ * @brief Admin action to withdraw any token from the contract
  */
-void cheesefeefee::withdraw(name to, asset quantity) {
+void cheesefeefee::withdraw(name token_contract, name to, asset quantity) {
     require_auth(get_self());
     
-    check(quantity.symbol == WAX_SYMBOL, "Can only withdraw WAX");
     check(quantity.amount > 0, "Amount must be positive");
     check(is_account(to), "Invalid recipient account");
+    check(is_account(token_contract), "Invalid token contract");
     
     action(
         permission_level{get_self(), "active"_n},
-        WAX_CONTRACT,
+        token_contract,
         "transfer"_n,
-        make_tuple(get_self(), to, quantity, string("WAX pool withdrawal"))
+        make_tuple(get_self(), to, quantity, string("Admin withdrawal"))
     ).send();
 }
 

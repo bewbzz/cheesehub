@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { RefreshCw, Loader2, Coins, Info, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useCheeseFeePricing } from "@/hooks/useCheeseFeePricing";
+import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
 import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
   FeeType,
   WAX_FEE_AMOUNT,
-  fetchContractWaxBalance,
+  fetchContractWaxdaoBalance,
 } from "@/lib/cheeseFees";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
@@ -34,16 +35,17 @@ export function FeePaymentSelector({
   onCheeseAmountChange,
   disabled = false,
 }: FeePaymentSelectorProps) {
-  const pricing = useCheeseFeePricing(waxFee);
+  const cheesePricing = useCheeseFeePricing(waxFee);
+  const waxdaoPricing = useWaxdaoFeePricing();
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
 
   // Update parent with CHEESE amount when pricing changes
   useEffect(() => {
-    if (pricing.isAvailable) {
-      onCheeseAmountChange(pricing.formattedForTx);
+    if (cheesePricing.isAvailable) {
+      onCheeseAmountChange(cheesePricing.formattedForTx);
     }
-  }, [pricing.formattedForTx, pricing.isAvailable, onCheeseAmountChange]);
+  }, [cheesePricing.formattedForTx, cheesePricing.isAvailable, onCheeseAmountChange]);
 
   // Check pool balance when CHEESE is selected
   useEffect(() => {
@@ -55,7 +57,7 @@ export function FeePaymentSelector({
   async function checkPoolBalance() {
     setIsCheckingPool(true);
     try {
-      const balance = await fetchContractWaxBalance();
+      const balance = await fetchContractWaxdaoBalance();
       setPoolBalance(balance);
     } catch (error) {
       console.error("Failed to check pool balance:", error);
@@ -82,7 +84,8 @@ export function FeePaymentSelector({
     );
   }
 
-  const poolHasEnoughWax = poolBalance !== null && poolBalance >= waxFee;
+  // Check if pool has enough WAXDAO for the calculated amount
+  const poolHasEnoughWaxdao = poolBalance !== null && waxdaoPricing.isAvailable && poolBalance >= waxdaoPricing.waxdaoAmount;
 
   return (
     <TooltipProvider>
@@ -101,7 +104,7 @@ export function FeePaymentSelector({
               </Button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              <p>Pay with CHEESE at a 20% discount! You don't need WAX in your wallet - the system provides it for you.</p>
+              <p>Pay with CHEESE at a 20% discount! You don't need WAX or WAXDAO in your wallet - the system provides it for you.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -136,27 +139,27 @@ export function FeePaymentSelector({
               selectedMethod === "cheese"
                 ? "border-cheese/50 bg-cheese/10"
                 : "border-border/50 hover:bg-muted/30"
-            } ${!pricing.isAvailable ? "opacity-50" : ""}`}
-            onClick={() => !disabled && pricing.isAvailable && onMethodChange("cheese")}
+            } ${!cheesePricing.isAvailable ? "opacity-50" : ""}`}
+            onClick={() => !disabled && cheesePricing.isAvailable && onMethodChange("cheese")}
           >
             <RadioGroupItem
               value="cheese"
               id="payment-cheese"
-              disabled={disabled || !pricing.isAvailable}
+              disabled={disabled || !cheesePricing.isAvailable}
               className="mt-1"
             />
             <Label htmlFor="payment-cheese" className="flex-1 cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <img src={cheeseLogo} alt="CHEESE" className="w-5 h-5" />
-                  {pricing.isLoading ? (
+                  {cheesePricing.isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : (
-                    <span className="font-medium">{pricing.displayAmount}</span>
+                    <span className="font-medium">{cheesePricing.displayAmount}</span>
                   )}
                 </div>
                 <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
-                  {pricing.savingsDisplay}
+                  {cheesePricing.savingsDisplay}
                 </Badge>
               </div>
               
@@ -164,16 +167,16 @@ export function FeePaymentSelector({
                 <div className="mt-2 space-y-2">
                   {/* Pool status */}
                   <div className="flex items-center gap-2 text-xs">
-                    {isCheckingPool ? (
+                    {isCheckingPool || waxdaoPricing.isLoading ? (
                       <>
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <span className="text-muted-foreground">Checking pool...</span>
                       </>
-                    ) : poolBalance !== null ? (
-                      poolHasEnoughWax ? (
+                    ) : poolBalance !== null && waxdaoPricing.isAvailable ? (
+                      poolHasEnoughWaxdao ? (
                         <>
                           <CheckCircle2 className="h-3 w-3 text-green-500" />
-                          <span className="text-green-600">Pool ready ({poolBalance.toFixed(0)} WAX available)</span>
+                          <span className="text-green-600">Pool ready ({Math.floor(poolBalance).toLocaleString()} WAXDAO available)</span>
                         </>
                       ) : (
                         <>
@@ -192,7 +195,8 @@ export function FeePaymentSelector({
                     className="h-7 text-xs text-cheese hover:text-cheese/80"
                     onClick={(e) => {
                       e.stopPropagation();
-                      pricing.refetch();
+                      cheesePricing.refetch();
+                      waxdaoPricing.refetch();
                       checkPoolBalance();
                     }}
                   >
@@ -205,7 +209,7 @@ export function FeePaymentSelector({
           </div>
         </RadioGroup>
 
-        {!pricing.isAvailable && !pricing.isLoading && (
+        {!cheesePricing.isAvailable && !cheesePricing.isLoading && (
           <p className="text-xs text-amber-600">
             CHEESE price unavailable. Please use WAX payment.
           </p>

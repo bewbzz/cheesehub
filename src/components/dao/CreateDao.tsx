@@ -22,9 +22,14 @@ import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
   buildCheesePrepayAction,
-  buildProvideWaxAction,
+  buildProvideAction,
+  buildFinaliseAction,
+  buildWaxdaoFeeAction,
+  fetchUserPrepayment,
   WAX_FEE_AMOUNT,
+  WAXDAO_TOKEN_CONTRACT,
 } from "@/lib/cheeseFees";
+import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
 
 // DAO Type descriptions for the selector
 const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
@@ -59,6 +64,9 @@ export function CreateDao() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wax");
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [hasPrepaid, setHasPrepaid] = useState(false);
+  
+  // WAXDAO pricing for CHEESE payment flow
+  const waxdaoPricing = useWaxdaoFeePricing();
   
   const handleCheeseAmountChange = useCallback((amount: string) => {
     setCheeseAmount(amount);
@@ -202,10 +210,35 @@ export function CreateDao() {
           toast.success("CHEESE prepayment sent! Now creating DAO...");
         }
         
-        // TX 2: Bundled creation with providewax
-        const provideWaxAction = buildProvideWaxAction(accountName, "dao", formData.daoName);
+        // Fetch prepayment to get ID for finalise action
+        const prepayment = await fetchUserPrepayment(accountName, "dao", formData.daoName);
+        if (!prepayment) {
+          throw new Error("Prepayment not found. Please try again.");
+        }
+        
+        // TX 2: Bundled creation with WAXDAO + finalise at end
+        const provideAction = buildProvideAction(
+          accountName, 
+          "dao", 
+          formData.daoName, 
+          waxdaoPricing.formattedForTx
+        );
+        const waxdaoFeeAction = buildWaxdaoFeeAction(
+          accountName,
+          DAO_CONTRACT,
+          waxdaoPricing.formattedForTx,
+          "|dao_payment|"
+        );
+        const finaliseAction = buildFinaliseAction(accountName, prepayment.id);
+        
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const actions: any[] = [provideWaxAction, assertAction, feeAction, createAction];
+        const actions: any[] = [
+          provideAction,      // 1. Contract sends WAXDAO to user
+          waxdaoFeeAction,    // 2. User pays WAXDAO to dao.waxdao
+          assertAction,       // 3. Assert point
+          createAction,       // 4. Create DAO
+          finaliseAction,     // 5. Transfer CHEESE to eosio.null (only if all above succeed)
+        ];
         await session.transact({ actions });
       } else {
         // Standard WAX payment (unchanged)

@@ -2,7 +2,7 @@
  * CHEESE Fee Payment System
  * 
  * Enables users to pay DAO and Farm creation fees with CHEESE token
- * at a 20% discount instead of WAX.
+ * at a 20% discount instead of WAX/WAXDAO.
  * 
  * Feature is disabled by default. Set CHEESE_FEE_ENABLED = true after
  * deploying the cheesefeefee smart contract.
@@ -23,13 +23,16 @@ export const CHEESE_TOKEN_CONTRACT = "cheeseburger";
 export const CHEESE_TOKEN_SYMBOL = "CHEESE";
 export const CHEESE_TOKEN_PRECISION = 8;
 
-export const WAX_TOKEN_CONTRACT = "eosio.token";
-export const WAX_TOKEN_SYMBOL = "WAX";
-export const WAX_TOKEN_PRECISION = 8;
+export const WAXDAO_TOKEN_CONTRACT = "mdcryptonfts";
+export const WAXDAO_TOKEN_SYMBOL = "WAXDAO";
+export const WAXDAO_TOKEN_PRECISION = 8;
 
-// Creation fee amounts
-export const WAX_FEE_AMOUNT = 250; // 250 WAX
+// For reference/display
+export const WAX_EQUIVALENT_FEE = 250; // 250 WAX equivalent
 export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
+
+// Legacy export for compatibility
+export const WAX_FEE_AMOUNT = WAX_EQUIVALENT_FEE;
 
 // ============================================================================
 // Types
@@ -48,7 +51,7 @@ export interface Prepayment {
 }
 
 export interface ContractBalance {
-  wax: number;
+  waxdao: number;
   cheese: number;
 }
 
@@ -57,13 +60,13 @@ export interface ContractBalance {
 // ============================================================================
 
 /**
- * Fetch the WAX balance of the cheesefeefee contract
- * Used to check if the pool has enough WAX to process payments
+ * Fetch the WAXDAO balance of the cheesefeefee contract
+ * Used to check if the pool has enough WAXDAO to process payments
  */
-export async function fetchContractWaxBalance(): Promise<number> {
+export async function fetchContractWaxdaoBalance(): Promise<number> {
   try {
     const response = await fetchTableRows<{ balance: string }>({
-      code: WAX_TOKEN_CONTRACT,
+      code: WAXDAO_TOKEN_CONTRACT,
       scope: CHEESE_FEE_CONTRACT,
       table: "accounts",
       limit: 1,
@@ -75,13 +78,14 @@ export async function fetchContractWaxBalance(): Promise<number> {
     const amount = parseFloat(balanceStr.split(" ")[0]);
     return isNaN(amount) ? 0 : amount;
   } catch (error) {
-    console.error("Failed to fetch contract WAX balance:", error);
+    console.error("Failed to fetch contract WAXDAO balance:", error);
     return 0;
   }
 }
 
 /**
  * Fetch user's prepayment for a specific entity
+ * Returns the full prepayment including ID for the finalise action
  */
 export async function fetchUserPrepayment(
   user: string,
@@ -96,7 +100,37 @@ export async function fetchUserPrepayment(
       limit: 100,
     });
 
-    // Find matching prepayment
+    // Find matching prepayment (unused for prepay check, or used for finalise)
+    const prepayment = response.rows.find(
+      (p) =>
+        p.user === user &&
+        p.fee_type === feeType &&
+        p.entity_name === entityName
+    );
+
+    return prepayment || null;
+  } catch (error) {
+    console.error("Failed to fetch user prepayment:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch user's unused prepayment (for checking if prepay is needed)
+ */
+export async function fetchUnusedPrepayment(
+  user: string,
+  feeType: FeeType,
+  entityName: string
+): Promise<Prepayment | null> {
+  try {
+    const response = await fetchTableRows<Prepayment>({
+      code: CHEESE_FEE_CONTRACT,
+      scope: CHEESE_FEE_CONTRACT,
+      table: "prepayments",
+      limit: 100,
+    });
+
     const prepayment = response.rows.find(
       (p) =>
         p.user === user &&
@@ -141,22 +175,65 @@ export function buildCheesePrepayAction(
 }
 
 /**
- * Build action to request WAX from the contract
+ * Build action to request WAXDAO from the contract
  * This must be bundled with the creation action
  */
-export function buildProvideWaxAction(
+export function buildProvideAction(
   user: string,
   feeType: FeeType,
-  entityName: string
+  entityName: string,
+  waxdaoAmount: string
 ) {
   return {
     account: CHEESE_FEE_CONTRACT,
-    name: "providewax",
+    name: "provide",
     authorization: [{ actor: user, permission: "active" }],
     data: {
       user,
       fee_type: feeType,
       entity_name: entityName,
+      waxdao_amount: waxdaoAmount,
+    },
+  };
+}
+
+/**
+ * Build action to finalise - transfer CHEESE to eosio.null
+ * This must be called at the END of the bundled transaction
+ */
+export function buildFinaliseAction(
+  user: string,
+  prepaymentId: number
+) {
+  return {
+    account: CHEESE_FEE_CONTRACT,
+    name: "finalise",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      prepayment_id: prepaymentId,
+    },
+  };
+}
+
+/**
+ * Build action to pay WAXDAO fee to WaxDAO contracts
+ */
+export function buildWaxdaoFeeAction(
+  sender: string,
+  targetContract: string,
+  waxdaoAmount: string,
+  memo: string
+) {
+  return {
+    account: WAXDAO_TOKEN_CONTRACT,
+    name: "transfer",
+    authorization: [{ actor: sender, permission: "active" }],
+    data: {
+      from: sender,
+      to: targetContract,
+      quantity: waxdaoAmount,
+      memo,
     },
   };
 }
@@ -202,9 +279,10 @@ export function calculateDiscountedCheeseAmount(
 }
 
 /**
- * Check if the contract pool has enough WAX for a payment
+ * Check if the contract pool has enough WAXDAO for a payment
+ * @param requiredAmount - The WAXDAO amount needed
  */
-export async function hasEnoughPoolBalance(): Promise<boolean> {
-  const balance = await fetchContractWaxBalance();
-  return balance >= WAX_FEE_AMOUNT;
+export async function hasEnoughPoolBalance(requiredAmount: number): Promise<boolean> {
+  const balance = await fetchContractWaxdaoBalance();
+  return balance >= requiredAmount;
 }

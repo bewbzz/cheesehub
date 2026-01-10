@@ -15,20 +15,20 @@ using namespace std;
  * Flow:
  * 1. User sends CHEESE to this contract with memo "daofee|entityname" or "farmfee|entityname"
  * 2. Contract records prepayment, CHEESE is held in contract balance
- * 3. User calls providewax bundled with createdao/createfarm action
- * 4. Contract verifies creation action exists, sends 250 WAX to user, transfers CHEESE to eosio.null
- * 5. User receives WAX and uses it to pay the creation fee in the same transaction
+ * 3. User calls provide bundled with createdao/createfarm action
+ * 4. Contract verifies creation action exists, sends dynamically-priced WAXDAO to user
+ * 5. User receives WAXDAO and uses it to pay the creation fee in the same transaction
+ * 6. At the end of the transaction, finalise transfers CHEESE to eosio.null
  */
 
 // Constants
 static constexpr name CHEESE_CONTRACT = "cheeseburger"_n;
 static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 8);
-static constexpr name WAX_CONTRACT = "eosio.token"_n;
-static constexpr symbol WAX_SYMBOL = symbol("WAX", 8);
+static constexpr name WAXDAO_CONTRACT = "mdcryptonfts"_n;
+static constexpr symbol WAXDAO_SYMBOL = symbol("WAXDAO", 8);
 static constexpr name DAO_CONTRACT = "dao.waxdao"_n;
 static constexpr name FARM_CONTRACT = "farms.waxdao"_n;
 static constexpr name NULL_ACCOUNT = "eosio.null"_n;
-static constexpr uint64_t WAX_FEE_AMOUNT = 25000000000; // 250 WAX with 8 decimals
 
 CONTRACT cheesefeefee : public contract {
 public:
@@ -74,12 +74,21 @@ public:
     void on_cheese_transfer(name from, name to, asset quantity, string memo);
 
     /**
-     * @brief Provides WAX to user and burns CHEESE - must be bundled with creation action
-     * @param user - User requesting WAX
+     * @brief Provides WAXDAO to user - must be bundled with creation action
+     * @param user - User requesting WAXDAO
      * @param fee_type - "dao" or "farm"
      * @param entity_name - Name of the entity being created
+     * @param waxdao_amount - Amount of WAXDAO to send (calculated by frontend)
      */
-    ACTION providewax(name user, string fee_type, name entity_name);
+    ACTION provide(name user, string fee_type, name entity_name, asset waxdao_amount);
+
+    /**
+     * @brief Finalises the transaction by transferring CHEESE to eosio.null
+     * Called at the END of the bundled transaction after successful creation
+     * @param user - User who made the prepayment
+     * @param prepayment_id - ID of the prepayment to finalise
+     */
+    ACTION finalise(name user, uint64_t prepayment_id);
 
     /**
      * @brief Admin action to refund unused prepayments
@@ -88,11 +97,12 @@ public:
     ACTION refund(uint64_t prepayment_id);
 
     /**
-     * @brief Admin action to withdraw WAX from the pool
-     * @param to - Recipient of the WAX
+     * @brief Admin action to withdraw any token from the contract
+     * @param token_contract - Contract of the token to withdraw
+     * @param to - Recipient of the tokens
      * @param quantity - Amount to withdraw
      */
-    ACTION withdraw(name to, asset quantity);
+    ACTION withdraw(name token_contract, name to, asset quantity);
 
 private:
     // Helper to parse memo format "feetype|entityname"

@@ -27,9 +27,13 @@ import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
   buildCheesePrepayAction,
-  buildProvideWaxAction,
+  buildProvideAction,
+  buildFinaliseAction,
+  buildWaxdaoFeeAction,
+  fetchUserPrepayment,
   WAX_FEE_AMOUNT,
 } from "@/lib/cheeseFees";
+import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
 
 
 
@@ -84,6 +88,9 @@ export function CreateFarm() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wax");
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [hasPrepaid, setHasPrepaid] = useState(false);
+  
+  // WAXDAO pricing for CHEESE payment flow
+  const waxdaoPricing = useWaxdaoFeePricing();
   
   const handleCheeseAmountChange = useCallback((amount: string) => {
     setCheeseAmount(amount);
@@ -203,10 +210,35 @@ export function CreateFarm() {
           toast.success("CHEESE prepayment sent! Now creating Farm...");
         }
         
-        // TX 2: Bundled creation with providewax
-        const provideWaxAction = buildProvideWaxAction(accountName, "farm", formData.farmName);
+        // Fetch prepayment to get ID for finalise action
+        const prepayment = await fetchUserPrepayment(accountName, "farm", formData.farmName);
+        if (!prepayment) {
+          throw new Error("Prepayment not found. Please try again.");
+        }
+        
+        // TX 2: Bundled creation with WAXDAO + finalise at end
+        const provideAction = buildProvideAction(
+          accountName, 
+          "farm", 
+          formData.farmName, 
+          waxdaoPricing.formattedForTx
+        );
+        const waxdaoFeeAction = buildWaxdaoFeeAction(
+          accountName,
+          "farms.waxdao",
+          waxdaoPricing.formattedForTx,
+          "|create_farm|"
+        );
+        const finaliseAction = buildFinaliseAction(accountName, prepayment.id);
+        
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const actions: any[] = [provideWaxAction, assertAction, feeAction, createAction];
+        const actions: any[] = [
+          provideAction,      // 1. Contract sends WAXDAO to user
+          waxdaoFeeAction,    // 2. User pays WAXDAO to farms.waxdao
+          assertAction,       // 3. Assert point
+          createAction,       // 4. Create Farm
+          finaliseAction,     // 5. Transfer CHEESE to eosio.null (only if all above succeed)
+        ];
         await session.transact({ actions });
       } else {
         // Standard WAX payment

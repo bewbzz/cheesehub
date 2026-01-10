@@ -477,7 +477,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
         ) : (
           <>
             <Vote className="mr-2 h-4 w-4" />
-            {selectedProxy ? 'Set Proxy' : `Vote for ${selectedProducers.length} Validator(s)`}
+            {activeTab === 'proxies' ? 'Set Proxy' : `Vote for ${selectedProducers.length} Validator(s)`}
           </>
         )}
       </Button>

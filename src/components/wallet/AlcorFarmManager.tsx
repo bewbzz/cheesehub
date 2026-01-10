@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,19 +18,50 @@ interface AlcorFarmManagerProps {
   onTransactionSuccess?: (title: string, description: string, txId: string | null) => void;
 }
 
+// Grouped position with all its incentive rewards
+interface GroupedFarmPosition {
+  positionId: number;
+  poolId: number;
+  tokenA: { contract: string; symbol: string; amount: number };
+  tokenB: { contract: string; symbol: string; amount: number };
+  isInRange: boolean;
+  incentives: AlcorFarmPosition[];
+}
+
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
   const { stakedFarms, isLoading, refetch } = useAlcorFarms();
   const [isTransacting, setIsTransacting] = useState(false);
-  const [expandedFarm, setExpandedFarm] = useState<string | null>(null);
+  const [expandedPosition, setExpandedPosition] = useState<number | null>(null);
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
 
-  // Guard against non-array stakedFarms early
+  // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
 
-  // Create unique key for each farm position (position can be in multiple incentives)
-  const getFarmKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
+  // Group farms by position ID - each position can have multiple reward incentives
+  const groupedPositions = useMemo(() => {
+    const groups = new Map<number, GroupedFarmPosition>();
+    
+    farmsList.forEach(farm => {
+      if (!groups.has(farm.positionId)) {
+        groups.set(farm.positionId, {
+          positionId: farm.positionId,
+          poolId: farm.poolId,
+          tokenA: farm.tokenA,
+          tokenB: farm.tokenB,
+          isInRange: farm.isInRange,
+          incentives: [],
+        });
+      }
+      groups.get(farm.positionId)!.incentives.push(farm);
+    });
+    
+    return Array.from(groups.values());
+  }, [farmsList]);
+
+  // Create unique key for each incentive
+  const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
   // Update live rewards every second
   useEffect(() => {
@@ -41,7 +72,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       const newRewards = new Map<string, number>();
 
       farmsList.forEach(farm => {
-        const key = getFarmKey(farm);
+        const key = getIncentiveKey(farm);
         const elapsedSeconds = Math.max(0, now - farm.lastUpdate);
         const liveReward = farm.pendingReward + (farm.rewardPerSecond * elapsedSeconds);
         newRewards.set(key, liveReward);
@@ -50,26 +81,23 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       setLiveRewards(newRewards);
     };
 
-    // Initial update
     updateRewards();
-
-    // Update every second
     const interval = setInterval(updateRewards, 1000);
     return () => clearInterval(interval);
   }, [farmsList]);
 
-  const handleClaimRewards = useCallback(async (farm: AlcorFarmPosition) => {
-    if (!session || !accountName) return;
+  const handleClaimRewards = useCallback(async (incentiveIds: number[]) => {
+    if (!session || !accountName || incentiveIds.length === 0) return;
 
     setIsTransacting(true);
     try {
-      const actions = buildClaimRewardsAction(accountName, [farm.incentiveId]);
+      const actions = buildClaimRewardsAction(accountName, incentiveIds);
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       onTransactionSuccess?.(
         'Rewards Claimed!',
-        `Claimed ${farm.farmedRewardDisplay} from ${farm.tokenA.symbol}/${farm.tokenB.symbol} farm`,
+        `Claimed rewards from ${incentiveIds.length} incentive(s)`,
         txId
       );
       refetch();
@@ -96,7 +124,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
       onTransactionSuccess?.(
         'All Rewards Claimed!',
-        `Claimed rewards from ${incentiveIds.length} farm(s)`,
+        `Claimed rewards from ${incentiveIds.length} incentive(s)`,
         txId
       );
       refetch();
@@ -137,16 +165,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
-  // Group farms by position ID for cleaner display
-  const groupedFarms = farmsList.reduce((acc, farm) => {
-    const key = farm.positionId;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(farm);
-    return acc;
-  }, {} as Record<number, AlcorFarmPosition[]>);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -182,7 +200,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         <div>
           <h3 className="text-sm font-medium">Your Farm Positions</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {farmsList.length} incentive{farmsList.length !== 1 ? 's' : ''} across {Object.keys(groupedFarms).length} position{Object.keys(groupedFarms).length !== 1 ? 's' : ''}
+            {groupedPositions.length} position{groupedPositions.length !== 1 ? 's' : ''} earning {farmsList.length} reward{farmsList.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex gap-2">
@@ -213,63 +231,51 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         </div>
       </div>
 
-      {/* Farm position cards */}
+      {/* Farm position cards - grouped by position */}
       <ScrollArea className="h-[500px]">
         <div className="space-y-3 pr-2">
-          {farmsList.map((farm) => {
-            const farmKey = getFarmKey(farm);
-            const liveReward = liveRewards.get(farmKey) || farm.pendingReward;
-            const isExpanded = expandedFarm === farmKey;
+          {groupedPositions.map((position) => {
+            const isExpanded = expandedPosition === position.positionId;
+            const positionIncentiveIds = position.incentives.map(i => i.incentiveId);
 
             return (
-              <Card key={farmKey} className="bg-muted/30 border-border/50">
+              <Card key={position.positionId} className="bg-muted/30 border-border/50">
                 <CardContent className="p-4">
-                  {/* Main row */}
+                  {/* Main row - Position info */}
                   <div className="flex items-center gap-3">
                     {/* Pair */}
-                    <div className="flex items-center gap-2 min-w-[120px]">
+                    <div className="flex items-center gap-2 min-w-[110px]">
                       <div className="flex -space-x-2">
-                        <TokenLogo contract={farm.tokenA.contract} symbol={farm.tokenA.symbol} size="sm" />
-                        <TokenLogo contract={farm.tokenB.contract} symbol={farm.tokenB.symbol} size="sm" />
+                        <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
+                        <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
                       </div>
                       <div>
                         <div className="font-medium text-sm">
-                          {farm.tokenA.symbol}/{farm.tokenB.symbol}
+                          {position.tokenA.symbol}/{position.tokenB.symbol}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          #{farm.positionId}
+                          #{position.positionId}
                         </div>
                       </div>
                     </div>
 
-                    {/* Earned Reward */}
-                    <div className="flex-1 text-center">
-                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    {/* All rewards for this position */}
+                    <div className="flex-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                         <Coins className="h-3 w-3" />
-                        Earned
+                        Earned ({position.incentives.length} reward{position.incentives.length !== 1 ? 's' : ''})
                       </div>
-                      <div className="font-mono text-sm text-cheese font-medium">
-                        {liveReward.toFixed(farm.rewardToken.precision)} {farm.rewardToken.symbol}
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {position.incentives.map((incentive) => {
+                          const key = getIncentiveKey(incentive);
+                          const liveReward = liveRewards.get(key) || incentive.pendingReward;
+                          return (
+                            <div key={key} className="font-mono text-sm text-cheese font-medium whitespace-nowrap">
+                              {liveReward.toFixed(Math.min(4, incentive.rewardToken.precision))} {incentive.rewardToken.symbol}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-
-                    {/* Daily Rate */}
-                    <div className="text-center min-w-[90px]">
-                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <TrendingUp className="h-3 w-3" />
-                        Daily
-                      </div>
-                      <div className="font-mono text-xs">
-                        {farm.dailyEarnRate.toFixed(Math.min(4, farm.rewardToken.precision))} {farm.rewardToken.symbol}
-                      </div>
-                    </div>
-
-                    {/* Share */}
-                    <div className="text-center min-w-[50px]">
-                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <Percent className="h-3 w-3" />
-                      </div>
-                      <div className="text-xs">{farm.rewardShare.toFixed(2)}%</div>
                     </div>
 
                     {/* Actions */}
@@ -277,8 +283,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleClaimRewards(farm)}
-                        disabled={isTransacting || liveReward <= 0}
+                        onClick={() => handleClaimRewards(positionIncentiveIds)}
+                        disabled={isTransacting}
                         className="h-8 px-3 text-xs"
                       >
                         Claim
@@ -286,7 +292,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setExpandedFarm(isExpanded ? null : farmKey)}
+                        onClick={() => setExpandedPosition(isExpanded ? null : position.positionId)}
                         className="h-8 w-8 p-0"
                       >
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -296,38 +302,77 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
                   {/* Expanded details */}
                   {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                    <div className="mt-4 pt-4 border-t border-border/50 space-y-4">
+                      {/* Position Info */}
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Your Stake:</span>
                           <div className="font-mono mt-1">
-                            <div>{farm.tokenA.amount.toFixed(4)} {farm.tokenA.symbol}</div>
-                            <div>{farm.tokenB.amount.toFixed(4)} {farm.tokenB.symbol}</div>
+                            <div>{position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}</div>
+                            <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
                           </div>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Incentive ID:</span>
-                          <div className="font-mono mt-1">#{farm.incentiveId}</div>
+                          <Badge 
+                            variant={position.isInRange ? "default" : "secondary"}
+                            className={cn(
+                              "text-xs",
+                              position.isInRange ? "bg-green-500/20 text-green-400 border-green-500/50" : ""
+                            )}
+                          >
+                            {position.isInRange ? 'In Range' : 'Out of Range'}
+                          </Badge>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={farm.isInRange ? "default" : "secondary"}
-                          className={cn(
-                            "text-xs",
-                            farm.isInRange ? "bg-green-500/20 text-green-400 border-green-500/50" : ""
-                          )}
-                        >
-                          {farm.isInRange ? 'In Range' : 'Out of Range'}
-                        </Badge>
+                      {/* All incentive rewards breakdown */}
+                      <div className="space-y-2">
+                        <span className="text-xs text-muted-foreground font-medium">Reward Breakdown:</span>
+                        <div className="grid gap-2">
+                          {position.incentives.map((incentive) => {
+                            const key = getIncentiveKey(incentive);
+                            const liveReward = liveRewards.get(key) || incentive.pendingReward;
+                            return (
+                              <div 
+                                key={key}
+                                className="flex items-center justify-between p-2 rounded bg-background/50 text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <TokenLogo 
+                                    contract={incentive.rewardToken.contract} 
+                                    symbol={incentive.rewardToken.symbol} 
+                                    size="sm" 
+                                  />
+                                  <span className="font-medium">{incentive.rewardToken.symbol}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    #{incentive.incentiveId}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-mono text-cheese">
+                                    {liveReward.toFixed(incentive.rewardToken.precision)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <TrendingUp className="h-3 w-3" />
+                                    {incentive.dailyEarnRate.toFixed(Math.min(4, incentive.rewardToken.precision))}/day
+                                    <span className="ml-1">
+                                      <Percent className="h-3 w-3 inline" />
+                                      {incentive.rewardShare.toFixed(2)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
 
+                      {/* Action buttons */}
                       <div className="flex gap-2 pt-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setIncreaseLiquidityPosition(farm)}
+                          onClick={() => setIncreaseLiquidityPosition(position.incentives[0])}
                           disabled={isTransacting}
                           className="flex-1 gap-1"
                         >
@@ -337,7 +382,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleUnstake(farm)}
+                          onClick={() => handleUnstake(position.incentives[0])}
                           disabled={isTransacting}
                           className="flex-1 text-destructive hover:text-destructive"
                         >
@@ -346,7 +391,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => window.open(`https://wax.alcor.exchange/positions/${farm.positionId}`, '_blank')}
+                          onClick={() => window.open(`https://wax.alcor.exchange/positions/${position.positionId}`, '_blank')}
                           className="px-2"
                         >
                           <ExternalLink className="h-4 w-4" />

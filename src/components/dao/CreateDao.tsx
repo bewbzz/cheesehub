@@ -5,10 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES } from "@/lib/dao";
+import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins } from "lucide-react";
+import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -16,6 +16,31 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+
+// DAO Type descriptions for the selector
+const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
+  1: {
+    short: "Stake NFTs to a WaxDAO Farm",
+    long: "Members stake their NFTs to an existing WaxDAO NFT farm. Voting power is based on the number of NFTs staked. Requires an existing waxdaofarmer NFT farm."
+  },
+  2: {
+    short: "Stake Tokens to a WaxDAO Farm",
+    long: "Members stake tokens to an existing WaxDAO token farm. Voting power equals staked token amount. Requires an existing waxdaofarmer token pool."
+  },
+  3: {
+    short: "Stake to External WaxDAO Pool",
+    long: "Stakes to an external WaxDAO farmer pool. Similar to Type 2 but uses external pool reference."
+  },
+  4: {
+    short: "Stake Tokens to DAO (Custodial)",
+    long: "Members stake governance tokens directly to the DAO contract. Tokens are held custodially until unstaked. Voting power equals staked balance."
+  },
+  5: {
+    short: "Hold NFTs (Non-Custodial)",
+    long: "NFTs stay in user's wallet - no staking required! Simply hold eligible NFTs to vote. Each NFT = 1 vote. Most user-friendly for NFT communities."
+  },
+};
 
 export function CreateDao() {
   const { session, isConnected, login } = useWax();
@@ -26,8 +51,15 @@ export function CreateDao() {
     description: "",
     avatar: "",
     coverImage: "",
+    // DAO Type selection (default to Type 4)
+    daoType: 4,
+    // For Type 4: Token Staking
     tokenContract: "",
     tokenSymbol: "",
+    // For Types 1, 2, 3: Farm-based DAOs
+    govFarmName: "",
+    // For Types 1, 2, 5: NFT collections/schemas
+    govSchemas: [] as { collection_name: string; schema_name: string }[],
     // Advanced settings
     threshold: 51,
     proposerType: 1,
@@ -37,6 +69,34 @@ export function CreateDao() {
     proposalCost: 0,
     hoursPerProposal: 72,
   });
+  
+  // Temp state for adding new schema
+  const [newSchema, setNewSchema] = useState({ collection_name: "", schema_name: "" });
+
+  // Determine which fields to show based on DAO type
+  const showTokenFields = formData.daoType === 4;
+  const showFarmField = [1, 2, 3].includes(formData.daoType);
+  const showSchemaFields = [1, 2, 5].includes(formData.daoType);
+
+  function addSchema() {
+    if (newSchema.collection_name.trim() && newSchema.schema_name.trim()) {
+      setFormData({
+        ...formData,
+        govSchemas: [...formData.govSchemas, { 
+          collection_name: newSchema.collection_name.trim().toLowerCase(),
+          schema_name: newSchema.schema_name.trim().toLowerCase()
+        }]
+      });
+      setNewSchema({ collection_name: "", schema_name: "" });
+    }
+  }
+
+  function removeSchema(index: number) {
+    setFormData({
+      ...formData,
+      govSchemas: formData.govSchemas.filter((_, i) => i !== index)
+    });
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +108,22 @@ export function CreateDao() {
 
     if (!formData.daoName.trim()) {
       toast.error("DAO name is required");
+      return;
+    }
+
+    // Validate based on DAO type
+    if (showTokenFields && (!formData.tokenContract.trim() || !formData.tokenSymbol.trim())) {
+      toast.error("Token contract and symbol are required for Token Staking DAOs");
+      return;
+    }
+
+    if (showFarmField && !formData.govFarmName.trim()) {
+      toast.error("Farm name is required for Farm-based DAOs");
+      return;
+    }
+
+    if (showSchemaFields && formData.govSchemas.length === 0) {
+      toast.error("At least one collection/schema pair is required for NFT DAOs");
       return;
     }
 
@@ -71,13 +147,16 @@ export function CreateDao() {
       // Build fee payment action (250 WAX)
       const feeAction = buildDaoCreationFeeAction(String(session.actor));
       
-      // Build DAO creation action
+      // Build DAO creation action with all type-specific fields
       const createAction = buildCreateDaoAction(
         String(session.actor),
         {
           daoName: formData.daoName,
+          daoType: formData.daoType,
           tokenContract: formData.tokenContract,
           tokenSymbol: formData.tokenSymbol,
+          govFarmName: formData.govFarmName,
+          govSchemas: formData.govSchemas,
           threshold: formData.threshold,
           hoursPerProposal: formData.hoursPerProposal,
           minimumWeight: formData.minimumWeight,
@@ -89,7 +168,6 @@ export function CreateDao() {
       );
 
       // Build actions array - assertpoint + fee + create
-      // Profile will be set in a separate transaction after DAO creation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const actions: any[] = [assertAction, feeAction, createAction];
 
@@ -102,8 +180,11 @@ export function CreateDao() {
         description: "",
         avatar: "",
         coverImage: "",
+        daoType: 4,
         tokenContract: "",
         tokenSymbol: "",
+        govFarmName: "",
+        govSchemas: [],
         threshold: 51,
         proposerType: 1,
         authors: "",
@@ -148,9 +229,6 @@ export function CreateDao() {
               Create a New DAO
             </CardTitle>
             <div className="flex items-center gap-1.5">
-              <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
-                Token Staking (Custodial)
-              </span>
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
@@ -191,17 +269,50 @@ export function CreateDao() {
 
                       <AccordionItem value="dao-types" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          DAO Type: Token Staking
+                          DAO Types Explained
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-foreground space-y-2">
-                          <p>
-                            This form creates a <strong className="text-cheese">"Token Staking"</strong> (custodial) type DAO.
-                          </p>
-                          <p>
-                            To participate in governance, members must stake their tokens to the DAO contract. 
-                            Voting power is based on the amount of tokens staked. 
-                            Staked tokens can be unstaked when you wish to withdraw from participation.
-                          </p>
+                        <AccordionContent className="text-sm text-foreground space-y-3">
+                          <p className="font-medium">WaxDAO supports 5 different DAO types:</p>
+                          
+                          <div className="space-y-3">
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-cheese">Type 1: Custodial NFT Farm</p>
+                              <p className="text-xs mt-1">
+                                Requires an existing WaxDAO NFT farm. Members stake NFTs to gain voting power.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-cheese">Type 2: Custodial Token Pool</p>
+                              <p className="text-xs mt-1">
+                                Requires an existing WaxDAO token pool. Members stake tokens for voting power.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-border/50">
+                              <p className="font-medium text-cheese">Type 3: Stake to WaxDAO Pool</p>
+                              <p className="text-xs mt-1">
+                                Similar to Type 2, uses external WaxDAO farmer pool reference.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-cheese/50 bg-cheese/5">
+                              <p className="font-medium text-cheese">Type 4: Stake Tokens (Custodial) ⭐ Popular</p>
+                              <p className="text-xs mt-1">
+                                Members stake governance tokens directly to the DAO. No external farm needed.
+                                Tokens are held by the DAO contract until unstaked.
+                              </p>
+                            </div>
+                            
+                            <div className="p-2 rounded border border-green-500/50 bg-green-500/5">
+                              <p className="font-medium text-green-500">Type 5: Hold NFTs (Non-Custodial) 🆕 Easiest</p>
+                              <p className="text-xs mt-1">
+                                <strong>No staking required!</strong> NFTs stay in user's wallet. 
+                                Simply hold eligible NFTs to vote. Each NFT = 1 vote. 
+                                Best for NFT communities.
+                              </p>
+                            </div>
+                          </div>
                         </AccordionContent>
                       </AccordionItem>
 
@@ -354,16 +465,53 @@ export function CreateDao() {
           <CardDescription className="space-y-2">
             <span className="block">
               Set up your decentralized autonomous organization on the WAX blockchain.
-              Contract: <code className="text-cheese">{DAO_CONTRACT}</code>
             </span>
-            <span className="block text-xs bg-muted/50 p-3 rounded-lg border border-border/50">
-              <strong className="text-foreground">How it works:</strong> Members stake their governance tokens to the DAO contract to gain voting power. 
-              Staked tokens are held custodially by the DAO until unstaked. Voting power equals the amount of tokens staked.
+            <span className="block text-xs">
+              Contract: <code className="text-cheese">{DAO_CONTRACT}</code>
             </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreate} className="space-y-6">
+            
+            {/* DAO Type Selection */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">DAO Type</h3>
+              <RadioGroup
+                value={String(formData.daoType)}
+                onValueChange={(value) => setFormData({ ...formData, daoType: parseInt(value) })}
+                className="grid grid-cols-1 gap-2"
+              >
+                {[4, 5, 1, 2, 3].map((type) => (
+                  <div 
+                    key={type}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                      formData.daoType === type 
+                        ? type === 5 
+                          ? "border-green-500/50 bg-green-500/10" 
+                          : "border-cheese/50 bg-cheese/10"
+                        : "border-border/50 hover:bg-muted/30"
+                    }`}
+                    onClick={() => setFormData({ ...formData, daoType: type })}
+                  >
+                    <RadioGroupItem value={String(type)} id={`type-${type}`} className="mt-1" />
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`type-${type}`} className="font-medium cursor-pointer">
+                          {DAO_TYPES[type]}
+                        </Label>
+                        {type === 4 && <Badge variant="secondary" className="text-xs">Popular</Badge>}
+                        {type === 5 && <Badge className="text-xs bg-green-500/20 text-green-500 border-green-500/30">Easiest</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {DAO_TYPE_DESCRIPTIONS[type]?.short}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
             {/* Basic Info Section */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Basic Info</h3>
@@ -425,38 +573,127 @@ export function CreateDao() {
               </div>
             </div>
 
-            {/* Governance Token Section */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Governance Token</h3>
-              
-              {/* Token Contract */}
-              <div className="space-y-2">
-                <Label htmlFor="tokenContract">Token Contract</Label>
-                <Input
-                  id="tokenContract"
-                  placeholder="e.g., eosio.token"
-                  value={formData.tokenContract}
-                  onChange={(e) => setFormData({ ...formData, tokenContract: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  The contract that holds your governance token
-                </p>
-              </div>
+            {/* Token Settings (Type 4 only) */}
+            {showTokenFields && (
+              <div className="space-y-4 p-4 bg-cheese/5 rounded-lg border border-cheese/30">
+                <h3 className="text-sm font-medium text-cheese uppercase tracking-wide">Governance Token</h3>
+                
+                {/* Token Contract */}
+                <div className="space-y-2">
+                  <Label htmlFor="tokenContract">Token Contract *</Label>
+                  <Input
+                    id="tokenContract"
+                    placeholder="e.g., eosio.token"
+                    value={formData.tokenContract}
+                    onChange={(e) => setFormData({ ...formData, tokenContract: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The contract that holds your governance token
+                  </p>
+                </div>
 
-              {/* Token Symbol */}
-              <div className="space-y-2">
-                <Label htmlFor="tokenSymbol">Token Symbol</Label>
-                <Input
-                  id="tokenSymbol"
-                  placeholder="e.g., 8,CHEESE"
-                  value={formData.tokenSymbol}
-                  onChange={(e) => setFormData({ ...formData, tokenSymbol: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format: precision,SYMBOL (e.g., 8,CHEESE)
-                </p>
+                {/* Token Symbol */}
+                <div className="space-y-2">
+                  <Label htmlFor="tokenSymbol">Token Symbol *</Label>
+                  <Input
+                    id="tokenSymbol"
+                    placeholder="e.g., 8,CHEESE"
+                    value={formData.tokenSymbol}
+                    onChange={(e) => setFormData({ ...formData, tokenSymbol: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format: precision,SYMBOL (e.g., 8,CHEESE)
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Farm Name (Types 1, 2, 3) */}
+            {showFarmField && (
+              <div className="space-y-4 p-4 bg-blue-500/5 rounded-lg border border-blue-500/30">
+                <h3 className="text-sm font-medium text-blue-500 uppercase tracking-wide">WaxDAO Farm</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="govFarmName">Farm Name *</Label>
+                  <Input
+                    id="govFarmName"
+                    placeholder="e.g., myfarm"
+                    value={formData.govFarmName}
+                    onChange={(e) => setFormData({ ...formData, govFarmName: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The name of your existing WaxDAO farmer pool
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* NFT Collections/Schemas (Types 1, 2, 5) */}
+            {showSchemaFields && (
+              <div className="space-y-4 p-4 bg-green-500/5 rounded-lg border border-green-500/30">
+                <h3 className="text-sm font-medium text-green-500 uppercase tracking-wide">
+                  Eligible NFT Collections
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {formData.daoType === 5 
+                    ? "Users holding NFTs from these collections can vote. Each NFT = 1 vote."
+                    : "NFTs from these collections can be staked for voting power."}
+                </p>
+                
+                {/* Current schemas */}
+                {formData.govSchemas.length > 0 && (
+                  <div className="space-y-2">
+                    {formData.govSchemas.map((schema, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-background/50 rounded border border-border/50">
+                        <Badge variant="outline" className="flex-1">
+                          {schema.collection_name} / {schema.schema_name}
+                        </Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSchema(idx)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Add new schema */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Collection Name</Label>
+                    <Input
+                      placeholder="e.g., cheesenfts"
+                      value={newSchema.collection_name}
+                      onChange={(e) => setNewSchema({ ...newSchema, collection_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Schema Name</Label>
+                    <Input
+                      placeholder="e.g., cards"
+                      value={newSchema.schema_name}
+                      onChange={(e) => setNewSchema({ ...newSchema, schema_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addSchema}
+                  disabled={!newSchema.collection_name.trim() || !newSchema.schema_name.trim()}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Collection/Schema
+                </Button>
+              </div>
+            )}
 
             {/* Advanced Settings */}
             <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>

@@ -821,14 +821,30 @@ export async function fetchDaoTreasury(daoName: string): Promise<TreasuryBalance
   }
 }
 
-// Build action for creating a new DAO (Stake to DAO - Custodial)
-// dao_type: 3 = Token Staking
+// DAO Type configuration interface
+export interface DaoTypeConfig {
+  daoType: number; // 1-5
+  // For Type 4: Token Staking
+  tokenContract?: string;
+  tokenSymbol?: string;
+  // For Types 1, 2, 3: Farm-based DAOs
+  govFarmName?: string;
+  // For Types 1, 2, 5: NFT-based DAOs
+  govSchemas?: { collection_name: string; schema_name: string }[];
+}
+
+// Build action for creating a new DAO (supports all 5 types)
+// dao_type: 1 = Custodial NFT Farm, 2 = Custodial Token Pool, 3 = Stake to WaxDAO Pool,
+//           4 = Stake Tokens (Custodial), 5 = Hold NFTs (Non-Custodial)
 export function buildCreateDaoAction(
   creator: string,
   config: {
     daoName: string;
-    tokenContract: string;
-    tokenSymbol: string;
+    daoType?: number; // 1-5, default 4
+    tokenContract?: string;
+    tokenSymbol?: string;
+    govFarmName?: string;
+    govSchemas?: { collection_name: string; schema_name: string }[];
     threshold?: number;
     hoursPerProposal?: number;
     minimumWeight?: number;
@@ -840,6 +856,15 @@ export function buildCreateDaoAction(
 ) {
   // Format proposal cost as WAX with 8 decimal places
   const proposalCostFormatted = `${(config.proposalCost || 0).toFixed(8)} WAX`;
+  const daoType = config.daoType || 4;
+  
+  // Determine which fields to use based on DAO type
+  // Type 1, 2, 3: Use gov_farm_name
+  // Type 4: Use gov_token_contract and gov_token_symbol
+  // Type 5: Use gov_schemas only (NFTs stay in wallet)
+  const useToken = daoType === 4;
+  const useFarm = [1, 2, 3].includes(daoType);
+  const useSchemas = [1, 2, 5].includes(daoType);
   
   return {
     account: DAO_CONTRACT,
@@ -848,11 +873,11 @@ export function buildCreateDaoAction(
     data: {
       user: creator,
       daoname: config.daoName,
-      dao_type: 4, // Stake Tokens (Custodial) - tokens transferred to dao.waxdao contract
-      gov_token_contract: config.tokenContract || "",
-      gov_token_symbol: config.tokenSymbol || "",
-      gov_farm_name: "", // Not needed for Token Balance DAOs
-      gov_schemas: [],
+      dao_type: daoType,
+      gov_token_contract: useToken ? (config.tokenContract || "") : "",
+      gov_token_symbol: useToken ? (config.tokenSymbol || "") : "",
+      gov_farm_name: useFarm ? (config.govFarmName || "") : "",
+      gov_schemas: useSchemas ? (config.govSchemas || []) : [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,
       minimum_weight: config.minimumWeight || 0,
@@ -991,12 +1016,14 @@ export function buildRankedChoiceProposalAction(
 }
 
 // Build action for voting on a Yes/No/Abstain proposal
+// assetIds: NFT asset IDs for Type 5 Hold NFT DAOs - each NFT = 1 vote weight
 export function buildVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
   vote: "yes" | "no" | "abstain",
-  voteWeight?: string // Token quantity string for Type 4 DAOs (e.g., "540.14048487 WAX")
+  voteWeight?: string, // Token quantity string for Type 4 DAOs (e.g., "540.14048487 WAX")
+  assetIds?: string[] // NFT asset IDs for Type 5 DAOs
 ) {
   // Convert vote string to choice index (0=yes, 1=no, 2=abstain)
   const choiceMap: Record<string, number> = { yes: 0, no: 1, abstain: 2 };
@@ -1005,7 +1032,7 @@ export function buildVoteAction(
     dao: daoName,
     proposal_id: proposalId,
     choice: choiceMap[vote],
-    asset_ids: [],
+    asset_ids: assetIds || [],
   };
   
   // Add weight for Type 4 Token Balance DAOs
@@ -1022,19 +1049,21 @@ export function buildVoteAction(
 }
 
 // Build action for voting on a Most Votes Wins proposal (select one option)
+// assetIds: NFT asset IDs for Type 5 Hold NFT DAOs
 export function buildMultiOptionVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
   choiceIndex: number,
-  voteWeight?: string
+  voteWeight?: string,
+  assetIds?: string[]
 ) {
   const data: Record<string, unknown> = {
     user: voter,
     dao: daoName,
     proposal_id: proposalId,
     choice: choiceIndex,
-    asset_ids: [],
+    asset_ids: assetIds || [],
   };
   
   if (voteWeight) {
@@ -1052,19 +1081,21 @@ export function buildMultiOptionVoteAction(
 // Build action for voting on a Ranked Choice proposal
 // Note: WaxDAO contract doesn't support true ranked choice voting - it uses single-choice voting
 // The "ranked choice" is a UI/display preference only, voting works the same as Most Votes Wins
+// assetIds: NFT asset IDs for Type 5 Hold NFT DAOs
 export function buildRankedChoiceVoteAction(
   voter: string,
   daoName: string,
   proposalId: number,
   choiceIndex: number, // Single choice index (same as multi-option)
-  voteWeight?: string
+  voteWeight?: string,
+  assetIds?: string[]
 ) {
   const data: Record<string, unknown> = {
     user: voter,
     dao: daoName,
     proposal_id: proposalId,
     choice: choiceIndex,
-    asset_ids: [],
+    asset_ids: assetIds || [],
   };
   
   if (voteWeight) {
@@ -1077,6 +1108,38 @@ export function buildRankedChoiceVoteAction(
     authorization: [{ actor: voter, permission: "active" }],
     data,
   };
+}
+
+// Fetch NFTs that have already voted on a proposal (for Type 5 DAOs)
+// Uses the votesbynft table, scoped by proposal ID
+export async function fetchVotedNFTs(
+  proposalId: number
+): Promise<string[]> {
+  try {
+    const response = await fetch(
+      `https://wax.eosusa.io/v1/chain/get_table_rows`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: proposalId.toString(),
+          table: "votesbynft",
+          limit: 1000,
+        }),
+      }
+    );
+    
+    const data = await response.json();
+    console.log("Votes by NFT data:", data);
+    
+    // Each row has an asset_id field
+    return (data.rows || []).map((row: { asset_id: string }) => row.asset_id);
+  } catch (error) {
+    console.error("Error fetching voted NFTs:", error);
+    return [];
+  }
 }
 
 // Fetch user's staked tokens in a DAO

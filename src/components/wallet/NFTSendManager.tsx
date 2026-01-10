@@ -43,6 +43,11 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
 
   const debouncedSearch = useDebounce(searchQuery, 300);
   const parentRef = useRef<HTMLDivElement>(null);
+  const loadedImagesRef = useRef<Set<string>>(new Set());
+
+  const handleImageLoaded = useCallback((assetId: string) => {
+    loadedImagesRef.current.add(assetId);
+  }, []);
 
   const isValidRecipient = recipient.length > 0 && isValidWaxAccount(recipient);
   const canSend = isValidRecipient && selectedNFTs.size > 0 && !isSending;
@@ -342,6 +347,8 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
                       nft={nft}
                       isSelected={selectedNFTs.has(nft.asset_id)}
                       onToggle={() => toggleNFTSelection(nft.asset_id)}
+                      isImageCached={loadedImagesRef.current.has(nft.asset_id)}
+                      onImageLoaded={handleImageLoaded}
                     />
                   ))}
                 </div>
@@ -397,6 +404,8 @@ interface NFTCardProps {
   nft: UserNFT;
   isSelected: boolean;
   onToggle: () => void;
+  isImageCached?: boolean;
+  onImageLoaded?: (assetId: string) => void;
 }
 
 // IPFS gateway fallback list
@@ -423,10 +432,10 @@ function extractIpfsHash(url: string): string | null {
   return null;
 }
 
-function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
+function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(isImageCached ?? false);
   const [retryCount, setRetryCount] = useState(0);
 
   const ipfsHash = extractIpfsHash(nft.image);
@@ -454,9 +463,9 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     }
   }, [ipfsHash, gatewayIndex]);
 
-  // Timeout fallback - if image doesn't load in 10s, show error
+  // Timeout fallback - if image doesn't load in 10s, show error (skip for cached)
   useEffect(() => {
-    if (!hasValidImage || imgError || imgLoaded) return;
+    if (!hasValidImage || imgError || imgLoaded || isImageCached) return;
     
     const timeout = setTimeout(() => {
       if (!imgLoaded && !imgError) {
@@ -465,7 +474,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     }, 10000);
     
     return () => clearTimeout(timeout);
-  }, [hasValidImage, imgError, imgLoaded, currentImageUrl, handleImageError]);
+  }, [hasValidImage, imgError, imgLoaded, isImageCached, currentImageUrl, handleImageError]);
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -522,6 +531,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
                 handleImageError();
               } else {
                 setImgLoaded(true);
+                onImageLoaded?.(nft.asset_id);
               }
             }}
           />

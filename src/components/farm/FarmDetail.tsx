@@ -95,13 +95,14 @@ export function FarmDetail() {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const isExpired = farm.expiration < now;
-  const expirationDate = new Date(farm.expiration * 1000);
   const createdDate = new Date(farm.time_created * 1000);
-  const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
   
-  // Farm is "under construction" if expiration is 0 or very far in past (never opened)
-  const isUnderConstruction = farm.expiration === 0;
+  // Farm is "under construction" if it hasn't been opened yet (status 0 or expiration is 0)
+  const isUnderConstruction = farm.status === 0 || farm.expiration === 0;
+  // Farm is "expired" only if it's been opened and has passed its expiration date
+  const isExpired = !isUnderConstruction && farm.expiration < now;
+  const expirationDate = new Date(farm.expiration * 1000);
+  const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
   const isCreator = accountName && accountName === farm.creator;
 
   const formatPayoutInterval = (seconds: number) => {

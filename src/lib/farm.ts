@@ -420,7 +420,7 @@ export function buildExtendFarmAction(
     data: {
       user,
       farmname: farmName,
-      new_expiration: newExpiration,
+      expiration: newExpiration,
     },
   };
 }

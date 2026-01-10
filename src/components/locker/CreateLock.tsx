@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Lock, Calendar, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import cheeseLogo from "@/assets/cheese-logo.png";
+import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 
 interface TokenBalance {
   symbol: string;
@@ -215,7 +215,12 @@ export function CreateLock() {
                     value={`${token.contract}:${token.symbol}`}
                   >
                     <span className="flex items-center gap-2">
-                      <img src={cheeseLogo} alt={token.symbol} className="h-4 w-4" />
+                      <img 
+                        src={getTokenLogoUrl(token.contract, token.symbol)} 
+                        alt={token.symbol} 
+                        className="h-4 w-4 rounded-full"
+                        onError={(e) => { e.currentTarget.src = TOKEN_LOGO_PLACEHOLDER; }}
+                      />
                       {token.symbol} - {token.amount}
                     </span>
                   </SelectItem>

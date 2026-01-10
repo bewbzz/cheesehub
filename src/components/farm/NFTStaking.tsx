@@ -604,14 +604,14 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   // Fetch staked NFT details - with fallback for unindexed assets
   const { data: stakedNftDetails = [], isLoading: isLoadingStakedDetails, refetch: refetchStakedDetails } = useQuery({
-    queryKey: ["stakedNftDetails", stakedNfts.map(s => s.asset_id).join(",")],
+    queryKey: ["stakedNftDetails", stakedNfts.map(s => s.asset_id).join(","), accountName],
     queryFn: async () => {
-      if (!stakedNfts.length) return [];
+      if (!stakedNfts.length || !accountName) return [];
       
       const stakedAssetIds = stakedNfts.map(s => s.asset_id);
       const assets: NFTAsset[] = [];
       
-      // Try to fetch from AtomicAssets API
+      // Try to fetch from AtomicAssets API first
       const assetIdsParam = stakedAssetIds.join(",");
       const params = new URLSearchParams({
         ids: assetIdsParam,
@@ -639,113 +639,128 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         console.error("Error fetching staked NFT details:", error);
       }
       
-      // Handle assets not returned by API (not indexed yet) - similar to eligible NFTs
+      // Handle assets not returned by API (not indexed yet) - fetch from blockchain
       const fetchedIds = new Set(assets.map(a => a.asset_id));
       const missingAssetIds = stakedAssetIds.filter(id => !fetchedIds.has(id));
       
       if (missingAssetIds.length > 0) {
-        console.log('[NFTStaking] Missing staked assets from API:', missingAssetIds.length);
+        console.log('[NFTStaking] Missing staked assets from API:', missingAssetIds.length, '- fetching from blockchain');
         
-        // Try to get template info from blockchain for each missing asset
-        for (const assetId of missingAssetIds) {
+        const rpcEndpoints = ['https://wax.eosusa.io', 'https://api.wax.alohaeos.com', 'https://wax.greymass.com'];
+        
+        // Build metadata map from blockchain - V2 farms are non-custodial so NFTs stay in user's wallet
+        const assetMetadataMap = new Map<string, { template_id: number; collection: string; schema: string }>();
+        
+        for (const endpoint of rpcEndpoints) {
           try {
-            // Fetch asset directly from blockchain
-            const rpcEndpoints = ['https://wax.eosusa.io', 'https://api.wax.alohaeos.com', 'https://wax.greymass.com'];
-            let assetData = null;
+            // Query user's assets from blockchain
+            const resp = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code: 'atomicassets',
+                scope: accountName, // Use account name as scope for V2 non-custodial staking
+                table: 'assets',
+                limit: 1000,
+                json: true,
+              }),
+            });
+            const result = await resp.json();
             
-            for (const endpoint of rpcEndpoints) {
-              try {
-                const resp = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    code: 'atomicassets',
-                    scope: 'atomicassets',
-                    table: 'assets',
-                    lower_bound: assetId,
-                    upper_bound: assetId,
-                    limit: 1,
-                    json: true,
-                  }),
-                });
-                const result = await resp.json();
-                if (result.rows?.length > 0) {
-                  assetData = result.rows[0];
-                  break;
+            if (result.rows?.length > 0) {
+              for (const row of result.rows) {
+                const assetId = String(row.asset_id);
+                if (missingAssetIds.includes(assetId)) {
+                  assetMetadataMap.set(assetId, {
+                    template_id: row.template_id || 0,
+                    collection: row.collection_name || '',
+                    schema: row.schema_name || '',
+                  });
                 }
-              } catch {
-                continue;
               }
+              break;
             }
+          } catch {
+            continue;
+          }
+        }
+        
+        // Group by template_id to minimize API calls (same pattern as eligible NFTs)
+        const templateGroups = new Map<number, string[]>();
+        for (const assetId of missingAssetIds) {
+          const meta = assetMetadataMap.get(assetId);
+          if (meta?.template_id && meta.template_id > 0) {
+            const existing = templateGroups.get(meta.template_id) || [];
+            existing.push(assetId);
+            templateGroups.set(meta.template_id, existing);
+          }
+        }
+        
+        // Fetch template metadata for each group
+        for (const [templateId, assetIds] of templateGroups) {
+          const meta = assetMetadataMap.get(assetIds[0]);
+          if (!meta) continue;
+          
+          try {
+            const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
+            const templateResponse = await fetchWithFallback(ATOMIC_API.baseUrls, templatePath);
+            const templateJson = await templateResponse.json();
             
-            if (assetData) {
-              const templateId = assetData.template_id;
-              const collection = assetData.collection_name;
+            if (templateJson.success && templateJson.data) {
+              const templateData = templateJson.data;
+              const templateImage = getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image);
+              const templateName = templateData.immutable_data?.name || `Template #${templateId}`;
               
-              // Try to fetch template metadata
-              if (templateId && templateId > 0) {
-                try {
-                  const templateResp = await fetchWithFallback(
-                    ATOMIC_API.baseUrls,
-                    `/atomicassets/v1/templates/${collection}/${templateId}`
-                  );
-                  const templateJson = await templateResp.json();
-                  
-                  if (templateJson.success && templateJson.data) {
-                    const templateData = templateJson.data;
-                    assets.push({
-                      asset_id: assetId,
-                      name: templateData.immutable_data?.name || `NFT #${assetId}`,
-                      image: getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image),
-                      collection: collection,
-                      schema: assetData.schema_name || '',
-                      template_id: String(templateId),
-                    });
-                    continue;
-                  }
-                } catch {
-                  // Fall through to placeholder
-                }
+              // Create entries for all assets with this template
+              for (const assetId of assetIds) {
+                assets.push({
+                  asset_id: assetId,
+                  name: templateName,
+                  image: templateImage,
+                  collection: meta.collection,
+                  schema: meta.schema,
+                  template_id: String(templateId),
+                });
               }
-              
-              // Fallback with blockchain data only
-              assets.push({
-                asset_id: assetId,
-                name: `NFT #${assetId}`,
-                image: '',
-                collection: collection || 'Unknown',
-                schema: assetData.schema_name || '',
-                template_id: templateId ? String(templateId) : '',
-              });
-            } else {
-              // No data at all - basic placeholder
-              assets.push({
-                asset_id: assetId,
-                name: `NFT #${assetId}`,
-                image: '',
-                collection: 'Unknown',
-                schema: '',
-                template_id: '',
-              });
+              console.log(`[NFTStaking] Fetched template ${templateId} for ${assetIds.length} staked NFTs`);
             }
           } catch (error) {
-            console.error(`Error fetching staked asset ${assetId}:`, error);
-            assets.push({
-              asset_id: assetId,
-              name: `NFT #${assetId}`,
-              image: '',
-              collection: 'Unknown',
-              schema: '',
-              template_id: '',
-            });
+            console.error('[NFTStaking] Error fetching template', templateId, ':', error);
+            // Fall back to placeholder for these assets
+            for (const assetId of assetIds) {
+              assets.push({
+                asset_id: assetId,
+                name: `NFT #${assetId}`,
+                image: '',
+                collection: meta?.collection || 'Unknown',
+                schema: meta?.schema || '',
+                template_id: String(templateId),
+              });
+            }
           }
+        }
+        
+        // Handle assets without template_id or not found in blockchain
+        const processedIds = new Set(assets.map(a => a.asset_id));
+        for (const assetId of missingAssetIds) {
+          if (processedIds.has(assetId)) continue;
+          
+          const meta = assetMetadataMap.get(assetId);
+          assets.push({
+            asset_id: assetId,
+            name: `NFT #${assetId}`,
+            image: '',
+            collection: meta?.collection || 'Unknown',
+            schema: meta?.schema || '',
+            template_id: meta?.template_id ? String(meta.template_id) : '',
+          });
         }
       }
       
       console.log('[NFTStaking] Final staked NFT details:', assets.length);
       return assets;
     },
-    enabled: stakedNfts.length > 0,
+    enabled: stakedNfts.length > 0 && !!accountName,
     staleTime: 0, // Always refetch to catch newly staked NFTs
     gcTime: 0,
   });

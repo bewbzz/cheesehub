@@ -50,9 +50,9 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
   const { accountName } = useWax();
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['alcor-farms-v2', accountName], // Changed key to force fresh fetch
+    queryKey: ['alcor-farms-v3', accountName], // Force fresh fetch with new key
     queryFn: async () => {
-      console.log('[useAlcorFarms] Starting fetch for', accountName);
+      console.log('[useAlcorFarms] === STARTING FRESH FETCH for', accountName, '===');
       if (!accountName) return { stakedFarms: [], unstakedIncentives: new Map(), unstakedPositions: [] };
       
       // Ensure token cache is loaded before fetching farms
@@ -179,7 +179,8 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
       return { stakedFarms, unstakedIncentives, unstakedPositions };
     },
     enabled: !!accountName,
-    staleTime: 5 * 1000, // 5 seconds - allow faster refresh after transactions
+    staleTime: 0, // Always refetch
+    gcTime: 0, // Don't cache
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
     retry: 2,
   });

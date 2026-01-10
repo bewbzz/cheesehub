@@ -1181,6 +1181,7 @@ export function CreateDao() {
                 onMethodChange={setPaymentMethod}
                 onCheeseAmountChange={handleCheeseAmountChange}
                 disabled={loading}
+                hideCheeseOption
               />
             )}
             

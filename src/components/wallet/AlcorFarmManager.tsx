@@ -406,10 +406,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
                         onClick={() => handleClaimRewards(positionClaims)}
                         disabled={isTransacting}
-                        className="h-8 px-3 text-xs"
+                        className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
                       >
                         Claim
                       </Button>
@@ -531,10 +530,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <div className="flex gap-2 pt-2">
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => setIncreaseLiquidityPosition(position.incentives[0])}
                           disabled={isTransacting}
-                          className="flex-1 gap-1"
+                          className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Plus className="h-3 w-3" />
                           Increase Position

@@ -354,7 +354,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         </div>
         <div className="flex items-center gap-2">
           {unstakedList.length > 0 && (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs animate-pulse">
+            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30 text-xs animate-pulse">
               <Zap className="h-3 w-3 mr-1" />
               {unstakedList.length} unstaked
             </Badge>

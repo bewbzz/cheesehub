@@ -602,15 +602,19 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     gcTime: 0,
   });
 
-  // Fetch staked NFT details
-  const { data: stakedNftDetails = [], isLoading: isLoadingStakedDetails } = useQuery({
-    queryKey: ["stakedNftDetails", stakedNfts],
+  // Fetch staked NFT details - with fallback for unindexed assets
+  const { data: stakedNftDetails = [], isLoading: isLoadingStakedDetails, refetch: refetchStakedDetails } = useQuery({
+    queryKey: ["stakedNftDetails", stakedNfts.map(s => s.asset_id).join(",")],
     queryFn: async () => {
       if (!stakedNfts.length) return [];
       
-      const assetIds = stakedNfts.map(s => s.asset_id).join(",");
+      const stakedAssetIds = stakedNfts.map(s => s.asset_id);
+      const assets: NFTAsset[] = [];
+      
+      // Try to fetch from AtomicAssets API
+      const assetIdsParam = stakedAssetIds.join(",");
       const params = new URLSearchParams({
-        ids: assetIds,
+        ids: assetIdsParam,
         limit: "100",
       });
       const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
@@ -620,22 +624,130 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const json = await response.json();
         
         if (json.success && json.data) {
-          return json.data.map((asset: any) => ({
-            asset_id: asset.asset_id,
-            name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-            image: getImageUrl(asset.data?.img || asset.data?.image),
-            collection: asset.collection?.collection_name || "",
-            schema: asset.schema?.schema_name || "",
-            template_id: asset.template?.template_id || "",
-          }));
+          for (const asset of json.data) {
+            assets.push({
+              asset_id: asset.asset_id,
+              name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+              image: getImageUrl(asset.data?.img || asset.data?.image),
+              collection: asset.collection?.collection_name || "",
+              schema: asset.schema?.schema_name || "",
+              template_id: asset.template?.template_id || "",
+            });
+          }
         }
       } catch (error) {
         console.error("Error fetching staked NFT details:", error);
       }
-      return [];
+      
+      // Handle assets not returned by API (not indexed yet) - similar to eligible NFTs
+      const fetchedIds = new Set(assets.map(a => a.asset_id));
+      const missingAssetIds = stakedAssetIds.filter(id => !fetchedIds.has(id));
+      
+      if (missingAssetIds.length > 0) {
+        console.log('[NFTStaking] Missing staked assets from API:', missingAssetIds.length);
+        
+        // Try to get template info from blockchain for each missing asset
+        for (const assetId of missingAssetIds) {
+          try {
+            // Fetch asset directly from blockchain
+            const rpcEndpoints = ['https://wax.eosusa.io', 'https://api.wax.alohaeos.com', 'https://wax.greymass.com'];
+            let assetData = null;
+            
+            for (const endpoint of rpcEndpoints) {
+              try {
+                const resp = await fetch(`${endpoint}/v1/chain/get_table_rows`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    code: 'atomicassets',
+                    scope: 'atomicassets',
+                    table: 'assets',
+                    lower_bound: assetId,
+                    upper_bound: assetId,
+                    limit: 1,
+                    json: true,
+                  }),
+                });
+                const result = await resp.json();
+                if (result.rows?.length > 0) {
+                  assetData = result.rows[0];
+                  break;
+                }
+              } catch {
+                continue;
+              }
+            }
+            
+            if (assetData) {
+              const templateId = assetData.template_id;
+              const collection = assetData.collection_name;
+              
+              // Try to fetch template metadata
+              if (templateId && templateId > 0) {
+                try {
+                  const templateResp = await fetchWithFallback(
+                    ATOMIC_API.baseUrls,
+                    `/atomicassets/v1/templates/${collection}/${templateId}`
+                  );
+                  const templateJson = await templateResp.json();
+                  
+                  if (templateJson.success && templateJson.data) {
+                    const templateData = templateJson.data;
+                    assets.push({
+                      asset_id: assetId,
+                      name: templateData.immutable_data?.name || `NFT #${assetId}`,
+                      image: getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image),
+                      collection: collection,
+                      schema: assetData.schema_name || '',
+                      template_id: String(templateId),
+                    });
+                    continue;
+                  }
+                } catch {
+                  // Fall through to placeholder
+                }
+              }
+              
+              // Fallback with blockchain data only
+              assets.push({
+                asset_id: assetId,
+                name: `NFT #${assetId}`,
+                image: '',
+                collection: collection || 'Unknown',
+                schema: assetData.schema_name || '',
+                template_id: templateId ? String(templateId) : '',
+              });
+            } else {
+              // No data at all - basic placeholder
+              assets.push({
+                asset_id: assetId,
+                name: `NFT #${assetId}`,
+                image: '',
+                collection: 'Unknown',
+                schema: '',
+                template_id: '',
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching staked asset ${assetId}:`, error);
+            assets.push({
+              asset_id: assetId,
+              name: `NFT #${assetId}`,
+              image: '',
+              collection: 'Unknown',
+              schema: '',
+              template_id: '',
+            });
+          }
+        }
+      }
+      
+      console.log('[NFTStaking] Final staked NFT details:', assets.length);
+      return assets;
     },
     enabled: stakedNfts.length > 0,
-    staleTime: 30000,
+    staleTime: 0, // Always refetch to catch newly staked NFTs
+    gcTime: 0,
   });
 
   const handleStake = async () => {
@@ -659,12 +771,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       
       setSelectedToStake(new Set());
       
-      // Refetch data
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
+      queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
+      
+      // Refetch data with a small delay to allow blockchain state to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await Promise.all([
         refetchStaked(),
         refetchEligible(),
+        refetchStakedDetails(),
       ]);
-      queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
     } catch (error) {
       console.error("Stake failed:", error);
       toast({
@@ -698,12 +815,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       
       setSelectedToUnstake(new Set());
       
-      // Refetch data
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
+      queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
+      
+      // Refetch data with a small delay to allow blockchain state to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await Promise.all([
         refetchStaked(),
         refetchEligible(),
+        refetchStakedDetails(),
       ]);
-      queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
     } catch (error) {
       console.error("Unstake failed:", error);
       toast({

@@ -10,6 +10,8 @@ const ALCOR_CONTRACT_MAP: Record<string, string> = {
   // Main tokens
   'WAX': 'eosio.token',
   'CHEESE': 'cheeseburger',
+  'LSWAX': 'token.lswax',
+  'LSW': 'token.lswax',
   'TLM': 'alien.worlds',
   'WUFFI': 'wuffi',
   'NEFTY': 'neftyblocksd',
@@ -57,6 +59,8 @@ const ALCOR_CONTRACT_MAP: Record<string, string> = {
   'FWW': 'farmerstoken',
   'KBUCKS': 'kolobokbucks',
   'BLUX': 'bluxbluxblux',
+  'SHING': 'shinglestest',
+  'WPS': 'waboratiogov',
 };
 
 /**

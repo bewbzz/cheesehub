@@ -35,6 +35,7 @@ export function IncreaseLiquidityDialog({
   const { tokens } = useAllTokenBalances(accountName);
   const [tokenAAmount, setTokenAAmount] = useState('');
   const [tokenBAmount, setTokenBAmount] = useState('');
+  const [lastEditedToken, setLastEditedToken] = useState<'A' | 'B' | null>(null);
   const [isTransacting, setIsTransacting] = useState(false);
 
   // Find user's balances for the position tokens
@@ -60,22 +61,37 @@ export function IncreaseLiquidityDialog({
     return position.tokenB.amount / position.tokenA.amount;
   }, [position]);
 
-  // Auto-calculate token B when token A changes
-  useEffect(() => {
-    if (!tokenAAmount || isNaN(parseFloat(tokenAAmount))) {
+  // Auto-calculate the other token based on which one was edited
+  const handleTokenAChange = (value: string) => {
+    setTokenAAmount(value);
+    setLastEditedToken('A');
+    if (!value || isNaN(parseFloat(value))) {
       setTokenBAmount('');
       return;
     }
-    const amountA = parseFloat(tokenAAmount);
+    const amountA = parseFloat(value);
     const amountB = amountA * positionRatio;
     setTokenBAmount(amountB.toFixed(tokenBBalance?.precision || 8));
-  }, [tokenAAmount, positionRatio, tokenBBalance]);
+  };
+
+  const handleTokenBChange = (value: string) => {
+    setTokenBAmount(value);
+    setLastEditedToken('B');
+    if (!value || isNaN(parseFloat(value)) || positionRatio === 0) {
+      setTokenAAmount('');
+      return;
+    }
+    const amountB = parseFloat(value);
+    const amountA = amountB / positionRatio;
+    setTokenAAmount(amountA.toFixed(tokenABalance?.precision || 4));
+  };
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setTokenAAmount('');
       setTokenBAmount('');
+      setLastEditedToken(null);
     }
   }, [open]);
 
@@ -224,7 +240,7 @@ export function IncreaseLiquidityDialog({
                 type="number"
                 placeholder="0.0"
                 value={tokenAAmount}
-                onChange={(e) => setTokenAAmount(e.target.value)}
+                onChange={(e) => handleTokenAChange(e.target.value)}
                 min={0}
               />
               <Button
@@ -239,7 +255,7 @@ export function IncreaseLiquidityDialog({
             </div>
           </div>
 
-          {/* Token B Input (auto-calculated) */}
+          {/* Token B Input */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-2">
@@ -254,11 +270,11 @@ export function IncreaseLiquidityDialog({
               type="number"
               placeholder="0.0"
               value={tokenBAmount}
-              readOnly
-              className="bg-muted/50"
+              onChange={(e) => handleTokenBChange(e.target.value)}
+              min={0}
             />
             <p className="text-xs text-muted-foreground">
-              Auto-calculated based on position ratio
+              Edit either token - the other adjusts automatically
             </p>
           </div>
 

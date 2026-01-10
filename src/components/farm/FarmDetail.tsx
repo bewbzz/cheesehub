@@ -47,18 +47,15 @@ export function FarmDetail() {
 
   const queryClient = useQueryClient();
   
-  const { data: farm, isLoading, error } = useQuery({
+  const { data: farm, isLoading, error, refetch } = useQuery({
     queryKey: ["farmDetail", farmName],
     queryFn: () => fetchFarmDetails(farmName!),
     enabled: !!farmName,
     staleTime: 30000,
   });
 
-  const handleFarmUpdated = () => {
-    queryClient.invalidateQueries({ 
-      queryKey: ["farmDetail", farmName],
-      refetchType: 'active'
-    });
+  const handleFarmUpdated = async () => {
+    await refetch();
   };
 
   const handleCopyFarmName = () => {

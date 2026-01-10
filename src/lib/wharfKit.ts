@@ -25,30 +25,53 @@ export const sessionKit = new SessionKit({
 
 // Track if a login is in progress to avoid removing modal during login
 let isLoginInProgress = false;
+let loginProtectionTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function setLoginInProgress(value: boolean) {
   isLoginInProgress = value;
+  
+  // Clear any existing timeout
+  if (loginProtectionTimeout) {
+    clearTimeout(loginProtectionTimeout);
+    loginProtectionTimeout = null;
+  }
+  
+  // If starting login, set a safety timeout to auto-reset after 60 seconds
+  // This prevents getting permanently stuck if login fails silently
+  if (value) {
+    loginProtectionTimeout = setTimeout(() => {
+      isLoginInProgress = false;
+      loginProtectionTimeout = null;
+    }, 60000);
+  }
+}
+
+export function isLoginActive() {
+  return isLoginInProgress;
 }
 
 // Utility to close any stuck Wharfkit modals - more aggressive cleanup
 export function closeWharfkitModals() {
-  // Skip cleanup if login is in progress to prevent removing modal during wallet selection
+  // CRITICAL: Skip ALL cleanup if login is in progress
   if (isLoginInProgress) {
     console.log('Skipping modal cleanup - login in progress');
     return;
   }
 
-  // Remove any Wharfkit modal elements from the DOM (multiple selectors for thoroughness)
-  // BUT be careful not to remove the main container if it's actively being used
+  // Remove any Wharfkit modal elements from the DOM
+  // Check if there's an active dialog before removing the container
   const wharfkitEl = document.getElementById('wharfkit-web-ui');
   
-  // Only remove WharfKit container if it has no open dialog
   if (wharfkitEl) {
+    // Check for open dialog in shadow DOM
     const hasOpenDialog = wharfkitEl.shadowRoot?.querySelector('dialog[open]');
-    if (!hasOpenDialog) {
-      // Safe to remove - no active dialog
-      wharfkitEl.remove();
+    if (hasOpenDialog) {
+      // Don't remove if there's an active dialog
+      console.log('Skipping WharfKit cleanup - dialog is open');
+      return;
     }
+    // Safe to remove - no active dialog
+    wharfkitEl.remove();
   }
   
   const modalSelectors = [
@@ -59,11 +82,9 @@ export function closeWharfkitModals() {
     'wharfkit-modal',
     '.wharfkit-modal',
     '[data-wharfkit]',
-    // WebRenderer specific elements
     '.prompt-modal',
     '.prompt-overlay',
     '[class*="prompt-"]',
-    // Anchor wallet modals
     '[class*="anchor-link"]',
     '.anchor-link-modal',
   ];
@@ -72,7 +93,6 @@ export function closeWharfkitModals() {
     try {
       const elements = document.querySelectorAll(selector);
       elements.forEach((el) => {
-        // Don't remove the main wharfkit container
         if (el.id !== 'wharfkit-web-ui') {
           el.remove();
         }
@@ -92,7 +112,6 @@ export function closeWharfkitModals() {
       el.id !== 'wharfkit-web-ui' &&
       !el.closest('[data-radix-portal]')
     ) {
-      // Check if it looks like a wallet modal (dark overlay or modal-like)
       if (style.backgroundColor?.includes('rgba') || el.querySelector('[class*="modal"]')) {
         el.remove();
       }
@@ -108,20 +127,6 @@ export function closeWharfkitModals() {
   // Restore pointer events on Radix portals
   document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
     (el as HTMLElement).style.pointerEvents = '';
-  });
-  
-  // Also clean up any shadow DOM elements from web components (but not the main WharfKit one)
-  document.querySelectorAll('*').forEach(el => {
-    if (el.shadowRoot && el.id !== 'wharfkit-web-ui') {
-      const shadowModals = el.shadowRoot.querySelectorAll('[class*="modal"], [class*="overlay"]');
-      shadowModals.forEach(modal => {
-        try {
-          modal.remove();
-        } catch (e) {
-          // Shadow DOM might not allow removal
-        }
-      });
-    }
   });
 }
 

@@ -483,6 +483,26 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     const data = await response.json();
     console.log("Proposals data:", data);
     
+    // Log first proposal's all keys to understand structure
+    if (data.rows && data.rows.length > 0) {
+      const firstRow = data.rows[0];
+      console.log("First proposal all keys:", Object.keys(firstRow));
+      
+      // Find any token transfer proposals and log their full structure
+      data.rows.forEach((row: Record<string, unknown>) => {
+        const pType = row.proposal_type as number;
+        if (pType === 4 || pType === 5) {
+          console.log(`TRANSFER Proposal ${row.proposal_id} (type ${pType}) ALL DATA:`, {
+            token_receivers: row.token_receivers,
+            nft_receivers: row.nft_receivers,
+            actions: row.actions,
+            receivers: row.receivers, // Maybe different field name?
+            transfers: row.transfers, // Maybe different field name?
+          });
+        }
+      });
+    }
+    
     const now = Math.floor(Date.now() / 1000);
     
     return (data.rows || []).map((row: Record<string, unknown>) => {

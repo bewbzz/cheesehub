@@ -95,7 +95,7 @@ export function closeWharfkitModals() {
   });
 }
 
-// Function to ensure WharfKit modals are always on top
+// Function to ensure WharfKit modals are always on top (z-index only, no pointer-events manipulation)
 export function ensureModalOnTop() {
   const wharfkitEl = document.getElementById('wharfkit-web-ui');
   if (wharfkitEl) {
@@ -107,7 +107,7 @@ export function ensureModalOnTop() {
     wharfkitEl.style.height = '100vh';
     wharfkitEl.style.pointerEvents = 'auto';
     
-    // Inject styles into shadow DOM to fix z-index and pointer-events
+    // Inject styles into shadow DOM to fix z-index
     if (wharfkitEl.shadowRoot) {
       const dialog = wharfkitEl.shadowRoot.querySelector('dialog');
       if (dialog) {
@@ -116,7 +116,6 @@ export function ensureModalOnTop() {
         (dialog as HTMLElement).style.pointerEvents = 'auto';
       }
       
-      // Also ensure any backdrop doesn't block
       const backdrop = wharfkitEl.shadowRoot.querySelector('.backdrop, [class*="backdrop"]');
       if (backdrop) {
         (backdrop as HTMLElement).style.zIndex = '999998';
@@ -124,13 +123,7 @@ export function ensureModalOnTop() {
       }
     }
   }
-  
-  // Also disable pointer events on Radix overlays temporarily
-  document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
-    if (!el.closest('#wharfkit-web-ui')) {
-      (el as HTMLElement).style.pointerEvents = 'none';
-    }
-  });
+  // NOTE: No longer disabling pointer-events on Radix elements - this was causing vote buttons to freeze
 }
 
 // Restore pointer events on Radix elements
@@ -164,10 +157,7 @@ if (typeof window !== 'undefined') {
               node.style.height = '100vh';
               node.style.pointerEvents = 'auto';
               
-              // Disable Radix portal pointer events so wallet modal is clickable
-              document.querySelectorAll('[data-radix-portal]').forEach(el => {
-                (el as HTMLElement).style.pointerEvents = 'none';
-              });
+              // NOTE: No longer disabling Radix portal pointer events - this was breaking the UI
               
               // Watch for shadow DOM content
               const checkShadow = () => {

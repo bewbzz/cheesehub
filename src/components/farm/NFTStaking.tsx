@@ -173,15 +173,20 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
       {/* Image with IPFS fallback */}
       <div className="w-full h-full bg-muted flex items-center justify-center">
         {showErrorState ? (
-          <div 
-            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-            onClick={handleRetry}
+          <button 
+            type="button"
+            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted/80 transition-colors z-20"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleRetry(e);
+            }}
             title="Click to retry loading image"
           >
             <ImageIcon className="h-5 w-5 text-cheese mb-1" />
             <span className="text-[9px] text-cheese font-medium">Retry</span>
             <span className="text-[8px] text-muted-foreground mt-0.5">#{nft.asset_id}</span>
-          </div>
+          </button>
         ) : (
           <>
             {!imgLoaded && (
@@ -517,19 +522,80 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         }
       }
       
-      // For any assets not returned by API (not indexed yet), create placeholder entries
+      // For any assets not returned by API (not indexed yet), try to fetch template metadata
       const fetchedIds = new Set(assets.map(a => a.asset_id));
-      for (const assetId of eligibleAssetIds) {
-        if (!fetchedIds.has(assetId)) {
+      const missingAssetIds = eligibleAssetIds.filter(id => !fetchedIds.has(id));
+      
+      if (missingAssetIds.length > 0) {
+        console.log('[NFTStaking] Fetching template metadata for', missingAssetIds.length, 'unindexed assets');
+        
+        // Group by template_id to minimize API calls
+        const templateGroups = new Map<number, string[]>();
+        for (const assetId of missingAssetIds) {
           const meta = assetMetadataMap.get(assetId);
-          assets.push({
-            asset_id: assetId,
-            name: `NFT #${assetId}`,
-            image: '/placeholder.svg',
-            collection: meta?.collection || 'Unknown',
-            schema: meta?.schema || '',
-            template_id: meta?.template_id ? String(meta.template_id) : '',
-          });
+          if (meta?.template_id) {
+            const existing = templateGroups.get(meta.template_id) || [];
+            existing.push(assetId);
+            templateGroups.set(meta.template_id, existing);
+          }
+        }
+        
+        // Fetch template metadata
+        for (const [templateId, assetIds] of templateGroups) {
+          const meta = assetMetadataMap.get(assetIds[0]);
+          if (!meta) continue;
+          
+          try {
+            const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
+            const templateResponse = await fetchWithFallback(ATOMIC_API.baseUrls, templatePath);
+            const templateJson = await templateResponse.json();
+            
+            if (templateJson.success && templateJson.data) {
+              const templateData = templateJson.data;
+              const templateImage = getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image);
+              const templateName = templateData.immutable_data?.name || `Template #${templateId}`;
+              
+              // Create entries for all assets with this template
+              for (const assetId of assetIds) {
+                assets.push({
+                  asset_id: assetId,
+                  name: templateName,
+                  image: templateImage,
+                  collection: meta.collection,
+                  schema: meta.schema,
+                  template_id: String(templateId),
+                });
+              }
+            }
+          } catch (error) {
+            console.error('[NFTStaking] Error fetching template', templateId, ':', error);
+            // Fall back to placeholder for these assets
+            for (const assetId of assetIds) {
+              assets.push({
+                asset_id: assetId,
+                name: `NFT #${assetId}`,
+                image: '',
+                collection: meta?.collection || 'Unknown',
+                schema: meta?.schema || '',
+                template_id: String(templateId),
+              });
+            }
+          }
+        }
+        
+        // Handle assets without template_id
+        for (const assetId of missingAssetIds) {
+          const meta = assetMetadataMap.get(assetId);
+          if (!meta?.template_id) {
+            assets.push({
+              asset_id: assetId,
+              name: `NFT #${assetId}`,
+              image: '',
+              collection: meta?.collection || 'Unknown',
+              schema: meta?.schema || '',
+              template_id: '',
+            });
+          }
         }
       }
       

@@ -126,17 +126,24 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
 
   // Non-Custodial NFT DAOs (type 5) don't require explicit joining - membership is based on NFT holdings
   const isNonCustodialDao = dao.dao_type === 5;
+  
+  // Check if current user is the DAO creator (creators are automatically members)
+  const isCreator = accountName && dao.creator === accountName;
 
   useEffect(() => {
     if (open) {
       loadProposals();
       setActiveSection("info");
-      // Skip membership check for Non-Custodial NFT DAOs - membership is based on NFT holdings
-      if (!isNonCustodialDao) {
+      
+      // Creator is automatically a member
+      if (isCreator) {
+        setIsMember(true);
+      } else if (!isNonCustodialDao) {
+        // Skip membership check for Non-Custodial NFT DAOs - membership is based on NFT holdings
         checkMembership();
       }
     }
-  }, [open, dao.dao_name, accountName, isNonCustodialDao]);
+  }, [open, dao.dao_name, accountName, isNonCustodialDao, isCreator]);
 
   useEffect(() => {
     if (activeSection === "treasury" && treasury.length === 0) {
@@ -354,8 +361,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </p>
               </div>
             </div>
-            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs */}
-            {isConnected && !isNonCustodialDao && (
+            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs or DAO creators */}
+            {isConnected && !isNonCustodialDao && !isCreator && (
               <div className="shrink-0">
                 {membershipLoading ? (
                   <Button size="sm" disabled>

@@ -50,8 +50,9 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
   const { accountName } = useWax();
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['alcor-farms', accountName],
+    queryKey: ['alcor-farms-v2', accountName], // Changed key to force fresh fetch
     queryFn: async () => {
+      console.log('[useAlcorFarms] Starting fetch for', accountName);
       if (!accountName) return { stakedFarms: [], unstakedIncentives: new Map(), unstakedPositions: [] };
       
       // Ensure token cache is loaded before fetching farms
@@ -115,16 +116,20 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
         const unstaked = allPoolIncentives
           .filter((incentive: any) => !stakedIncentiveIds.includes(incentive.id))
           .map((incentive: any) => {
-            const rewardAsset = incentive.reward?.quantity || '0.00000000 TOKEN';
+            // Handle both API format and blockchain table format
+            // Blockchain format: rewardToken: { contract, quantity }
+            // API format: reward: { contract, quantity }
+            const rewardData = incentive.rewardToken || incentive.reward || {};
+            const rewardAsset = rewardData.quantity || '0.00000000 TOKEN';
             const rewardParts = rewardAsset.split(' ');
             const decimalParts = rewardParts[0].split('.');
             const precision = decimalParts[1]?.length || 8;
             
             return {
               incentiveId: incentive.id,
-              poolId: incentive.pool || poolId,
+              poolId: incentive.poolId || incentive.pool || poolId,
               rewardToken: {
-                contract: incentive.reward?.contract || '',
+                contract: rewardData.contract || '',
                 symbol: rewardParts[1] || 'TOKEN',
                 precision,
               },

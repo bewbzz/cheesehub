@@ -278,7 +278,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
               <Card key={position.positionId} className="bg-muted/30 border-border/50">
                 <CardContent className="p-4">
                   {/* Main row - Position info */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-4">
                     {/* Pair */}
                     <div className="flex items-center gap-2 w-[140px] shrink-0">
                       <div className="flex -space-x-2">
@@ -299,8 +299,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     </div>
 
                     {/* APR - stacked */}
-                    <div className="w-[70px] shrink-0">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <div className="w-[70px] shrink-0 text-center">
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
                         <Percent className="h-3 w-3" />
                         APR
                       </div>
@@ -326,8 +326,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     </div>
 
                     {/* Daily earn - stacked (middle) */}
-                    <div className="flex-1 min-w-[120px]">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                    <div className="w-[130px] shrink-0 text-center">
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
                         <TrendingUp className="h-3 w-3" />
                         Daily
                       </div>

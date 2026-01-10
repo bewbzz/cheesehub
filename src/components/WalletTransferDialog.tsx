@@ -247,9 +247,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         
         <div className="flex gap-4 h-[810px]">
           {/* Left Sidebar Menu */}
-          <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col">
-            {/* Main menu items */}
-            <div className="space-y-1 flex-1">
+          <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col h-full">
+            {/* Main menu items - takes available space */}
+            <div className="space-y-1">
               {mainMenuItems.map((item) => (
                 <Button
                   key={item.id}
@@ -268,8 +268,11 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               ))}
             </div>
 
-            {/* Separator and bottom menu items */}
-            <div className="border-t border-border/50 pt-3 mt-3 space-y-1">
+            {/* Spacer to push bottom items down */}
+            <div className="flex-1" />
+
+            {/* Bottom menu items - pinned to bottom */}
+            <div className="border-t border-border/50 pt-3 space-y-1">
               {bottomMenuItems.map((item) => (
                 <Button
                   key={item.id}

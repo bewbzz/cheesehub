@@ -397,8 +397,8 @@ export function buildIncreaseLiquidityAction(
   tokenBContract: string,
   tokenBQuantity: string
 ): TransactionAction[] {
-  // Parse amounts for min values (apply 0.5% slippage)
-  const slippageMultiplier = 0.995;
+  // Parse amounts for min values (apply 10% slippage like Alcor does)
+  const slippageMultiplier = 0.90;
   
   const tokenAAmount = parseFloat(tokenAQuantity.split(' ')[0]);
   const tokenASymbol = tokenAQuantity.split(' ')[1];
@@ -410,11 +410,8 @@ export function buildIncreaseLiquidityAction(
   const tokenBDecimals = tokenBQuantity.split(' ')[0].split('.')[1]?.length || 0;
   const minTokenB = (tokenBAmount * slippageMultiplier).toFixed(tokenBDecimals) + ' ' + tokenBSymbol;
 
-  // Deadline: 10 minutes from now
-  const deadline = Math.floor(Date.now() / 1000) + 600;
-
   return [
-    // Transfer token A
+    // Transfer token A with "deposit" memo (required by Alcor)
     {
       account: tokenAContract,
       name: 'transfer',
@@ -423,10 +420,10 @@ export function buildIncreaseLiquidityAction(
         from: accountName,
         to: ALCOR_SWAP_CONTRACT,
         quantity: tokenAQuantity,
-        memo: '',
+        memo: 'deposit',
       },
     },
-    // Transfer token B
+    // Transfer token B with "deposit" memo (required by Alcor)
     {
       account: tokenBContract,
       name: 'transfer',
@@ -435,10 +432,11 @@ export function buildIncreaseLiquidityAction(
         from: accountName,
         to: ALCOR_SWAP_CONTRACT,
         quantity: tokenBQuantity,
-        memo: '',
+        memo: 'deposit',
       },
     },
     // Add liquidity with same tick range as existing position
+    // deadline: 0 means no deadline (like Alcor uses)
     {
       account: ALCOR_SWAP_CONTRACT,
       name: 'addliquid',
@@ -452,7 +450,7 @@ export function buildIncreaseLiquidityAction(
         tickUpper,
         tokenAMin: minTokenA,
         tokenBMin: minTokenB,
-        deadline,
+        deadline: 0,
       },
     },
   ];

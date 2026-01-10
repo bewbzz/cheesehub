@@ -143,34 +143,59 @@ if (typeof window !== 'undefined') {
       return;
     }
     
+    // Function to check if shadow DOM has an open dialog and toggle pointer-events
+    const updatePointerEvents = (wharfkitEl: HTMLElement) => {
+      if (wharfkitEl.shadowRoot) {
+        const dialog = wharfkitEl.shadowRoot.querySelector('dialog');
+        if (dialog && dialog.hasAttribute('open')) {
+          // Dialog is open - enable pointer events on container
+          wharfkitEl.classList.add('modal-active');
+          // Also ensure dialog itself is interactive
+          (dialog as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
+        } else {
+          // No open dialog - disable pointer events on container
+          wharfkitEl.classList.remove('modal-active');
+        }
+      }
+    };
+    
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
             if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
-              // Apply z-index fix immediately when modal appears using setProperty for priority
+              // Apply z-index fix immediately when modal appears
               node.style.setProperty('z-index', '999999', 'important');
               node.style.setProperty('position', 'fixed', 'important');
               node.style.setProperty('top', '0', 'important');
               node.style.setProperty('left', '0', 'important');
               node.style.setProperty('width', '100vw', 'important');
               node.style.setProperty('height', '100vh', 'important');
-              node.style.setProperty('pointer-events', 'auto', 'important');
               
-              // Watch for shadow DOM content
+              // Watch for shadow DOM content and dialog open state
               const checkShadow = () => {
                 if (node.shadowRoot) {
                   const dialog = node.shadowRoot.querySelector('dialog');
                   if (dialog) {
                     (dialog as HTMLElement).style.setProperty('z-index', '999999', 'important');
                     (dialog as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
+                    
+                    // Watch for dialog open/close attribute changes
+                    const dialogObserver = new MutationObserver(() => {
+                      updatePointerEvents(node);
+                    });
+                    dialogObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+                    
+                    // Initial check
+                    updatePointerEvents(node);
                   }
                 }
               };
               checkShadow();
-              // Check again after a small delay in case shadow DOM loads later
-              setTimeout(checkShadow, 100);
-              setTimeout(checkShadow, 500);
+              // Check again after delays in case shadow DOM loads later
+              setTimeout(checkShadow, 50);
+              setTimeout(checkShadow, 150);
+              setTimeout(checkShadow, 300);
             }
           }
         }
@@ -194,11 +219,9 @@ if (typeof window !== 'undefined') {
   // Defer observer initialization until after React has mounted
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      // Additional delay to ensure React has mounted
       setTimeout(initObserver, 100);
     });
   } else {
-    // DOM already loaded, but still defer slightly
     setTimeout(initObserver, 100);
   }
 }

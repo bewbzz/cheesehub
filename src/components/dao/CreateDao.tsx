@@ -21,20 +21,20 @@ import { Badge } from "@/components/ui/badge";
 // DAO Type descriptions for the selector
 const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
   1: {
-    short: "Stake NFTs to a WaxDAO Farm",
-    long: "Members stake their NFTs to an existing WaxDAO NFT farm. Voting power is based on the number of NFTs staked. Requires an existing waxdaofarmer NFT farm."
+    short: "Stake NFTs to a V1 WaxDAO NFT Farm",
+    long: "Members stake their NFTs to an existing V1 WaxDAO NFT farm (waxdaofarmer contract). Voting power is based on the number of NFTs staked. Requires an existing V1 NFT farm."
   },
   2: {
-    short: "Stake Tokens to a WaxDAO Farm",
-    long: "Members stake tokens to an existing WaxDAO token farm. Voting power equals staked token amount. Requires an existing waxdaofarmer token pool."
+    short: "Stake Tokens to a V1 WaxDAO Token Farm",
+    long: "Members stake tokens to an existing V1 WaxDAO token farm (waxdaofarmer contract). Voting power equals staked token amount. Requires an existing V1 token farm."
   },
   3: {
-    short: "Stake to External WaxDAO Pool",
-    long: "Stakes to an external WaxDAO farmer pool. Similar to Type 2 but uses external pool reference."
+    short: "Stake to External V1 WaxDAO Pool",
+    long: "Stakes to an external V1 WaxDAO farmer pool. Similar to Type 2 but uses external pool reference. Requires V1 farm."
   },
   4: {
     short: "Stake Tokens to DAO (Custodial)",
-    long: "Members stake governance tokens directly to the DAO contract. Tokens are held custodially until unstaked. Voting power equals staked balance."
+    long: "Members stake governance tokens directly to the DAO contract. Tokens are held custodially until unstaked. Voting power equals staked balance. No external farm needed."
   },
   5: {
     short: "Hold NFTs (Non-Custodial)",
@@ -275,31 +275,34 @@ export function CreateDao() {
                           <p className="font-medium">WaxDAO supports 5 different DAO types:</p>
                           
                           <div className="space-y-3">
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-cheese">Type 1: Custodial NFT Farm</p>
+                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
+                              <p className="font-medium text-amber-500">Type 1: Custodial NFT Farm (V1)</p>
                               <p className="text-xs mt-1">
-                                Requires an existing WaxDAO NFT farm. Members stake NFTs to gain voting power.
+                                Requires an existing <strong>V1 WaxDAO NFT farm</strong> (waxdaofarmer contract). 
+                                Members stake NFTs to that farm to gain voting power. V2 farms are NOT compatible.
                               </p>
                             </div>
                             
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-cheese">Type 2: Custodial Token Pool</p>
+                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
+                              <p className="font-medium text-amber-500">Type 2: Custodial Token Farm (V1)</p>
                               <p className="text-xs mt-1">
-                                Requires an existing WaxDAO token pool. Members stake tokens for voting power.
+                                Requires an existing <strong>V1 WaxDAO token farm</strong> (waxdaofarmer contract). 
+                                Members stake tokens to that farm for voting power. V2 farms are NOT compatible.
                               </p>
                             </div>
                             
-                            <div className="p-2 rounded border border-border/50">
-                              <p className="font-medium text-cheese">Type 3: Stake to WaxDAO Pool</p>
+                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
+                              <p className="font-medium text-amber-500">Type 3: Stake to V1 WaxDAO Pool</p>
                               <p className="text-xs mt-1">
-                                Similar to Type 2, uses external WaxDAO farmer pool reference.
+                                Similar to Type 2, uses external V1 WaxDAO farmer pool reference. 
+                                Requires existing V1 farm.
                               </p>
                             </div>
                             
                             <div className="p-2 rounded border border-cheese/50 bg-cheese/5">
                               <p className="font-medium text-cheese">Type 4: Stake Tokens (Custodial) ⭐ Popular</p>
                               <p className="text-xs mt-1">
-                                Members stake governance tokens directly to the DAO. No external farm needed.
+                                Members stake governance tokens directly to the DAO. <strong>No external farm needed.</strong>
                                 Tokens are held by the DAO contract until unstaked.
                               </p>
                             </div>

@@ -372,7 +372,12 @@ export function CreateFarm() {
                     {FAQ_ITEMS.map((item, index) => (
                       <AccordionItem key={index} value={`item-${index}`} className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          {item.question}
+                          <span className="flex items-center gap-2">
+                            {item.question}
+                            {index === 0 && !CHEESE_FEE_ENABLED && (
+                              <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                            )}
+                          </span>
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground">
                           {item.answer}

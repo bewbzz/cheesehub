@@ -367,7 +367,12 @@ export function CreateDao() {
                       
                       <AccordionItem value="cheese-payment" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          Paying with CHEESE Tokens
+                          <span className="flex items-center gap-2">
+                            Paying with CHEESE Tokens
+                            {!CHEESE_FEE_ENABLED && (
+                              <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+                            )}
+                          </span>
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>

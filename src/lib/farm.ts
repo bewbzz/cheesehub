@@ -272,7 +272,7 @@ export function buildSetTemplateValuesAction(
       user,
       farmname,
       template_id: templateId,
-      reward_values: rewardValues,
+      values: rewardValues,
     },
   };
 }
@@ -294,7 +294,7 @@ export function buildSetSchemaValuesAction(
       farmname,
       collection_name: collectionName,
       schema_name: schemaName,
-      reward_values: rewardValues,
+      values: rewardValues,
     },
   };
 }
@@ -314,7 +314,7 @@ export function buildSetCollectionValuesAction(
       user,
       farmname,
       collection_name: collectionName,
-      reward_values: rewardValues,
+      values: rewardValues,
     },
   };
 }
@@ -336,7 +336,7 @@ export function buildSetAttributeValuesAction(
       farmname,
       attribute_name: attributeName,
       attribute_value: attributeValue,
-      reward_values: rewardValues,
+      values: rewardValues,
     },
   };
 }

@@ -633,6 +633,12 @@ export function CreateDao() {
                   <p className="text-xs text-muted-foreground">
                     Pay creation fees with CHEESE tokens and receive a 20% discount
                   </p>
+                  <p className="text-xs text-muted-foreground/80 mt-1">
+                    <strong>Why prepay?</strong> Due to smart contract limitations, if selecting this option you must complete the prepayment before filling in the rest of the form.
+                  </p>
+                  <p className="text-xs text-muted-foreground/80">
+                    Don't worry — if you decide not to create a DAO after prepaying, your CHEESE is 100% refundable.
+                  </p>
                 </div>
               </div>
               

@@ -389,6 +389,24 @@ export function buildAddRewardsAction(
   };
 }
 
+// Build action for opening a farm (sets expiration and activates it)
+export function buildOpenFarmAction(
+  creator: string,
+  farmName: string,
+  expiration: number
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "openfarm",
+    authorization: [{ actor: creator, permission: "active" }],
+    data: {
+      user: creator,
+      farmname: farmName,
+      expiration,
+    },
+  };
+}
+
 // Build action for extending farm expiration
 export function buildExtendFarmAction(
   creator: string,

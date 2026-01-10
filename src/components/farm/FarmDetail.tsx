@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +16,16 @@ import {
   Coins,
   Settings,
   Copy,
-  Check
+  Check,
+  Construction
 } from "lucide-react";
 import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
 import { ManageStakableAssets } from "./ManageStakableAssets";
+import { OpenFarmDialog } from "./OpenFarmDialog";
+import { ExtendFarmDialog } from "./ExtendFarmDialog";
 import { useWax } from "@/context/WaxContext";
 // Farm type labels based on WaxDAO contract
 const FARM_TYPE_LABELS: Record<number, string> = {
@@ -41,12 +44,18 @@ export function FarmDetail() {
   const { accountName } = useWax();
   const [copied, setCopied] = useState(false);
 
+  const queryClient = useQueryClient();
+  
   const { data: farm, isLoading, error } = useQuery({
     queryKey: ["farmDetail", farmName],
     queryFn: () => fetchFarmDetails(farmName!),
     enabled: !!farmName,
     staleTime: 30000,
   });
+
+  const handleFarmUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: ["farmDetail", farmName] });
+  };
 
   const handleCopyFarmName = () => {
     if (farmName) {
@@ -90,6 +99,10 @@ export function FarmDetail() {
   const expirationDate = new Date(farm.expiration * 1000);
   const createdDate = new Date(farm.time_created * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
+  
+  // Farm is "under construction" if expiration is 0 or very far in past (never opened)
+  const isUnderConstruction = farm.expiration === 0;
+  const isCreator = accountName && accountName === farm.creator;
 
   const formatPayoutInterval = (seconds: number) => {
     if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`;
@@ -139,7 +152,12 @@ export function FarmDetail() {
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
               V2
             </Badge>
-            {isExpired ? (
+            {isUnderConstruction ? (
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <Construction className="h-3 w-3 mr-1" />
+                Under Construction
+              </Badge>
+            ) : isExpired ? (
               <Badge variant="destructive">Expired</Badge>
             ) : (
               <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
@@ -153,8 +171,11 @@ export function FarmDetail() {
               {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
               Copy Name
             </Button>
-            {accountName && accountName === farm.creator && (
-              <ManageStakableAssets farm={farm} onSuccess={() => {}} />
+            {isCreator && (
+              <ManageStakableAssets farm={farm} onSuccess={handleFarmUpdated} />
+            )}
+            {isCreator && isUnderConstruction && (
+              <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
             )}
           </div>
         </div>
@@ -173,6 +194,23 @@ export function FarmDetail() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-muted-foreground">Farm Status</p>
+                  {isCreator && isUnderConstruction && (
+                    <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                  )}
+                </div>
+                <p className="font-medium">
+                  {isUnderConstruction ? (
+                    <span className="text-amber-400">Under Construction</span>
+                  ) : isExpired ? (
+                    <span className="text-red-400">Expired</span>
+                  ) : (
+                    <span className="text-green-400">Active</span>
+                  )}
+                </p>
+              </div>
+              <div>
                 <p className="text-muted-foreground">Farm Type</p>
                 <p className="font-medium">{getFarmTypeLabel(farm.farm_type)}</p>
               </div>
@@ -185,8 +223,15 @@ export function FarmDetail() {
                 <p className="font-medium">{createdDate.toLocaleDateString()}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Expires</p>
-                <p className="font-medium">{expirationDate.toLocaleDateString()}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-muted-foreground">Expires</p>
+                  {isCreator && !isUnderConstruction && (
+                    <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                  )}
+                </div>
+                <p className="font-medium">
+                  {isUnderConstruction ? "Not set" : expirationDate.toLocaleDateString()}
+                </p>
               </div>
             </div>
 

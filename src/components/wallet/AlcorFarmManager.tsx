@@ -108,14 +108,14 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   // Create a unified list combining staked and unstaked positions, sorted by USD value
   const allPositionsSorted = useMemo(() => {
     type UnifiedPosition = 
-      | { type: 'staked'; data: GroupedFarmPosition }
+      | { type: 'staked'; data: GroupedFarmPosition; usdValue: number }
       | { type: 'unstaked'; data: UnstakedLPPosition; usdValue: number };
     
     const unified: UnifiedPosition[] = [];
     
     // Add staked positions
     groupedPositions.forEach((pos) => {
-      unified.push({ type: 'staked', data: pos });
+      unified.push({ type: 'staked', data: pos, usdValue: pos.usdValue });
     });
     
     // Add unstaked positions with their calculated USD value
@@ -127,11 +127,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     });
     
     // Sort by USD value descending
-    unified.sort((a, b) => {
-      const aValue = a.type === 'staked' ? a.data.usdValue : a.usdValue;
-      const bValue = b.type === 'staked' ? b.data.usdValue : b.usdValue;
-      return bValue - aValue;
-    });
+    unified.sort((a, b) => b.usdValue - a.usdValue);
     
     return unified;
   }, [groupedPositions, unstakedList, getTokenUsdValue]);

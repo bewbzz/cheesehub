@@ -1,4 +1,5 @@
 // Alcor Farms library for interacting with Alcor Exchange API and swap.alcor contract
+import { waxRpcCall } from './waxRpcFallback';
 
 // Contract name for transactions
 const ALCOR_SWAP_CONTRACT = 'swap.alcor';
@@ -143,13 +144,34 @@ export async function fetchPoolDetails(poolId: number): Promise<any | null> {
 }
 
 /**
- * Fetch incentive details from Alcor API to get reward token contract
+ * Fetch incentive details from blockchain to get reward token contract
  */
 export async function fetchIncentiveDetails(incentiveId: number): Promise<any | null> {
   try {
-    const response = await fetch(`${ALCOR_API_BASE}/farms/${incentiveId}`);
-    if (!response.ok) return null;
-    return await response.json();
+    // Query the incentives table on swap.alcor contract by primary key (id)
+    const result = await waxRpcCall('get_table_rows', {
+      json: true,
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'incentives',
+      lower_bound: incentiveId,
+      upper_bound: incentiveId,
+      limit: 1,
+    }) as { rows?: any[] };
+    
+    if (!result?.rows?.[0]) return null;
+    
+    const incentive = result.rows[0];
+    // Transform to expected format
+    return {
+      id: incentive.id,
+      pool: incentive.poolId,
+      reward: {
+        contract: incentive.rewardToken?.contract || '',
+        quantity: incentive.rewardToken?.quantity || '0.00000000 TOKEN',
+      },
+      periodFinish: incentive.periodFinish,
+    };
   } catch (error) {
     console.error(`Failed to fetch incentive ${incentiveId}:`, error);
     return null;
@@ -157,17 +179,40 @@ export async function fetchIncentiveDetails(incentiveId: number): Promise<any | 
 }
 
 /**
- * Fetch all active incentives for a specific pool
+ * Fetch all active incentives for a specific pool from blockchain
  */
 export async function fetchPoolIncentives(poolId: number): Promise<any[]> {
+  console.log(`[fetchPoolIncentives] Fetching incentives for pool ${poolId}`);
   try {
-    const response = await fetch(`${ALCOR_API_BASE}/farms?poolId=${poolId}`);
-    if (!response.ok) return [];
-    const data = await response.json();
-    // Filter for active incentives (not finished)
-    return Array.isArray(data) ? data.filter((i: any) => i.isFinished !== true) : [];
+    // Query the incentives table on swap.alcor contract using secondary index (by pool)
+    const result = await waxRpcCall('get_table_rows', {
+      json: true,
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'incentives',
+      index_position: 2, // Secondary index by poolId
+      key_type: 'i64',
+      lower_bound: poolId,
+      upper_bound: poolId,
+      limit: 100,
+    }) as { rows?: any[] };
+    
+    console.log(`[fetchPoolIncentives] Pool ${poolId} returned ${result?.rows?.length || 0} rows`);
+    
+    if (!result?.rows) return [];
+    
+    // Filter for active incentives (not finished - check if endTime > now)
+    const now = Math.floor(Date.now() / 1000);
+    const active = result.rows.filter((incentive: any) => {
+      // Check if incentive is still active
+      const endTime = incentive.periodFinish || incentive.endTime || 0;
+      return endTime > now;
+    });
+    
+    console.log(`[fetchPoolIncentives] Pool ${poolId}: ${active.length} active incentives out of ${result.rows.length} total`);
+    return active;
   } catch (error) {
-    console.error(`Failed to fetch pool ${poolId} incentives:`, error);
+    console.error(`Failed to fetch pool ${poolId} incentives from chain:`, error);
     return [];
   }
 }

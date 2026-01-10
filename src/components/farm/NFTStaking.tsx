@@ -269,167 +269,165 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     queryFn: async () => {
       if (!accountName || !stakableConfig) return [];
       
+      console.log('[NFTStaking] Starting eligible NFT fetch for', accountName);
+      console.log('[NFTStaking] Stakable config:', stakableConfig);
+      
       // Get set of already staked asset IDs to exclude
       const stakedAssetIds = new Set(stakedNfts.map(s => s.asset_id));
       
-      const assets: NFTAsset[] = [];
-      const seenIds = new Set<string>();
-      
       // Get all unique collections from config
-      const collectionsToFetch = new Set<string>();
+      const eligibleCollections = new Set<string>();
       stakableConfig.collections.forEach(c => {
-        if (c.collection) collectionsToFetch.add(c.collection);
+        if (c.collection) eligibleCollections.add(c.collection);
       });
       stakableConfig.schemas.forEach(s => {
-        if (s.collection) collectionsToFetch.add(s.collection);
+        if (s.collection) eligibleCollections.add(s.collection);
       });
       stakableConfig.templates.forEach(t => {
-        if (t.collection) collectionsToFetch.add(t.collection);
+        if (t.collection) eligibleCollections.add(t.collection);
       });
       
-      // Get template IDs for direct template lookup (in case collection is missing)
-      const templateIds = stakableConfig.templates.map(t => t.template_id).filter(Boolean);
+      const templateIds = new Set(stakableConfig.templates.map(t => t.template_id).filter(Boolean));
       
-      // Cache-busting timestamp to bypass CDN caching
-      const cacheBuster = `_ts=${Date.now()}`;
+      console.log('[NFTStaking] Eligible collections:', Array.from(eligibleCollections));
+      console.log('[NFTStaking] Template IDs:', Array.from(templateIds));
       
-      // Strategy 1: Fetch by collection (for collection/schema-based farms)
-      const collectionPromises = Array.from(collectionsToFetch).map(async (collection) => {
-        const collectionAssets: NFTAsset[] = [];
-        try {
-          let page = 1;
-          let hasMore = true;
-          const PAGE_SIZE = 100;
-          const MAX_PAGES = 10;
+      // STRATEGY: Blockchain-first approach - get all user's on-chain assets, then filter by eligibility
+      // This bypasses AtomicAssets indexer delays
+      
+      const eligibleAssetIds: string[] = [];
+      const assetMetadataMap = new Map<string, { collection: string; schema: string; template_id: number }>();
+      
+      try {
+        // Fetch all user's assets directly from blockchain
+        let lowerBound = "";
+        let hasMore = true;
+        const BATCH_SIZE = 1000;
+        let iterations = 0;
+        const MAX_ITERATIONS = 10;
+        
+        while (hasMore && iterations < MAX_ITERATIONS) {
+          const response = await waxRpcCall<{
+            rows: Array<{ asset_id: string; collection_name: string; schema_name: string; template_id: number }>;
+            more: boolean;
+            next_key: string;
+          }>('/v1/chain/get_table_rows', {
+            json: true,
+            code: 'atomicassets',
+            scope: accountName,
+            table: 'assets',
+            limit: BATCH_SIZE,
+            lower_bound: lowerBound || undefined,
+          });
           
-          while (hasMore && page <= MAX_PAGES) {
-            const params = new URLSearchParams({
-              owner: accountName,
-              collection_name: collection,
-              limit: String(PAGE_SIZE),
-              page: String(page),
-            });
-            const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
-            const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-            const json = await response.json();
-            
-            if (json.success && json.data) {
-              if (json.data.length < PAGE_SIZE) hasMore = false;
+          if (response.rows && response.rows.length > 0) {
+            for (const asset of response.rows) {
+              const assetId = String(asset.asset_id);
               
-              for (const asset of json.data) {
-                collectionAssets.push({
-                  asset_id: asset.asset_id,
-                  name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-                  image: getImageUrl(asset.data?.img || asset.data?.image),
-                  collection: asset.collection?.collection_name || "",
-                  schema: asset.schema?.schema_name || "",
-                  template_id: asset.template?.template_id || "",
+              // Skip already staked
+              if (stakedAssetIds.has(assetId)) continue;
+              
+              // Check if this asset is eligible based on collection, schema, or template
+              let isEligible = false;
+              
+              // Check collections
+              if (eligibleCollections.has(asset.collection_name)) {
+                isEligible = true;
+              }
+              
+              // Check schemas
+              if (stakableConfig.schemas.some(s => 
+                s.collection === asset.collection_name && s.schema === asset.schema_name
+              )) {
+                isEligible = true;
+              }
+              
+              // Check templates
+              if (templateIds.has(asset.template_id)) {
+                isEligible = true;
+              }
+              
+              if (isEligible) {
+                eligibleAssetIds.push(assetId);
+                assetMetadataMap.set(assetId, {
+                  collection: asset.collection_name,
+                  schema: asset.schema_name,
+                  template_id: asset.template_id,
                 });
               }
+            }
+            
+            if (response.more && response.rows.length === BATCH_SIZE) {
+              const lastAsset = response.rows[response.rows.length - 1];
+              lowerBound = String(BigInt(lastAsset.asset_id) + 1n);
             } else {
               hasMore = false;
             }
-            page++;
+          } else {
+            hasMore = false;
           }
-        } catch (error) {
-          console.error(`Error fetching assets for collection ${collection}:`, error);
+          
+          iterations++;
         }
-        return collectionAssets;
-      });
+        
+        console.log('[NFTStaking] Found', eligibleAssetIds.length, 'eligible assets on-chain');
+      } catch (error) {
+        console.error('[NFTStaking] Blockchain query failed:', error);
+      }
       
-      // Strategy 2: Fetch by template IDs directly (for template-based farms where collection might be missing)
-      const templatePromises = templateIds.length > 0 ? (async () => {
-        const templateAssets: NFTAsset[] = [];
+      if (eligibleAssetIds.length === 0) {
+        return [];
+      }
+      
+      // Now fetch metadata from AtomicAssets API for these specific asset IDs
+      const assets: NFTAsset[] = [];
+      const cacheBuster = `_ts=${Date.now()}`;
+      
+      // Fetch in batches of 50
+      const batchSize = 50;
+      for (let i = 0; i < eligibleAssetIds.length; i += batchSize) {
+        const batch = eligibleAssetIds.slice(i, i + batchSize);
+        const idsParam = batch.join(',');
+        
         try {
-          // Fetch in batches of 10 template IDs
-          const batchSize = 10;
-          for (let i = 0; i < templateIds.length; i += batchSize) {
-            const batch = templateIds.slice(i, i + batchSize);
-            const templateIdStr = batch.join(',');
-            const params = new URLSearchParams({
-              owner: accountName,
-              template_id: templateIdStr,
-              limit: '1000',
-            });
-            const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
-            const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-            const json = await response.json();
-            
-            if (json.success && json.data) {
-              for (const asset of json.data) {
-                templateAssets.push({
-                  asset_id: asset.asset_id,
-                  name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-                  image: getImageUrl(asset.data?.img || asset.data?.image),
-                  collection: asset.collection?.collection_name || "",
-                  schema: asset.schema?.schema_name || "",
-                  template_id: asset.template?.template_id || "",
-                });
-              }
+          const path = `${ATOMIC_API.paths.assets}?ids=${idsParam}&${cacheBuster}`;
+          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+          const json = await response.json();
+          
+          if (json.success && json.data) {
+            for (const asset of json.data) {
+              assets.push({
+                asset_id: asset.asset_id,
+                name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+                image: getImageUrl(asset.data?.img || asset.data?.image),
+                collection: asset.collection?.collection_name || "",
+                schema: asset.schema?.schema_name || "",
+                template_id: asset.template?.template_id || "",
+              });
             }
           }
         } catch (error) {
-          console.error('Error fetching assets by template IDs:', error);
-        }
-        return templateAssets;
-      })() : Promise.resolve([]);
-      
-      // Execute all fetches in parallel
-      const [collectionResults, templateResults] = await Promise.all([
-        Promise.all(collectionPromises),
-        templatePromises,
-      ]);
-      
-      // Merge all results
-      const allFetchedAssets = [...collectionResults.flat(), ...templateResults];
-      
-      // Dedupe and filter
-      for (const asset of allFetchedAssets) {
-        if (seenIds.has(asset.asset_id)) continue;
-        if (stakedAssetIds.has(asset.asset_id)) continue;
-        
-        const assetCollection = asset.collection;
-        const assetSchema = asset.schema;
-        const assetTemplateId = parseInt(asset.template_id || "0");
-        
-        // Check if asset matches any stakable config
-        let isEligible = false;
-        
-        // Check collections
-        if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
-          isEligible = true;
-        }
-        
-        // Check schemas
-        if (stakableConfig.schemas.some(s => 
-          s.collection === assetCollection && s.schema === assetSchema
-        )) {
-          isEligible = true;
-        }
-        
-        // Check templates (by ID only - collection might be missing in config)
-        if (stakableConfig.templates.some(t => t.template_id === assetTemplateId)) {
-          isEligible = true;
-        }
-        
-        if (isEligible) {
-          seenIds.add(asset.asset_id);
-          assets.push(asset);
+          console.error('[NFTStaking] Error fetching asset metadata:', error);
         }
       }
       
-      // Verify ownership directly from blockchain to filter out transferred NFTs
-      if (assets.length > 0) {
-        const verifiedOwnership = await verifyAssetOwnership(
-          assets.map(a => a.asset_id),
-          accountName
-        );
-        
-        const verifiedAssets = assets.filter(a => verifiedOwnership.has(a.asset_id));
-        console.log(`Blockchain verification: ${assets.length} from API, ${verifiedAssets.length} verified on-chain`);
-        return verifiedAssets;
+      // For any assets not returned by API (not indexed yet), create placeholder entries
+      const fetchedIds = new Set(assets.map(a => a.asset_id));
+      for (const assetId of eligibleAssetIds) {
+        if (!fetchedIds.has(assetId)) {
+          const meta = assetMetadataMap.get(assetId);
+          assets.push({
+            asset_id: assetId,
+            name: `NFT #${assetId}`,
+            image: '/placeholder.svg',
+            collection: meta?.collection || 'Unknown',
+            schema: meta?.schema || '',
+            template_id: meta?.template_id ? String(meta.template_id) : '',
+          });
+        }
       }
       
+      console.log('[NFTStaking] Final eligible NFTs:', assets.length);
       return assets;
     },
     enabled: !!accountName && !!stakableConfig,

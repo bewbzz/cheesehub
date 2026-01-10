@@ -595,6 +595,19 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       let tokenReceivers = (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [];
       const nftReceivers = (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [];
       
+      // Log ALL proposal data for transfer types to debug
+      if (contractProposalType === 4 || contractProposalType === 5) {
+        console.log(`Proposal ${row.proposal_id} RAW DATA:`, JSON.stringify(row, (key, value) => {
+          // Handle circular references
+          if (typeof value === 'object' && value !== null) {
+            if (key === 'token_receivers' || key === 'nft_receivers') {
+              return value;
+            }
+          }
+          return value;
+        }, 2));
+      }
+      
       // Fallback: Extract token transfer details from actions array if token_receivers is empty
       if (tokenReceivers.length === 0 && votingType === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
         const transferActions = actions.filter(a => a.action === "transfer");
@@ -606,17 +619,11 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
             contract: action.contract || "eosio.token",
           };
         }).filter(r => r.wax_account && r.quantity);
+        
+        console.log(`Proposal ${row.proposal_id} extracted from actions:`, tokenReceivers);
       }
       
-      if (votingType === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || votingType === PROPOSAL_VOTING_TYPES.NFT_TRANSFER) {
-        console.log(`Proposal ${row.proposal_id} transfer data:`, { 
-          voting_type: votingType,
-          token_receivers: tokenReceivers, 
-          nft_receivers: nftReceivers,
-          actions: actions,
-          raw_token_receivers: row.token_receivers
-        });
-      }
+      console.log(`Proposal ${row.proposal_id} FINAL token_receivers:`, tokenReceivers);
       
       console.log(`Proposal ${row.proposal_id}: contract_type=${contractProposalType}, voting_type=${votingType}, choices=`, choices);
       

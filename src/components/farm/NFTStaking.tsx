@@ -34,30 +34,53 @@ import { fetchWithFallback } from "@/lib/fetchWithFallback";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 
 // Verify asset ownership directly from blockchain (real-time, no indexer delay)
+// Supports pagination for wallets with 1000+ NFTs
 async function verifyAssetOwnership(assetIds: string[], expectedOwner: string): Promise<Set<string>> {
   const ownedAssets = new Set<string>();
   
   try {
-    // Query the atomicassets contract's assets table with the owner as scope
-    const response = await fetch(`${WAX_CHAIN.rpcUrls[1]}/v1/chain/get_table_rows`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        json: true,
-        code: 'atomicassets',
-        scope: expectedOwner,
-        table: 'assets',
-        limit: 1000,
-      }),
-    });
+    let lowerBound = "";
+    let hasMore = true;
+    const BATCH_SIZE = 1000;
+    let iterations = 0;
+    const MAX_ITERATIONS = 10; // Max 10k NFTs
     
-    if (response.ok) {
-      const data = await response.json();
-      if (data.rows) {
-        for (const asset of data.rows) {
-          ownedAssets.add(String(asset.asset_id));
+    while (hasMore && iterations < MAX_ITERATIONS) {
+      const response = await fetch(`${WAX_CHAIN.rpcUrls[1]}/v1/chain/get_table_rows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          json: true,
+          code: 'atomicassets',
+          scope: expectedOwner,
+          table: 'assets',
+          limit: BATCH_SIZE,
+          lower_bound: lowerBound || undefined,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.rows && data.rows.length > 0) {
+          for (const asset of data.rows) {
+            ownedAssets.add(String(asset.asset_id));
+          }
+          
+          // Set up for next page
+          if (data.more && data.rows.length === BATCH_SIZE) {
+            const lastAsset = data.rows[data.rows.length - 1];
+            lowerBound = String(BigInt(lastAsset.asset_id) + 1n);
+          } else {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
         }
+      } else {
+        hasMore = false;
       }
+      
+      iterations++;
     }
   } catch (error) {
     console.error('Error verifying asset ownership from blockchain:', error);
@@ -253,62 +276,80 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       const cacheBuster = `_ts=${Date.now()}`;
       
       // Fetch assets for each collection from AtomicAssets API
+      // Paginate to get up to 1000 NFTs per collection
       for (const collection of collectionsToFetch) {
         try {
-          const params = new URLSearchParams({
-            owner: accountName,
-            collection_name: collection,
-            limit: "100",
-          });
-          const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
-          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-          const json = await response.json();
+          let page = 1;
+          let hasMore = true;
+          const PAGE_SIZE = 100;
+          const MAX_PAGES = 10; // Max 1000 NFTs per collection
           
-          if (json.success && json.data) {
-            for (const asset of json.data) {
-              if (seenIds.has(asset.asset_id)) continue;
-              
-              // Skip NFTs that are already staked (V2 non-custodial - they stay in wallet)
-              if (stakedAssetIds.has(asset.asset_id)) continue;
-              
-              const assetCollection = asset.collection?.collection_name || "";
-              const assetSchema = asset.schema?.schema_name || "";
-              const assetTemplateId = parseInt(asset.template?.template_id || "0");
-              
-              // Check if asset matches any stakable config
-              let isEligible = false;
-              
-              // Check collections
-              if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
-                isEligible = true;
+          while (hasMore && page <= MAX_PAGES) {
+            const params = new URLSearchParams({
+              owner: accountName,
+              collection_name: collection,
+              limit: String(PAGE_SIZE),
+              page: String(page),
+            });
+            const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
+            const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+            const json = await response.json();
+            
+            if (json.success && json.data) {
+              // Stop pagination if we got fewer results than requested
+              if (json.data.length < PAGE_SIZE) {
+                hasMore = false;
               }
               
-              // Check schemas
-              if (stakableConfig.schemas.some(s => 
-                s.collection === assetCollection && s.schema === assetSchema
-              )) {
-                isEligible = true;
+              for (const asset of json.data) {
+                if (seenIds.has(asset.asset_id)) continue;
+                
+                // Skip NFTs that are already staked (V2 non-custodial - they stay in wallet)
+                if (stakedAssetIds.has(asset.asset_id)) continue;
+                
+                const assetCollection = asset.collection?.collection_name || "";
+                const assetSchema = asset.schema?.schema_name || "";
+                const assetTemplateId = parseInt(asset.template?.template_id || "0");
+                
+                // Check if asset matches any stakable config
+                let isEligible = false;
+                
+                // Check collections
+                if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
+                  isEligible = true;
+                }
+                
+                // Check schemas
+                if (stakableConfig.schemas.some(s => 
+                  s.collection === assetCollection && s.schema === assetSchema
+                )) {
+                  isEligible = true;
+                }
+                
+                // Check templates
+                if (stakableConfig.templates.some(t => 
+                  t.template_id === assetTemplateId
+                )) {
+                  isEligible = true;
+                }
+                
+                if (isEligible) {
+                  seenIds.add(asset.asset_id);
+                  assets.push({
+                    asset_id: asset.asset_id,
+                    name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+                    image: getImageUrl(asset.data?.img || asset.data?.image),
+                    collection: assetCollection,
+                    schema: assetSchema,
+                    template_id: asset.template?.template_id || "",
+                  });
+                }
               }
-              
-              // Check templates
-              if (stakableConfig.templates.some(t => 
-                t.template_id === assetTemplateId
-              )) {
-                isEligible = true;
-              }
-              
-              if (isEligible) {
-                seenIds.add(asset.asset_id);
-                assets.push({
-                  asset_id: asset.asset_id,
-                  name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-                  image: getImageUrl(asset.data?.img || asset.data?.image),
-                  collection: assetCollection,
-                  schema: assetSchema,
-                  template_id: asset.template?.template_id || "",
-                });
-              }
+            } else {
+              hasMore = false;
             }
+            
+            page++;
           }
         } catch (error) {
           console.error(`Error fetching assets for collection ${collection}:`, error);

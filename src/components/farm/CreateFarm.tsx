@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, Trash2, Info, Sprout } from "lucide-react";
+import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -267,7 +267,38 @@ export function CreateFarm() {
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Video Warning Section */}
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2 text-destructive font-semibold">
+            <AlertTriangle className="h-5 w-5" />
+            <span>Warning: Watch this before creating your farm!</span>
+          </div>
+          
+          {/* Embedded YouTube Video */}
+          <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/20">
+            <iframe
+              className="w-full h-full"
+              src="https://www.youtube.com/embed/PIV_ojHzkS8"
+              title="How to Create a Farm on WaxDAO"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+          
+          {/* Fallback link */}
+          <a
+            href="https://www.youtube.com/watch?v=PIV_ojHzkS8"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-destructive hover:text-destructive/80 underline"
+          >
+            <Play className="h-4 w-4" />
+            Watch on YouTube
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+
         <form onSubmit={handleCreate} className="space-y-6">
           {/* Farm Info Section */}
           <div className="space-y-4">

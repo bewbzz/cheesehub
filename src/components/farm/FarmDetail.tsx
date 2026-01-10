@@ -226,13 +226,11 @@ export function FarmDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground">Expires</p>
-                  {isCreator && !isUnderConstruction && (
+                  {isCreator && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>
-                <p className="font-medium">
-                  {isUnderConstruction ? "Not set" : expirationDate.toLocaleDateString()}
-                </p>
+                <p className="font-medium">{expirationDate.toLocaleDateString()}</p>
               </div>
             </div>
 

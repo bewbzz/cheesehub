@@ -56,8 +56,19 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
     }
 
     const newExpirationTimestamp = Math.floor(date.getTime() / 1000);
+    const now = Math.floor(Date.now() / 1000);
 
-    if (newExpirationTimestamp <= farm.expiration) {
+    // Must be in the future and after current expiration (if set)
+    if (newExpirationTimestamp <= now) {
+      toast({ 
+        title: "Invalid date", 
+        description: "Expiration date must be in the future",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (farm.expiration > 0 && newExpirationTimestamp <= farm.expiration) {
       toast({ 
         title: "Invalid date", 
         description: "New expiration must be after the current expiration date",
@@ -94,9 +105,12 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
     }
   };
 
-  // Minimum date is the day after current expiration
-  const minDate = new Date(farm.expiration * 1000);
-  minDate.setDate(minDate.getDate() + 1);
+  // Minimum date is tomorrow or the day after current expiration (whichever is later)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const afterExpiration = new Date(farm.expiration * 1000);
+  afterExpiration.setDate(afterExpiration.getDate() + 1);
+  const minDate = afterExpiration > tomorrow ? afterExpiration : tomorrow;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

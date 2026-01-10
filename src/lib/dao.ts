@@ -481,7 +481,8 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     );
     
     const data = await response.json();
-    console.log("Proposals data:", data);
+    console.log("==================== PROPOSALS DATA ====================");
+    console.log("Total proposals:", data.rows?.length || 0);
     
     // Log first proposal's all keys to understand structure
     if (data.rows && data.rows.length > 0) {
@@ -491,17 +492,17 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       // Find any token transfer proposals and log their full structure
       data.rows.forEach((row: Record<string, unknown>) => {
         const pType = row.proposal_type as number;
-        if (pType === 4 || pType === 5) {
-          console.log(`TRANSFER Proposal ${row.proposal_id} (type ${pType}) ALL DATA:`, {
+        if (pType === 4) {
+          console.log(`>>> TOKEN TRANSFER Proposal ${row.proposal_id}:`, {
             token_receivers: row.token_receivers,
-            nft_receivers: row.nft_receivers,
-            actions: row.actions,
-            receivers: row.receivers, // Maybe different field name?
-            transfers: row.transfers, // Maybe different field name?
+            token_receivers_type: typeof row.token_receivers,
+            token_receivers_isArray: Array.isArray(row.token_receivers),
+            token_receivers_length: Array.isArray(row.token_receivers) ? row.token_receivers.length : 'N/A',
           });
         }
       });
     }
+    console.log("=========================================================");
     
     const now = Math.floor(Date.now() / 1000);
     

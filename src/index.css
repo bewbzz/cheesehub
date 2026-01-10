@@ -184,11 +184,17 @@
   z-index: 999998 !important;
 }
 
-/* WharfKit container must be interactive - Shadow DOM prevents CSS targeting internal elements */
+/* WharfKit container - allow clicks to pass through to the page, 
+   but the shadow DOM dialog inside will have pointer-events: auto */
 #wharfkit-web-ui {
   top: 0 !important;
   left: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  pointer-events: none !important;
+}
+
+/* When dialog is open, the backdrop and dialog need pointer-events */
+#wharfkit-web-ui:has(dialog[open]) {
   pointer-events: auto !important;
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
 import { buildDropCreationActions, validateDropFormData, fetchCollectionRamBalance, DropFormData, DropType, TokenBacking, RamBalance } from "@/lib/drops";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X, HardDrive, AlertTriangle } from "lucide-react";
 import { ManageRamDialog } from "./ManageRamDialog";
@@ -206,9 +207,12 @@ export function CreateDrop() {
       setRamBalance(null);
       setTemplatePreview(null);
     } catch (error) {
+      closeWharfkitModals();
       console.error("Failed to create drop:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create drop");
     } finally {
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
       setLoading(false);
     }
   }

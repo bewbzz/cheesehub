@@ -7,6 +7,7 @@ import { RecipientInput } from "./RecipientInput";
 import { Zap, Cpu, Wifi, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { usePowerupEstimate } from "@/hooks/usePowerupEstimate";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import {
   Dialog,
   DialogContent,
@@ -148,6 +149,7 @@ export const PowerUpCard = ({
 
       console.log("Transaction result:", result);
     } catch (error) {
+      closeWharfkitModals();
       console.error("Transaction failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Transaction failed";
 
@@ -167,6 +169,8 @@ export const PowerUpCard = ({
         });
       }
     } finally {
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
       setIsTransacting(false);
     }
   };

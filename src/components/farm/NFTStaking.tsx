@@ -154,7 +154,7 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
     <button
       onClick={onToggle}
       className={cn(
-        "group relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
+        "group relative rounded-md overflow-hidden border-2 transition-all aspect-square",
         isSelected
           ? `${borderColor} ring-1`
           : "border-transparent hover:border-muted-foreground/30"
@@ -171,7 +171,7 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
       )}
 
       {/* Image with IPFS fallback */}
-      <div className="w-full h-full bg-muted flex items-center justify-center">
+      <div className="absolute inset-0 bg-muted flex items-center justify-center">
         {showErrorState ? (
           <button 
             type="button"
@@ -198,7 +198,7 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
               src={currentImageUrl}
               alt={nft.name}
               className={cn(
-                "w-full h-full object-cover transition-opacity",
+                "w-full h-full object-contain transition-opacity",
                 imgLoaded ? "opacity-100" : "opacity-0"
               )}
               loading="lazy"
@@ -216,15 +216,10 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
         )}
       </div>
 
-      {/* Gradient overlay - hide when error state */}
-      {!showErrorState && (
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-      )}
-      
-      {/* Info - show asset ID always */}
-      <div className="absolute bottom-0 left-0 right-0 p-1.5">
-        <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
-        <p className="text-[10px] text-white/60 truncate">#{nft.asset_id} • {nft.collection}</p>
+      {/* Info bar at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-1 bg-background/80">
+        <p className="text-[10px] font-medium truncate">{nft.name}</p>
+        <p className="text-[9px] text-muted-foreground truncate">#{nft.asset_id}</p>
       </div>
     </button>
   );
@@ -808,9 +803,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     );
   }, [stakedNftDetails, searchQuery]);
 
-  // Virtualization - 4 columns grid
+  // Virtualization - 4 columns grid with square cards
   const COLUMNS = 4;
-  const ROW_HEIGHT = 130;
+  const ROW_HEIGHT = 100; // Smaller square cards
   
   const stakeRowCount = Math.ceil(filteredEligibleNfts.length / COLUMNS);
   const unstakeRowCount = Math.ceil(filteredStakedNfts.length / COLUMNS);

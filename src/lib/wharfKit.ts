@@ -95,35 +95,35 @@ export function closeWharfkitModals() {
   });
 }
 
-// Function to ensure WharfKit modals are always on top (z-index only, no pointer-events manipulation)
+// Function to ensure WharfKit modals are always on top with proper pointer events
 export function ensureModalOnTop() {
   const wharfkitEl = document.getElementById('wharfkit-web-ui');
   if (wharfkitEl) {
-    wharfkitEl.style.zIndex = '999999';
-    wharfkitEl.style.position = 'fixed';
-    wharfkitEl.style.top = '0';
-    wharfkitEl.style.left = '0';
-    wharfkitEl.style.width = '100vw';
-    wharfkitEl.style.height = '100vh';
-    wharfkitEl.style.pointerEvents = 'auto';
+    // Use setProperty with 'important' to override any CSS rules
+    wharfkitEl.style.setProperty('z-index', '999999', 'important');
+    wharfkitEl.style.setProperty('position', 'fixed', 'important');
+    wharfkitEl.style.setProperty('top', '0', 'important');
+    wharfkitEl.style.setProperty('left', '0', 'important');
+    wharfkitEl.style.setProperty('width', '100vw', 'important');
+    wharfkitEl.style.setProperty('height', '100vh', 'important');
+    wharfkitEl.style.setProperty('pointer-events', 'auto', 'important');
     
-    // Inject styles into shadow DOM to fix z-index
+    // Inject styles into shadow DOM to fix z-index and pointer-events
     if (wharfkitEl.shadowRoot) {
       const dialog = wharfkitEl.shadowRoot.querySelector('dialog');
       if (dialog) {
-        (dialog as HTMLElement).style.zIndex = '999999';
-        (dialog as HTMLElement).style.position = 'fixed';
-        (dialog as HTMLElement).style.pointerEvents = 'auto';
+        (dialog as HTMLElement).style.setProperty('z-index', '999999', 'important');
+        (dialog as HTMLElement).style.setProperty('position', 'fixed', 'important');
+        (dialog as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
       }
       
       const backdrop = wharfkitEl.shadowRoot.querySelector('.backdrop, [class*="backdrop"]');
       if (backdrop) {
-        (backdrop as HTMLElement).style.zIndex = '999998';
-        (backdrop as HTMLElement).style.pointerEvents = 'auto';
+        (backdrop as HTMLElement).style.setProperty('z-index', '999998', 'important');
+        (backdrop as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
       }
     }
   }
-  // NOTE: No longer disabling pointer-events on Radix elements - this was causing vote buttons to freeze
 }
 
 // Restore pointer events on Radix elements
@@ -148,24 +148,22 @@ if (typeof window !== 'undefined') {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
             if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
-              // Apply z-index fix immediately when modal appears
-              node.style.zIndex = '999999';
-              node.style.position = 'fixed';
-              node.style.top = '0';
-              node.style.left = '0';
-              node.style.width = '100vw';
-              node.style.height = '100vh';
-              node.style.pointerEvents = 'auto';
-              
-              // NOTE: No longer disabling Radix portal pointer events - this was breaking the UI
+              // Apply z-index fix immediately when modal appears using setProperty for priority
+              node.style.setProperty('z-index', '999999', 'important');
+              node.style.setProperty('position', 'fixed', 'important');
+              node.style.setProperty('top', '0', 'important');
+              node.style.setProperty('left', '0', 'important');
+              node.style.setProperty('width', '100vw', 'important');
+              node.style.setProperty('height', '100vh', 'important');
+              node.style.setProperty('pointer-events', 'auto', 'important');
               
               // Watch for shadow DOM content
               const checkShadow = () => {
                 if (node.shadowRoot) {
                   const dialog = node.shadowRoot.querySelector('dialog');
                   if (dialog) {
-                    (dialog as HTMLElement).style.zIndex = '999999';
-                    (dialog as HTMLElement).style.pointerEvents = 'auto';
+                    (dialog as HTMLElement).style.setProperty('z-index', '999999', 'important');
+                    (dialog as HTMLElement).style.setProperty('pointer-events', 'auto', 'important');
                   }
                 }
               };

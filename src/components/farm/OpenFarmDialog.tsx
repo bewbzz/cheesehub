@@ -35,14 +35,15 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
   const { toast } = useToast();
   const { session } = useWax();
 
-  // Check if farm has any deposited rewards
-  const hasRewards = farm.reward_pools.some(pool => {
+  // Check if ALL configured reward pools have deposits
+  const poolsWithoutRewards = farm.reward_pools.filter(pool => {
     const balance = parseFloat(pool.balance) || 0;
-    return balance > 0;
+    return balance <= 0;
   });
+  const hasAllRewards = farm.reward_pools.length > 0 && poolsWithoutRewards.length === 0;
 
   const handleOpenFarm = async () => {
-    if (!hasRewards) {
+    if (!hasAllRewards) {
       toast({ 
         title: "No rewards deposited", 
         description: "You must deposit rewards before opening the farm",
@@ -130,11 +131,11 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {!hasRewards && (
+          {!hasAllRewards && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                You must deposit rewards before opening the farm. Go to the Reward Pools section and click "Deposit Funds".
+                All reward pools must have deposits before opening. Missing: {poolsWithoutRewards.map(p => p.symbol).join(", ")}. Go to Reward Pools and click "Deposit Funds".
               </AlertDescription>
             </Alert>
           )}
@@ -149,7 +150,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
                     "w-full justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                   )}
-                  disabled={!hasRewards}
+                  disabled={!hasAllRewards}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date ? format(date, "PPP") : "Pick a date"}
@@ -178,7 +179,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
           </Button>
           <Button 
             onClick={handleOpenFarm} 
-            disabled={isSubmitting || !date || !hasRewards}
+            disabled={isSubmitting || !date || !hasAllRewards}
             className="bg-green-600 hover:bg-green-700"
           >
             {isSubmitting ? "Opening..." : "Open Farm"}

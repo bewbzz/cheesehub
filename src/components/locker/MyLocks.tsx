@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
 import { WAXDAO_CONTRACT } from "@/lib/wax";
@@ -61,13 +62,17 @@ export function MyLocks() {
       });
       await loadLocks();
     } catch (error: any) {
+      closeWharfkitModals();
       toast({
         title: "Claim Failed",
         description: error.message || "Failed to claim tokens",
         variant: "destructive",
       });
+    } finally {
+      setClaiming(null);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
-    setClaiming(null);
   };
 
   if (!session) {

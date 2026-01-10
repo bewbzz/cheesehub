@@ -149,6 +149,8 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
       toast.error(error instanceof Error ? error.message : "Failed to deposit");
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

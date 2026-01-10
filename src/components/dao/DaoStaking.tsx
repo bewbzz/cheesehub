@@ -145,6 +145,8 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       });
     } finally {
       setStaking(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -181,6 +183,8 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       });
     } finally {
       setStaking(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -214,6 +218,8 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       });
     } finally {
       setStaking(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -247,6 +253,8 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       });
     } finally {
       setStaking(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

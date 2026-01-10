@@ -166,6 +166,7 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
     } finally {
       setIsSubmitting(false);
       closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

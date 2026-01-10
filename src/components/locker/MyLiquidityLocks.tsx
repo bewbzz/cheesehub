@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { 
   fetchUserLiquidityLocks, 
@@ -77,13 +78,17 @@ export function MyLiquidityLocks() {
       });
       await loadLocks();
     } catch (error: any) {
+      closeWharfkitModals();
       toast({
         title: "Claim Failed",
         description: error.message || "Failed to claim LP tokens",
         variant: "destructive",
       });
+    } finally {
+      setClaiming(null);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
-    setClaiming(null);
   };
 
   if (!session) {

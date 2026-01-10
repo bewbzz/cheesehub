@@ -215,6 +215,8 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
       toast.error(error instanceof Error ? error.message : "Failed to create proposal");
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

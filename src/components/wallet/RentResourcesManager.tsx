@@ -197,7 +197,8 @@ export function RentResourcesManager({
       }
     } finally {
       setIsTransacting(false);
-      setTimeout(() => closeWharfkitModals(), 100);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

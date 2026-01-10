@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { getTokenBalances, WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,13 +149,17 @@ export function CreateLock() {
       setUnlockTime("00:00");
       setSelectedToken("");
     } catch (error: any) {
+      closeWharfkitModals();
       toast({
         title: "Lock Failed",
         description: error.message || "Failed to create lock",
         variant: "destructive",
       });
+    } finally {
+      setCreating(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
-    setCreating(false);
   };
 
   if (!isConnected) {

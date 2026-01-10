@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,8 @@ export function ManageRamDialog() {
       toast.error(error instanceof Error ? error.message : "Failed to deposit RAM");
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -155,6 +158,8 @@ export function ManageRamDialog() {
       toast.error(error instanceof Error ? error.message : "Failed to withdraw RAM");
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

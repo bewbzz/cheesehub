@@ -179,6 +179,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
+      // Always cleanup modals - immediate + delayed for stuck modals
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -217,6 +220,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -256,6 +261,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -307,6 +314,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Failed to finalize proposal");
     } finally {
       setFinalizing(false);
+      // Always cleanup modals - immediate + delayed for stuck modals
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

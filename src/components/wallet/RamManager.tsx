@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -182,6 +183,8 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
       toast.error(error?.message || 'Failed to buy RAM');
     } finally {
       setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 
@@ -217,6 +220,8 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
       toast.error(error?.message || 'Failed to sell RAM');
     } finally {
       setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

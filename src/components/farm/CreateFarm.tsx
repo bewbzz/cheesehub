@@ -190,6 +190,8 @@ export function CreateFarm() {
       toast.error(error instanceof Error ? error.message : "Failed to create farm");
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

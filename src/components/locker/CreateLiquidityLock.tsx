@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { 
   fetchAllLPTokens, 
@@ -169,13 +170,17 @@ export function CreateLiquidityLock() {
       setUnlockTime("00:00");
       setSelectedToken("");
     } catch (error: any) {
+      closeWharfkitModals();
       toast({
         title: "Lock Failed",
         description: error.message || "Failed to create liquidity lock",
         variant: "destructive",
       });
+    } finally {
+      setCreating(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
-    setCreating(false);
   };
 
   if (!isConnected) {

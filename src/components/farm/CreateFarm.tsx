@@ -771,6 +771,7 @@ export function CreateFarm() {
               onMethodChange={setPaymentMethod}
               onCheeseAmountChange={handleCheeseAmountChange}
               disabled={loading}
+              hideCheeseOption
             />
           )}
           

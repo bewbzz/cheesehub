@@ -361,8 +361,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </p>
               </div>
             </div>
-            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs or DAO creators */}
-            {isConnected && !isNonCustodialDao && !isCreator && (
+            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs */}
+            {isConnected && !isNonCustodialDao && (
               <div className="shrink-0">
                 {membershipLoading ? (
                   <Button size="sm" disabled>

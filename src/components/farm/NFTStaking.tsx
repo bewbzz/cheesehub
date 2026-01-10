@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserNFTs } from "@/hooks/useUserNFTs";
 import {
   FARM_CONTRACT,
   buildStakeNftsAction,
@@ -31,69 +32,11 @@ import {
   FarmInfo,
   PendingReward,
 } from "@/lib/farm";
-import { ATOMIC_API, WAX_CHAIN } from "@/lib/waxConfig";
+import { ATOMIC_API } from "@/lib/waxConfig";
 import { fetchWithFallback } from "@/lib/fetchWithFallback";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
-import { waxRpcCall } from "@/lib/waxRpcFallback";
 import { cn } from "@/lib/utils";
-
-// Verify asset ownership directly from blockchain (real-time, no indexer delay)
-// Supports pagination for wallets with 1000+ NFTs
-async function verifyAssetOwnership(assetIds: string[], expectedOwner: string): Promise<Set<string>> {
-  const ownedAssets = new Set<string>();
-  
-  try {
-    let lowerBound = "";
-    let hasMore = true;
-    const BATCH_SIZE = 1000;
-    let iterations = 0;
-    const MAX_ITERATIONS = 10; // Max 10k NFTs
-    
-    while (hasMore && iterations < MAX_ITERATIONS) {
-      const response = await fetch(`${WAX_CHAIN.rpcUrls[1]}/v1/chain/get_table_rows`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          json: true,
-          code: 'atomicassets',
-          scope: expectedOwner,
-          table: 'assets',
-          limit: BATCH_SIZE,
-          lower_bound: lowerBound || undefined,
-        }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.rows && data.rows.length > 0) {
-          for (const asset of data.rows) {
-            ownedAssets.add(String(asset.asset_id));
-          }
-          
-          // Set up for next page
-          if (data.more && data.rows.length === BATCH_SIZE) {
-            const lastAsset = data.rows[data.rows.length - 1];
-            lowerBound = String(BigInt(lastAsset.asset_id) + 1n);
-          } else {
-            hasMore = false;
-          }
-        } else {
-          hasMore = false;
-        }
-      } else {
-        hasMore = false;
-      }
-      
-      iterations++;
-    }
-  } catch (error) {
-    console.error('Error verifying asset ownership from blockchain:', error);
-    // If blockchain query fails, assume all assets are valid (fallback to API data)
-    assetIds.forEach(id => ownedAssets.add(id));
-  }
-  
-  return ownedAssets;
-}
+import { waxRpcCall } from "@/lib/waxRpcFallback";
 
 interface NFTAsset {
   asset_id: string;

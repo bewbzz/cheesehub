@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileAction, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Coins, Trash2 } from "lucide-react";
+import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -17,6 +17,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { FeePaymentSelector } from "@/components/shared/FeePaymentSelector";
+import {
+  CHEESE_FEE_ENABLED,
+  PaymentMethod,
+  buildCheesePrepayAction,
+  buildProvideWaxAction,
+  WAX_FEE_AMOUNT,
+} from "@/lib/cheeseFees";
 
 // DAO Type descriptions for the selector
 const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
@@ -46,6 +54,16 @@ export function CreateDao() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // CHEESE payment state
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wax");
+  const [cheeseAmount, setCheeseAmount] = useState("");
+  const [hasPrepaid, setHasPrepaid] = useState(false);
+  
+  const handleCheeseAmountChange = useCallback((amount: string) => {
+    setCheeseAmount(amount);
+  }, []);
+  
   const [formData, setFormData] = useState({
     daoName: "",
     description: "",
@@ -141,15 +159,17 @@ export function CreateDao() {
 
     setLoading(true);
     try {
+      const accountName = String(session.actor);
+      
       // Build assertpoint action (required before createdao)
-      const assertAction = buildAssertPointAction(String(session.actor));
+      const assertAction = buildAssertPointAction(accountName);
       
       // Build fee payment action (250 WAX)
-      const feeAction = buildDaoCreationFeeAction(String(session.actor));
+      const feeAction = buildDaoCreationFeeAction(accountName);
       
       // Build DAO creation action with all type-specific fields
       const createAction = buildCreateDaoAction(
-        String(session.actor),
+        accountName,
         {
           daoName: formData.daoName,
           daoType: formData.daoType,
@@ -167,12 +187,32 @@ export function CreateDao() {
         }
       );
 
-      // Build actions array - assertpoint + fee + create
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const actions: any[] = [assertAction, feeAction, createAction];
-
-      // Execute all actions in a single transaction
-      await session.transact({ actions });
+      // Handle CHEESE payment flow
+      if (CHEESE_FEE_ENABLED && paymentMethod === "cheese") {
+        // TX 1: Send CHEESE to cheesefeefee (if not already prepaid)
+        if (!hasPrepaid) {
+          const prepayAction = buildCheesePrepayAction(
+            accountName,
+            cheeseAmount,
+            "dao",
+            formData.daoName
+          );
+          await session.transact({ actions: [prepayAction] });
+          setHasPrepaid(true);
+          toast.success("CHEESE prepayment sent! Now creating DAO...");
+        }
+        
+        // TX 2: Bundled creation with providewax
+        const provideWaxAction = buildProvideWaxAction(accountName, "dao", formData.daoName);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const actions: any[] = [provideWaxAction, assertAction, feeAction, createAction];
+        await session.transact({ actions });
+      } else {
+        // Standard WAX payment (unchanged)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const actions: any[] = [assertAction, feeAction, createAction];
+        await session.transact({ actions });
+      }
       
       toast.success("DAO created successfully!");
       setFormData({
@@ -193,6 +233,8 @@ export function CreateDao() {
         proposalCost: 0,
         hoursPerProposal: 72,
       });
+      setPaymentMethod("wax");
+      setHasPrepaid(false);
     } catch (error) {
       console.error("Failed to create DAO:", error);
       closeWharfkitModals();
@@ -927,15 +969,15 @@ export function CreateDao() {
             </Collapsible>
 
             {/* Creation Fee Section */}
-            <div className="p-4 rounded-lg border border-cheese/30 bg-cheese/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Coins className="h-5 w-5 text-cheese" />
-                <h3 className="text-sm font-medium text-foreground">DAO Creation Fee</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                A one-time fee of <span className="font-semibold text-cheese">250 WAX</span> is required to create a DAO on WaxDAO.
-              </p>
-            </div>
+            <FeePaymentSelector
+              waxFee={WAX_FEE_AMOUNT}
+              feeType="dao"
+              entityName={formData.daoName}
+              selectedMethod={paymentMethod}
+              onMethodChange={setPaymentMethod}
+              onCheeseAmountChange={handleCheeseAmountChange}
+              disabled={loading}
+            />
 
             {/* Submit Button */}
             <Button

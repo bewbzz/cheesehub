@@ -26,18 +26,21 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
 
+  // Guard against non-array stakedFarms early
+  const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
+
   // Create unique key for each farm position (position can be in multiple incentives)
   const getFarmKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
   // Update live rewards every second
   useEffect(() => {
-    if (stakedFarms.length === 0) return;
+    if (farmsList.length === 0) return;
 
     const updateRewards = () => {
       const now = Math.floor(Date.now() / 1000);
       const newRewards = new Map<string, number>();
 
-      stakedFarms.forEach(farm => {
+      farmsList.forEach(farm => {
         const key = getFarmKey(farm);
         const elapsedSeconds = Math.max(0, now - farm.lastUpdate);
         const liveReward = farm.pendingReward + (farm.rewardPerSecond * elapsedSeconds);
@@ -53,7 +56,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     // Update every second
     const interval = setInterval(updateRewards, 1000);
     return () => clearInterval(interval);
-  }, [stakedFarms]);
+  }, [farmsList]);
 
   const handleClaimRewards = useCallback(async (farm: AlcorFarmPosition) => {
     if (!session || !accountName) return;
@@ -82,11 +85,11 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
   const handleClaimAll = useCallback(async () => {
-    if (!session || !accountName || stakedFarms.length === 0) return;
+    if (!session || !accountName || farmsList.length === 0) return;
 
     setIsTransacting(true);
     try {
-      const incentiveIds = [...new Set(stakedFarms.map(f => f.incentiveId))];
+      const incentiveIds = [...new Set(farmsList.map(f => f.incentiveId))];
       const actions = buildClaimRewardsAction(accountName, incentiveIds);
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
@@ -106,7 +109,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       closeWharfkitModals();
       setTimeout(() => closeWharfkitModals(), 300);
     }
-  }, [session, accountName, stakedFarms, onTransactionSuccess, refetch, onTransactionComplete]);
+  }, [session, accountName, farmsList, onTransactionSuccess, refetch, onTransactionComplete]);
 
   const handleUnstake = useCallback(async (farm: AlcorFarmPosition) => {
     if (!session || !accountName) return;
@@ -135,7 +138,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
   // Group farms by position ID for cleaner display
-  const groupedFarms = stakedFarms.reduce((acc, farm) => {
+  const groupedFarms = farmsList.reduce((acc, farm) => {
     const key = farm.positionId;
     if (!acc[key]) {
       acc[key] = [];
@@ -153,7 +156,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     );
   }
 
-  if (stakedFarms.length === 0) {
+  if (farmsList.length === 0) {
     return (
       <div className="text-center py-12 space-y-4">
         <div className="text-muted-foreground">
@@ -179,7 +182,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         <div>
           <h3 className="text-sm font-medium">Your Farm Positions</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {stakedFarms.length} incentive{stakedFarms.length !== 1 ? 's' : ''} across {Object.keys(groupedFarms).length} position{Object.keys(groupedFarms).length !== 1 ? 's' : ''}
+            {farmsList.length} incentive{farmsList.length !== 1 ? 's' : ''} across {Object.keys(groupedFarms).length} position{Object.keys(groupedFarms).length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex gap-2">
@@ -213,7 +216,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       {/* Farm position cards */}
       <ScrollArea className="h-[500px]">
         <div className="space-y-3 pr-2">
-          {stakedFarms.map((farm) => {
+          {farmsList.map((farm) => {
             const farmKey = getFarmKey(farm);
             const liveReward = liveRewards.get(farmKey) || farm.pendingReward;
             const isExpanded = expandedFarm === farmKey;

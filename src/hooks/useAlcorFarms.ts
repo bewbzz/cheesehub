@@ -28,7 +28,7 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
   });
 
   return {
-    stakedFarms: data || [],
+    stakedFarms: Array.isArray(data) ? data : [],
     isLoading,
     error: error as Error | null,
     refetch,

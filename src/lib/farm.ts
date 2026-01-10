@@ -409,17 +409,17 @@ export function buildOpenFarmAction(
 
 // Build action for extending farm expiration
 export function buildExtendFarmAction(
-  creator: string,
+  user: string,
   farmName: string,
   newExpiration: number
 ) {
   return {
     account: FARM_CONTRACT,
     name: "extendfarm",
-    authorization: [{ actor: creator, permission: "active" }],
+    authorization: [{ actor: user, permission: "active" }],
     data: {
-      creator,
-      farm_name: farmName,
+      user,
+      farmname: farmName,
       new_expiration: newExpiration,
     },
   };

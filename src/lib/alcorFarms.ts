@@ -128,6 +128,20 @@ export async function fetchPoolDetails(poolId: number): Promise<any | null> {
 }
 
 /**
+ * Fetch incentive details from Alcor API to get reward token contract
+ */
+export async function fetchIncentiveDetails(incentiveId: number): Promise<any | null> {
+  try {
+    const response = await fetch(`${ALCOR_API_BASE}/farms/${incentiveId}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to fetch incentive ${incentiveId}:`, error);
+    return null;
+  }
+}
+
+/**
  * Combine farm positions with LP position details
  */
 export async function fetchUserStakedFarmsWithDetails(accountName: string): Promise<AlcorFarmPosition[]> {
@@ -145,16 +159,25 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
   const positionMap = new Map<number, AlcorApiPosition>();
   lpPositions.forEach(pos => positionMap.set(pos.id, pos));
 
-  // Fetch unique pool details
+  // Fetch unique pool details and incentive details in parallel
   const uniquePoolIds = [...new Set(farmPositions.map(f => f.pool))];
-  const poolDetails = new Map<number, any>();
+  const uniqueIncentiveIds = [...new Set(farmPositions.map(f => f.incentiveId))];
   
-  await Promise.all(
-    uniquePoolIds.map(async (poolId) => {
+  const poolDetails = new Map<number, any>();
+  const incentiveDetails = new Map<number, any>();
+  
+  await Promise.all([
+    // Fetch pool details
+    ...uniquePoolIds.map(async (poolId) => {
       const pool = await fetchPoolDetails(poolId);
       if (pool) poolDetails.set(poolId, pool);
-    })
-  );
+    }),
+    // Fetch incentive details for reward token contracts
+    ...uniqueIncentiveIds.map(async (incentiveId) => {
+      const incentive = await fetchIncentiveDetails(incentiveId);
+      if (incentive) incentiveDetails.set(incentiveId, incentive);
+    }),
+  ]);
 
   // Combine data
   const result: AlcorFarmPosition[] = [];
@@ -162,6 +185,7 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
   for (const farm of farmPositions) {
     const lpPosition = positionMap.get(farm.posId);
     const pool = poolDetails.get(farm.pool);
+    const incentive = incentiveDetails.get(farm.incentiveId);
 
     // Parse farmed reward (e.g., "7.0782 CHEESE")
     const farmedReward = parseAsset(farm.farmedReward);
@@ -174,7 +198,8 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
     // Get token contracts from pool data
     const tokenAContract = pool?.tokenA?.contract || '';
     const tokenBContract = pool?.tokenB?.contract || '';
-    const rewardContract = ''; // API doesn't provide this, but we don't need it for display
+    // Get reward contract from incentive details
+    const rewardContract = incentive?.reward?.contract || '';
 
     result.push({
       positionId: farm.posId,

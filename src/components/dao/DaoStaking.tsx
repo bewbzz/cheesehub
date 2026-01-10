@@ -60,8 +60,10 @@ export function DaoStaking({ dao }: DaoStakingProps) {
   
   // Determine DAO type
   // Type 4 "Token Balance" DAOs actually require staking tokens to the DAO for voting weight
+  // Type 5 "Hold NFTs" is non-custodial - no staking needed!
   const isTokenStakingDao = [1, 3, 4].includes(dao.dao_type); // All token staking DAOs including Type 4
-  const isNFTDao = [2, 5].includes(dao.dao_type);
+  const isNFTStakingDao = dao.dao_type === 2; // Only Type 2 requires NFT staking
+  const isHoldNFTDao = dao.dao_type === 5; // Type 5 = Hold NFTs (non-custodial)
   
   // Parse token info
   const tokenSymbol = dao.token_symbol !== "0,NULL" 
@@ -92,7 +94,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
         setAvailableBalance(balance);
       }
       
-      if (isNFTDao && accountName) {
+      if (isNFTStakingDao && accountName) {
         const collections = dao.gov_schemas.map(s => s.collection_name);
         const schemas = dao.gov_schemas.map(s => s.schema_name);
         
@@ -292,6 +294,37 @@ export function DaoStaking({ dao }: DaoStakingProps) {
     );
   }
 
+  // Type 5 Hold NFT DAOs don't need staking
+  if (isHoldNFTDao) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Image className="h-5 w-5 text-green-500" />
+          <h3 className="text-lg font-semibold">Hold NFTs to Vote</h3>
+        </div>
+        <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <p className="text-sm text-foreground mb-2">
+            <strong>No staking required!</strong> This is a "Hold NFT" DAO.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Your NFTs stay in your wallet and are used directly when voting.
+            Each eligible NFT = 1 vote. Simply hold NFTs from the eligible collections to participate in governance.
+          </p>
+        </div>
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <p className="text-sm text-muted-foreground mb-2">Eligible NFT Collections:</p>
+          <div className="flex flex-wrap gap-2">
+            {dao.gov_schemas.map((schema, idx) => (
+              <Badge key={idx} variant="secondary">
+                {schema.collection_name}/{schema.schema_name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -412,8 +445,8 @@ export function DaoStaking({ dao }: DaoStakingProps) {
         </div>
       )}
 
-      {/* NFT Staking UI */}
-      {isNFTDao && (
+      {/* NFT Staking UI (Type 2 only - custodial) */}
+      {isNFTStakingDao && (
         <div className="space-y-4">
           {/* NFT Collections Info */}
           <div className="bg-muted/50 rounded-lg p-4">
@@ -549,7 +582,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       )}
 
       {/* Unknown DAO Type */}
-      {!isTokenStakingDao && !isNFTDao && (
+      {!isTokenStakingDao && !isNFTStakingDao && !isHoldNFTDao && (
         <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
           <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p className="font-medium">Unknown DAO Type</p>

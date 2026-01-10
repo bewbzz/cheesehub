@@ -48,16 +48,19 @@ function isValidWaxAccount(account: string): boolean {
   return /^[a-z1-5.]+$/.test(account);
 }
 
-const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
+const mainMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
   { id: 'account', label: 'Account', icon: <Wallet className="h-4 w-4" /> },
   { id: 'send', label: 'Send Tokens', icon: <Send className="h-4 w-4" /> },
   { id: 'send-nfts', label: 'Send NFTs', icon: <Image className="h-4 w-4" /> },
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
   { id: 'rent', label: 'Rent CPU/NET', icon: <Zap className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
-  { id: 'alcor-farms', label: 'Alcor Farms', icon: <Sprout className="h-4 w-4" /> },
   { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
+];
+
+const bottomMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
+  { id: 'alcor-farms', label: 'Manage Alcor Farms', icon: <Sprout className="h-4 w-4" /> },
 ];
 
 export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialogProps) {
@@ -244,23 +247,46 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         
         <div className="flex gap-4 h-[810px]">
           {/* Left Sidebar Menu */}
-          <div className="w-40 shrink-0 border-r border-border pr-4 space-y-1">
-            {menuItems.map((item) => (
-              <Button
-                key={item.id}
-                variant="ghost"
-                onClick={() => setActiveSection(item.id)}
-                className={cn(
-                  "w-full justify-start gap-2 text-left h-auto py-3",
-                  activeSection === item.id 
-                    ? "bg-cheese/20 text-cheese hover:bg-cheese/30 hover:text-cheese" 
-                    : "hover:bg-muted"
-                )}
-              >
-                {item.icon}
-                <span className="text-sm">{item.label}</span>
-              </Button>
-            ))}
+          <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col">
+            {/* Main menu items */}
+            <div className="space-y-1 flex-1">
+              {mainMenuItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  onClick={() => setActiveSection(item.id)}
+                  className={cn(
+                    "w-full justify-start gap-2 text-left h-auto py-3",
+                    activeSection === item.id 
+                      ? "bg-cheese/20 text-cheese hover:bg-cheese/30 hover:text-cheese" 
+                      : "hover:bg-muted"
+                  )}
+                >
+                  {item.icon}
+                  <span className="text-sm">{item.label}</span>
+                </Button>
+              ))}
+            </div>
+
+            {/* Separator and bottom menu items */}
+            <div className="border-t border-border/50 pt-3 mt-3 space-y-1">
+              {bottomMenuItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  onClick={() => setActiveSection(item.id)}
+                  className={cn(
+                    "w-full justify-start gap-2 text-left h-auto py-3",
+                    activeSection === item.id 
+                      ? "bg-cheese/20 text-cheese hover:bg-cheese/30 hover:text-cheese" 
+                      : "hover:bg-muted"
+                  )}
+                >
+                  {item.icon}
+                  <span className="text-xs leading-tight">{item.label}</span>
+                </Button>
+              ))}
+            </div>
           </div>
 
           {/* Right Content Area */}

@@ -792,18 +792,26 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       <CardContent className="space-y-4 overflow-hidden" style={{ maxWidth: '100%' }}>
         {/* Token Transfer Details */}
         {proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER && proposal.token_receivers && proposal.token_receivers.length > 0 && (
-          <div className="p-3 bg-cheese/10 border border-cheese/20 rounded-lg">
-            <p className="text-xs font-medium text-cheese mb-2 flex items-center gap-1">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <p className="text-xs font-medium text-blue-400 mb-2 flex items-center gap-1">
               <Send className="h-3 w-3" />
               Token Transfer Details
             </p>
             {proposal.token_receivers.map((receiver, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-sm">
-                <Wallet className="h-3 w-3 text-muted-foreground" />
-                <span className="font-medium">{receiver.quantity}</span>
-                <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">{receiver.wax_account}</span>
-                <span className="text-xs text-muted-foreground">({receiver.contract})</span>
+              <div key={idx} className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Recipient:</span>
+                  <span className="font-medium">{receiver.wax_account}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm flex-wrap">
+                  <Coins className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-mono text-xs bg-blue-500/20 px-1.5 py-0.5 rounded">
+                    {receiver.quantity}
+                  </span>
+                  <span className="text-xs text-muted-foreground">({receiver.contract})</span>
+                </div>
               </div>
             ))}
           </div>

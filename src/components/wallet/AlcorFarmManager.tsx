@@ -539,12 +539,11 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
                           onClick={() => handleUnstake(position.incentives[0])}
                           disabled={isTransacting}
-                          className="flex-1 text-destructive hover:text-destructive"
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                         >
-                          Unstake
+                          Unstake from Farm
                         </Button>
                         <Button
                           size="sm"

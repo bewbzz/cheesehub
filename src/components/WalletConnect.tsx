@@ -39,8 +39,14 @@ export function WalletConnect() {
   }, [isConnected]);
 
   const handleLogin = async () => {
-    await login();
+    // Close our dialog FIRST before triggering WharfKit login
+    // This prevents the Radix dialog from interfering with WharfKit's modal
     setOpen(false);
+    
+    // Small delay to ensure our dialog is fully unmounted
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    await login();
   };
 
   if (isConnected && accountName) {

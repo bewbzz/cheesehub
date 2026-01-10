@@ -211,18 +211,15 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
         )}
       </div>
 
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+      {/* Gradient overlay - hide when error state */}
+      {!showErrorState && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+      )}
       
-      {/* Info */}
+      {/* Info - show asset ID always */}
       <div className="absolute bottom-0 left-0 right-0 p-1.5">
         <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
-        <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
-      </div>
-      
-      {/* Asset ID overlay on hover */}
-      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-        <span className="text-cheese font-mono text-xs font-bold">#{nft.asset_id}</span>
+        <p className="text-[10px] text-white/60 truncate">#{nft.asset_id} • {nft.collection}</p>
       </div>
     </button>
   );

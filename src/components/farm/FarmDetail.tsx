@@ -55,7 +55,10 @@ export function FarmDetail() {
   });
 
   const handleFarmUpdated = () => {
-    queryClient.invalidateQueries({ queryKey: ["farmDetail", farmName] });
+    queryClient.invalidateQueries({ 
+      queryKey: ["farmDetail", farmName],
+      refetchType: 'active'
+    });
   };
 
   const handleCopyFarmName = () => {

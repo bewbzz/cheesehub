@@ -71,7 +71,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     }
   }, [accountName, dao.dao_name]);
 
-  // Function to record a vote and refresh proposals
+  // Function to record a vote and update UI immediately (optimistic update)
   const handleVote = async (proposalId: number, vote: UserVote) => {
     // Save to state
     setVotedProposals(prev => ({ ...prev, [proposalId]: vote }));
@@ -81,9 +81,47 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       saveVote(accountName, dao.dao_name, proposalId, vote);
     }
     
-    // Wait a bit for blockchain to process, then reload proposals to get updated vote counts
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    loadProposals();
+    // Immediately update the proposal's vote counts for instant UI feedback
+    if (vote.weight > 0 && vote.choice_index >= 0) {
+      setProposals(prevProposals => 
+        prevProposals.map(p => {
+          if (p.proposal_id !== proposalId) return p;
+          
+          // Clone the proposal to avoid mutation
+          const updatedProposal = { ...p };
+          
+          // Update vote counts based on vote type
+          if (vote.choice_index === 0) {
+            // Yes vote
+            updatedProposal.yes_votes = (p.yes_votes || 0) + vote.weight;
+          } else if (vote.choice_index === 1) {
+            // No vote
+            updatedProposal.no_votes = (p.no_votes || 0) + vote.weight;
+          } else if (vote.choice_index === 2) {
+            // Abstain vote
+            updatedProposal.abstain_votes = (p.abstain_votes || 0) + vote.weight;
+          }
+          
+          // For multi-option proposals, update the choices array
+          if (p.choices && p.choices.length > vote.choice_index) {
+            updatedProposal.choices = p.choices.map((choice, idx) => {
+              if (idx === vote.choice_index) {
+                const currentVotes = typeof choice.total_votes === 'string' 
+                  ? parseInt(choice.total_votes) 
+                  : choice.total_votes || 0;
+                return { ...choice, total_votes: currentVotes + vote.weight };
+              }
+              return choice;
+            });
+          }
+          
+          return updatedProposal;
+        })
+      );
+    }
+    
+    // Also do a background refresh to get accurate blockchain data
+    setTimeout(() => loadProposals(), 3000);
   };
 
   // Token Balance DAOs (type 4) don't require explicit joining

@@ -12,7 +12,6 @@ import { buildClaimRewardsAction, buildUnstakeAction, buildStakeAction, AlcorFar
 import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
 import { closeWharfkitModals } from '@/lib/wharfKit';
-import { IncreaseLiquidityDialog } from './IncreaseLiquidityDialog';
 import { cn } from '@/lib/utils';
 
 interface AlcorFarmManagerProps {
@@ -40,7 +39,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const [isTransacting, setIsTransacting] = useState(false);
   const [expandedPosition, setExpandedPosition] = useState<number | null>(null);
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
-  const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
+  
 
   // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
@@ -530,8 +529,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <div className="flex gap-2 pt-2">
                         <Button
                           size="sm"
-                          onClick={() => setIncreaseLiquidityPosition(position.incentives[0])}
-                          disabled={isTransacting}
+                          onClick={() => window.open(`https://wax.alcor.exchange/positions/${position.positionId}`, '_blank')}
                           className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Plus className="h-3 w-3" />
@@ -563,18 +561,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         </div>
       </ScrollArea>
 
-      {/* Increase Liquidity Dialog */}
-      <IncreaseLiquidityDialog
-        open={!!increaseLiquidityPosition}
-        onOpenChange={(open) => !open && setIncreaseLiquidityPosition(null)}
-        position={increaseLiquidityPosition}
-        onSuccess={(title, description, txId) => {
-          setIncreaseLiquidityPosition(null);
-          onTransactionSuccess?.(title, description, txId);
-          refetch();
-          onTransactionComplete?.();
-        }}
-      />
     </div>
   );
 }

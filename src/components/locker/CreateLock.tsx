@@ -199,9 +199,14 @@ export function CreateLock() {
             </SelectTrigger>
             <SelectContent>
               {[...tokens]
+                .filter((token) => parseFloat(token.amount) > 0)
                 .sort((a, b) => {
-                  const balanceDiff = parseFloat(b.amount) - parseFloat(a.amount);
-                  if (balanceDiff !== 0) return balanceDiff;
+                  // LP tokens go to the bottom
+                  const aIsLP = a.symbol.includes("LP") || a.symbol.includes("_");
+                  const bIsLP = b.symbol.includes("LP") || b.symbol.includes("_");
+                  if (aIsLP && !bIsLP) return 1;
+                  if (!aIsLP && bIsLP) return -1;
+                  // Then sort alphabetically
                   return a.symbol.localeCompare(b.symbol);
                 })
                 .map((token) => (

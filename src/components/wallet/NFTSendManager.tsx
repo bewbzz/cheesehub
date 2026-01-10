@@ -262,7 +262,7 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       {/* Selection Actions & Loading Progress */}
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          {loadingProgress ? (
+          {isLoading && loadingProgress.total > 0 ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-3 w-3 animate-spin" />
               Loading {loadingProgress.loaded}/{loadingProgress.total}...
@@ -459,18 +459,23 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       )}
 
       {/* Image */}
-      <div className="aspect-square bg-muted h-[90px]">
+      <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
         {imgError ? (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center bg-muted">
             <Image className="h-6 w-6 text-muted-foreground" />
           </div>
         ) : (
           <img
-            src={currentImageUrl}
+            src={currentImageUrl || '/placeholder.svg'}
             alt={nft.name}
             className="w-full h-full object-cover"
             loading="lazy"
             onError={handleImageError}
+            onLoad={(e) => {
+              // Reset error state if image loads successfully
+              const target = e.target as HTMLImageElement;
+              if (target.naturalWidth === 0) handleImageError();
+            }}
           />
         )}
       </div>

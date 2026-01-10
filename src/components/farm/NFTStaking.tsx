@@ -1,12 +1,13 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import {
   Package,
   ArrowUpFromLine,
@@ -16,6 +17,7 @@ import {
   Image as ImageIcon,
   AlertCircle,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +34,8 @@ import {
 import { ATOMIC_API, WAX_CHAIN } from "@/lib/waxConfig";
 import { fetchWithFallback } from "@/lib/fetchWithFallback";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
+import { waxRpcCall } from "@/lib/waxRpcFallback";
+import { cn } from "@/lib/utils";
 
 // Verify asset ownership directly from blockchain (real-time, no indexer delay)
 // Supports pagination for wallets with 1000+ NFTs
@@ -126,6 +130,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Refs for virtualized lists
+  const stakeParentRef = useRef<HTMLDivElement>(null);
+  const unstakeParentRef = useRef<HTMLDivElement>(null);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -268,21 +277,30 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       
       // Get all unique collections from config
       const collectionsToFetch = new Set<string>();
-      stakableConfig.collections.forEach(c => collectionsToFetch.add(c.collection));
-      stakableConfig.schemas.forEach(s => collectionsToFetch.add(s.collection));
-      stakableConfig.templates.forEach(t => collectionsToFetch.add(t.collection));
+      stakableConfig.collections.forEach(c => {
+        if (c.collection) collectionsToFetch.add(c.collection);
+      });
+      stakableConfig.schemas.forEach(s => {
+        if (s.collection) collectionsToFetch.add(s.collection);
+      });
+      stakableConfig.templates.forEach(t => {
+        if (t.collection) collectionsToFetch.add(t.collection);
+      });
+      
+      // Get template IDs for direct template lookup (in case collection is missing)
+      const templateIds = stakableConfig.templates.map(t => t.template_id).filter(Boolean);
       
       // Cache-busting timestamp to bypass CDN caching
       const cacheBuster = `_ts=${Date.now()}`;
       
-      // Fetch assets for each collection from AtomicAssets API
-      // Paginate to get up to 1000 NFTs per collection
-      for (const collection of collectionsToFetch) {
+      // Strategy 1: Fetch by collection (for collection/schema-based farms)
+      const collectionPromises = Array.from(collectionsToFetch).map(async (collection) => {
+        const collectionAssets: NFTAsset[] = [];
         try {
           let page = 1;
           let hasMore = true;
           const PAGE_SIZE = 100;
-          const MAX_PAGES = 10; // Max 1000 NFTs per collection
+          const MAX_PAGES = 10;
           
           while (hasMore && page <= MAX_PAGES) {
             const params = new URLSearchParams({
@@ -296,75 +314,117 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             const json = await response.json();
             
             if (json.success && json.data) {
-              // Stop pagination if we got fewer results than requested
-              if (json.data.length < PAGE_SIZE) {
-                hasMore = false;
-              }
+              if (json.data.length < PAGE_SIZE) hasMore = false;
               
               for (const asset of json.data) {
-                if (seenIds.has(asset.asset_id)) continue;
-                
-                // Skip NFTs that are already staked (V2 non-custodial - they stay in wallet)
-                if (stakedAssetIds.has(asset.asset_id)) continue;
-                
-                const assetCollection = asset.collection?.collection_name || "";
-                const assetSchema = asset.schema?.schema_name || "";
-                const assetTemplateId = parseInt(asset.template?.template_id || "0");
-                
-                // Check if asset matches any stakable config
-                let isEligible = false;
-                
-                // Check collections
-                if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
-                  isEligible = true;
-                }
-                
-                // Check schemas
-                if (stakableConfig.schemas.some(s => 
-                  s.collection === assetCollection && s.schema === assetSchema
-                )) {
-                  isEligible = true;
-                }
-                
-                // Check templates
-                if (stakableConfig.templates.some(t => 
-                  t.template_id === assetTemplateId
-                )) {
-                  isEligible = true;
-                }
-                
-                if (isEligible) {
-                  seenIds.add(asset.asset_id);
-                  assets.push({
-                    asset_id: asset.asset_id,
-                    name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-                    image: getImageUrl(asset.data?.img || asset.data?.image),
-                    collection: assetCollection,
-                    schema: assetSchema,
-                    template_id: asset.template?.template_id || "",
-                  });
-                }
+                collectionAssets.push({
+                  asset_id: asset.asset_id,
+                  name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+                  image: getImageUrl(asset.data?.img || asset.data?.image),
+                  collection: asset.collection?.collection_name || "",
+                  schema: asset.schema?.schema_name || "",
+                  template_id: asset.template?.template_id || "",
+                });
               }
             } else {
               hasMore = false;
             }
-            
             page++;
           }
         } catch (error) {
           console.error(`Error fetching assets for collection ${collection}:`, error);
         }
+        return collectionAssets;
+      });
+      
+      // Strategy 2: Fetch by template IDs directly (for template-based farms where collection might be missing)
+      const templatePromises = templateIds.length > 0 ? (async () => {
+        const templateAssets: NFTAsset[] = [];
+        try {
+          // Fetch in batches of 10 template IDs
+          const batchSize = 10;
+          for (let i = 0; i < templateIds.length; i += batchSize) {
+            const batch = templateIds.slice(i, i + batchSize);
+            const templateIdStr = batch.join(',');
+            const params = new URLSearchParams({
+              owner: accountName,
+              template_id: templateIdStr,
+              limit: '1000',
+            });
+            const path = `${ATOMIC_API.paths.assets}?${params.toString()}&${cacheBuster}`;
+            const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+            const json = await response.json();
+            
+            if (json.success && json.data) {
+              for (const asset of json.data) {
+                templateAssets.push({
+                  asset_id: asset.asset_id,
+                  name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
+                  image: getImageUrl(asset.data?.img || asset.data?.image),
+                  collection: asset.collection?.collection_name || "",
+                  schema: asset.schema?.schema_name || "",
+                  template_id: asset.template?.template_id || "",
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching assets by template IDs:', error);
+        }
+        return templateAssets;
+      })() : Promise.resolve([]);
+      
+      // Execute all fetches in parallel
+      const [collectionResults, templateResults] = await Promise.all([
+        Promise.all(collectionPromises),
+        templatePromises,
+      ]);
+      
+      // Merge all results
+      const allFetchedAssets = [...collectionResults.flat(), ...templateResults];
+      
+      // Dedupe and filter
+      for (const asset of allFetchedAssets) {
+        if (seenIds.has(asset.asset_id)) continue;
+        if (stakedAssetIds.has(asset.asset_id)) continue;
+        
+        const assetCollection = asset.collection;
+        const assetSchema = asset.schema;
+        const assetTemplateId = parseInt(asset.template_id || "0");
+        
+        // Check if asset matches any stakable config
+        let isEligible = false;
+        
+        // Check collections
+        if (stakableConfig.collections.some(c => c.collection === assetCollection)) {
+          isEligible = true;
+        }
+        
+        // Check schemas
+        if (stakableConfig.schemas.some(s => 
+          s.collection === assetCollection && s.schema === assetSchema
+        )) {
+          isEligible = true;
+        }
+        
+        // Check templates (by ID only - collection might be missing in config)
+        if (stakableConfig.templates.some(t => t.template_id === assetTemplateId)) {
+          isEligible = true;
+        }
+        
+        if (isEligible) {
+          seenIds.add(asset.asset_id);
+          assets.push(asset);
+        }
       }
       
       // Verify ownership directly from blockchain to filter out transferred NFTs
-      // This bypasses AtomicAssets indexer delays
       if (assets.length > 0) {
         const verifiedOwnership = await verifyAssetOwnership(
           assets.map(a => a.asset_id),
           accountName
         );
         
-        // Filter to only include assets confirmed owned on blockchain
         const verifiedAssets = assets.filter(a => verifiedOwnership.has(a.asset_id));
         console.log(`Blockchain verification: ${assets.length} from API, ${verifiedAssets.length} verified on-chain`);
         return verifiedAssets;
@@ -557,6 +617,48 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const totalPendingRewards = pendingRewards.reduce((acc, r) => acc + r.amount, 0);
   const hasRewards = totalPendingRewards > 0;
 
+  // Filtered NFTs based on search
+  const filteredEligibleNfts = useMemo(() => {
+    if (!searchQuery.trim()) return eligibleNfts;
+    const query = searchQuery.toLowerCase();
+    return eligibleNfts.filter(nft => 
+      nft.name.toLowerCase().includes(query) ||
+      nft.collection.toLowerCase().includes(query) ||
+      nft.asset_id.includes(query)
+    );
+  }, [eligibleNfts, searchQuery]);
+
+  const filteredStakedNfts = useMemo(() => {
+    if (!searchQuery.trim()) return stakedNftDetails;
+    const query = searchQuery.toLowerCase();
+    return stakedNftDetails.filter(nft => 
+      nft.name.toLowerCase().includes(query) ||
+      nft.collection.toLowerCase().includes(query) ||
+      nft.asset_id.includes(query)
+    );
+  }, [stakedNftDetails, searchQuery]);
+
+  // Virtualization - 4 columns grid
+  const COLUMNS = 4;
+  const ROW_HEIGHT = 130;
+  
+  const stakeRowCount = Math.ceil(filteredEligibleNfts.length / COLUMNS);
+  const unstakeRowCount = Math.ceil(filteredStakedNfts.length / COLUMNS);
+
+  const stakeVirtualizer = useVirtualizer({
+    count: stakeRowCount,
+    getScrollElement: () => stakeParentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 3,
+  });
+
+  const unstakeVirtualizer = useVirtualizer({
+    count: unstakeRowCount,
+    getScrollElement: () => unstakeParentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 3,
+  });
+
   // Manual refresh handler with cache invalidation
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -738,6 +840,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           </CardHeader>
           
           <CardContent className="pt-4">
+            {/* Search Input */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, collection, or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
             {/* Stake Tab */}
             <TabsContent value="stake" className="mt-0">
               {isLoadingEligible ? (
@@ -751,7 +864,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                   <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground">No eligible NFTs found in your wallet</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    This farm accepts: {stakableConfig?.collections.join(", ") || "specific collections/templates"}
+                    This farm accepts: {stakableConfig?.collections.map(c => c.collection).join(", ") || stakableConfig?.templates.map(t => `Template #${t.template_id}`).join(", ") || "specific collections/templates"}
                   </p>
                   <Button
                     variant="outline"
@@ -767,12 +880,17 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                     AtomicAssets indexing may have delays
                   </p>
                 </div>
+              ) : filteredEligibleNfts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Search className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No NFTs match your search</p>
+                </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {selectedToStake.size} selected
+                        {selectedToStake.size} selected {filteredEligibleNfts.length !== eligibleNfts.length && `(${filteredEligibleNfts.length} shown)`}
                       </span>
                       <Button
                         variant="ghost"
@@ -789,41 +907,71 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                       Select All
                     </Button>
                   </div>
-                  <ScrollArea className="h-[300px] pr-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {eligibleNfts.map((nft) => (
-                        <div
-                          key={nft.asset_id}
-                          onClick={() => toggleStakeSelection(nft.asset_id)}
-                          className={`relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${
-                            selectedToStake.has(nft.asset_id)
-                              ? "border-primary ring-2 ring-primary/20"
-                              : "border-border/50 hover:border-border"
-                          }`}
-                        >
-                          <img
-                            src={nft.image}
-                            alt={nft.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  <div
+                    ref={stakeParentRef}
+                    className="h-[300px] overflow-auto rounded-md border border-border"
+                  >
+                    <div
+                      style={{
+                        height: `${stakeVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                      }}
+                    >
+                      {stakeVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const startIndex = virtualRow.index * COLUMNS;
+                        const rowNFTs = filteredEligibleNfts.slice(startIndex, startIndex + COLUMNS);
+
+                        return (
+                          <div
+                            key={virtualRow.key}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: `${virtualRow.size}px`,
+                              transform: `translateY(${virtualRow.start}px)`,
                             }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2">
-                            <p className="text-xs text-white font-medium truncate">{nft.name}</p>
-                            <p className="text-xs text-white/60 truncate">{nft.collection}</p>
+                            className="grid grid-cols-4 gap-2 p-1"
+                          >
+                            {rowNFTs.map((nft) => (
+                              <button
+                                key={nft.asset_id}
+                                onClick={() => toggleStakeSelection(nft.asset_id)}
+                                className={cn(
+                                  "relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
+                                  selectedToStake.has(nft.asset_id)
+                                    ? "border-primary ring-1 ring-primary"
+                                    : "border-transparent hover:border-muted-foreground/30"
+                                )}
+                              >
+                                <img
+                                  src={nft.image}
+                                  alt={nft.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                                  <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
+                                  <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
+                                </div>
+                                <div className="absolute top-1.5 right-1.5">
+                                  <Checkbox
+                                    checked={selectedToStake.has(nft.asset_id)}
+                                    className="h-4 w-4 bg-background/80 border-border"
+                                  />
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          <div className="absolute top-2 right-2">
-                            <Checkbox
-                              checked={selectedToStake.has(nft.asset_id)}
-                              className="bg-background/80 border-border"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                  </ScrollArea>
+                  </div>
                   <div className="mt-4 pt-4 border-t border-border/50">
                     <Button
                       onClick={handleStake}
@@ -855,51 +1003,86 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                   <Package className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground">No NFTs staked in this farm</p>
                 </div>
+              ) : filteredStakedNfts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Search className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">No staked NFTs match your search</p>
+                </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-muted-foreground">
-                      {selectedToUnstake.size} selected
+                      {selectedToUnstake.size} selected {filteredStakedNfts.length !== stakedNftDetails.length && `(${filteredStakedNfts.length} shown)`}
                     </span>
                     <Button variant="ghost" size="sm" onClick={selectAllToUnstake}>
                       Select All
                     </Button>
                   </div>
-                  <ScrollArea className="h-[300px] pr-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {stakedNftDetails.map((nft) => (
-                        <div
-                          key={nft.asset_id}
-                          onClick={() => toggleUnstakeSelection(nft.asset_id)}
-                          className={`relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${
-                            selectedToUnstake.has(nft.asset_id)
-                              ? "border-destructive ring-2 ring-destructive/20"
-                              : "border-border/50 hover:border-border"
-                          }`}
-                        >
-                          <img
-                            src={nft.image}
-                            alt={nft.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/placeholder.svg";
+                  <div
+                    ref={unstakeParentRef}
+                    className="h-[300px] overflow-auto rounded-md border border-border"
+                  >
+                    <div
+                      style={{
+                        height: `${unstakeVirtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                      }}
+                    >
+                      {unstakeVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const startIndex = virtualRow.index * COLUMNS;
+                        const rowNFTs = filteredStakedNfts.slice(startIndex, startIndex + COLUMNS);
+
+                        return (
+                          <div
+                            key={virtualRow.key}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: `${virtualRow.size}px`,
+                              transform: `translateY(${virtualRow.start}px)`,
                             }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2">
-                            <p className="text-xs text-white font-medium truncate">{nft.name}</p>
-                            <p className="text-xs text-white/60 truncate">{nft.collection}</p>
+                            className="grid grid-cols-4 gap-2 p-1"
+                          >
+                            {rowNFTs.map((nft) => (
+                              <button
+                                key={nft.asset_id}
+                                onClick={() => toggleUnstakeSelection(nft.asset_id)}
+                                className={cn(
+                                  "relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
+                                  selectedToUnstake.has(nft.asset_id)
+                                    ? "border-destructive ring-1 ring-destructive"
+                                    : "border-transparent hover:border-muted-foreground/30"
+                                )}
+                              >
+                                <img
+                                  src={nft.image}
+                                  alt={nft.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                                  <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
+                                  <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
+                                </div>
+                                <div className="absolute top-1.5 right-1.5">
+                                  <Checkbox
+                                    checked={selectedToUnstake.has(nft.asset_id)}
+                                    className="h-4 w-4 bg-background/80 border-border"
+                                  />
+                                </div>
+                              </button>
+                            ))}
                           </div>
-                          <div className="absolute top-2 right-2">
-                            <Checkbox
-                              checked={selectedToUnstake.has(nft.asset_id)}
-                              className="bg-background/80 border-border"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                  </ScrollArea>
+                  </div>
                   <div className="mt-4 pt-4 border-t border-border/50">
                     <Button
                       onClick={handleUnstake}

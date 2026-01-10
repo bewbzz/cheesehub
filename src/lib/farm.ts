@@ -430,21 +430,45 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
   };
 }
 
-// Fetch all V2 farms from the contract
+// Fetch all V2 farms from the contract with pagination
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
-    const data = await fetchTableRows({
-      code: FARM_CONTRACT,
-      scope: FARM_CONTRACT,
-      table: "farms",
-      limit: 200,
-    });
+    const allRows: Record<string, unknown>[] = [];
+    let lowerBound = "";
+    let hasMore = true;
+    const BATCH_SIZE = 100;
+    let iterations = 0;
+    const MAX_ITERATIONS = 20; // Safety limit
 
-    console.log("Raw farm data:", data);
+    while (hasMore && iterations < MAX_ITERATIONS) {
+      const data = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: "farms",
+        limit: BATCH_SIZE,
+        lower_bound: lowerBound || undefined,
+      });
+
+      if (data.rows && data.rows.length > 0) {
+        // Skip the first row on subsequent iterations (it's the same as last row from previous batch)
+        const rowsToAdd = lowerBound ? data.rows.slice(1) : data.rows;
+        allRows.push(...rowsToAdd);
+        
+        // Get the last row's primary key for pagination
+        const lastRow = data.rows[data.rows.length - 1] as Record<string, unknown>;
+        const lastId = lastRow.id || lastRow.farmname || lastRow.farm_name;
+        lowerBound = String(lastId);
+      }
+
+      hasMore = data.more === true && data.rows && data.rows.length === BATCH_SIZE;
+      iterations++;
+    }
+
+    console.log(`Fetched ${allRows.length} farms in ${iterations} iterations`);
 
     const now = Math.floor(Date.now() / 1000);
 
-    return (data.rows || []).map((row: Record<string, unknown>, index: number) => {
+    return allRows.map((row: Record<string, unknown>, index: number) => {
       // Handle actual WaxDAO V2 farm structure
       const farmName = (row.farmname || row.farm_name || `farm_${index}`) as string;
       const expiration = (row.expiration || 0) as number;

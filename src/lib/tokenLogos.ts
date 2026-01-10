@@ -3,11 +3,70 @@
 const ALCOR_LOGO_BASE = 'https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax';
 
 /**
+ * Mapping of token symbols to their Alcor contract (for logo lookup)
+ * Alcor uses different contracts than NFTHive for some tokens
+ */
+const ALCOR_CONTRACT_MAP: Record<string, string> = {
+  // Main tokens
+  'WAX': 'eosio.token',
+  'CHEESE': 'cheeseburger',
+  'TLM': 'alien.worlds',
+  'WUFFI': 'wuffi',
+  'NEFTY': 'neftyblocksd',
+  'TACO': 't.taco',
+  'DUST': 'niftywizards',
+  'AETHER': 'e.rplanet',
+  'VOID': 'onessusonwax',
+  'WOMBAT': 'wombatitoken',
+  'CAIT': 'tokencrafter',
+  'ZOMB': 'zombietokens',
+  'GOLD': 'goldgoldgold',
+  'STEAK': 'token.steak',
+  'LEEF': 'leefmaincorp',
+  'GUILD': 'guildstoken',
+  'BRWL': 'brawlertokns',
+  'CROWN': 'crownedtokns',
+  'MARTIA': 'martiainvad1',
+  'CMX': 'cmxtokenswap',
+  'NEON': 'neonstoicwax',
+  'AWC': 'alien.worlds',
+  // Wrapped tokens
+  'WAXUSDT': 'eth.token',
+  'WAXUSDC': 'eth.token',
+  'WAXWETH': 'eth.token',
+  'WAXWBTC': 'eth.token',
+  // Other tokens
+  'BET': 'betdividends',
+  'KARMA': 'theonlykarma',
+  'PGL': 'prospectorsw',
+  'PURPLE': 'purplepurple',
+  'GEM': 'gems.tycoon',
+  'KOALA': 'appsbmtokens',
+  'BITS': 'extexplorers',
+  'PIXEL': 'penguincoins',
+  'TOCIUM': 'toc.century',
+  'CPR': 'coin.pirates',
+  'MST': 'metatoken.gm',
+  'SHELL': 'token.gr',
+  'ART': 'goldarttoken',
+  'GLITCH': 'gamingtokens',
+  'BJ': 'blowjobtoken',
+  'GNOKEN': 'gnokentokens',
+  'FWF': 'farmerstoken',
+  'FWG': 'farmerstoken',
+  'FWW': 'farmerstoken',
+  'KBUCKS': 'kolobokbucks',
+  'BLUX': 'bluxbluxblux',
+};
+
+/**
  * Get the token logo URL from Alcor's repository
  * Format: https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax/{symbol_lowercase}_{contract}.png
  */
 export function getTokenLogoUrl(contract: string, symbol: string): string {
-  return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${contract}.png`;
+  // Use Alcor's contract mapping if available, otherwise use the provided contract
+  const alcorContract = ALCOR_CONTRACT_MAP[symbol.toUpperCase()] || contract;
+  return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${alcorContract}.png`;
 }
 
 /**

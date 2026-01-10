@@ -122,18 +122,18 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     return () => clearInterval(interval);
   }, [farmsList]);
 
-  const handleClaimRewards = useCallback(async (incentiveIds: number[]) => {
-    if (!session || !accountName || incentiveIds.length === 0) return;
+  const handleClaimRewards = useCallback(async (claims: Array<{ incentiveId: number; posId: number }>) => {
+    if (!session || !accountName || claims.length === 0) return;
 
     setIsTransacting(true);
     try {
-      const actions = buildClaimRewardsAction(accountName, incentiveIds);
+      const actions = buildClaimRewardsAction(accountName, claims);
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       onTransactionSuccess?.(
         'Rewards Claimed!',
-        `Claimed rewards from ${incentiveIds.length} incentive(s)`,
+        `Claimed rewards from ${claims.length} incentive(s)`,
         txId
       );
       refetch();
@@ -153,14 +153,23 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
     setIsTransacting(true);
     try {
-      const incentiveIds = [...new Set(farmsList.map(f => f.incentiveId))];
-      const actions = buildClaimRewardsAction(accountName, incentiveIds);
+      // Build unique claims with both incentiveId and posId
+      const claimsMap = new Map<string, { incentiveId: number; posId: number }>();
+      farmsList.forEach(f => {
+        const key = `${f.incentiveId}-${f.positionId}`;
+        if (!claimsMap.has(key)) {
+          claimsMap.set(key, { incentiveId: f.incentiveId, posId: f.positionId });
+        }
+      });
+      const claims = Array.from(claimsMap.values());
+      
+      const actions = buildClaimRewardsAction(accountName, claims);
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       onTransactionSuccess?.(
         'All Rewards Claimed!',
-        `Claimed rewards from ${incentiveIds.length} incentive(s)`,
+        `Claimed rewards from ${claims.length} incentive(s)`,
         txId
       );
       refetch();
@@ -272,7 +281,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         <div className="space-y-3 pr-2">
           {groupedPositions.map((position) => {
             const isExpanded = expandedPosition === position.positionId;
-            const positionIncentiveIds = position.incentives.map(i => i.incentiveId);
+            const positionClaims = position.incentives.map(i => ({ incentiveId: i.incentiveId, posId: i.positionId }));
 
             return (
               <Card key={position.positionId} className="bg-muted/30 border-border/50">
@@ -367,7 +376,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleClaimRewards(positionIncentiveIds)}
+                        onClick={() => handleClaimRewards(positionClaims)}
                         disabled={isTransacting}
                         className="h-8 px-3 text-xs"
                       >

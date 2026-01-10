@@ -248,18 +248,19 @@ export interface TransactionAction {
 
 /**
  * Build claim rewards action for a specific incentive
+ * Requires both incentiveId and posId (position ID)
  */
 export function buildClaimRewardsAction(
   accountName: string,
-  incentiveIds: number[]
+  claims: Array<{ incentiveId: number; posId: number }>
 ): TransactionAction[] {
-  return incentiveIds.map(incentiveId => ({
+  return claims.map(({ incentiveId, posId }) => ({
     account: ALCOR_SWAP_CONTRACT,
     name: 'getreward',
     authorization: [{ actor: accountName, permission: 'active' }],
     data: {
-      owner: accountName,
       incentiveId,
+      posId,
     },
   }));
 }

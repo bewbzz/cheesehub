@@ -426,11 +426,21 @@ function extractIpfsHash(url: string): string | null {
 function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const ipfsHash = extractIpfsHash(nft.image);
-  const currentImageUrl = ipfsHash 
-    ? `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`
-    : nft.image;
+  
+  // Build current image URL with cache-busting on retry
+  const currentImageUrl = useMemo(() => {
+    if (!nft.image) return '/placeholder.svg';
+    if (ipfsHash) {
+      const baseUrl = `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      return retryCount > 0 ? `${baseUrl}?retry=${retryCount}` : baseUrl;
+    }
+    // For non-IPFS URLs, add retry param if needed
+    const separator = nft.image.includes('?') ? '&' : '?';
+    return retryCount > 0 ? `${nft.image}${separator}retry=${retryCount}` : nft.image;
+  }, [nft.image, ipfsHash, gatewayIndex, retryCount]);
 
   const handleImageError = () => {
     if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
@@ -439,6 +449,13 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     } else {
       setImgError(true);
     }
+  };
+
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgError(false);
+    setGatewayIndex(0);
+    setRetryCount(prev => prev + 1);
   };
 
   return (
@@ -461,18 +478,22 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       {/* Image */}
       <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
         {imgError ? (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <Image className="h-6 w-6 text-muted-foreground" />
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
+            onClick={handleRetry}
+            title="Click to retry loading image"
+          >
+            <Image className="h-5 w-5 text-muted-foreground mb-1" />
+            <span className="text-[8px] text-muted-foreground">Tap to retry</span>
           </div>
         ) : (
           <img
-            src={currentImageUrl || '/placeholder.svg'}
+            src={currentImageUrl}
             alt={nft.name}
             className="w-full h-full object-cover"
             loading="lazy"
             onError={handleImageError}
             onLoad={(e) => {
-              // Reset error state if image loads successfully
               const target = e.target as HTMLImageElement;
               if (target.naturalWidth === 0) handleImageError();
             }}

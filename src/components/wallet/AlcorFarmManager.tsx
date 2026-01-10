@@ -3,12 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
+import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
-import { useAlcorFarms } from '@/hooks/useAlcorFarms';
+import { useAlcorFarms, UnstakedIncentivesMap } from '@/hooks/useAlcorFarms';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { useWaxPrice } from '@/hooks/useWaxPrice';
-import { buildClaimRewardsAction, buildUnstakeAction, AlcorFarmPosition } from '@/lib/alcorFarms';
+import { buildClaimRewardsAction, buildUnstakeAction, buildStakeAction, AlcorFarmPosition, UnstakedIncentive } from '@/lib/alcorFarms';
 import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
 import { closeWharfkitModals } from '@/lib/wharfKit';
@@ -28,12 +28,13 @@ interface GroupedFarmPosition {
   tokenB: { contract: string; symbol: string; amount: number };
   isInRange: boolean;
   incentives: AlcorFarmPosition[];
+  unstakedIncentives: UnstakedIncentive[];
   usdValue: number;
 }
 
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
-  const { stakedFarms, isLoading, refetch } = useAlcorFarms();
+  const { stakedFarms, unstakedIncentives, isLoading, refetch } = useAlcorFarms();
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
@@ -78,6 +79,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         const tokenAValue = getTokenUsdValue(farm.tokenA.contract, farm.tokenA.symbol, farm.tokenA.amount);
         const tokenBValue = getTokenUsdValue(farm.tokenB.contract, farm.tokenB.symbol, farm.tokenB.amount);
         const usdValue = tokenAValue + tokenBValue;
+        
+        // Get unstaked incentives for this position
+        const positionUnstaked = unstakedIncentives.get(farm.positionId) || [];
 
         groups.set(farm.positionId, {
           positionId: farm.positionId,
@@ -86,6 +90,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           tokenB: farm.tokenB,
           isInRange: farm.isInRange,
           incentives: [],
+          unstakedIncentives: positionUnstaked,
           usdValue,
         });
       }
@@ -94,7 +99,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     
     // Sort by USD value descending (highest value first)
     return Array.from(groups.values()).sort((a, b) => b.usdValue - a.usdValue);
-  }, [farmsList]);
+  }, [farmsList, unstakedIncentives]);
 
   // Create unique key for each incentive
   const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
@@ -203,6 +208,32 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     } catch (error: any) {
       console.error('Unstake error:', error);
       toast.error(error?.message || 'Failed to unstake position');
+    } finally {
+      setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
+    }
+  }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
+
+  const handleStakeToIncentive = useCallback(async (positionId: number, incentive: UnstakedIncentive) => {
+    if (!session || !accountName) return;
+
+    setIsTransacting(true);
+    try {
+      const action = buildStakeAction(accountName, incentive.incentiveId, positionId);
+      const result = await session.transact({ actions: [action] });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      onTransactionSuccess?.(
+        'Position Staked!',
+        `Staked position #${positionId} to ${incentive.rewardToken.symbol} farm rewards`,
+        txId
+      );
+      refetch();
+      onTransactionComplete?.();
+    } catch (error: any) {
+      console.error('Stake error:', error);
+      toast.error(error?.message || 'Failed to stake position');
     } finally {
       setIsTransacting(false);
       closeWharfkitModals();
@@ -460,6 +491,42 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         </div>
                       </div>
 
+                      {/* Unstaked incentives - Stake Position buttons */}
+                      {position.unstakedIncentives.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-muted-foreground font-medium">New Rewards Available:</span>
+                          <div className="grid gap-2">
+                            {position.unstakedIncentives.map((incentive) => (
+                              <div 
+                                key={incentive.incentiveId}
+                                className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/30 text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <TokenLogo 
+                                    contract={incentive.rewardToken.contract} 
+                                    symbol={incentive.rewardToken.symbol} 
+                                    size="sm" 
+                                  />
+                                  <span className="font-medium">{incentive.rewardToken.symbol}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    #{incentive.incentiveId}
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStakeToIncentive(position.positionId, incentive)}
+                                  disabled={isTransacting}
+                                  className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700"
+                                >
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  Stake Position
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Action buttons */}
                       <div className="flex gap-2 pt-2">
                         <Button
@@ -470,7 +537,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                           className="flex-1 gap-1"
                         >
                           <Plus className="h-3 w-3" />
-                          Increase Stake
+                          Increase Position
                         </Button>
                         <Button
                           size="sm"

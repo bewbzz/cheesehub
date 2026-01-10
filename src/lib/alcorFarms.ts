@@ -66,6 +66,19 @@ export interface AlcorFarmPosition {
   farmedRewardDisplay: string;
 }
 
+// Unstaked incentive that a position could be staked to
+export interface UnstakedIncentive {
+  incentiveId: number;
+  poolId: number;
+  rewardToken: {
+    contract: string;
+    symbol: string;
+    precision: number;
+  };
+  totalReward: number;
+  rewardPerDay: number;
+}
+
 // Parse WAX asset string (e.g., "123.45678901 WAX")
 function parseAsset(assetStr: string): { amount: number; symbol: string; precision: number } {
   if (!assetStr) return { amount: 0, symbol: '', precision: 0 };
@@ -138,6 +151,22 @@ export async function fetchIncentiveDetails(incentiveId: number): Promise<any | 
   } catch (error) {
     console.error(`Failed to fetch incentive ${incentiveId}:`, error);
     return null;
+  }
+}
+
+/**
+ * Fetch all active incentives for a specific pool
+ */
+export async function fetchPoolIncentives(poolId: number): Promise<any[]> {
+  try {
+    const response = await fetch(`${ALCOR_API_BASE}/farms?poolId=${poolId}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    // Filter for active incentives (not finished)
+    return Array.isArray(data) ? data.filter((i: any) => i.isFinished !== true) : [];
+  } catch (error) {
+    console.error(`Failed to fetch pool ${poolId} incentives:`, error);
+    return [];
   }
 }
 
@@ -235,6 +264,48 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
   }
 
   return result;
+}
+
+// Parse WAX asset string to get precision
+function getAssetPrecision(assetStr: string): number {
+  if (!assetStr) return 8;
+  const parts = assetStr.trim().split(' ');
+  const decimalParts = parts[0].split('.');
+  return decimalParts[1]?.length || 0;
+}
+
+/**
+ * Fetch unstaked incentives for a position (incentives available but not staked to)
+ */
+export async function fetchUnstakedIncentivesForPosition(
+  positionId: number,
+  poolId: number,
+  stakedIncentiveIds: number[]
+): Promise<UnstakedIncentive[]> {
+  const allIncentives = await fetchPoolIncentives(poolId);
+  
+  // Filter out already staked incentives
+  const unstakedIncentives = allIncentives.filter(
+    (incentive: any) => !stakedIncentiveIds.includes(incentive.id)
+  );
+  
+  return unstakedIncentives.map((incentive: any) => {
+    const rewardAsset = incentive.reward?.quantity || '0.00000000 TOKEN';
+    const rewardParts = rewardAsset.split(' ');
+    const precision = getAssetPrecision(rewardAsset);
+    
+    return {
+      incentiveId: incentive.id,
+      poolId: incentive.pool || poolId,
+      rewardToken: {
+        contract: incentive.reward?.contract || '',
+        symbol: rewardParts[1] || 'TOKEN',
+        precision,
+      },
+      totalReward: parseFloat(rewardParts[0]) || 0,
+      rewardPerDay: incentive.rewardPerDay || 0,
+    };
+  });
 }
 
 // ============= Transaction Builders =============

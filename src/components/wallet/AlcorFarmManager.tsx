@@ -259,8 +259,26 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       </div>
                     </div>
 
-                    {/* All rewards for this position - stacked */}
+                    {/* Daily earn - stacked (left) */}
                     <div className="flex-1 min-w-0">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                        <TrendingUp className="h-3 w-3" />
+                        Daily
+                      </div>
+                      <div className="space-y-0.5">
+                        {position.incentives.map((incentive) => {
+                          const key = getIncentiveKey(incentive);
+                          return (
+                            <div key={key} className="font-mono text-xs">
+                              {incentive.dailyEarnRate.toFixed(Math.min(4, incentive.rewardToken.precision))} {incentive.rewardToken.symbol}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* All rewards for this position - stacked (right, next to claim) */}
+                    <div className="min-w-[100px]">
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                         <Coins className="h-3 w-3" />
                         Earned
@@ -272,24 +290,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                           return (
                             <div key={key} className="font-mono text-sm text-cheese font-medium">
                               {liveReward.toFixed(Math.min(4, incentive.rewardToken.precision))} {incentive.rewardToken.symbol}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Daily earn - stacked */}
-                    <div className="min-w-[100px]">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-                        <TrendingUp className="h-3 w-3" />
-                        Daily
-                      </div>
-                      <div className="space-y-0.5">
-                        {position.incentives.map((incentive) => {
-                          const key = getIncentiveKey(incentive);
-                          return (
-                            <div key={key} className="font-mono text-xs">
-                              {incentive.dailyEarnRate.toFixed(Math.min(4, incentive.rewardToken.precision))} {incentive.rewardToken.symbol}
                             </div>
                           );
                         })}

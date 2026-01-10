@@ -64,9 +64,13 @@ const FAQ_ITEMS = [
   },
 ];
 
+const CONFIRMATION_PHRASE = "I understand how the new farms work";
+
 export function CreateFarm() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
+  const [confirmationText, setConfirmationText] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [formData, setFormData] = useState({
     farmName: "",
     avatar: "",
@@ -268,12 +272,15 @@ export function CreateFarm() {
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Video Warning Section */}
+        {/* Video Warning Section - Always visible */}
         <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 space-y-3">
           <div className="flex items-center gap-2 text-destructive font-semibold">
             <AlertTriangle className="h-5 w-5" />
-            <span>Warning: Watch this before creating your farm!</span>
+            <span>VERY IMPORTANT!!!!! You must confirm that you understand how these new farms work before you are allowed to create one.</span>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Watch the following video and then enter "{CONFIRMATION_PHRASE}" (without quotes) into the box below. Once you do that, the farm creation form will magically appear.
+          </p>
           
           {/* Embedded YouTube Video */}
           <div className="aspect-video w-full rounded-lg overflow-hidden bg-black/20">
@@ -299,6 +306,32 @@ export function CreateFarm() {
           </a>
         </div>
 
+        {/* Confirmation Gate */}
+        {!isUnlocked && (
+          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+            <Label htmlFor="confirmation" className="font-semibold">Confirm</Label>
+            <Textarea
+              id="confirmation"
+              placeholder={`Enter '${CONFIRMATION_PHRASE}' without quotes (case sensitive)`}
+              value={confirmationText}
+              onChange={(e) => {
+                setConfirmationText(e.target.value);
+                if (e.target.value === CONFIRMATION_PHRASE) {
+                  setIsUnlocked(true);
+                }
+              }}
+              className="resize-none min-h-[120px]"
+            />
+            {confirmationText.length > 0 && confirmationText !== CONFIRMATION_PHRASE && (
+              <p className="text-xs text-destructive">
+                Text doesn't match. Make sure to type exactly: {CONFIRMATION_PHRASE}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Farm Creation Form - Only visible after confirmation */}
+        {isUnlocked && (
         <form onSubmit={handleCreate} className="space-y-6">
           {/* Farm Info Section */}
           <div className="space-y-4">
@@ -503,6 +536,7 @@ export function CreateFarm() {
             )}
           </Button>
         </form>
+        )}
       </CardContent>
     </Card>
   );

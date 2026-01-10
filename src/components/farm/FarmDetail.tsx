@@ -26,6 +26,7 @@ import { NFTStaking } from "./NFTStaking";
 import { ManageStakableAssets } from "./ManageStakableAssets";
 import { OpenFarmDialog } from "./OpenFarmDialog";
 import { ExtendFarmDialog } from "./ExtendFarmDialog";
+import { DepositRewardsDialog } from "./DepositRewardsDialog";
 import { useWax } from "@/context/WaxContext";
 // Farm type labels based on WaxDAO contract
 const FARM_TYPE_LABELS: Record<number, string> = {
@@ -248,10 +249,13 @@ export function FarmDetail() {
         {/* Reward Pools */}
         <Card className="border-border/50 bg-card/50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-cheese" />
-              Reward Pools
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-cheese" />
+                Reward Pools
+              </CardTitle>
+              <DepositRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
+            </div>
           </CardHeader>
           <CardContent>
             {farm.reward_pools.length > 0 ? (

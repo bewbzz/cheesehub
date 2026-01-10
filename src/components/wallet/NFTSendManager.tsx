@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -426,6 +426,7 @@ function extractIpfsHash(url: string): string | null {
 function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   const ipfsHash = extractIpfsHash(nft.image);
@@ -443,18 +444,33 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     return retryCount > 0 ? `${nft.image}${separator}retry=${retryCount}` : nft.image;
   }, [nft.image, ipfsHash, gatewayIndex, retryCount]);
 
-  const handleImageError = () => {
+  const handleImageError = useCallback(() => {
     if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
       // Try next gateway
       setGatewayIndex(prev => prev + 1);
+      setImgLoaded(false);
     } else {
       setImgError(true);
     }
-  };
+  }, [ipfsHash, gatewayIndex]);
+
+  // Timeout fallback - if image doesn't load in 10s, show error
+  useEffect(() => {
+    if (!hasValidImage || imgError || imgLoaded) return;
+    
+    const timeout = setTimeout(() => {
+      if (!imgLoaded && !imgError) {
+        handleImageError();
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timeout);
+  }, [hasValidImage, imgError, imgLoaded, currentImageUrl, handleImageError]);
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
     setImgError(false);
+    setImgLoaded(false);
     setGatewayIndex(0);
     setRetryCount(prev => prev + 1);
   };
@@ -483,23 +499,30 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
         {showErrorState ? (
           <div 
-            className="w-full h-full flex flex-col items-center justify-center bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
+            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted transition-colors z-10"
             onClick={handleRetry}
             title="Click to retry loading image"
           >
-            <Image className="h-5 w-5 text-muted-foreground mb-1" />
-            <span className="text-[8px] text-muted-foreground">Tap to retry</span>
+            <Image className="h-5 w-5 text-cheese mb-1" />
+            <span className="text-[9px] text-cheese font-medium">Retry</span>
           </div>
         ) : (
           <img
             src={currentImageUrl}
             alt={nft.name}
-            className="w-full h-full object-cover"
+            className={cn(
+              "w-full h-full object-cover transition-opacity",
+              imgLoaded ? "opacity-100" : "opacity-0"
+            )}
             loading="lazy"
             onError={handleImageError}
             onLoad={(e) => {
               const target = e.target as HTMLImageElement;
-              if (target.naturalWidth === 0) handleImageError();
+              if (target.naturalWidth === 0) {
+                handleImageError();
+              } else {
+                setImgLoaded(true);
+              }
             }}
           />
         )}

@@ -247,7 +247,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         
         <div className="flex gap-4 h-[810px]">
           {/* Left Sidebar Menu */}
-          <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col justify-between self-stretch">
+          <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col">
             {/* Main menu items - takes available space */}
             <div className="space-y-1">
               {mainMenuItems.map((item) => (

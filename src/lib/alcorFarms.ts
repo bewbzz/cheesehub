@@ -178,41 +178,70 @@ export async function fetchIncentiveDetails(incentiveId: number): Promise<any | 
   }
 }
 
+// Cache all incentives to avoid repeated full table scans
+let incentivesCache: { data: any[]; timestamp: number } | null = null;
+const INCENTIVES_CACHE_TTL = 60 * 1000; // 1 minute
+
+async function fetchAllIncentives(): Promise<any[]> {
+  // Return cached data if fresh
+  if (incentivesCache && Date.now() - incentivesCache.timestamp < INCENTIVES_CACHE_TTL) {
+    console.log('[fetchAllIncentives] Using cached data:', incentivesCache.data.length, 'incentives');
+    return incentivesCache.data;
+  }
+  
+  console.log('[fetchAllIncentives] Fetching all incentives from chain...');
+  const allIncentives: any[] = [];
+  let lower_bound = 0;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const result = await waxRpcCall('/v1/chain/get_table_rows', {
+      json: true,
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'incentives',
+      lower_bound: lower_bound,
+      limit: 500,
+    }) as { rows?: any[]; more?: boolean; next_key?: string };
+    
+    if (result?.rows?.length) {
+      allIncentives.push(...result.rows);
+      if (result.more && result.next_key) {
+        lower_bound = parseInt(result.next_key);
+      } else {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+  
+  console.log('[fetchAllIncentives] Loaded', allIncentives.length, 'total incentives');
+  incentivesCache = { data: allIncentives, timestamp: Date.now() };
+  return allIncentives;
+}
+
 /**
  * Fetch all active incentives for a specific pool from blockchain
  */
 export async function fetchPoolIncentives(poolId: number): Promise<any[]> {
   console.log(`[fetchPoolIncentives] Fetching incentives for pool ${poolId}`);
   try {
-    // Query the incentives table on swap.alcor contract using secondary index (by pool)
-    const result = await waxRpcCall('/v1/chain/get_table_rows', {
-      json: true,
-      code: ALCOR_SWAP_CONTRACT,
-      scope: ALCOR_SWAP_CONTRACT,
-      table: 'incentives',
-      index_position: 2, // Secondary index by poolId
-      key_type: 'i64',
-      lower_bound: poolId,
-      upper_bound: poolId,
-      limit: 100,
-    }) as { rows?: any[] };
+    const allIncentives = await fetchAllIncentives();
     
-    console.log(`[fetchPoolIncentives] Pool ${poolId} returned ${result?.rows?.length || 0} rows`);
-    
-    if (!result?.rows) return [];
-    
-    // Filter for active incentives (not finished - check if endTime > now)
+    // Filter for this pool's active incentives
     const now = Math.floor(Date.now() / 1000);
-    const active = result.rows.filter((incentive: any) => {
+    const poolIncentives = allIncentives.filter((incentive: any) => {
+      if (incentive.poolId !== poolId) return false;
       // Check if incentive is still active
       const endTime = incentive.periodFinish || incentive.endTime || 0;
       return endTime > now;
     });
     
-    console.log(`[fetchPoolIncentives] Pool ${poolId}: ${active.length} active incentives out of ${result.rows.length} total`);
-    return active;
+    console.log(`[fetchPoolIncentives] Pool ${poolId}: ${poolIncentives.length} active incentives`);
+    return poolIncentives;
   } catch (error) {
-    console.error(`Failed to fetch pool ${poolId} incentives from chain:`, error);
+    console.error(`Failed to fetch pool ${poolId} incentives:`, error);
     return [];
   }
 }

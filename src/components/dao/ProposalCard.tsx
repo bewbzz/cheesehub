@@ -19,7 +19,7 @@ import {
 } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { closeWharfkitModals, ensureModalOnTop, restoreRadixPointerEvents } from "@/lib/wharfKit";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel } from "lucide-react";
 
 interface ProposalCardProps {
@@ -161,7 +161,6 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       );
 
       console.log("Sending vote transaction...");
-      ensureModalOnTop();
       await session.transact({ actions: [action] });
       console.log("Vote transaction successful!");
       
@@ -177,17 +176,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     } catch (error) {
       console.error("Vote failed:", error);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
-      // Always cleanup modals - immediate + delayed for stuck modals
       closeWharfkitModals();
-      restoreRadixPointerEvents();
-      setTimeout(() => {
-        closeWharfkitModals();
-        restoreRadixPointerEvents();
-      }, 300);
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -212,7 +205,6 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         selectedChoice
       );
 
-      ensureModalOnTop();
       await session.transact({ actions: [action] });
       
       // Set local vote state
@@ -224,16 +216,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     } catch (error) {
       console.error("Vote failed:", error);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
-      setTimeout(() => {
-        closeWharfkitModals();
-        restoreRadixPointerEvents();
-      }, 300);
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -259,7 +246,6 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         selectedChoice
       );
 
-      ensureModalOnTop();
       await session.transact({ actions: [action] });
       
       // Set local vote state
@@ -271,16 +257,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     } catch (error) {
       console.error("Vote failed:", error);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
-      setTimeout(() => {
-        closeWharfkitModals();
-        restoreRadixPointerEvents();
-      }, 300);
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 
@@ -315,7 +296,6 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         proposal.proposal_id
       ));
 
-      ensureModalOnTop();
       await session.transact({ actions });
       setIsFinalized(true);
       
@@ -330,17 +310,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     } catch (error) {
       console.error("Finalize failed:", error);
       closeWharfkitModals();
-      restoreRadixPointerEvents();
       toast.error(error instanceof Error ? error.message : "Failed to finalize proposal");
     } finally {
       setFinalizing(false);
-      // Always cleanup modals - immediate + delayed for stuck modals
       closeWharfkitModals();
-      restoreRadixPointerEvents();
-      setTimeout(() => {
-        closeWharfkitModals();
-        restoreRadixPointerEvents();
-      }, 300);
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

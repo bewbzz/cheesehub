@@ -101,6 +101,8 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
       // Track fully unstaked positions (LP positions with 0 stakes but available incentives)
       const unstakedPositions: UnstakedLPPosition[] = [];
       
+      console.log('[useAlcorFarms] Processing', allPositions.length, 'LP positions, stakedByPosition has', stakedByPosition.size, 'entries');
+      
       // Check all LP positions (including those with no stakes yet)
       allPositions.forEach((position: AlcorApiPosition) => {
         const poolId = position.pool;
@@ -135,11 +137,16 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
           unstakedIncentives.set(position.id, unstaked);
         }
         
+        // Log each position's status for debugging
+        console.log(`[useAlcorFarms] Position #${position.id}: pool=${poolId}, hasStakes=${hasAnyStakes}, poolIncentives=${allPoolIncentives.length}, unstaked=${unstaked.length}`);
+        
         // If this position has NO stakes but has available incentives, add to unstakedPositions
         if (!hasAnyStakes && unstaked.length > 0) {
           const poolDetails = poolDetailsMap.get(poolId);
           const amountA = parseAsset(position.amountA);
           const amountB = parseAsset(position.amountB);
+          
+          console.log(`[useAlcorFarms] Adding position #${position.id} to unstakedPositions`);
           
           unstakedPositions.push({
             positionId: position.id,
@@ -162,7 +169,7 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
         }
       });
       
-      console.log('[useAlcorFarms] stakedFarms:', stakedFarms.length, 'unstakedPositions:', unstakedPositions.length, 'allPositions:', allPositions.length);
+      console.log('[useAlcorFarms] Final: stakedFarms:', stakedFarms.length, 'unstakedPositions:', unstakedPositions.length, 'allPositions:', allPositions.length);
       
       return { stakedFarms, unstakedIncentives, unstakedPositions };
     },

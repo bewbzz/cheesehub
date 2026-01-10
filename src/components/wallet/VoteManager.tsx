@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { closeWharfkitModals } from '@/lib/wharfKit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -281,6 +282,8 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
       toast.error(error?.message || 'Vote transaction failed');
     } finally {
       setIsVoting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

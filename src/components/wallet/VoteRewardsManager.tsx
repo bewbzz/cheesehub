@@ -315,8 +315,9 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         toast.error(errorMsg);
       }
     } finally {
-      closeWharfkitModals();
       setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

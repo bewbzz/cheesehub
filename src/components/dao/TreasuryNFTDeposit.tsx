@@ -163,6 +163,8 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
       }
     } finally {
       setLoading(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }
 

@@ -162,6 +162,8 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
         }
       });
       
+      console.log('[useAlcorFarms] stakedFarms:', stakedFarms.length, 'unstakedPositions:', unstakedPositions.length, 'allPositions:', allPositions.length);
+      
       return { stakedFarms, unstakedIncentives, unstakedPositions };
     },
     enabled: !!accountName,

@@ -193,18 +193,23 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, farmsList, onTransactionSuccess, refetch, onTransactionComplete]);
 
-  const handleUnstake = useCallback(async (farm: AlcorFarmPosition) => {
-    if (!session || !accountName) return;
+  const handleUnstake = useCallback(async (incentives: AlcorFarmPosition[]) => {
+    if (!session || !accountName || incentives.length === 0) return;
 
     setIsTransacting(true);
     try {
-      const action = buildUnstakeAction(accountName, farm.incentiveId, farm.positionId);
-      const result = await session.transact({ actions: [action] });
+      // Build unstake actions for ALL incentives for this position
+      const actions = incentives.map(incentive => 
+        buildUnstakeAction(accountName, incentive.incentiveId, incentive.positionId)
+      );
+      
+      const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
+      const firstIncentive = incentives[0];
       onTransactionSuccess?.(
         'Position Unstaked!',
-        `Removed ${farm.tokenA.symbol}/${farm.tokenB.symbol} position from farm. Your LP tokens are still in the pool.`,
+        `Removed ${firstIncentive.tokenA.symbol}/${firstIncentive.tokenB.symbol} position from ${incentives.length} farm reward(s). Your LP tokens are still in the pool.`,
         txId
       );
       refetch();
@@ -553,7 +558,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleUnstake(position.incentives[0])}
+                          onClick={() => handleUnstake(position.incentives)}
                           disabled={isTransacting}
                           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                         >

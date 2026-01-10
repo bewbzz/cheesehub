@@ -355,7 +355,7 @@ export function buildUnstakeAction(
     data: {
       owner: accountName,
       incentiveId,
-      positionId,
+      posId: positionId,
     },
   };
 }

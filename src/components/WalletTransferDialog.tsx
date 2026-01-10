@@ -268,8 +268,8 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               ))}
             </div>
 
-            {/* Bottom menu items - positioned lower in sidebar */}
-            <div className="border-t border-border/50 pt-3 space-y-1 mt-[280px]">
+            {/* Bottom menu items - positioned in sidebar */}
+            <div className="border-t border-border/50 pt-3 space-y-1 mt-[140px]">
               {bottomMenuItems.map((item) => (
                 <Button
                   key={item.id}
@@ -283,7 +283,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                   )}
                 >
                   {item.icon}
-                  <span className="text-xs leading-tight">{item.label}</span>
+                  <span className="text-sm flex flex-col items-start">
+                    <span>Manage Alcor</span>
+                    <span className="w-full text-center">Farms</span>
+                  </span>
                 </Button>
               ))}
             </div>

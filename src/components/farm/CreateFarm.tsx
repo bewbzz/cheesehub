@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,14 @@ import {
   buildFarmCreationFeeWaxAction,
   buildCreateFarmAction,
 } from "@/lib/farm";
+import { FeePaymentSelector } from "@/components/shared/FeePaymentSelector";
+import {
+  CHEESE_FEE_ENABLED,
+  PaymentMethod,
+  buildCheesePrepayAction,
+  buildProvideWaxAction,
+  WAX_FEE_AMOUNT,
+} from "@/lib/cheeseFees";
 
 
 
@@ -71,6 +79,16 @@ export function CreateFarm() {
   const [loading, setLoading] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  
+  // CHEESE payment state
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wax");
+  const [cheeseAmount, setCheeseAmount] = useState("");
+  const [hasPrepaid, setHasPrepaid] = useState(false);
+  
+  const handleCheeseAmountChange = useCallback((amount: string) => {
+    setCheeseAmount(amount);
+  }, []);
+  
   const [formData, setFormData] = useState({
     farmName: "",
     avatar: "",
@@ -170,10 +188,32 @@ export function CreateFarm() {
         socials
       );
 
-      // Execute all actions in a single transaction
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const actions: any[] = [assertAction, feeAction, createAction];
-      await session.transact({ actions });
+      // Handle CHEESE payment flow
+      if (CHEESE_FEE_ENABLED && paymentMethod === "cheese") {
+        // TX 1: Send CHEESE to cheesefeefee (if not already prepaid)
+        if (!hasPrepaid) {
+          const prepayAction = buildCheesePrepayAction(
+            accountName,
+            cheeseAmount,
+            "farm",
+            formData.farmName
+          );
+          await session.transact({ actions: [prepayAction] });
+          setHasPrepaid(true);
+          toast.success("CHEESE prepayment sent! Now creating Farm...");
+        }
+        
+        // TX 2: Bundled creation with providewax
+        const provideWaxAction = buildProvideWaxAction(accountName, "farm", formData.farmName);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const actions: any[] = [provideWaxAction, assertAction, feeAction, createAction];
+        await session.transact({ actions });
+      } else {
+        // Standard WAX payment
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const actions: any[] = [assertAction, feeAction, createAction];
+        await session.transact({ actions });
+      }
       
       toast.success("Farm created successfully! You can now add stakable assets via the farm detail page.");
       
@@ -187,6 +227,8 @@ export function CreateFarm() {
         farmType: FARM_TYPES.COLLECTIONS,
       });
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
+      setPaymentMethod("wax");
+      setHasPrepaid(false);
       
     } catch (error) {
       console.error("Failed to create farm:", error);
@@ -514,12 +556,15 @@ export function CreateFarm() {
           </div>
 
           {/* Payment Info */}
-          <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Creation Fee:</span>
-              <span className="text-sm font-semibold text-cheese">250 WAX</span>
-            </div>
-          </div>
+          <FeePaymentSelector
+            waxFee={WAX_FEE_AMOUNT}
+            feeType="farm"
+            entityName={formData.farmName}
+            selectedMethod={paymentMethod}
+            onMethodChange={setPaymentMethod}
+            onCheeseAmountChange={handleCheeseAmountChange}
+            disabled={loading}
+          />
 
           {/* Submit Button */}
           <Button

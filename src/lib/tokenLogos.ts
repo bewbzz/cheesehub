@@ -65,7 +65,14 @@ const ALCOR_CONTRACT_MAP: Record<string, string> = {
  */
 export function getTokenLogoUrl(contract: string, symbol: string): string {
   // Use Alcor's contract mapping if available, otherwise use the provided contract
+  // If contract is empty/undefined, we MUST use the mapping or return placeholder
   const alcorContract = ALCOR_CONTRACT_MAP[symbol.toUpperCase()] || contract;
+  
+  // If we still don't have a valid contract, return the placeholder
+  if (!alcorContract) {
+    return TOKEN_LOGO_PLACEHOLDER;
+  }
+  
   return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${alcorContract}.png`;
 }
 

@@ -4,7 +4,9 @@ import {
   fetchUserStakedFarmsWithDetails,
   fetchUserPositions,
   fetchPoolIncentives,
+  fetchPoolDetails,
   AlcorFarmPosition,
+  AlcorApiPosition,
   UnstakedIncentive,
 } from '@/lib/alcorFarms';
 import { ensureTokenCacheLoaded } from '@/lib/tokenLogos';
@@ -12,12 +14,36 @@ import { ensureTokenCacheLoaded } from '@/lib/tokenLogos';
 // Map of positionId -> unstaked incentives for that position's pool
 export type UnstakedIncentivesMap = Map<number, UnstakedIncentive[]>;
 
+// Represents an LP position with available farm incentives (but not currently staked)
+export interface UnstakedLPPosition {
+  positionId: number;
+  poolId: number;
+  tokenA: { contract: string; symbol: string; amount: number };
+  tokenB: { contract: string; symbol: string; amount: number };
+  tickLower: number;
+  tickUpper: number;
+  isInRange: boolean;
+  availableIncentives: UnstakedIncentive[];
+}
+
 interface UseAlcorFarmsResult {
   stakedFarms: AlcorFarmPosition[];
   unstakedIncentives: UnstakedIncentivesMap;
+  unstakedPositions: UnstakedLPPosition[]; // LP positions with NO stakes but available incentives
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
+}
+
+// Parse WAX asset string (e.g., "123.45678901 WAX")
+function parseAsset(assetStr: string): { amount: number; symbol: string; precision: number } {
+  if (!assetStr) return { amount: 0, symbol: '', precision: 0 };
+  const parts = assetStr.trim().split(' ');
+  const amount = parseFloat(parts[0]) || 0;
+  const symbol = parts[1] || '';
+  const decimalParts = parts[0].split('.');
+  const precision = decimalParts[1]?.length || 0;
+  return { amount, symbol, precision };
 }
 
 export function useAlcorFarms(): UseAlcorFarmsResult {
@@ -26,7 +52,7 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['alcor-farms', accountName],
     queryFn: async () => {
-      if (!accountName) return { stakedFarms: [], unstakedIncentives: new Map() };
+      if (!accountName) return { stakedFarms: [], unstakedIncentives: new Map(), unstakedPositions: [] };
       
       // Ensure token cache is loaded before fetching farms
       await ensureTokenCacheLoaded();
@@ -51,28 +77,37 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
         }
       });
       
-      // For each unique pool, fetch all active incentives
+      // For each unique pool, fetch all active incentives AND pool details
       const uniquePoolIds = new Set<number>();
       stakedFarms.forEach(f => uniquePoolIds.add(f.poolId));
       allPositions.forEach(p => uniquePoolIds.add(p.pool));
       
       const poolIncentivesMap = new Map<number, any[]>();
+      const poolDetailsMap = new Map<number, any>();
+      
       await Promise.all(
         Array.from(uniquePoolIds).map(async (poolId) => {
-          const incentives = await fetchPoolIncentives(poolId);
+          const [incentives, poolDetails] = await Promise.all([
+            fetchPoolIncentives(poolId),
+            fetchPoolDetails(poolId),
+          ]);
           poolIncentivesMap.set(poolId, incentives);
+          if (poolDetails) poolDetailsMap.set(poolId, poolDetails);
         })
       );
       
       // Build unstaked incentives map for each position
       const unstakedIncentives: UnstakedIncentivesMap = new Map();
+      // Track fully unstaked positions (LP positions with 0 stakes but available incentives)
+      const unstakedPositions: UnstakedLPPosition[] = [];
       
       // Check all LP positions (including those with no stakes yet)
-      allPositions.forEach(position => {
+      allPositions.forEach((position: AlcorApiPosition) => {
         const poolId = position.pool;
         const allPoolIncentives = poolIncentivesMap.get(poolId) || [];
         const stakedInfo = stakedByPosition.get(position.id);
         const stakedIncentiveIds = stakedInfo?.incentiveIds || [];
+        const hasAnyStakes = stakedIncentiveIds.length > 0;
         
         // Find incentives not staked to
         const unstaked = allPoolIncentives
@@ -99,9 +134,35 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
         if (unstaked.length > 0) {
           unstakedIncentives.set(position.id, unstaked);
         }
+        
+        // If this position has NO stakes but has available incentives, add to unstakedPositions
+        if (!hasAnyStakes && unstaked.length > 0) {
+          const poolDetails = poolDetailsMap.get(poolId);
+          const amountA = parseAsset(position.amountA);
+          const amountB = parseAsset(position.amountB);
+          
+          unstakedPositions.push({
+            positionId: position.id,
+            poolId,
+            tokenA: {
+              contract: poolDetails?.tokenA?.contract || '',
+              symbol: amountA.symbol,
+              amount: amountA.amount,
+            },
+            tokenB: {
+              contract: poolDetails?.tokenB?.contract || '',
+              symbol: amountB.symbol,
+              amount: amountB.amount,
+            },
+            tickLower: position.tickLower,
+            tickUpper: position.tickUpper,
+            isInRange: position.inRange,
+            availableIncentives: unstaked,
+          });
+        }
       });
       
-      return { stakedFarms, unstakedIncentives };
+      return { stakedFarms, unstakedIncentives, unstakedPositions };
     },
     enabled: !!accountName,
     staleTime: 5 * 1000, // 5 seconds - allow faster refresh after transactions
@@ -112,6 +173,7 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
   return {
     stakedFarms: Array.isArray(data?.stakedFarms) ? data.stakedFarms : [],
     unstakedIncentives: data?.unstakedIncentives || new Map(),
+    unstakedPositions: Array.isArray(data?.unstakedPositions) ? data.unstakedPositions : [],
     isLoading,
     error: error as Error | null,
     refetch,

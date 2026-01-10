@@ -292,6 +292,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   // Calculate total positions (staked + unstaked with available incentives)
   const totalPositionsWithFarms = groupedPositions.length + unstakedList.length;
   const totalEarningRewards = farmsList.length;
+  
+  // Debug logging
+  console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'groupedPositions:', groupedPositions.length);
 
   if (farmsList.length === 0 && unstakedList.length === 0) {
     return (

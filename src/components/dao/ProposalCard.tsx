@@ -136,13 +136,11 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const choicesTotalVotes = proposal.choices?.reduce((sum, c) => sum + (typeof c.total_votes === 'string' ? parseInt(c.total_votes) : c.total_votes) || 0, 0) || 0;
 
   // Check if proposal needs finalization (voting ended but not yet finalized)
-  // Only transfer proposals (Token/NFT) require manual finalization to execute transfers
-  const isTransferType = proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
-                         proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+  // Explicitly exclude already-finalized statuses
   const isAlreadyFinalized = ["passed", "rejected", "executed"].includes(proposal.status);
   const now = Math.floor(Date.now() / 1000);
   const votingEnded = proposal.end_time_ts > 0 && proposal.end_time_ts <= now;
-  const needsFinalization = isTransferType && !isAlreadyFinalized && !isFinalized && 
+  const needsFinalization = !isAlreadyFinalized && !isFinalized && 
     (proposal.status === "pending" || (proposal.status === "active" && votingEnded));
 
   async function handleYesNoVote(vote: "yes" | "no" | "abstain") {

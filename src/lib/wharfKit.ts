@@ -141,58 +141,78 @@ export function restoreRadixPointerEvents() {
 }
 
 // Auto-elevate WharfKit modals when they appear in the DOM
+// Deferred initialization to avoid issues during React mount
 if (typeof window !== 'undefined') {
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node instanceof HTMLElement) {
-          if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
-            // Apply z-index fix immediately when modal appears
-            node.style.zIndex = '999999';
-            node.style.position = 'fixed';
-            node.style.top = '0';
-            node.style.left = '0';
-            node.style.width = '100vw';
-            node.style.height = '100vh';
-            node.style.pointerEvents = 'auto';
-            
-            // Disable Radix portal pointer events so wallet modal is clickable
-            document.querySelectorAll('[data-radix-portal]').forEach(el => {
-              (el as HTMLElement).style.pointerEvents = 'none';
-            });
-            
-            // Watch for shadow DOM content
-            const checkShadow = () => {
-              if (node.shadowRoot) {
-                const dialog = node.shadowRoot.querySelector('dialog');
-                if (dialog) {
-                  (dialog as HTMLElement).style.zIndex = '999999';
-                  (dialog as HTMLElement).style.pointerEvents = 'auto';
-                }
-              }
-            };
-            checkShadow();
-            // Check again after a small delay in case shadow DOM loads later
-            setTimeout(checkShadow, 100);
-            setTimeout(checkShadow, 500);
-          }
-        }
-      }
-      
-      // When WharfKit modal is removed, restore Radix pointer events
-      for (const node of mutation.removedNodes) {
-        if (node instanceof HTMLElement) {
-          if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
-            document.querySelectorAll('[data-radix-portal]').forEach(el => {
-              (el as HTMLElement).style.pointerEvents = '';
-            });
-          }
-        }
-      }
+  const initObserver = () => {
+    // Only proceed if body exists
+    if (!document.body) {
+      setTimeout(initObserver, 50);
+      return;
     }
-  });
+    
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
+              // Apply z-index fix immediately when modal appears
+              node.style.zIndex = '999999';
+              node.style.position = 'fixed';
+              node.style.top = '0';
+              node.style.left = '0';
+              node.style.width = '100vw';
+              node.style.height = '100vh';
+              node.style.pointerEvents = 'auto';
+              
+              // Disable Radix portal pointer events so wallet modal is clickable
+              document.querySelectorAll('[data-radix-portal]').forEach(el => {
+                (el as HTMLElement).style.pointerEvents = 'none';
+              });
+              
+              // Watch for shadow DOM content
+              const checkShadow = () => {
+                if (node.shadowRoot) {
+                  const dialog = node.shadowRoot.querySelector('dialog');
+                  if (dialog) {
+                    (dialog as HTMLElement).style.zIndex = '999999';
+                    (dialog as HTMLElement).style.pointerEvents = 'auto';
+                  }
+                }
+              };
+              checkShadow();
+              // Check again after a small delay in case shadow DOM loads later
+              setTimeout(checkShadow, 100);
+              setTimeout(checkShadow, 500);
+            }
+          }
+        }
+        
+        // When WharfKit modal is removed, restore Radix pointer events
+        for (const node of mutation.removedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
+              document.querySelectorAll('[data-radix-portal]').forEach(el => {
+                (el as HTMLElement).style.pointerEvents = '';
+              });
+            }
+          }
+        }
+      }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+  };
   
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Defer observer initialization until after React has mounted
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      // Additional delay to ensure React has mounted
+      setTimeout(initObserver, 100);
+    });
+  } else {
+    // DOM already loaded, but still defer slightly
+    setTimeout(initObserver, 100);
+  }
 }
 
 export { webRenderer };

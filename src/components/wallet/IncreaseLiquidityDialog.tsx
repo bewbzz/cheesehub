@@ -32,7 +32,7 @@ export function IncreaseLiquidityDialog({
   onSuccess,
 }: IncreaseLiquidityDialogProps) {
   const { session, accountName } = useWax();
-  const { tokens } = useAllTokenBalances(accountName);
+  const { tokens, refetch: refetchBalances } = useAllTokenBalances(accountName);
   const [tokenAAmount, setTokenAAmount] = useState('');
   const [tokenBAmount, setTokenBAmount] = useState('');
   const [lastEditedToken, setLastEditedToken] = useState<'A' | 'B' | null>(null);
@@ -166,6 +166,11 @@ export function IncreaseLiquidityDialog({
 
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
+
+      // Refetch token balances after successful transaction
+      setTimeout(() => {
+        refetchBalances();
+      }, 2000);
 
       onSuccess(
         'Liquidity Added!',

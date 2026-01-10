@@ -134,11 +134,13 @@ export function IncreaseLiquidityDialog({
       const actions = buildIncreaseLiquidityAction(
         accountName,
         position.positionId,
+        position.poolId,
+        position.tickLower,
+        position.tickUpper,
         position.tokenA.contract,
         quantityA,
         position.tokenB.contract,
-        quantityB,
-        0.5 // Fixed slippage
+        quantityB
       );
 
       const result = await session.transact({ actions });

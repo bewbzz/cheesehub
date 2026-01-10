@@ -39,6 +39,8 @@ export interface AlcorFarmPosition {
   incentiveId: number;
   poolId: number;
   liquidity: string;
+  tickLower: number;
+  tickUpper: number;
   tokenA: {
     contract: string;
     symbol: string;
@@ -235,6 +237,8 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
       incentiveId: farm.incentiveId,
       poolId: farm.pool,
       liquidity: farm.stakingWeight,
+      tickLower: lpPosition?.tickLower ?? 0,
+      tickUpper: lpPosition?.tickUpper ?? 0,
       tokenA: {
         contract: tokenAContract,
         symbol: amountA.symbol,
@@ -378,18 +382,23 @@ export function buildStakeAction(
 
 /**
  * Build increase liquidity action (add to LP position)
+ * NOTE: Alcor uses concentrated liquidity (Uniswap V3 style).
+ * To add liquidity to an existing position, use the addliquid action with the same tick range.
+ * This requires knowing the position's tickLower and tickUpper values.
  */
 export function buildIncreaseLiquidityAction(
   accountName: string,
   positionId: number,
+  poolId: number,
+  tickLower: number,
+  tickUpper: number,
   tokenAContract: string,
   tokenAQuantity: string,
   tokenBContract: string,
-  tokenBQuantity: string,
-  slippage: number = 0.5
+  tokenBQuantity: string
 ): TransactionAction[] {
-  // Calculate min amounts with slippage
-  const slippageMultiplier = 1 - slippage / 100;
+  // Parse amounts for min values (apply 0.5% slippage)
+  const slippageMultiplier = 0.995;
   
   const tokenAAmount = parseFloat(tokenAQuantity.split(' ')[0]);
   const tokenASymbol = tokenAQuantity.split(' ')[1];
@@ -400,6 +409,9 @@ export function buildIncreaseLiquidityAction(
   const tokenBSymbol = tokenBQuantity.split(' ')[1];
   const tokenBDecimals = tokenBQuantity.split(' ')[0].split('.')[1]?.length || 0;
   const minTokenB = (tokenBAmount * slippageMultiplier).toFixed(tokenBDecimals) + ' ' + tokenBSymbol;
+
+  // Deadline: 10 minutes from now
+  const deadline = Math.floor(Date.now() / 1000) + 600;
 
   return [
     // Transfer token A
@@ -426,18 +438,21 @@ export function buildIncreaseLiquidityAction(
         memo: '',
       },
     },
-    // Add liquidity to existing position
+    // Add liquidity with same tick range as existing position
     {
       account: ALCOR_SWAP_CONTRACT,
-      name: 'addliqaliid',
+      name: 'addliquid',
       authorization: [{ actor: accountName, permission: 'active' }],
       data: {
+        poolId,
         owner: accountName,
-        posId: positionId,
-        desiredA: tokenAQuantity,
-        desiredB: tokenBQuantity,
-        minA: minTokenA,
-        minB: minTokenB,
+        tokenADesired: tokenAQuantity,
+        tokenBDesired: tokenBQuantity,
+        tickLower,
+        tickUpper,
+        tokenAMin: minTokenA,
+        tokenBMin: minTokenB,
+        deadline,
       },
     },
   ];

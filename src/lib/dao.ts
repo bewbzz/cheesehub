@@ -620,12 +620,26 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         console.log(`Proposal ${row.proposal_id} (type ${contractProposalType}) raw fields:`, 
           Object.keys(row));
         console.log(`Proposal ${row.proposal_id} token_receivers field:`, row.token_receivers);
-        console.log(`Proposal ${row.proposal_id} actions field:`, row.actions);
+        console.log(`Proposal ${row.proposal_id} token_receivers isArray:`, Array.isArray(row.token_receivers));
+        console.log(`Proposal ${row.proposal_id} token_receivers type:`, typeof row.token_receivers);
+        console.log(`Proposal ${row.proposal_id} nft_receivers field:`, row.nft_receivers);
       }
       
-      // Try to get token_receivers directly
-      if (row.token_receivers && Array.isArray(row.token_receivers)) {
-        tokenReceivers = row.token_receivers as { wax_account: string; quantity: string; contract: string }[];
+      // Try to get token_receivers - handle both array and object cases
+      if (row.token_receivers) {
+        if (Array.isArray(row.token_receivers) && row.token_receivers.length > 0) {
+          tokenReceivers = row.token_receivers as { wax_account: string; quantity: string; contract: string }[];
+        } else if (typeof row.token_receivers === 'object') {
+          // Single object or other format - check if it has the expected fields
+          const tr = row.token_receivers as Record<string, unknown>;
+          if (tr.wax_account && tr.quantity) {
+            tokenReceivers = [{
+              wax_account: tr.wax_account as string,
+              quantity: tr.quantity as string,
+              contract: (tr.contract as string) || 'eosio.token',
+            }];
+          }
+        }
       }
       
       // Fallback: Extract token transfer details from actions array if token_receivers is empty

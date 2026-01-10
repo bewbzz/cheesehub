@@ -124,19 +124,19 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     setTimeout(() => loadProposals(), 3000);
   };
 
-  // Token Balance DAOs (type 4) don't require explicit joining
-  const isTokenBalanceDao = dao.dao_type === 4;
+  // Non-Custodial NFT DAOs (type 5) don't require explicit joining - membership is based on NFT holdings
+  const isNonCustodialDao = dao.dao_type === 5;
 
   useEffect(() => {
     if (open) {
       loadProposals();
       setActiveSection("info");
-      // Skip membership check for Token Balance DAOs - anyone with tokens can participate
-      if (!isTokenBalanceDao) {
+      // Skip membership check for Non-Custodial NFT DAOs - membership is based on NFT holdings
+      if (!isNonCustodialDao) {
         checkMembership();
       }
     }
-  }, [open, dao.dao_name, accountName, isTokenBalanceDao]);
+  }, [open, dao.dao_name, accountName, isNonCustodialDao]);
 
   useEffect(() => {
     if (activeSection === "treasury" && treasury.length === 0) {
@@ -328,10 +328,10 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {DAO_TYPES[dao.dao_type] || "Unknown"}
                 </Badge>
                 {isConnected && (
-                  isTokenBalanceDao ? (
+                  isNonCustodialDao ? (
                     <Badge className="bg-cheese/20 text-cheese border-cheese/30 shrink-0">
-                      <Coins className="h-3 w-3 mr-1" />
-                      Token Holder
+                      <ImageIcon className="h-3 w-3 mr-1" />
+                      NFT Holder
                     </Badge>
                   ) : isMember ? (
                     <Badge className="bg-green-500/20 text-green-500 border-green-500/30 shrink-0">
@@ -351,8 +351,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </p>
               </div>
             </div>
-            {/* Join/Leave Button - Not shown for Token Balance DAOs */}
-            {isConnected && !isTokenBalanceDao && (
+            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs */}
+            {isConnected && !isNonCustodialDao && (
               <div className="shrink-0">
                 {membershipLoading ? (
                   <Button size="sm" disabled>
@@ -546,15 +546,39 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     <Plus className="h-5 w-5 text-cheese" />
                     Create New Proposal
                   </h3>
-                  <CreateProposal
-                    daoName={dao.dao_name}
-                    proposalCost={dao.proposal_cost}
-                    onSuccess={() => {
-                      loadProposals();
-                      setActiveSection("active");
-                    }}
-                    onCancel={() => setActiveSection("info")}
-                  />
+                  {!isConnected ? (
+                    <div className="text-center py-12 bg-muted/30 rounded-lg">
+                      <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-muted-foreground">Connect your wallet to create proposals</p>
+                    </div>
+                  ) : !isMember && !isNonCustodialDao ? (
+                    <div className="text-center py-12 bg-muted/30 rounded-lg">
+                      <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-muted-foreground mb-3">You must be a member to create proposals</p>
+                      <Button 
+                        onClick={handleJoinDao} 
+                        className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+                        disabled={membershipLoading}
+                      >
+                        {membershipLoading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <UserPlus className="h-4 w-4 mr-2" />
+                        )}
+                        Join DAO
+                      </Button>
+                    </div>
+                  ) : (
+                    <CreateProposal
+                      daoName={dao.dao_name}
+                      proposalCost={dao.proposal_cost}
+                      onSuccess={() => {
+                        loadProposals();
+                        setActiveSection("active");
+                      }}
+                      onCancel={() => setActiveSection("info")}
+                    />
+                  )}
                 </div>
               )}
 
@@ -575,27 +599,31 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                       </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setActiveSection("new-proposal")}
-                        className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        New
-                      </Button>
+                      {(isMember || isNonCustodialDao) && (
+                        <Button
+                          size="sm"
+                          onClick={() => setActiveSection("new-proposal")}
+                          className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          New
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {activeProposals.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <Vote className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p>No active proposals</p>
-                      <Button
-                        variant="link"
-                        onClick={() => setActiveSection("new-proposal")}
-                        className="text-cheese"
-                      >
-                        Create the first one
-                      </Button>
+                      {(isMember || isNonCustodialDao) && (
+                        <Button
+                          variant="link"
+                          onClick={() => setActiveSection("new-proposal")}
+                          className="text-cheese"
+                        >
+                          Create the first one
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3 w-full max-w-full overflow-hidden">

@@ -43,16 +43,16 @@ import { useCheeseFeePricing } from "@/hooks/useCheeseFeePricing";
 
 const FAQ_ITEMS = [
   {
+    question: "Can I pay with CHEESE tokens?",
+    answer: "Yes! You can prepay with CHEESE tokens and receive a 20% discount on the creation fee. Due to smart contract limitations, you must complete the CHEESE prepayment before filling in the rest of the form. The prepayment locks in your farm name. If you decide not to create the farm after prepaying, your CHEESE is 100% refundable.",
+  },
+  {
     question: "What is the correct format for my farm name?",
     answer: "Farm names must be 12 characters or less and can only contain lowercase letters (a-z), numbers (1-5), and periods. Names cannot start or end with a period, and cannot contain consecutive periods.",
   },
   {
     question: "How much does it cost to create a farm?",
     answer: "You can create a farm by paying 250 WAX, 25,000 WAXDAO tokens, or by using 1 NFT from the Wojak collection (ourwojaksart). These payment options help support the WaxDAO ecosystem.",
-  },
-  {
-    question: "Can I pay with CHEESE tokens?",
-    answer: "Yes! You can prepay with CHEESE tokens and receive a 20% discount on the creation fee. Due to smart contract limitations, you must complete the CHEESE prepayment before filling in the rest of the form. The prepayment locks in your farm name. If you decide not to create the farm after prepaying, your CHEESE is 100% refundable.",
   },
   {
     question: "What are the different farm types?",

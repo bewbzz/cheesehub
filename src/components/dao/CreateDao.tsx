@@ -363,8 +363,29 @@ export function CreateDao() {
                     </DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="max-h-[65vh] pr-4">
-                    <Accordion type="multiple" defaultValue={["dao-types", "settings"]} className="space-y-2">
+                    <Accordion type="multiple" defaultValue={["cheese-payment", "dao-types", "settings"]} className="space-y-2">
                       
+                      <AccordionItem value="cheese-payment" className="border border-border/50 rounded-lg px-4">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
+                          Paying with CHEESE Tokens
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-foreground space-y-2">
+                          <p>
+                            You can <strong className="text-cheese">prepay with CHEESE tokens</strong> and receive a 
+                            <strong className="text-green-500"> 20% discount</strong> on the 250 WAX creation fee.
+                          </p>
+                          <p>
+                            <strong className="text-cheese">Why prepay?</strong> Due to smart contract limitations, 
+                            the CHEESE prepayment must be completed before filling in the rest of the form. 
+                            This locks in your DAO name for the creation transaction.
+                          </p>
+                          <p className="text-xs bg-muted/50 p-2 rounded">
+                            <strong>100% Refundable:</strong> If you decide not to create the DAO after prepaying, 
+                            your CHEESE tokens are fully refundable.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
                       <AccordionItem value="dao-name" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           DAO Name Format
@@ -574,27 +595,6 @@ export function CreateDao() {
                           <p>
                             Once created, DAO settings <strong className="text-cheese">cannot be changed</strong>. 
                             Please review all configuration options carefully before submitting. Choose wisely!
-                          </p>
-                        </AccordionContent>
-                      </AccordionItem>
-
-                      <AccordionItem value="cheese-payment" className="border border-border/50 rounded-lg px-4">
-                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                          Paying with CHEESE Tokens
-                        </AccordionTrigger>
-                        <AccordionContent className="text-sm text-foreground space-y-2">
-                          <p>
-                            You can <strong className="text-cheese">prepay with CHEESE tokens</strong> and receive a 
-                            <strong className="text-green-500"> 20% discount</strong> on the 250 WAX creation fee.
-                          </p>
-                          <p>
-                            <strong className="text-cheese">Why prepay?</strong> Due to smart contract limitations, 
-                            the CHEESE prepayment must be completed before filling in the rest of the form. 
-                            This locks in your DAO name for the creation transaction.
-                          </p>
-                          <p className="text-xs bg-muted/50 p-2 rounded">
-                            <strong>100% Refundable:</strong> If you decide not to create the DAO after prepaying, 
-                            your CHEESE tokens are fully refundable.
                           </p>
                         </AccordionContent>
                       </AccordionItem>

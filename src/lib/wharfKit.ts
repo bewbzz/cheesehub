@@ -34,6 +34,7 @@ export function closeWharfkitModals() {
     'wharfkit-modal',
     '.wharfkit-modal',
     '[data-wharfkit]',
+    '#wharfkit-web-ui',
     // WebRenderer specific elements
     '.prompt-modal',
     '.prompt-overlay',
@@ -74,6 +75,11 @@ export function closeWharfkitModals() {
   document.body.style.position = '';
   document.body.classList.remove('overflow-hidden', 'modal-open');
   
+  // Restore pointer events on Radix portals
+  document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
+    (el as HTMLElement).style.pointerEvents = '';
+  });
+  
   // Also clean up any shadow DOM elements from web components
   document.querySelectorAll('*').forEach(el => {
     if (el.shadowRoot) {
@@ -95,15 +101,43 @@ export function ensureModalOnTop() {
   if (wharfkitEl) {
     wharfkitEl.style.zIndex = '999999';
     wharfkitEl.style.position = 'fixed';
+    wharfkitEl.style.top = '0';
+    wharfkitEl.style.left = '0';
+    wharfkitEl.style.width = '100vw';
+    wharfkitEl.style.height = '100vh';
+    wharfkitEl.style.pointerEvents = 'auto';
     
-    // Also check shadow DOM for the dialog
+    // Inject styles into shadow DOM to fix z-index and pointer-events
     if (wharfkitEl.shadowRoot) {
       const dialog = wharfkitEl.shadowRoot.querySelector('dialog');
       if (dialog) {
         (dialog as HTMLElement).style.zIndex = '999999';
+        (dialog as HTMLElement).style.position = 'fixed';
+        (dialog as HTMLElement).style.pointerEvents = 'auto';
+      }
+      
+      // Also ensure any backdrop doesn't block
+      const backdrop = wharfkitEl.shadowRoot.querySelector('.backdrop, [class*="backdrop"]');
+      if (backdrop) {
+        (backdrop as HTMLElement).style.zIndex = '999998';
+        (backdrop as HTMLElement).style.pointerEvents = 'auto';
       }
     }
   }
+  
+  // Also disable pointer events on Radix overlays temporarily
+  document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
+    if (!el.closest('#wharfkit-web-ui')) {
+      (el as HTMLElement).style.pointerEvents = 'none';
+    }
+  });
+}
+
+// Restore pointer events on Radix elements
+export function restoreRadixPointerEvents() {
+  document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
+    (el as HTMLElement).style.pointerEvents = '';
+  });
 }
 
 // Auto-elevate WharfKit modals when they appear in the DOM
@@ -113,8 +147,45 @@ if (typeof window !== 'undefined') {
       for (const node of mutation.addedNodes) {
         if (node instanceof HTMLElement) {
           if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
+            // Apply z-index fix immediately when modal appears
             node.style.zIndex = '999999';
             node.style.position = 'fixed';
+            node.style.top = '0';
+            node.style.left = '0';
+            node.style.width = '100vw';
+            node.style.height = '100vh';
+            node.style.pointerEvents = 'auto';
+            
+            // Disable Radix portal pointer events so wallet modal is clickable
+            document.querySelectorAll('[data-radix-portal]').forEach(el => {
+              (el as HTMLElement).style.pointerEvents = 'none';
+            });
+            
+            // Watch for shadow DOM content
+            const checkShadow = () => {
+              if (node.shadowRoot) {
+                const dialog = node.shadowRoot.querySelector('dialog');
+                if (dialog) {
+                  (dialog as HTMLElement).style.zIndex = '999999';
+                  (dialog as HTMLElement).style.pointerEvents = 'auto';
+                }
+              }
+            };
+            checkShadow();
+            // Check again after a small delay in case shadow DOM loads later
+            setTimeout(checkShadow, 100);
+            setTimeout(checkShadow, 500);
+          }
+        }
+      }
+      
+      // When WharfKit modal is removed, restore Radix pointer events
+      for (const node of mutation.removedNodes) {
+        if (node instanceof HTMLElement) {
+          if (node.id === 'wharfkit-web-ui' || node.id?.startsWith('wharfkit')) {
+            document.querySelectorAll('[data-radix-portal]').forEach(el => {
+              (el as HTMLElement).style.pointerEvents = '';
+            });
           }
         }
       }

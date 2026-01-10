@@ -22,7 +22,7 @@ import {
 import { WAX_TOKENS, getTokenConfig } from "@/lib/tokenRegistry";
 import { TokenLogo } from "@/components/TokenLogo";
 import { toast } from "sonner";
-import { closeWharfkitModals, ensureModalOnTop } from "@/lib/wharfKit";
+import { closeWharfkitModals, ensureModalOnTop, restoreRadixPointerEvents } from "@/lib/wharfKit";
 import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy, ImageIcon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -213,11 +213,16 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
     } catch (error) {
       console.error("Failed to create proposal:", error);
       closeWharfkitModals();
+      restoreRadixPointerEvents();
       toast.error(error instanceof Error ? error.message : "Failed to create proposal");
     } finally {
       setLoading(false);
       closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      restoreRadixPointerEvents();
+      setTimeout(() => {
+        closeWharfkitModals();
+        restoreRadixPointerEvents();
+      }, 300);
     }
   }
 

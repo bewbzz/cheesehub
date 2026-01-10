@@ -105,6 +105,12 @@ export function IncreaseLiquidityDialog({
   const handleSubmit = async () => {
     if (!session || !accountName || !position) return;
 
+    // Validate tick data
+    if (position.tickLower === 0 && position.tickUpper === 0) {
+      toast.error('Position tick data is missing. Please use Alcor directly.');
+      return;
+    }
+
     const amountA = parseFloat(tokenAAmount);
     const amountB = parseFloat(tokenBAmount);
 
@@ -179,27 +185,26 @@ export function IncreaseLiquidityDialog({
               <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
               <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
             </div>
-            Increase Stake
+            Increase Position
           </DialogTitle>
           <DialogDescription>
-            Add more liquidity to your {position.tokenA.symbol}/{position.tokenB.symbol} position
+            Add more liquidity to your {position.tokenA.symbol}/{position.tokenB.symbol} position #{position.positionId}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Current Position Info */}
-          <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
+          <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Current Stake:</span>
-              <span className="font-mono">
-                {position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}
-              </span>
+              <div className="text-right font-mono">
+                <div>{position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}</div>
+                <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground"></span>
-              <span className="font-mono">
-                {position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}
-              </span>
+            <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
+              <span>Tick Range:</span>
+              <span className="font-mono">{position.tickLower} → {position.tickUpper}</span>
             </div>
           </div>
 

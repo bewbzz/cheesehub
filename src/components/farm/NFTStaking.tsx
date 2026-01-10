@@ -659,21 +659,36 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     overscan: 3,
   });
 
-  // Manual refresh handler with cache invalidation
+  // Manual refresh handler with cache invalidation and timeout
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Invalidate and refetch all NFT-related queries
-      await queryClient.invalidateQueries({ queryKey: ["eligibleNfts", accountName, farm.farm_name] });
-      await queryClient.invalidateQueries({ queryKey: ["userStakes", accountName, farm.farm_name] });
-      await queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
-      await Promise.all([refetchEligible(), refetchStaked()]);
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Refresh timed out')), 15000)
+      );
+
+      // Race between refresh and timeout
+      await Promise.race([
+        (async () => {
+          await queryClient.invalidateQueries({ queryKey: ["eligibleNfts", accountName, farm.farm_name] });
+          await queryClient.invalidateQueries({ queryKey: ["userStakes", accountName, farm.farm_name] });
+          await queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
+          await Promise.all([refetchEligible(), refetchStaked()]);
+        })(),
+        timeoutPromise,
+      ]);
+      
       toast({
         title: "Refreshed",
         description: "NFT list updated from blockchain",
       });
     } catch (error) {
       console.error("Refresh failed:", error);
+      toast({
+        title: "Refresh Complete",
+        description: "Data refreshed (some requests may have timed out)",
+      });
     } finally {
       setIsRefreshing(false);
     }

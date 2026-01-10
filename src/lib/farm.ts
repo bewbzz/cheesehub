@@ -258,6 +258,8 @@ export interface RewardValue {
 }
 
 // Build action for setting template values (V2)
+// The contract expects 'values' as an array of TEMPLATE_REWARD structs
+// Each struct contains: template_id, quantity, contract
 export function buildSetTemplateValuesAction(
   user: string,
   farmname: string,
@@ -271,13 +273,18 @@ export function buildSetTemplateValuesAction(
     data: {
       user,
       farmname,
-      template_id: templateId,
-      values: rewardValues,
+      values: rewardValues.map(rv => ({
+        template_id: templateId,
+        quantity: rv.quantity,
+        contract: rv.contract,
+      })),
     },
   };
 }
 
 // Build action for setting schema values (V2)
+// The contract expects 'values' as an array of SCHEMA_REWARD structs
+// Each struct contains: collection_name, schema_name, quantity, contract
 export function buildSetSchemaValuesAction(
   user: string,
   farmname: string,
@@ -292,14 +299,19 @@ export function buildSetSchemaValuesAction(
     data: {
       user,
       farmname,
-      collection_name: collectionName,
-      schema_name: schemaName,
-      values: rewardValues,
+      values: rewardValues.map(rv => ({
+        collection_name: collectionName,
+        schema_name: schemaName,
+        quantity: rv.quantity,
+        contract: rv.contract,
+      })),
     },
   };
 }
 
 // Build action for setting collection values (V2)
+// The contract expects 'values' as an array of COLLECTION_REWARD structs
+// Each struct contains: collection_name, quantity, contract
 export function buildSetCollectionValuesAction(
   user: string,
   farmname: string,
@@ -313,13 +325,18 @@ export function buildSetCollectionValuesAction(
     data: {
       user,
       farmname,
-      collection_name: collectionName,
-      values: rewardValues,
+      values: rewardValues.map(rv => ({
+        collection_name: collectionName,
+        quantity: rv.quantity,
+        contract: rv.contract,
+      })),
     },
   };
 }
 
 // Build action for setting attribute values (V2)
+// The contract expects 'values' as an array of ATTRIBUTE_REWARD structs
+// Each struct contains: attribute_name, attribute_value, quantity, contract
 export function buildSetAttributeValuesAction(
   user: string,
   farmname: string,
@@ -334,9 +351,12 @@ export function buildSetAttributeValuesAction(
     data: {
       user,
       farmname,
-      attribute_name: attributeName,
-      attribute_value: attributeValue,
-      values: rewardValues,
+      values: rewardValues.map(rv => ({
+        attribute_name: attributeName,
+        attribute_value: attributeValue,
+        quantity: rv.quantity,
+        contract: rv.contract,
+      })),
     },
   };
 }

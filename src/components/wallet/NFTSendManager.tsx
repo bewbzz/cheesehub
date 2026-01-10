@@ -429,10 +429,11 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
   const [retryCount, setRetryCount] = useState(0);
 
   const ipfsHash = extractIpfsHash(nft.image);
+  const hasValidImage = Boolean(nft.image && nft.image.length > 0);
   
   // Build current image URL with cache-busting on retry
   const currentImageUrl = useMemo(() => {
-    if (!nft.image) return '/placeholder.svg';
+    if (!nft.image) return '';
     if (ipfsHash) {
       const baseUrl = `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
       return retryCount > 0 ? `${baseUrl}?retry=${retryCount}` : baseUrl;
@@ -458,6 +459,9 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     setRetryCount(prev => prev + 1);
   };
 
+  // Show error state if no valid image or if loading failed
+  const showErrorState = !hasValidImage || imgError;
+
   return (
     <button
       onClick={onToggle}
@@ -477,7 +481,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
 
       {/* Image */}
       <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
-        {imgError ? (
+        {showErrorState ? (
           <div 
             className="w-full h-full flex flex-col items-center justify-center bg-muted cursor-pointer hover:bg-muted/80 transition-colors"
             onClick={handleRetry}

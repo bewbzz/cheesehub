@@ -9,13 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
@@ -42,7 +35,6 @@ export function IncreaseLiquidityDialog({
   const { tokens } = useAllTokenBalances(accountName);
   const [tokenAAmount, setTokenAAmount] = useState('');
   const [tokenBAmount, setTokenBAmount] = useState('');
-  const [slippage, setSlippage] = useState('0.5');
   const [isTransacting, setIsTransacting] = useState(false);
 
   // Find user's balances for the position tokens
@@ -84,7 +76,6 @@ export function IncreaseLiquidityDialog({
     if (open) {
       setTokenAAmount('');
       setTokenBAmount('');
-      setSlippage('0.5');
     }
   }, [open]);
 
@@ -147,7 +138,7 @@ export function IncreaseLiquidityDialog({
         quantityA,
         position.tokenB.contract,
         quantityB,
-        parseFloat(slippage)
+        0.5 // Fixed slippage
       );
 
       const result = await session.transact({ actions });
@@ -264,21 +255,6 @@ export function IncreaseLiquidityDialog({
             </p>
           </div>
 
-          {/* Slippage */}
-          <div className="space-y-2">
-            <Label>Slippage Tolerance</Label>
-            <Select value={slippage} onValueChange={setSlippage}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">0.5%</SelectItem>
-                <SelectItem value="1">1%</SelectItem>
-                <SelectItem value="2">2%</SelectItem>
-                <SelectItem value="5">5%</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Insufficient balance warning */}
           {tokenBBalance && parseFloat(tokenBAmount) > tokenBBalance.balance && (

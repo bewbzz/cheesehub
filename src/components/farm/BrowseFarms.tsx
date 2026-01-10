@@ -134,7 +134,14 @@ export function BrowseFarms() {
 
       {/* Stats */}
       <div className="text-center text-sm text-muted-foreground">
-        Showing {filteredFarms.length} of {farms.length} farms
+        {filteredFarms.length === farms.length ? (
+          <span>{farms.length} farms</span>
+        ) : (
+          <span>
+            Showing {filteredFarms.length} {showActiveOnly ? "active" : ""} farm{filteredFarms.length !== 1 ? "s" : ""}
+            {searchQuery.trim() && ` matching "${searchQuery.trim()}"`}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -23,18 +23,42 @@ export const sessionKit = new SessionKit({
   ],
 });
 
+// Track if a login is in progress to avoid removing modal during login
+let isLoginInProgress = false;
+
+export function setLoginInProgress(value: boolean) {
+  isLoginInProgress = value;
+}
+
 // Utility to close any stuck Wharfkit modals - more aggressive cleanup
 export function closeWharfkitModals() {
+  // Skip cleanup if login is in progress to prevent removing modal during wallet selection
+  if (isLoginInProgress) {
+    console.log('Skipping modal cleanup - login in progress');
+    return;
+  }
+
   // Remove any Wharfkit modal elements from the DOM (multiple selectors for thoroughness)
+  // BUT be careful not to remove the main container if it's actively being used
+  const wharfkitEl = document.getElementById('wharfkit-web-ui');
+  
+  // Only remove WharfKit container if it has no open dialog
+  if (wharfkitEl) {
+    const hasOpenDialog = wharfkitEl.shadowRoot?.querySelector('dialog[open]');
+    if (!hasOpenDialog) {
+      // Safe to remove - no active dialog
+      wharfkitEl.remove();
+    }
+  }
+  
   const modalSelectors = [
     'wharf-modal',
     '.wharf-modal',
-    '[class*="wharfkit"]',
+    '[class*="wharfkit"]:not(#wharfkit-web-ui)',
     '[class*="wharf-"]',
     'wharfkit-modal',
     '.wharfkit-modal',
     '[data-wharfkit]',
-    '#wharfkit-web-ui',
     // WebRenderer specific elements
     '.prompt-modal',
     '.prompt-overlay',
@@ -47,7 +71,12 @@ export function closeWharfkitModals() {
   modalSelectors.forEach(selector => {
     try {
       const elements = document.querySelectorAll(selector);
-      elements.forEach((el) => el.remove());
+      elements.forEach((el) => {
+        // Don't remove the main wharfkit container
+        if (el.id !== 'wharfkit-web-ui') {
+          el.remove();
+        }
+      });
     } catch (e) {
       // Ignore invalid selectors
     }
@@ -60,6 +89,7 @@ export function closeWharfkitModals() {
       (style.position === 'fixed' || style.position === 'absolute') &&
       style.zIndex && parseInt(style.zIndex) > 9000 &&
       el.id !== 'root' &&
+      el.id !== 'wharfkit-web-ui' &&
       !el.closest('[data-radix-portal]')
     ) {
       // Check if it looks like a wallet modal (dark overlay or modal-like)
@@ -80,9 +110,9 @@ export function closeWharfkitModals() {
     (el as HTMLElement).style.pointerEvents = '';
   });
   
-  // Also clean up any shadow DOM elements from web components
+  // Also clean up any shadow DOM elements from web components (but not the main WharfKit one)
   document.querySelectorAll('*').forEach(el => {
-    if (el.shadowRoot) {
+    if (el.shadowRoot && el.id !== 'wharfkit-web-ui') {
       const shadowModals = el.shadowRoot.querySelectorAll('[class*="modal"], [class*="overlay"]');
       shadowModals.forEach(modal => {
         try {

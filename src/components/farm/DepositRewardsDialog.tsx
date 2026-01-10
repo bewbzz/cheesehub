@@ -24,29 +24,37 @@ interface DepositRewardsDialogProps {
 export function DepositRewardsDialog({ farm, onSuccess }: DepositRewardsDialogProps) {
   const { session, accountName } = useWax();
   const [open, setOpen] = useState(false);
-  const [selectedPool, setSelectedPool] = useState<number | null>(null);
-  const [amount, setAmount] = useState("");
+  const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleDeposit = async () => {
-    if (selectedPool === null || !amount || !accountName || !session) return;
+  const handleAmountChange = (index: number, value: string) => {
+    setAmounts(prev => ({ ...prev, [index]: value }));
+  };
 
-    const pool = farm.reward_pools[selectedPool];
-    const numAmount = parseFloat(amount);
-    
-    if (isNaN(numAmount) || numAmount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
+  const hasValidDeposits = Object.entries(amounts).some(([_, value]) => {
+    const num = parseFloat(value);
+    return !isNaN(num) && num > 0;
+  });
+
+  const handleDeposit = async () => {
+    if (!accountName || !session || !hasValidDeposits) return;
 
     setIsLoading(true);
     try {
-      // Format quantity with correct precision
-      const formattedAmount = numAmount.toFixed(pool.precision);
-      const quantity = `${formattedAmount} ${pool.symbol}`;
+      const actions: any[] = [];
+      const depositedTokens: string[] = [];
 
-      const actions = [
-        {
+      // Build transfer actions for each token with a valid amount
+      for (const [indexStr, value] of Object.entries(amounts)) {
+        const numAmount = parseFloat(value);
+        if (isNaN(numAmount) || numAmount <= 0) continue;
+
+        const index = parseInt(indexStr);
+        const pool = farm.reward_pools[index];
+        const formattedAmount = numAmount.toFixed(pool.precision);
+        const quantity = `${formattedAmount} ${pool.symbol}`;
+
+        actions.push({
           account: pool.contract,
           name: "transfer",
           authorization: [{ actor: accountName, permission: "active" }],
@@ -54,16 +62,22 @@ export function DepositRewardsDialog({ farm, onSuccess }: DepositRewardsDialogPr
             from: accountName,
             to: "farms.waxdao",
             quantity: quantity,
-            memo: `|deposit|${farm.farm_name}|`,
+            memo: `|farm_deposit|${farm.farm_name}|`,
           },
-        },
-      ];
+        });
+
+        depositedTokens.push(quantity);
+      }
+
+      if (actions.length === 0) {
+        toast.error("Please enter at least one valid amount");
+        return;
+      }
 
       await session.transact({ actions });
-      toast.success(`Successfully deposited ${quantity} to ${farm.farm_name}`);
+      toast.success(`Successfully deposited ${depositedTokens.join(", ")} to ${farm.farm_name}`);
       setOpen(false);
-      setAmount("");
-      setSelectedPool(null);
+      setAmounts({});
       onSuccess?.();
     } catch (error: any) {
       console.error("Deposit error:", error);
@@ -99,55 +113,38 @@ export function DepositRewardsDialog({ farm, onSuccess }: DepositRewardsDialogPr
             </p>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label>Select Token</Label>
-                <div className="grid gap-2">
-                  {farm.reward_pools.map((pool, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => setSelectedPool(index)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                        selectedPool === index
-                          ? "border-primary bg-primary/10"
-                          : "border-border/50 bg-muted/50 hover:border-border"
-                      }`}
-                    >
-                      <img
-                        src={getTokenLogoUrl(pool.contract, pool.symbol)}
-                        alt={pool.symbol}
-                        className="h-8 w-8 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
-                        }}
-                      />
-                      <div className="text-left">
-                        <p className="font-medium">{pool.symbol}</p>
-                        <p className="text-xs text-muted-foreground">{pool.contract}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-3">
+                <Label>Enter amounts to deposit</Label>
+                {farm.reward_pools.map((pool, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/50">
+                    <img
+                      src={getTokenLogoUrl(pool.contract, pool.symbol)}
+                      alt={pool.symbol}
+                      className="h-8 w-8 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{pool.symbol}</p>
+                      <p className="text-xs text-muted-foreground truncate">{pool.contract}</p>
+                    </div>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={amounts[index] || ""}
+                      onChange={(e) => handleAmountChange(index, e.target.value)}
+                      min="0"
+                      step="any"
+                      className="w-28 text-right"
+                    />
+                  </div>
+                ))}
               </div>
-
-              {selectedPool !== null && (
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    placeholder={`Enter ${farm.reward_pools[selectedPool].symbol} amount`}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    min="0"
-                    step="any"
-                  />
-                </div>
-              )}
 
               <Button
                 onClick={handleDeposit}
-                disabled={selectedPool === null || !amount || isLoading}
+                disabled={!hasValidDeposits || isLoading}
                 className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
               >
                 {isLoading ? (

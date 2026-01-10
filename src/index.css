@@ -169,3 +169,31 @@
     color: hsl(var(--cheese));
   }
 }
+
+/* Ensure WharfKit/Anchor wallet modals appear above all other UI */
+#wharfkit-web-ui,
+[id^="wharfkit"],
+[class*="anchor-link"],
+.anchor-link-modal {
+  z-index: 999999 !important;
+  position: fixed !important;
+}
+
+/* Native dialog backdrop needs high z-index too */
+#wharfkit-web-ui dialog::backdrop {
+  z-index: 999998 !important;
+}
+
+/* Ensure the WharfKit container allows click-through except on dialog */
+#wharfkit-web-ui {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#wharfkit-web-ui dialog,
+#wharfkit-web-ui dialog * {
+  pointer-events: auto;
+}

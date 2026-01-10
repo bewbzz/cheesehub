@@ -18,6 +18,7 @@ import {
   AlertCircle,
   RefreshCw,
   Search,
+  Check,
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,30 @@ interface NFTStakingProps {
 
 const IPFS_GATEWAY = "https://ipfs.io/ipfs/";
 
+// IPFS gateway fallback list (same as wallet NFTSendManager)
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  if (!url) return null;
+  // Handle ipfs:// protocol
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+  // Handle /ipfs/ paths
+  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+.*)/);
+  if (ipfsMatch) return ipfsMatch[1];
+  // Handle bare CID
+  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
+    return url;
+  }
+  return null;
+}
+
 function getImageUrl(img: string | undefined): string {
   if (!img) return "/placeholder.svg";
   if (img.startsWith("http")) return img;
@@ -60,6 +85,147 @@ function getImageUrl(img: string | undefined): string {
     return `${IPFS_GATEWAY}${img}`;
   }
   return img || "/placeholder.svg";
+}
+
+// NFT Card with IPFS gateway fallback (matches wallet NFTSendManager)
+interface NFTCardProps {
+  nft: NFTAsset;
+  isSelected: boolean;
+  onToggle: () => void;
+  selectedColor?: "primary" | "destructive";
+}
+
+function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCardProps) {
+  const [gatewayIndex, setGatewayIndex] = useState(0);
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const ipfsHash = extractIpfsHash(nft.image);
+  const hasValidImage = Boolean(nft.image && nft.image.length > 0 && nft.image !== '/placeholder.svg');
+  
+  // Build current image URL with gateway rotation
+  const currentImageUrl = useMemo(() => {
+    if (!nft.image || nft.image === '/placeholder.svg') return '/placeholder.svg';
+    if (ipfsHash) {
+      const baseUrl = `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      return retryCount > 0 ? `${baseUrl}?retry=${retryCount}` : baseUrl;
+    }
+    // For non-IPFS URLs
+    const separator = nft.image.includes('?') ? '&' : '?';
+    return retryCount > 0 ? `${nft.image}${separator}retry=${retryCount}` : nft.image;
+  }, [nft.image, ipfsHash, gatewayIndex, retryCount]);
+
+  const handleImageError = useCallback(() => {
+    if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
+      // Try next gateway
+      setGatewayIndex(prev => prev + 1);
+      setImgLoaded(false);
+    } else {
+      setImgError(true);
+    }
+  }, [ipfsHash, gatewayIndex]);
+
+  // Timeout fallback - if image doesn't load in 10s, try next gateway
+  useEffect(() => {
+    if (!hasValidImage || imgError || imgLoaded) return;
+    
+    const timeout = setTimeout(() => {
+      if (!imgLoaded && !imgError) {
+        handleImageError();
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timeout);
+  }, [hasValidImage, imgError, imgLoaded, currentImageUrl, handleImageError]);
+
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgError(false);
+    setImgLoaded(false);
+    setGatewayIndex(0);
+    setRetryCount(prev => prev + 1);
+  };
+
+  const showErrorState = !hasValidImage || imgError;
+  const borderColor = selectedColor === "destructive" ? "border-destructive ring-destructive" : "border-primary ring-primary";
+
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "group relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
+        isSelected
+          ? `${borderColor} ring-1`
+          : "border-transparent hover:border-muted-foreground/30"
+      )}
+    >
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className={cn(
+          "absolute top-1 right-1 z-10 rounded-full p-0.5",
+          selectedColor === "destructive" ? "bg-destructive" : "bg-primary"
+        )}>
+          <Check className="h-3 w-3 text-primary-foreground" />
+        </div>
+      )}
+
+      {/* Image with IPFS fallback */}
+      <div className="w-full h-full bg-muted flex items-center justify-center">
+        {showErrorState ? (
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+            onClick={handleRetry}
+            title="Click to retry loading image"
+          >
+            <ImageIcon className="h-5 w-5 text-cheese mb-1" />
+            <span className="text-[9px] text-cheese font-medium">Retry</span>
+            <span className="text-[8px] text-muted-foreground mt-0.5">#{nft.asset_id}</span>
+          </div>
+        ) : (
+          <>
+            {!imgLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+              </div>
+            )}
+            <img
+              src={currentImageUrl}
+              alt={nft.name}
+              className={cn(
+                "w-full h-full object-cover transition-opacity",
+                imgLoaded ? "opacity-100" : "opacity-0"
+              )}
+              loading="lazy"
+              onError={handleImageError}
+              onLoad={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target.naturalWidth === 0) {
+                  handleImageError();
+                } else {
+                  setImgLoaded(true);
+                }
+              }}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+      
+      {/* Info */}
+      <div className="absolute bottom-0 left-0 right-0 p-1.5">
+        <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
+        <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
+      </div>
+      
+      {/* Asset ID overlay on hover */}
+      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="text-cheese font-mono text-xs font-bold">#{nft.asset_id}</span>
+      </div>
+    </button>
+  );
 }
 
 export function NFTStaking({ farm }: NFTStakingProps) {
@@ -892,36 +1058,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                             className="grid grid-cols-4 gap-2 p-1"
                           >
                             {rowNFTs.map((nft) => (
-                              <button
+                              <NFTCard
                                 key={nft.asset_id}
-                                onClick={() => toggleStakeSelection(nft.asset_id)}
-                                className={cn(
-                                  "relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
-                                  selectedToStake.has(nft.asset_id)
-                                    ? "border-primary ring-1 ring-primary"
-                                    : "border-transparent hover:border-muted-foreground/30"
-                                )}
-                              >
-                                <img
-                                  src={nft.image}
-                                  alt={nft.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
-                                  <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
-                                  <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
-                                </div>
-                                <div className="absolute top-1.5 right-1.5">
-                                  <Checkbox
-                                    checked={selectedToStake.has(nft.asset_id)}
-                                    className="h-4 w-4 bg-background/80 border-border"
-                                  />
-                                </div>
-                              </button>
+                                nft={nft}
+                                isSelected={selectedToStake.has(nft.asset_id)}
+                                onToggle={() => toggleStakeSelection(nft.asset_id)}
+                                selectedColor="primary"
+                              />
                             ))}
                           </div>
                         );
@@ -1003,36 +1146,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                             className="grid grid-cols-4 gap-2 p-1"
                           >
                             {rowNFTs.map((nft) => (
-                              <button
+                              <NFTCard
                                 key={nft.asset_id}
-                                onClick={() => toggleUnstakeSelection(nft.asset_id)}
-                                className={cn(
-                                  "relative rounded-md overflow-hidden border-2 transition-all h-[120px]",
-                                  selectedToUnstake.has(nft.asset_id)
-                                    ? "border-destructive ring-1 ring-destructive"
-                                    : "border-transparent hover:border-muted-foreground/30"
-                                )}
-                              >
-                                <img
-                                  src={nft.image}
-                                  alt={nft.name}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/placeholder.svg";
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                <div className="absolute bottom-0 left-0 right-0 p-1.5">
-                                  <p className="text-[10px] text-white font-medium truncate">{nft.name}</p>
-                                  <p className="text-[10px] text-white/60 truncate">{nft.collection}</p>
-                                </div>
-                                <div className="absolute top-1.5 right-1.5">
-                                  <Checkbox
-                                    checked={selectedToUnstake.has(nft.asset_id)}
-                                    className="h-4 w-4 bg-background/80 border-border"
-                                  />
-                                </div>
-                              </button>
+                                nft={nft}
+                                isSelected={selectedToUnstake.has(nft.asset_id)}
+                                onToggle={() => toggleUnstakeSelection(nft.asset_id)}
+                                selectedColor="destructive"
+                              />
                             ))}
                           </div>
                         );

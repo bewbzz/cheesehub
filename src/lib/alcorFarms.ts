@@ -149,7 +149,7 @@ export async function fetchPoolDetails(poolId: number): Promise<any | null> {
 export async function fetchIncentiveDetails(incentiveId: number): Promise<any | null> {
   try {
     // Query the incentives table on swap.alcor contract by primary key (id)
-    const result = await waxRpcCall('get_table_rows', {
+    const result = await waxRpcCall('/v1/chain/get_table_rows', {
       json: true,
       code: ALCOR_SWAP_CONTRACT,
       scope: ALCOR_SWAP_CONTRACT,
@@ -185,7 +185,7 @@ export async function fetchPoolIncentives(poolId: number): Promise<any[]> {
   console.log(`[fetchPoolIncentives] Fetching incentives for pool ${poolId}`);
   try {
     // Query the incentives table on swap.alcor contract using secondary index (by pool)
-    const result = await waxRpcCall('get_table_rows', {
+    const result = await waxRpcCall('/v1/chain/get_table_rows', {
       json: true,
       code: ALCOR_SWAP_CONTRACT,
       scope: ALCOR_SWAP_CONTRACT,

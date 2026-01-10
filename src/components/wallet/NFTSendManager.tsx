@@ -478,12 +478,13 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       {/* Info */}
       <div className="p-1 bg-background/80 absolute bottom-0 left-0 right-0">
         <p className="text-[10px] font-medium truncate">{nft.name}</p>
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] text-muted-foreground truncate max-w-[50%]">
-            {nft.collection}
-          </span>
-          <span className="text-[9px] text-cheese font-mono">#{nft.asset_id}</span>
-        </div>
+        <span className="text-[9px] text-muted-foreground truncate block">
+          {nft.collection}
+        </span>
+      </div>
+      {/* Asset ID overlay on hover */}
+      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="text-cheese font-mono text-xs font-bold">#{nft.asset_id}</span>
       </div>
     </button>
   );

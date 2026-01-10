@@ -280,7 +280,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                   {/* Main row - Position info */}
                   <div className="flex items-center gap-3">
                     {/* Pair */}
-                    <div className="flex items-center gap-2 min-w-[130px]">
+                    <div className="flex items-center gap-2 w-[140px] shrink-0">
                       <div className="flex -space-x-2">
                         <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
                         <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
@@ -299,7 +299,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     </div>
 
                     {/* APR - stacked */}
-                    <div className="min-w-[90px]">
+                    <div className="w-[70px] shrink-0">
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                         <Percent className="h-3 w-3" />
                         APR
@@ -326,7 +326,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     </div>
 
                     {/* Daily earn - stacked (middle) */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[120px]">
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                         <TrendingUp className="h-3 w-3" />
                         Daily

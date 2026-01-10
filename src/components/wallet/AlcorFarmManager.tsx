@@ -250,6 +250,35 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
+  const handleStakeAllIncentives = useCallback(async (positionId: number, incentives: UnstakedIncentive[]) => {
+    if (!session || !accountName || incentives.length === 0) return;
+
+    setIsTransacting(true);
+    try {
+      const actions = incentives.map(incentive => 
+        buildStakeAction(accountName, incentive.incentiveId, positionId)
+      );
+      const result = await session.transact({ actions });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      const rewardSymbols = incentives.map(i => i.rewardToken.symbol).join(', ');
+      onTransactionSuccess?.(
+        'Position Staked!',
+        `Staked position #${positionId} to ${incentives.length} farm rewards (${rewardSymbols})`,
+        txId
+      );
+      refetch();
+      onTransactionComplete?.();
+    } catch (error: any) {
+      console.error('Stake all error:', error);
+      toast.error(error?.message || 'Failed to stake position');
+    } finally {
+      setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
+    }
+  }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -435,8 +464,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                   {/* Expanded details */}
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-border/50 space-y-4">
-                      {/* Position Info */}
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      {/* Position Info with Stake button */}
+                      <div className="flex items-start justify-between gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Your Stake:</span>
                           <div className="font-mono mt-1">
@@ -444,7 +473,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                             <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
                           </div>
                         </div>
-                        <div>
+                        <div className="flex flex-col items-end gap-2">
                           <Badge 
                             variant={position.isInRange ? "default" : "secondary"}
                             className={cn(
@@ -454,6 +483,30 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                           >
                             {position.isInRange ? 'In Range' : 'Out of Range'}
                           </Badge>
+                          {/* Pulsing stake button when there are unstaked incentives */}
+                          {position.unstakedIncentives.length > 0 && (
+                            position.unstakedIncentives.length === 1 ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStakeToIncentive(position.positionId, position.unstakedIncentives[0])}
+                                disabled={isTransacting}
+                                className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 animate-pulse"
+                              >
+                                <Zap className="h-3 w-3 mr-1" />
+                                Stake Position
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStakeAllIncentives(position.positionId, position.unstakedIncentives)}
+                                disabled={isTransacting}
+                                className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 animate-pulse"
+                              >
+                                <Zap className="h-3 w-3 mr-1" />
+                                Stake All ({position.unstakedIncentives.length})
+                              </Button>
+                            )
+                          )}
                         </div>
                       </div>
 

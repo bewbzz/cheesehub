@@ -331,11 +331,6 @@ export function CreateFarm() {
                 Text doesn't match. Make sure to type exactly: {CONFIRMATION_PHRASE}
               </p>
             )}
-            {confirmationText.length > 0 && confirmationText !== CONFIRMATION_PHRASE && (
-              <p className="text-xs text-destructive">
-                Text doesn't match. Make sure to type exactly: {CONFIRMATION_PHRASE}
-              </p>
-            )}
           </div>
         )}
 

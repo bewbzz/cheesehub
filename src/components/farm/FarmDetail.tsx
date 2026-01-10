@@ -226,7 +226,7 @@ export function FarmDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground">Expires</p>
-                  {isCreator && (
+                  {isCreator && !isUnderConstruction && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>

@@ -309,10 +309,14 @@ export function CreateFarm() {
         {/* Confirmation Gate */}
         {!isUnlocked && (
           <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-            <Label htmlFor="confirmation" className="font-semibold">Confirm</Label>
+            <div className="space-y-1">
+              <Label htmlFor="confirmation" className="font-semibold">Confirm</Label>
+              <p className="text-sm text-muted-foreground">
+                Enter '{CONFIRMATION_PHRASE}' without quotes (case sensitive)
+              </p>
+            </div>
             <Textarea
               id="confirmation"
-              placeholder={`Enter '${CONFIRMATION_PHRASE}' without quotes (case sensitive)`}
               value={confirmationText}
               onChange={(e) => {
                 setConfirmationText(e.target.value);
@@ -322,6 +326,11 @@ export function CreateFarm() {
               }}
               className="resize-none min-h-[120px]"
             />
+            {confirmationText.length > 0 && confirmationText !== CONFIRMATION_PHRASE && (
+              <p className="text-xs text-destructive">
+                Text doesn't match. Make sure to type exactly: {CONFIRMATION_PHRASE}
+              </p>
+            )}
             {confirmationText.length > 0 && confirmationText !== CONFIRMATION_PHRASE && (
               <p className="text-xs text-destructive">
                 Text doesn't match. Make sure to type exactly: {CONFIRMATION_PHRASE}

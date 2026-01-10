@@ -435,48 +435,57 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {
     const seenFarmNames = new Set<string>();
     const allRows: Record<string, unknown>[] = [];
-    let lowerBound: string | undefined = undefined;
     let hasMore = true;
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 1000; // Request large batch
     let iterations = 0;
-    const MAX_ITERATIONS = 20; // Safety limit
+    const MAX_ITERATIONS = 10;
+    let lastId: number | null = null;
 
     while (hasMore && iterations < MAX_ITERATIONS) {
-      const data = await fetchTableRows({
+      const params: {
+        code: string;
+        scope: string;
+        table: string;
+        limit: number;
+        lower_bound?: string;
+      } = {
         code: FARM_CONTRACT,
         scope: FARM_CONTRACT,
         table: "farms",
         limit: BATCH_SIZE,
-        lower_bound: lowerBound,
-      });
+      };
+      
+      // Only set lower_bound after first iteration
+      if (lastId !== null) {
+        params.lower_bound = String(lastId + 1);
+      }
+
+      const data = await fetchTableRows(params);
 
       if (data.rows && data.rows.length > 0) {
-        // Deduplicate by farm name
         for (const row of data.rows) {
           const farmRow = row as Record<string, unknown>;
           const farmName = (farmRow.farmname || farmRow.farm_name || "") as string;
+          const id = farmRow.id as number;
+          
           if (farmName && !seenFarmNames.has(farmName)) {
             seenFarmNames.add(farmName);
             allRows.push(farmRow);
           }
-        }
-        
-        // Get the next_key for pagination if available, otherwise use last row's primary key
-        if (data.next_key) {
-          lowerBound = data.next_key;
-        } else {
-          const lastRow = data.rows[data.rows.length - 1] as Record<string, unknown>;
-          // Use numeric ID + 1 to avoid including the same row
-          const lastId = lastRow.id as number;
-          lowerBound = String(lastId + 1);
+          
+          // Track the highest ID we've seen
+          if (id !== undefined && (lastId === null || id > lastId)) {
+            lastId = id;
+          }
         }
       }
 
+      // Stop if no more rows or we got less than requested
       hasMore = data.more === true && data.rows && data.rows.length > 0;
       iterations++;
     }
 
-    console.log(`Fetched ${allRows.length} unique farms in ${iterations} iterations`);
+    console.log(`Fetched ${allRows.length} unique farms in ${iterations} iteration(s)`);
 
     const now = Math.floor(Date.now() / 1000);
 

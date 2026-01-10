@@ -462,15 +462,13 @@ export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
   }
 }
 
-// Fetch token_receivers from Hyperion history API for multiple proposals
+// Fetch token_receivers from Hyperion history API for token transfer proposals
 // This is needed because WaxDAO contract doesn't persist token_receivers in the proposals table
-async function fetchAllTokenReceiversFromHyperion(
-  daoName: string, 
-  proposalIds: number[]
-): Promise<Record<number, { wax_account: string; quantity: string; contract: string }[]>> {
-  const result: Record<number, { wax_account: string; quantity: string; contract: string }[]> = {};
-  
-  if (proposalIds.length === 0) return result;
+// Returns a map keyed by proposal title since Hyperion doesn't have proposal_id
+async function fetchTokenReceiversFromHyperion(
+  daoName: string
+): Promise<Record<string, { wax_account: string; quantity: string; contract: string }[]>> {
+  const result: Record<string, { wax_account: string; quantity: string; contract: string }[]> = {};
   
   try {
     // Query Hyperion for newproposal actions for this DAO
@@ -483,33 +481,21 @@ async function fetchAllTokenReceiversFromHyperion(
     const data = await response.json();
     console.log("Hyperion newproposal actions:", data.actions?.length || 0);
     
-    // Group actions by DAO and extract token_receivers
+    // Extract token_receivers for token transfer proposals, keyed by title
     for (const action of data.actions || []) {
       const actData = action.act?.data;
       if (actData && actData.dao === daoName && actData.proposal_type === 4) {
         // Token transfer proposal for this DAO
         if (actData.token_receivers && actData.token_receivers.length > 0) {
-          // We don't have the proposal_id in the action data directly,
-          // but we can match by title or use timestamp ordering
-          // For now, store all token transfer data indexed by action timestamp
+          const title = (actData.title as string) || "";
           const receivers = actData.token_receivers.map((tr: Record<string, unknown>) => ({
             wax_account: (tr.wax_account as string) || "",
             quantity: (tr.quantity as string) || "",
             contract: (tr.contract as string) || "eosio.token",
           }));
           
-          // Use the block_num as a proxy for ordering - map to first missing proposal
-          const title = actData.title as string;
-          console.log(`Found Hyperion token transfer for DAO ${daoName}, title: ${title}`, receivers);
-          
-          // For each proposal ID that needs data, try to match by title
-          for (const proposalId of proposalIds) {
-            if (!result[proposalId]) {
-              // Assign to first unassigned proposal (not perfect but works for now)
-              result[proposalId] = receivers;
-              break;
-            }
-          }
+          console.log(`Found Hyperion token transfer for DAO ${daoName}, title: "${title}"`, receivers);
+          result[title] = receivers;
         }
       }
     }
@@ -565,19 +551,17 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
     
     const now = Math.floor(Date.now() / 1000);
     
-    // Pre-fetch Hyperion data for token transfer proposals that might need it
-    const tokenTransferProposalIds = (data.rows || [])
-      .filter((row: Record<string, unknown>) => {
-        const pType = row.proposal_type as number;
-        const receivers = row.token_receivers as unknown[];
-        return pType === 4 && (!receivers || receivers.length === 0);
-      })
-      .map((row: Record<string, unknown>) => row.proposal_id as number);
+    // Check if there are any token transfer proposals that need Hyperion data
+    const hasTokenTransferProposals = (data.rows || []).some((row: Record<string, unknown>) => {
+      const pType = row.proposal_type as number;
+      const receivers = row.token_receivers as unknown[];
+      return pType === 4 && (!receivers || receivers.length === 0);
+    });
     
-    // Fetch Hyperion data for all token transfer proposals at once
-    let hyperionReceiversMap: Record<number, { wax_account: string; quantity: string; contract: string }[]> = {};
-    if (tokenTransferProposalIds.length > 0) {
-      hyperionReceiversMap = await fetchAllTokenReceiversFromHyperion(daoName, tokenTransferProposalIds);
+    // Fetch Hyperion data for token transfer proposals (keyed by title)
+    let hyperionReceiversByTitle: Record<string, { wax_account: string; quantity: string; contract: string }[]> = {};
+    if (hasTokenTransferProposals) {
+      hyperionReceiversByTitle = await fetchTokenReceiversFromHyperion(daoName);
     }
     
     return (data.rows || []).map((row: Record<string, unknown>) => {
@@ -735,13 +719,13 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
           console.log(`Proposal ${row.proposal_id} extracted from actions:`, tokenReceivers);
         }
         
-        // If still empty, use pre-fetched Hyperion data
+        // If still empty, use pre-fetched Hyperion data (lookup by title)
         if (tokenReceivers.length === 0) {
-          const proposalId = (row.proposal_id as number) || 0;
-          const hyperionReceivers = hyperionReceiversMap[proposalId];
+          const proposalTitle = (row.title as string) || "";
+          const hyperionReceivers = hyperionReceiversByTitle[proposalTitle];
           if (hyperionReceivers && hyperionReceivers.length > 0) {
             tokenReceivers = hyperionReceivers;
-            console.log(`Proposal ${proposalId} fetched from Hyperion:`, tokenReceivers);
+            console.log(`Proposal ${row.proposal_id} fetched from Hyperion by title "${proposalTitle}":`, tokenReceivers);
           }
         }
       }

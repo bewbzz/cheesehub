@@ -259,7 +259,7 @@ export interface RewardValue {
 
 // Build action for setting template values (V2)
 // The contract expects 'values' as an array of TEMPLATE_REWARD structs
-// Each struct contains: template_id, quantity, contract
+// Each struct contains: template_id, hourly_rewards (array of FUNGIBLE_TOKEN)
 export function buildSetTemplateValuesAction(
   user: string,
   farmname: string,
@@ -273,18 +273,20 @@ export function buildSetTemplateValuesAction(
     data: {
       user,
       farmname,
-      values: rewardValues.map(rv => ({
+      values: [{
         template_id: templateId,
-        quantity: rv.quantity,
-        contract: rv.contract,
-      })),
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
     },
   };
 }
 
 // Build action for setting schema values (V2)
 // The contract expects 'values' as an array of SCHEMA_REWARD structs
-// Each struct contains: collection_name, schema_name, quantity, contract
+// Each struct contains: collection_name, schema_name, hourly_rewards (array of FUNGIBLE_TOKEN)
 export function buildSetSchemaValuesAction(
   user: string,
   farmname: string,
@@ -299,19 +301,21 @@ export function buildSetSchemaValuesAction(
     data: {
       user,
       farmname,
-      values: rewardValues.map(rv => ({
+      values: [{
         collection_name: collectionName,
         schema_name: schemaName,
-        quantity: rv.quantity,
-        contract: rv.contract,
-      })),
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
     },
   };
 }
 
 // Build action for setting collection values (V2)
 // The contract expects 'values' as an array of COLLECTION_REWARD structs
-// Each struct contains: collection_name, quantity, contract
+// Each struct contains: collection_name, hourly_rewards (array of FUNGIBLE_TOKEN)
 export function buildSetCollectionValuesAction(
   user: string,
   farmname: string,
@@ -325,18 +329,20 @@ export function buildSetCollectionValuesAction(
     data: {
       user,
       farmname,
-      values: rewardValues.map(rv => ({
+      values: [{
         collection_name: collectionName,
-        quantity: rv.quantity,
-        contract: rv.contract,
-      })),
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
     },
   };
 }
 
 // Build action for setting attribute values (V2)
 // The contract expects 'values' as an array of ATTRIBUTE_REWARD structs
-// Each struct contains: attribute_name, attribute_value, quantity, contract
+// Each struct contains: attribute_name, attribute_value, hourly_rewards (array of FUNGIBLE_TOKEN)
 export function buildSetAttributeValuesAction(
   user: string,
   farmname: string,
@@ -351,12 +357,14 @@ export function buildSetAttributeValuesAction(
     data: {
       user,
       farmname,
-      values: rewardValues.map(rv => ({
+      values: [{
         attribute_name: attributeName,
         attribute_value: attributeValue,
-        quantity: rv.quantity,
-        contract: rv.contract,
-      })),
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
     },
   };
 }

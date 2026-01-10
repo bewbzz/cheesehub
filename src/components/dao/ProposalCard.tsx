@@ -167,12 +167,13 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       // Map vote to choice index (Yes=0, No=1, Abstain=2)
       const choiceIndex = vote === "yes" ? 0 : vote === "no" ? 1 : 2;
       const voteData = { choice_index: choiceIndex, weight: stakedWeight || 0 };
-      console.log("Setting userVote state with choice_index:", choiceIndex);
+      console.log("Setting userVote state with choice_index:", choiceIndex, "weight:", stakedWeight);
       setUserVote(voteData);
       
+      // Call onVote immediately so parent updates UI with new vote counts
+      onVote?.(proposal.proposal_id, voteData);
+      
       toast.success(`Voted ${vote} successfully!`);
-      // Call onVote with the vote data so parent can track it
-      setTimeout(() => onVote?.(proposal.proposal_id, voteData), 500);
     } catch (error) {
       console.error("Vote failed:", error);
       closeWharfkitModals();

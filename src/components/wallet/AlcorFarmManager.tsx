@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ExternalLink, TrendingUp, Clock, Percent, Coins, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms } from '@/hooks/useAlcorFarms';
 import { buildClaimRewardsAction, buildUnstakeAction, AlcorFarmPosition } from '@/lib/alcorFarms';
@@ -20,11 +20,14 @@ interface AlcorFarmManagerProps {
 
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
-  const { stakedFarms, incentivesMap, isLoading, refetch } = useAlcorFarms();
+  const { stakedFarms, isLoading, refetch } = useAlcorFarms();
   const [isTransacting, setIsTransacting] = useState(false);
-  const [expandedFarm, setExpandedFarm] = useState<number | null>(null);
-  const [liveRewards, setLiveRewards] = useState<Map<number, number>>(new Map());
+  const [expandedFarm, setExpandedFarm] = useState<string | null>(null);
+  const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
+
+  // Create unique key for each farm position (position can be in multiple incentives)
+  const getFarmKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
   // Update live rewards every second
   useEffect(() => {
@@ -32,12 +35,13 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
     const updateRewards = () => {
       const now = Math.floor(Date.now() / 1000);
-      const newRewards = new Map<number, number>();
+      const newRewards = new Map<string, number>();
 
       stakedFarms.forEach(farm => {
+        const key = getFarmKey(farm);
         const elapsedSeconds = Math.max(0, now - farm.lastUpdate);
         const liveReward = farm.pendingReward + (farm.rewardPerSecond * elapsedSeconds);
-        newRewards.set(farm.positionId, liveReward);
+        newRewards.set(key, liveReward);
       });
 
       setLiveRewards(newRewards);
@@ -60,10 +64,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
-      const reward = liveRewards.get(farm.positionId) || farm.pendingReward;
       onTransactionSuccess?.(
         'Rewards Claimed!',
-        `Claimed ${reward.toFixed(farm.rewardToken.precision)} ${farm.rewardToken.symbol} from ${farm.tokenA.symbol}/${farm.tokenB.symbol} farm`,
+        `Claimed ${farm.farmedRewardDisplay} from ${farm.tokenA.symbol}/${farm.tokenB.symbol} farm`,
         txId
       );
       refetch();
@@ -76,7 +79,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       closeWharfkitModals();
       setTimeout(() => closeWharfkitModals(), 300);
     }
-  }, [session, accountName, liveRewards, onTransactionSuccess, refetch, onTransactionComplete]);
+  }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
   const handleClaimAll = useCallback(async () => {
     if (!session || !accountName || stakedFarms.length === 0) return;
@@ -131,32 +134,15 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
-  const formatTimeRemaining = (endTime: number): string => {
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = endTime - now;
-    
-    if (remaining <= 0) return 'Ended';
-    
-    const days = Math.floor(remaining / 86400);
-    const hours = Math.floor((remaining % 86400) / 3600);
-    
-    if (days > 0) return `${days}d ${hours}h`;
-    const minutes = Math.floor((remaining % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  const getTotalPendingRewards = useCallback(() => {
-    const totals = new Map<string, { amount: number; precision: number }>();
-    
-    stakedFarms.forEach(farm => {
-      const reward = liveRewards.get(farm.positionId) || farm.pendingReward;
-      const key = `${farm.rewardToken.contract}:${farm.rewardToken.symbol}`;
-      const existing = totals.get(key) || { amount: 0, precision: farm.rewardToken.precision };
-      totals.set(key, { amount: existing.amount + reward, precision: farm.rewardToken.precision });
-    });
-    
-    return totals;
-  }, [stakedFarms, liveRewards]);
+  // Group farms by position ID for cleaner display
+  const groupedFarms = stakedFarms.reduce((acc, farm) => {
+    const key = farm.positionId;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(farm);
+    return acc;
+  }, {} as Record<number, AlcorFarmPosition[]>);
 
   if (isLoading) {
     return (
@@ -186,25 +172,26 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     );
   }
 
-  const totalRewards = getTotalPendingRewards();
-
   return (
     <div className="space-y-4">
-      {/* Header with total rewards and claim all */}
+      {/* Header with claim all and refresh */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">Your Farm Positions</h3>
-          {totalRewards.size > 0 && (
-            <div className="text-xs text-muted-foreground mt-1">
-              Total pending: {Array.from(totalRewards.entries()).map(([key, val]) => (
-                <span key={key} className="text-cheese font-medium ml-1">
-                  {val.amount.toFixed(val.precision)} {key.split(':')[1]}
-                </span>
-              ))}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {stakedFarms.length} incentive{stakedFarms.length !== 1 ? 's' : ''} across {Object.keys(groupedFarms).length} position{Object.keys(groupedFarms).length !== 1 ? 's' : ''}
+          </p>
         </div>
-        {stakedFarms.length > 0 && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => refetch()}
+            disabled={isTransacting}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button
             size="sm"
             onClick={handleClaimAll}
@@ -220,23 +207,24 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
               </>
             )}
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Farm position cards */}
       <ScrollArea className="h-[500px]">
         <div className="space-y-3 pr-2">
           {stakedFarms.map((farm) => {
-            const liveReward = liveRewards.get(farm.positionId) || farm.pendingReward;
-            const isExpanded = expandedFarm === farm.positionId;
+            const farmKey = getFarmKey(farm);
+            const liveReward = liveRewards.get(farmKey) || farm.pendingReward;
+            const isExpanded = expandedFarm === farmKey;
 
             return (
-              <Card key={farm.positionId} className="bg-muted/30 border-border/50">
+              <Card key={farmKey} className="bg-muted/30 border-border/50">
                 <CardContent className="p-4">
                   {/* Main row */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {/* Pair */}
-                    <div className="flex items-center gap-2 min-w-[140px]">
+                    <div className="flex items-center gap-2 min-w-[120px]">
                       <div className="flex -space-x-2">
                         <TokenLogo contract={farm.tokenA.contract} symbol={farm.tokenA.symbol} size="sm" />
                         <TokenLogo contract={farm.tokenB.contract} symbol={farm.tokenB.symbol} size="sm" />
@@ -245,13 +233,13 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         <div className="font-medium text-sm">
                           {farm.tokenA.symbol}/{farm.tokenB.symbol}
                         </div>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">
-                          {farm.fee.toFixed(2)}%
-                        </Badge>
+                        <div className="text-[10px] text-muted-foreground">
+                          #{farm.positionId}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Reward */}
+                    {/* Earned Reward */}
                     <div className="flex-1 text-center">
                       <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                         <Coins className="h-3 w-3" />
@@ -262,24 +250,23 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       </div>
                     </div>
 
-                    {/* Daily */}
-                    <div className="text-center min-w-[80px]">
+                    {/* Daily Rate */}
+                    <div className="text-center min-w-[90px]">
                       <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
                         <TrendingUp className="h-3 w-3" />
                         Daily
                       </div>
                       <div className="font-mono text-xs">
-                        {farm.dailyEarnRate.toFixed(farm.rewardToken.precision)}
+                        {farm.dailyEarnRate.toFixed(Math.min(4, farm.rewardToken.precision))} {farm.rewardToken.symbol}
                       </div>
                     </div>
 
-                    {/* Time remaining */}
-                    <div className="text-center min-w-[60px]">
+                    {/* Share */}
+                    <div className="text-center min-w-[50px]">
                       <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Ends
+                        <Percent className="h-3 w-3" />
                       </div>
-                      <div className="text-xs">{formatTimeRemaining(farm.incentiveEndsAt)}</div>
+                      <div className="text-xs">{farm.rewardShare.toFixed(2)}%</div>
                     </div>
 
                     {/* Actions */}
@@ -296,7 +283,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setExpandedFarm(isExpanded ? null : farm.positionId)}
+                        onClick={() => setExpandedFarm(isExpanded ? null : farmKey)}
                         className="h-8 w-8 p-0"
                       >
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -316,11 +303,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                           </div>
                         </div>
                         <div>
-                          <span className="text-muted-foreground flex items-center gap-1">
-                            <Percent className="h-3 w-3" />
-                            Reward Share:
-                          </span>
-                          <div className="font-mono mt-1">{farm.rewardShare.toFixed(4)}%</div>
+                          <span className="text-muted-foreground">Incentive ID:</span>
+                          <div className="font-mono mt-1">#{farm.incentiveId}</div>
                         </div>
                       </div>
 
@@ -334,9 +318,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         >
                           {farm.isInRange ? 'In Range' : 'Out of Range'}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          Position #{farm.positionId}
-                        </span>
                       </div>
 
                       <div className="flex gap-2 pt-2">

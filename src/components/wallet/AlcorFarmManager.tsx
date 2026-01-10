@@ -44,16 +44,25 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
 
-  // Helper to get token USD value
+  // Helper to get token USD value - supports lookup by symbol when contract is unknown
   const getTokenUsdValue = useCallback((contract: string, symbol: string, amount: number): number => {
-    if (symbol === 'WAX' && contract === 'eosio.token') {
+    if (symbol === 'WAX' && (contract === 'eosio.token' || !contract)) {
       return amount * waxUsdPrice;
     }
     if (tokenPrices) {
-      const key = `${contract}:${symbol}`;
-      const priceInWax = tokenPrices.get(key);
-      if (priceInWax) {
-        return amount * priceInWax * waxUsdPrice;
+      // Try exact match first
+      if (contract) {
+        const key = `${contract}:${symbol}`;
+        const priceInWax = tokenPrices.get(key);
+        if (priceInWax) {
+          return amount * priceInWax * waxUsdPrice;
+        }
+      }
+      // Fallback: search by symbol only (for reward tokens where contract is unknown)
+      for (const [key, priceInWax] of tokenPrices) {
+        if (key.endsWith(`:${symbol}`)) {
+          return amount * priceInWax * waxUsdPrice;
+        }
       }
     }
     return 0;

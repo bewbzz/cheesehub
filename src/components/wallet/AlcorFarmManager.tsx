@@ -6,6 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms } from '@/hooks/useAlcorFarms';
+import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
+import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { buildClaimRewardsAction, buildUnstakeAction, AlcorFarmPosition } from '@/lib/alcorFarms';
 import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
@@ -26,11 +28,14 @@ interface GroupedFarmPosition {
   tokenB: { contract: string; symbol: string; amount: number };
   isInRange: boolean;
   incentives: AlcorFarmPosition[];
+  usdValue: number;
 }
 
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
   const { stakedFarms, isLoading, refetch } = useAlcorFarms();
+  const { data: tokenPrices } = useAlcorTokenPrices();
+  const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
   const [expandedPosition, setExpandedPosition] = useState<number | null>(null);
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
@@ -39,12 +44,32 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
 
-  // Group farms by position ID - each position can have multiple reward incentives
+  // Helper to get token USD value
+  const getTokenUsdValue = useCallback((contract: string, symbol: string, amount: number): number => {
+    if (symbol === 'WAX' && contract === 'eosio.token') {
+      return amount * waxUsdPrice;
+    }
+    if (tokenPrices) {
+      const key = `${contract}:${symbol}`;
+      const priceInWax = tokenPrices.get(key);
+      if (priceInWax) {
+        return amount * priceInWax * waxUsdPrice;
+      }
+    }
+    return 0;
+  }, [tokenPrices, waxUsdPrice]);
+
+  // Group farms by position ID and calculate USD value, then sort by value
   const groupedPositions = useMemo(() => {
     const groups = new Map<number, GroupedFarmPosition>();
     
     farmsList.forEach(farm => {
       if (!groups.has(farm.positionId)) {
+        // Calculate USD value of the position
+        const tokenAValue = getTokenUsdValue(farm.tokenA.contract, farm.tokenA.symbol, farm.tokenA.amount);
+        const tokenBValue = getTokenUsdValue(farm.tokenB.contract, farm.tokenB.symbol, farm.tokenB.amount);
+        const usdValue = tokenAValue + tokenBValue;
+
         groups.set(farm.positionId, {
           positionId: farm.positionId,
           poolId: farm.poolId,
@@ -52,12 +77,14 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           tokenB: farm.tokenB,
           isInRange: farm.isInRange,
           incentives: [],
+          usdValue,
         });
       }
       groups.get(farm.positionId)!.incentives.push(farm);
     });
     
-    return Array.from(groups.values());
+    // Sort by USD value descending (highest value first)
+    return Array.from(groups.values()).sort((a, b) => b.usdValue - a.usdValue);
   }, [farmsList]);
 
   // Create unique key for each incentive
@@ -244,7 +271,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                   {/* Main row - Position info */}
                   <div className="flex items-center gap-3">
                     {/* Pair */}
-                    <div className="flex items-center gap-2 min-w-[110px]">
+                    <div className="flex items-center gap-2 min-w-[130px]">
                       <div className="flex -space-x-2">
                         <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
                         <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
@@ -253,8 +280,11 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         <div className="font-medium text-sm">
                           {position.tokenA.symbol}/{position.tokenB.symbol}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          #{position.positionId}
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span>#{position.positionId}</span>
+                          {position.usdValue > 0 && (
+                            <span className="text-cheese">${position.usdValue.toFixed(2)}</span>
+                          )}
                         </div>
                       </div>
                     </div>

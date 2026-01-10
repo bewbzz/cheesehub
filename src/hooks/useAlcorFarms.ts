@@ -4,6 +4,7 @@ import {
   fetchUserStakedFarmsWithDetails,
   AlcorFarmPosition,
 } from '@/lib/alcorFarms';
+import { ensureTokenCacheLoaded } from '@/lib/tokenLogos';
 
 interface UseAlcorFarmsResult {
   stakedFarms: AlcorFarmPosition[];
@@ -19,6 +20,8 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
     queryKey: ['alcor-farms', accountName],
     queryFn: async () => {
       if (!accountName) return [];
+      // Ensure token cache is loaded before fetching farms
+      await ensureTokenCacheLoaded();
       return await fetchUserStakedFarmsWithDetails(accountName);
     },
     enabled: !!accountName,

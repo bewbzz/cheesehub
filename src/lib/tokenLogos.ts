@@ -1,17 +1,70 @@
 // Token logo URL utilities using Alcor Exchange's token logo repository
 
 const ALCOR_LOGO_BASE = 'https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax';
+const ALCOR_TOKENS_API = 'https://wax.alcor.exchange/api/v2/tokens';
+
+// Cache for token contracts fetched from Alcor API
+let tokenContractCache: Map<string, string> = new Map();
+let cacheInitialized = false;
+let cachePromise: Promise<void> | null = null;
 
 /**
- * Mapping of token symbols to their Alcor contract (for logo lookup)
- * Alcor uses different contracts than NFTHive for some tokens
+ * Fetch all token contracts from Alcor API and cache them
+ * This eliminates the need for manual contract mapping
  */
-const ALCOR_CONTRACT_MAP: Record<string, string> = {
-  // Main tokens
+async function initializeTokenCache(): Promise<void> {
+  if (cacheInitialized) return;
+  
+  // If already fetching, wait for that promise
+  if (cachePromise) {
+    await cachePromise;
+    return;
+  }
+  
+  cachePromise = (async () => {
+    try {
+      const response = await fetch(ALCOR_TOKENS_API);
+      if (!response.ok) {
+        console.warn('Failed to fetch Alcor tokens, using fallback map');
+        useFallbackMap();
+        return;
+      }
+      
+      const tokens = await response.json();
+      
+      // Build cache from API response
+      // Alcor tokens API returns array of { id, contract, symbol, ... }
+      if (Array.isArray(tokens)) {
+        tokens.forEach((token: { symbol?: string; contract?: string }) => {
+          if (token.symbol && token.contract) {
+            const key = token.symbol.toUpperCase();
+            // Only set if not already set (first occurrence wins, usually the main one)
+            if (!tokenContractCache.has(key)) {
+              tokenContractCache.set(key, token.contract);
+            }
+          }
+        });
+      }
+      
+      console.log(`Loaded ${tokenContractCache.size} token contracts from Alcor API`);
+      cacheInitialized = true;
+    } catch (error) {
+      console.error('Error fetching Alcor tokens:', error);
+      useFallbackMap();
+    }
+  })();
+  
+  await cachePromise;
+}
+
+/**
+ * Fallback mapping for when API fails - kept minimal as backup only
+ */
+const FALLBACK_CONTRACT_MAP: Record<string, string> = {
   'WAX': 'eosio.token',
   'CHEESE': 'cheeseburger',
   'LSWAX': 'token.fusion',
-  'LSW': 'token.fusion',
+  'LSW': 'lsw.alcor',
   'TLM': 'alien.worlds',
   'WUFFI': 'wuffi',
   'NEFTY': 'neftyblocksd',
@@ -20,64 +73,55 @@ const ALCOR_CONTRACT_MAP: Record<string, string> = {
   'AETHER': 'e.rplanet',
   'VOID': 'onessusonwax',
   'WOMBAT': 'wombatitoken',
-  'CAIT': 'tokencrafter',
-  'ZOMB': 'zombietokens',
-  'GOLD': 'goldgoldgold',
-  'STEAK': 'token.steak',
-  'LEEF': 'leefmaincorp',
-  'GUILD': 'guildstoken',
-  'BRWL': 'brawlertokns',
-  'CROWN': 'crownedtokns',
-  'MARTIA': 'martiainvad1',
-  'CMX': 'cmxtokenswap',
-  'NEON': 'neonstoicwax',
-  'AWC': 'alien.worlds',
-  // Wrapped tokens
-  'WAXUSDT': 'eth.token',
-  'WAXUSDC': 'eth.token',
-  'WAXWETH': 'eth.token',
-  'WAXWBTC': 'eth.token',
-  // Other tokens
-  'BET': 'betdividends',
-  'KARMA': 'theonlykarma',
-  'PGL': 'prospectorsw',
-  'PURPLE': 'purplepurple',
-  'GEM': 'gems.tycoon',
-  'KOALA': 'appsbmtokens',
-  'BITS': 'extexplorers',
-  'PIXEL': 'penguincoins',
-  'TOCIUM': 'toc.century',
-  'CPR': 'coin.pirates',
-  'MST': 'metatoken.gm',
-  'SHELL': 'token.gr',
-  'ART': 'goldarttoken',
-  'GLITCH': 'gamingtokens',
-  'BJ': 'blowjobtoken',
-  'GNOKEN': 'gnokentokens',
-  'FWF': 'farmerstoken',
-  'FWG': 'farmerstoken',
-  'FWW': 'farmerstoken',
-  'KBUCKS': 'kolobokbucks',
-  'BLUX': 'bluxbluxblux',
-  'SHING': 'shinglestest',
-  'WPS': 'waboratiogov',
+  'ROOK': 'pixilminirpg',
+  'RUGG': 'rareruggapes',
+  'AQUA': 'aquascapeart',
 };
+
+function useFallbackMap(): void {
+  Object.entries(FALLBACK_CONTRACT_MAP).forEach(([symbol, contract]) => {
+    tokenContractCache.set(symbol, contract);
+  });
+  cacheInitialized = true;
+}
+
+/**
+ * Get contract for a token symbol (sync version using cache)
+ * Returns empty string if not found - caller should use placeholder
+ */
+export function getTokenContract(symbol: string): string {
+  return tokenContractCache.get(symbol.toUpperCase()) || '';
+}
+
+/**
+ * Ensure token cache is initialized - call this early in app lifecycle
+ */
+export async function ensureTokenCacheLoaded(): Promise<void> {
+  await initializeTokenCache();
+}
 
 /**
  * Get the token logo URL from Alcor's repository
  * Format: https://raw.githubusercontent.com/alcorexchange/alcor-ui/master/assets/tokens/wax/{symbol_lowercase}_{contract}.png
  */
 export function getTokenLogoUrl(contract: string, symbol: string): string {
-  // Use Alcor's contract mapping if available, otherwise use the provided contract
-  // If contract is empty/undefined, we MUST use the mapping or return placeholder
-  const alcorContract = ALCOR_CONTRACT_MAP[symbol.toUpperCase()] || contract;
+  // Try to get contract from cache if not provided
+  const resolvedContract = contract || getTokenContract(symbol);
   
   // If we still don't have a valid contract, return the placeholder
-  if (!alcorContract) {
+  if (!resolvedContract) {
     return TOKEN_LOGO_PLACEHOLDER;
   }
   
-  return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${alcorContract}.png`;
+  return `${ALCOR_LOGO_BASE}/${symbol.toLowerCase()}_${resolvedContract}.png`;
+}
+
+/**
+ * Async version that ensures cache is loaded first
+ */
+export async function getTokenLogoUrlAsync(contract: string, symbol: string): Promise<string> {
+  await ensureTokenCacheLoaded();
+  return getTokenLogoUrl(contract, symbol);
 }
 
 /**

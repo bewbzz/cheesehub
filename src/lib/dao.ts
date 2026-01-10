@@ -591,6 +591,18 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
       }
       
+      // Log token_receivers for debugging transfer proposals
+      const tokenReceivers = (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [];
+      const nftReceivers = (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [];
+      
+      if (votingType === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || votingType === PROPOSAL_VOTING_TYPES.NFT_TRANSFER) {
+        console.log(`Proposal ${row.proposal_id} transfer data:`, { 
+          voting_type: votingType,
+          token_receivers: tokenReceivers, 
+          nft_receivers: nftReceivers 
+        });
+      }
+      
       console.log(`Proposal ${row.proposal_id}: contract_type=${contractProposalType}, voting_type=${votingType}, choices=`, choices);
       
       return {
@@ -611,8 +623,8 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         end_time_ts: endTime,
         total_votes: (row.total_votes as number) || 0,
         actions: actions,
-        token_receivers: (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [],
-        nft_receivers: (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [],
+        token_receivers: tokenReceivers,
+        nft_receivers: nftReceivers,
       };
     });
   } catch (error) {

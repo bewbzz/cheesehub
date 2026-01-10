@@ -268,8 +268,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               ))}
             </div>
 
+            {/* Spacer - takes up to 50% of remaining space */}
+            <div className="flex-1 max-h-[50%]" />
 
-            {/* Bottom menu items - pinned to bottom */}
+            {/* Bottom menu items - positioned at ~50% down */}
             <div className="border-t border-border/50 pt-3 space-y-1">
               {bottomMenuItems.map((item) => (
                 <Button

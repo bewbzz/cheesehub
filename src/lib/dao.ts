@@ -591,15 +591,30 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
       }
       
-      // Log token_receivers for debugging transfer proposals
-      const tokenReceivers = (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [];
+      // Get token_receivers from contract or extract from actions as fallback
+      let tokenReceivers = (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [];
       const nftReceivers = (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [];
+      
+      // Fallback: Extract token transfer details from actions array if token_receivers is empty
+      if (tokenReceivers.length === 0 && votingType === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER) {
+        const transferActions = actions.filter(a => a.action === "transfer");
+        tokenReceivers = transferActions.map(action => {
+          const data = action.data as Record<string, unknown>;
+          return {
+            wax_account: (data.to as string) || "",
+            quantity: (data.quantity as string) || "",
+            contract: action.contract || "eosio.token",
+          };
+        }).filter(r => r.wax_account && r.quantity);
+      }
       
       if (votingType === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || votingType === PROPOSAL_VOTING_TYPES.NFT_TRANSFER) {
         console.log(`Proposal ${row.proposal_id} transfer data:`, { 
           voting_type: votingType,
           token_receivers: tokenReceivers, 
-          nft_receivers: nftReceivers 
+          nft_receivers: nftReceivers,
+          actions: actions,
+          raw_token_receivers: row.token_receivers
         });
       }
       

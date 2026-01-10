@@ -58,20 +58,22 @@ export function closeWharfkitModals() {
     return;
   }
 
-  // Remove any Wharfkit modal elements from the DOM
-  // Check if there's an active dialog before removing the container
+  // IMPORTANT: Do NOT remove #wharfkit-web-ui container!
+  // The WebRenderer holds a reference to it, and removing it causes
+  // "element is not in a Document" errors on subsequent logins.
+  // Instead, just close any open dialogs within it.
   const wharfkitEl = document.getElementById('wharfkit-web-ui');
   
-  if (wharfkitEl) {
-    // Check for open dialog in shadow DOM
-    const hasOpenDialog = wharfkitEl.shadowRoot?.querySelector('dialog[open]');
-    if (hasOpenDialog) {
-      // Don't remove if there's an active dialog
-      console.log('Skipping WharfKit cleanup - dialog is open');
-      return;
-    }
-    // Safe to remove - no active dialog
-    wharfkitEl.remove();
+  if (wharfkitEl?.shadowRoot) {
+    // Close any open dialogs by calling close() method
+    const openDialogs = wharfkitEl.shadowRoot.querySelectorAll('dialog[open]');
+    openDialogs.forEach((dialog) => {
+      try {
+        (dialog as HTMLDialogElement).close();
+      } catch (e) {
+        // Dialog might already be closed
+      }
+    });
   }
   
   const modalSelectors = [

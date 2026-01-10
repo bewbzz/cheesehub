@@ -177,24 +177,10 @@
 .anchor-link-modal {
   z-index: 999999 !important;
   position: fixed !important;
+  pointer-events: auto !important;
 }
 
 /* Native dialog backdrop needs high z-index too */
 #wharfkit-web-ui dialog::backdrop {
   z-index: 999998 !important;
-}
-
-/* WharfKit container - starts with pointer-events: none, 
-   JavaScript will toggle to 'auto' when dialog is open */
-#wharfkit-web-ui {
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  pointer-events: none !important;
-}
-
-/* When JS adds this class, enable pointer events */
-#wharfkit-web-ui.modal-active {
-  pointer-events: auto !important;
 }

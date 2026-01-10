@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel } from "lucide-react";
+import { NFTVotePicker } from "./NFTVotePicker";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -40,6 +41,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const [loadingStake, setLoadingStake] = useState(false);
   const [userVote, setUserVote] = useState<UserVote | null>(initialVote || null);
   const [isFinalized, setIsFinalized] = useState(false);
+  
+  // NFT voting state for Type 5 DAOs
+  const [selectedNFTIds, setSelectedNFTIds] = useState<string[]>([]);
 
   // Sync userVote with initialVote when it changes (e.g., after fetching from blockchain)
   useEffect(() => {
@@ -50,6 +54,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
 
   // Check if this is a DAO that requires staking for voting (Type 1, 3, 4)
   const requiresStaking = [1, 3, 4].includes(dao?.dao_type || 0);
+  
+  // Check if this is a Hold NFT DAO (Type 5) - no staking, uses asset_ids for voting
+  const isHoldNFTDao = dao?.dao_type === 5;
 
   // Fetch user's staked tokens for staking DAOs
   useEffect(() => {
@@ -115,11 +122,21 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     return stakedWeight !== null && stakedWeight > 0;
   };
 
-  // Check if user can vote (must have staked tokens for staking DAOs)
+  // Check if user can vote
+  // For staking DAOs: must be staked + have enough weight
+  // For Hold NFT DAOs: must have selected NFTs
   const canVote = (): boolean => {
+    if (isHoldNFTDao) {
+      return selectedNFTIds.length > 0;
+    }
     if (!requiresStaking) return true;
     return isStaked() && hasVotingPower();
   };
+  
+  // Callback for NFT selection
+  const handleNFTSelection = useCallback((assetIds: string[]) => {
+    setSelectedNFTIds(assetIds);
+  }, []);
 
   const totalVotes = proposal.yes_votes + proposal.no_votes + proposal.abstain_votes;
   const yesPercent = totalVotes > 0 ? (proposal.yes_votes / totalVotes) * 100 : 0;
@@ -149,15 +166,23 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return;
     }
 
-    console.log("Starting vote:", vote);
+    // For Hold NFT DAOs, require NFT selection
+    if (isHoldNFTDao && selectedNFTIds.length === 0) {
+      toast.error("Please select NFTs to vote with");
+      return;
+    }
+
+    console.log("Starting vote:", vote, isHoldNFTDao ? `with ${selectedNFTIds.length} NFTs` : "");
     setVoting(true);
     try {
-      // Don't pass weight - the contract will use the staked weight from stakers table
+      // Pass asset_ids for Hold NFT DAOs
       const action = buildVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        vote
+        vote,
+        undefined, // voteWeight
+        isHoldNFTDao ? selectedNFTIds : undefined // assetIds
       );
 
       console.log("Sending vote transaction...");
@@ -166,8 +191,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       
       // Map vote to choice index (Yes=0, No=1, Abstain=2)
       const choiceIndex = vote === "yes" ? 0 : vote === "no" ? 1 : 2;
-      const voteData = { choice_index: choiceIndex, weight: stakedWeight || 0 };
-      console.log("Setting userVote state with choice_index:", choiceIndex, "weight:", stakedWeight);
+      const weight = isHoldNFTDao ? selectedNFTIds.length : (stakedWeight || 0);
+      const voteData = { choice_index: choiceIndex, weight };
+      console.log("Setting userVote state with choice_index:", choiceIndex, "weight:", weight);
       setUserVote(voteData);
       
       // Call onVote immediately so parent updates UI with new vote counts
@@ -196,20 +222,29 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return;
     }
 
+    // For Hold NFT DAOs, require NFT selection
+    if (isHoldNFTDao && selectedNFTIds.length === 0) {
+      toast.error("Please select NFTs to vote with");
+      return;
+    }
+
     setVoting(true);
     try {
-      // Don't pass weight - the contract will use the staked weight from stakers table
+      // Pass asset_ids for Hold NFT DAOs
       const action = buildMultiOptionVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice
+        selectedChoice,
+        undefined, // voteWeight
+        isHoldNFTDao ? selectedNFTIds : undefined // assetIds
       );
 
       await session.transact({ actions: [action] });
       
       // Set local vote state
-      const voteData = { choice_index: selectedChoice, weight: stakedWeight || 0 };
+      const weight = isHoldNFTDao ? selectedNFTIds.length : (stakedWeight || 0);
+      const voteData = { choice_index: selectedChoice, weight };
       setUserVote(voteData);
       
       toast.success("Vote submitted successfully!");
@@ -236,21 +271,31 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       return;
     }
 
+    // For Hold NFT DAOs, require NFT selection
+    if (isHoldNFTDao && selectedNFTIds.length === 0) {
+      toast.error("Please select NFTs to vote with");
+      return;
+    }
+
     setVoting(true);
     try {
       // Note: WaxDAO contract doesn't support true ranked choice voting
       // It uses single-choice voting, same as Most Votes Wins
+      // Pass asset_ids for Hold NFT DAOs
       const action = buildRankedChoiceVoteAction(
         String(session.actor),
         proposal.dao_name,
         proposal.proposal_id,
-        selectedChoice
+        selectedChoice,
+        undefined, // voteWeight
+        isHoldNFTDao ? selectedNFTIds : undefined // assetIds
       );
 
       await session.transact({ actions: [action] });
       
       // Set local vote state
-      const voteData = { choice_index: selectedChoice, weight: stakedWeight || 0 };
+      const weight = isHoldNFTDao ? selectedNFTIds.length : (stakedWeight || 0);
+      const voteData = { choice_index: selectedChoice, weight };
       setUserVote(voteData);
       
       toast.success("Vote submitted successfully!");
@@ -376,6 +421,25 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     if (isFinalized || isAlreadyFinalized || proposal.status === "expired") {
       return null;
     }
+    
+    // For Hold NFT DAOs, show NFT picker instead
+    if (isHoldNFTDao && isConnected && accountName && dao) {
+      // If already voted, don't show picker
+      if (hasVoted()) return null;
+      
+      return (
+        <div className="mb-3">
+          <NFTVotePicker
+            dao={dao}
+            proposalId={proposal.proposal_id}
+            userAccount={accountName}
+            onSelect={handleNFTSelection}
+            disabled={voting}
+          />
+        </div>
+      );
+    }
+    
     if (!requiresStaking || !isConnected) return null;
     
     if (loadingStake) {
@@ -427,6 +491,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     if (proposal.status !== "active" || !isConnected) return null;
     
     // For staking DAOs, check if user can vote (staked + has enough weight)
+    // For Hold NFT DAOs, allow showing buttons (selection happens in NFT picker above)
     if (requiresStaking && !canVote()) {
       return null; // Don't show voting buttons if not eligible
     }

@@ -12,6 +12,7 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   buildFinalizeProposalAction,
+  buildRecountProposalAction,
   fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
@@ -266,15 +267,38 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
 
     setFinalizing(true);
     try {
-      const action = buildFinalizeProposalAction(
-        String(session.actor),
+      const actor = String(session.actor);
+      const actions = [];
+      
+      // For transfer proposals, call recount first to tally votes and enable execution
+      const isTransferProposal = 
+        proposal.voting_type === PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER || 
+        proposal.voting_type === PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+      
+      if (isTransferProposal) {
+        actions.push(buildRecountProposalAction(
+          actor,
+          proposal.dao_name,
+          proposal.proposal_id
+        ));
+      }
+      
+      // Then call finalize
+      actions.push(buildFinalizeProposalAction(
+        actor,
         proposal.dao_name,
         proposal.proposal_id
-      );
+      ));
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions });
       setIsFinalized(true);
-      toast.success("Proposal finalized successfully!");
+      
+      if (isTransferProposal) {
+        toast.success("Proposal finalized! Assets should now be transferred.");
+      } else {
+        toast.success("Proposal finalized successfully!");
+      }
+      
       // Trigger a refresh by calling onVote with a dummy value
       onVote?.(proposal.proposal_id, { choice_index: -1, weight: 0 });
     } catch (error) {

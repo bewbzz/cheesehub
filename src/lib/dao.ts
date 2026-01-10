@@ -77,6 +77,20 @@ export function buildFinalizeProposalAction(user: string, daoName: string, propo
   };
 }
 
+// Build action for recounting votes (required before finalize for transfer proposals)
+export function buildRecountProposalAction(user: string, daoName: string, proposalId: number) {
+  return {
+    account: DAO_CONTRACT,
+    name: "recount",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      proposal_id: proposalId,
+    },
+  };
+}
+
 
 // DAO types from the contract
 export const DAO_TYPES: Record<number, string> = {

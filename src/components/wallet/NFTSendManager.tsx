@@ -399,8 +399,47 @@ interface NFTCardProps {
   onToggle: () => void;
 }
 
+// IPFS gateway fallback list
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  if (!url) return null;
+  // Handle ipfs:// protocol
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+  // Handle /ipfs/ paths
+  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+.*)/);
+  if (ipfsMatch) return ipfsMatch[1];
+  // Handle bare CID
+  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
+    return url;
+  }
+  return null;
+}
+
 function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
+  const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+
+  const ipfsHash = extractIpfsHash(nft.image);
+  const currentImageUrl = ipfsHash 
+    ? `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`
+    : nft.image;
+
+  const handleImageError = () => {
+    if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
+      // Try next gateway
+      setGatewayIndex(prev => prev + 1);
+    } else {
+      setImgError(true);
+    }
+  };
 
   return (
     <button
@@ -427,11 +466,11 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
           </div>
         ) : (
           <img
-            src={nft.image}
+            src={currentImageUrl}
             alt={nft.name}
             className="w-full h-full object-cover"
             loading="lazy"
-            onError={() => setImgError(true)}
+            onError={handleImageError}
           />
         )}
       </div>
@@ -440,10 +479,10 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       <div className="p-1 bg-background/80 absolute bottom-0 left-0 right-0">
         <p className="text-[10px] font-medium truncate">{nft.name}</p>
         <div className="flex items-center justify-between">
-          <span className="text-[9px] text-muted-foreground truncate max-w-[60%]">
+          <span className="text-[9px] text-muted-foreground truncate max-w-[50%]">
             {nft.collection}
           </span>
-          <span className="text-[9px] text-muted-foreground">#{nft.mint}</span>
+          <span className="text-[9px] text-cheese font-mono">#{nft.asset_id}</span>
         </div>
       </div>
     </button>

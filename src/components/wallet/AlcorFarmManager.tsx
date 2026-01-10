@@ -591,7 +591,10 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         onSuccess={(title, description, txId) => {
           setIncreaseLiquidityPosition(null);
           onTransactionSuccess?.(title, description, txId);
-          refetch();
+          // Delay refetch to allow blockchain indexer to update
+          setTimeout(() => {
+            refetch();
+          }, 3000);
           onTransactionComplete?.();
         }}
       />

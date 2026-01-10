@@ -216,10 +216,10 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
         )}
       </div>
 
-      {/* Info bar at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-1 bg-background/80">
-        <p className="text-[10px] font-medium truncate">{nft.name}</p>
-        <p className="text-[9px] text-muted-foreground truncate">#{nft.asset_id}</p>
+      {/* Info bar at bottom - compact */}
+      <div className="absolute bottom-0 left-0 right-0 px-0.5 py-0.5 bg-background/90">
+        <p className="text-[8px] font-medium truncate leading-tight">{nft.name}</p>
+        <p className="text-[7px] text-muted-foreground truncate leading-tight">#{nft.asset_id}</p>
       </div>
     </button>
   );
@@ -803,9 +803,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     );
   }, [stakedNftDetails, searchQuery]);
 
-  // Virtualization - 4 columns grid with square cards
-  const COLUMNS = 4;
-  const ROW_HEIGHT = 100; // Smaller square cards
+  // Virtualization - 6 columns grid with small square cards
+  const COLUMNS = 6;
+  const ROW_HEIGHT = 70;
   
   const stakeRowCount = Math.ceil(filteredEligibleNfts.length / COLUMNS);
   const unstakeRowCount = Math.ceil(filteredStakedNfts.length / COLUMNS);
@@ -1113,7 +1113,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                               height: `${virtualRow.size}px`,
                               transform: `translateY(${virtualRow.start}px)`,
                             }}
-                            className="grid grid-cols-4 gap-2 p-1"
+                            className="grid grid-cols-6 gap-1 px-1"
                           >
                             {rowNFTs.map((nft) => (
                               <NFTCard
@@ -1201,7 +1201,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                               height: `${virtualRow.size}px`,
                               transform: `translateY(${virtualRow.start}px)`,
                             }}
-                            className="grid grid-cols-4 gap-2 p-1"
+                            className="grid grid-cols-6 gap-1 px-1"
                           >
                             {rowNFTs.map((nft) => (
                               <NFTCard

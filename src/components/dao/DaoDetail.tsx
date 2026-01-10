@@ -124,9 +124,6 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     setTimeout(() => loadProposals(), 3000);
   };
 
-  // Non-Custodial NFT DAOs (type 5) don't require explicit joining - membership is based on NFT holdings
-  const isNonCustodialDao = dao.dao_type === 5;
-  
   // Check if current user is the DAO creator (creators are automatically members)
   const isCreator = accountName && dao.creator === accountName;
 
@@ -138,12 +135,12 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       // Creator is automatically a member
       if (isCreator) {
         setIsMember(true);
-      } else if (!isNonCustodialDao) {
-        // Skip membership check for Non-Custodial NFT DAOs - membership is based on NFT holdings
+      } else {
+        // Check membership for all DAO types
         checkMembership();
       }
     }
-  }, [open, dao.dao_name, accountName, isNonCustodialDao, isCreator]);
+  }, [open, dao.dao_name, accountName, isCreator]);
 
   useEffect(() => {
     if (activeSection === "treasury" && treasury.length === 0) {
@@ -295,8 +292,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     (p) => !votedProposals[p.proposal_id]
   ).length;
 
-  // Only highlight unvoted proposals if user can vote (is member or non-custodial DAO)
-  const canVote = isMember || isNonCustodialDao;
+  // Only highlight unvoted proposals if user can vote (must be a member)
+  const canVote = isMember;
 
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
@@ -338,12 +335,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                   {DAO_TYPES[dao.dao_type] || "Unknown"}
                 </Badge>
                 {isConnected && (
-                  isNonCustodialDao ? (
-                    <Badge className="bg-cheese/20 text-cheese border-cheese/30 shrink-0">
-                      <ImageIcon className="h-3 w-3 mr-1" />
-                      NFT Holder
-                    </Badge>
-                  ) : isMember ? (
+                  isMember ? (
                     <Badge className="bg-green-500/20 text-green-500 border-green-500/30 shrink-0">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Member
@@ -361,8 +353,8 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </p>
               </div>
             </div>
-            {/* Join/Leave Button - Not shown for Non-Custodial NFT DAOs */}
-            {isConnected && !isNonCustodialDao && (
+            {/* Join/Leave Button - Available for all DAO types */}
+            {isConnected && (
               <div className="shrink-0">
                 {membershipLoading ? (
                   <Button size="sm" disabled>
@@ -561,7 +553,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p className="text-muted-foreground">Connect your wallet to create proposals</p>
                     </div>
-                  ) : !isMember && !isNonCustodialDao ? (
+                  ) : !isMember ? (
                     <div className="text-center py-12 bg-muted/30 rounded-lg">
                       <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p className="text-muted-foreground mb-3">You must be a member to create proposals</p>
@@ -609,7 +601,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                       </Button>
-                      {(isMember || isNonCustodialDao) && (
+                      {isMember && (
                         <Button
                           size="sm"
                           onClick={() => setActiveSection("new-proposal")}
@@ -625,7 +617,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     <div className="text-center py-12 text-muted-foreground">
                       <Vote className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p>No active proposals</p>
-                      {(isMember || isNonCustodialDao) && (
+                      {isMember && (
                         <Button
                           variant="link"
                           onClick={() => setActiveSection("new-proposal")}

@@ -449,7 +449,7 @@ export function buildStakeAction(
     data: {
       owner: accountName,
       incentiveId,
-      positionId,
+      posId: positionId,
     },
   };
 }

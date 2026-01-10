@@ -288,11 +288,14 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     (p) => !votedProposals[p.proposal_id]
   ).length;
 
+  // Only highlight unvoted proposals if user can vote (is member or non-custodial DAO)
+  const canVote = isMember || isNonCustodialDao;
+
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
     ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
-    { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length, hasUnvoted: unvotedActiveProposals > 0 },
+    { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length, hasUnvoted: canVote && unvotedActiveProposals > 0 },
     { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },
     { id: "treasury", label: "Treasury", icon: <Coins className="h-4 w-4" /> },
   ];

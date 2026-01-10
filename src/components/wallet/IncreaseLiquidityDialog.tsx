@@ -100,21 +100,20 @@ export function IncreaseLiquidityDialog({
     
     const balanceA = tokenABalance.balance;
     const balanceB = tokenBBalance?.balance || 0;
-    const precisionB = tokenBBalance?.precision || 8;
     
     // Calculate max token A based on token B balance and ratio
     // If user has X of token B, they can deposit at most X/ratio of token A
     let maxAFromB = positionRatio > 0 ? balanceB / positionRatio : Infinity;
     
     // Apply a small reduction (0.01%) to avoid floating-point precision issues
-    // when the value is multiplied back by ratio
     maxAFromB = maxAFromB * 0.9999;
     
     // Use the lesser of actual balance or what token B allows
     const maxA = Math.min(balanceA, maxAFromB);
     
     if (maxA > 0) {
-      setTokenAAmount(maxA.toFixed(tokenABalance.precision));
+      // Use handleTokenAChange to also update Token B
+      handleTokenAChange(maxA.toFixed(tokenABalance.precision));
     }
   };
 

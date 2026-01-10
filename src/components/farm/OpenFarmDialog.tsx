@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Rocket } from "lucide-react";
+import { CalendarIcon, Rocket, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { buildOpenFarmAction, FarmInfo } from "@/lib/farm";
@@ -34,7 +35,22 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
   const { toast } = useToast();
   const { session } = useWax();
 
+  // Check if farm has any deposited rewards
+  const hasRewards = farm.reward_pools.some(pool => {
+    const balance = parseFloat(pool.balance) || 0;
+    return balance > 0;
+  });
+
   const handleOpenFarm = async () => {
+    if (!hasRewards) {
+      toast({ 
+        title: "No rewards deposited", 
+        description: "You must deposit rewards before opening the farm",
+        variant: "destructive" 
+      });
+      return;
+    }
+
     if (!date) {
       toast({ 
         title: "Date required", 
@@ -114,6 +130,15 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {!hasRewards && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                You must deposit rewards before opening the farm. Go to the Reward Pools section and click "Deposit Funds".
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Farm Expiration Date</label>
             <Popover>
@@ -124,6 +149,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
                     "w-full justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                   )}
+                  disabled={!hasRewards}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date ? format(date, "PPP") : "Pick a date"}
@@ -152,7 +178,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
           </Button>
           <Button 
             onClick={handleOpenFarm} 
-            disabled={isSubmitting || !date}
+            disabled={isSubmitting || !date || !hasRewards}
             className="bg-green-600 hover:bg-green-700"
           >
             {isSubmitting ? "Opening..." : "Open Farm"}

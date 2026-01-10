@@ -40,6 +40,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedPosition, setExpandedPosition] = useState<number | null>(null);
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
@@ -362,11 +363,15 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => refetch()}
-            disabled={isTransacting}
+            onClick={() => {
+              setIsRefreshing(true);
+              refetch();
+              setTimeout(() => setIsRefreshing(false), 1000);
+            }}
+            disabled={isTransacting || isRefreshing}
             className="h-8 w-8 p-0"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={cn("h-4 w-4 transition-transform", isRefreshing && "animate-spin")} />
           </Button>
           <Button
             size="sm"

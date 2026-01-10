@@ -51,6 +51,10 @@ const FAQ_ITEMS = [
     answer: "You can create a farm by paying 250 WAX, 25,000 WAXDAO tokens, or by using 1 NFT from the Wojak collection (ourwojaksart). These payment options help support the WaxDAO ecosystem.",
   },
   {
+    question: "Can I pay with CHEESE tokens?",
+    answer: "Yes! You can prepay with CHEESE tokens and receive a 20% discount on the creation fee. Due to smart contract limitations, you must complete the CHEESE prepayment before filling in the rest of the form. The prepayment locks in your farm name. If you decide not to create the farm after prepaying, your CHEESE is 100% refundable.",
+  },
+  {
     question: "What are the different farm types?",
     answer: "Collections: stake any NFT from specified collections. Schemas: stake NFTs from specific schemas within collections. Templates: stake specific template IDs. Attributes: stake NFTs with matching attribute key/value pairs.",
   },

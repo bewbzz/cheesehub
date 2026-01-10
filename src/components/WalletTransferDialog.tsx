@@ -28,10 +28,11 @@ import { WalletResources, AccountResources, StakedResourcesSection, AccountDetai
 import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
+import { AlcorFarmManager } from '@/components/wallet/AlcorFarmManager';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
@@ -40,7 +41,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards';
+type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards' | 'alcor-farms';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -54,6 +55,7 @@ const menuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] =
   { id: 'stake', label: 'Stake CPU/NET', icon: <Cpu className="h-4 w-4" /> },
   { id: 'rent', label: 'Rent CPU/NET', icon: <Zap className="h-4 w-4" /> },
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
+  { id: 'alcor-farms', label: 'Alcor Farms', icon: <Sprout className="h-4 w-4" /> },
   { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
 ];
@@ -591,6 +593,14 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {/* Vote Rewards Section */}
               {activeSection === 'rewards' && (
                 <VoteRewardsManager 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Alcor Farms Section */}
+              {activeSection === 'alcor-farms' && (
+                <AlcorFarmManager 
                   onTransactionComplete={handleTransactionComplete}
                   onTransactionSuccess={showSuccessDialog}
                 />

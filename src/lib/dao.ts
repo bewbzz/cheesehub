@@ -591,21 +591,21 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
       }
       
-      // Get token_receivers from contract or extract from actions as fallback
-      let tokenReceivers = (row.token_receivers as { wax_account: string; quantity: string; contract: string }[]) || [];
+      // Get token_receivers from contract
+      let tokenReceivers: { wax_account: string; quantity: string; contract: string }[] = [];
       const nftReceivers = (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [];
       
-      // Log ALL proposal data for transfer types to debug
+      // Log raw data for transfer types
       if (contractProposalType === 4 || contractProposalType === 5) {
-        console.log(`Proposal ${row.proposal_id} RAW DATA:`, JSON.stringify(row, (key, value) => {
-          // Handle circular references
-          if (typeof value === 'object' && value !== null) {
-            if (key === 'token_receivers' || key === 'nft_receivers') {
-              return value;
-            }
-          }
-          return value;
-        }, 2));
+        console.log(`Proposal ${row.proposal_id} (type ${contractProposalType}) raw fields:`, 
+          Object.keys(row));
+        console.log(`Proposal ${row.proposal_id} token_receivers field:`, row.token_receivers);
+        console.log(`Proposal ${row.proposal_id} actions field:`, row.actions);
+      }
+      
+      // Try to get token_receivers directly
+      if (row.token_receivers && Array.isArray(row.token_receivers)) {
+        tokenReceivers = row.token_receivers as { wax_account: string; quantity: string; contract: string }[];
       }
       
       // Fallback: Extract token transfer details from actions array if token_receivers is empty

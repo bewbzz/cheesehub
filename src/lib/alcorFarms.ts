@@ -1,9 +1,67 @@
 // Alcor Farms library for interacting with Alcor Exchange API and swap.alcor contract
-import { waxRpcCall } from './waxRpcFallback';
+// Includes blockchain fallback for resilience when Alcor API is unavailable
+import { waxRpcCall, fetchTableRows } from './waxRpcFallback';
 
 // Contract name for transactions
 const ALCOR_SWAP_CONTRACT = 'swap.alcor';
 const ALCOR_API_BASE = 'https://wax.alcor.exchange/api/v2';
+const API_TIMEOUT_MS = 5000; // 5 second timeout for API calls
+
+// Track data source for UI feedback
+let lastDataSource: 'api' | 'blockchain' = 'api';
+export function getAlcorDataSource(): 'api' | 'blockchain' {
+  return lastDataSource;
+}
+
+// ============= On-Chain Data Types =============
+
+// Position from swap.alcor::positions table
+interface OnChainPosition {
+  id: number;
+  owner: string;
+  pool: number;
+  liquidity: string;
+  tickLower: number;
+  tickUpper: number;
+}
+
+// Staking position from swap.alcor::stakingpos table
+interface OnChainStakingPos {
+  id: number;
+  owner: string;
+  incentiveId: number;
+  posId: number;
+  liquidity: string;
+}
+
+// Stakes from swap.alcor::stakes table
+interface OnChainStake {
+  id: number;
+  owner: string;
+  incentiveId: number;
+  posId: number;
+  rewardPerTokenPaid: string;
+  rewards: string; // e.g., "7.08216192 CHEESE"
+}
+
+// Pool from swap.alcor::pools table
+interface OnChainPool {
+  id: number;
+  tokenA: { contract: string; quantity: string };
+  tokenB: { contract: string; quantity: string };
+  fee: number;
+  currSlot: { sqrtPriceX64: string; tick: number };
+}
+
+// ============= Caches for blockchain data =============
+
+// Pool details cache (5 minute TTL - rarely changes)
+const poolCache = new Map<number, { data: OnChainPool; timestamp: number }>();
+const POOL_CACHE_TTL = 5 * 60 * 1000;
+
+// User positions cache (30 second TTL)
+const positionsCache = new Map<string, { data: OnChainPosition[]; timestamp: number }>();
+const POSITIONS_CACHE_TTL = 30 * 1000;
 
 // Types for Alcor farm data from API
 export interface AlcorApiFarmPosition {
@@ -93,52 +151,338 @@ function parseAsset(assetStr: string): { amount: number; symbol: string; precisi
   return { amount, symbol, precision };
 }
 
+// ============= On-Chain Query Functions (Blockchain Fallback) =============
+
 /**
- * Fetch user's staked farm positions from Alcor API
+ * Fetch user's LP positions directly from blockchain
+ */
+async function fetchUserPositionsOnChain(accountName: string): Promise<AlcorApiPosition[]> {
+  // Check cache first
+  const cached = positionsCache.get(accountName);
+  if (cached && Date.now() - cached.timestamp < POSITIONS_CACHE_TTL) {
+    console.log('[Alcor] Using cached on-chain positions for', accountName);
+    return transformOnChainPositions(cached.data);
+  }
+
+  console.log('[Alcor] Fetching positions from blockchain for', accountName);
+  const allPositions: OnChainPosition[] = [];
+  let lower_bound = '';
+  let hasMore = true;
+
+  // Query positions table - secondary index by owner (index_position: 2)
+  while (hasMore) {
+    const result = await fetchTableRows<OnChainPosition>({
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'positions',
+      index_position: 2,
+      key_type: 'name',
+      lower_bound: lower_bound || accountName,
+      upper_bound: accountName,
+      limit: 100,
+    });
+
+    if (result?.rows?.length) {
+      allPositions.push(...result.rows);
+      if (result.more && result.next_key) {
+        lower_bound = result.next_key;
+      } else {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  // Cache the raw data
+  positionsCache.set(accountName, { data: allPositions, timestamp: Date.now() });
+  
+  return transformOnChainPositions(allPositions);
+}
+
+/**
+ * Transform on-chain positions to API format
+ */
+function transformOnChainPositions(positions: OnChainPosition[]): AlcorApiPosition[] {
+  return positions.map(pos => ({
+    id: pos.id,
+    owner: pos.owner,
+    tickLower: pos.tickLower,
+    tickUpper: pos.tickUpper,
+    liquidity: pos.liquidity,
+    pool: pos.pool,
+    inRange: true, // Will be calculated later if needed
+    amountA: '0 TOKEN', // Will be populated from pool data
+    amountB: '0 TOKEN',
+    feesA: '0 TOKEN',
+    feesB: '0 TOKEN',
+    totalValue: 0,
+  }));
+}
+
+/**
+ * Fetch user's staked positions (stakes table) from blockchain
+ */
+async function fetchUserStakesOnChain(accountName: string): Promise<OnChainStake[]> {
+  console.log('[Alcor] Fetching stakes from blockchain for', accountName);
+  const allStakes: OnChainStake[] = [];
+  let lower_bound = '';
+  let hasMore = true;
+
+  // Query stakes table - secondary index by owner (index_position: 2)
+  while (hasMore) {
+    const result = await fetchTableRows<OnChainStake>({
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'stakes',
+      index_position: 2,
+      key_type: 'name',
+      lower_bound: lower_bound || accountName,
+      upper_bound: accountName,
+      limit: 100,
+    });
+
+    if (result?.rows?.length) {
+      allStakes.push(...result.rows);
+      if (result.more && result.next_key) {
+        lower_bound = result.next_key;
+      } else {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  console.log('[Alcor] Found', allStakes.length, 'stakes on-chain for', accountName);
+  return allStakes;
+}
+
+/**
+ * Fetch pool details directly from blockchain
+ */
+async function fetchPoolDetailsOnChain(poolId: number): Promise<any | null> {
+  // Check cache first
+  const cached = poolCache.get(poolId);
+  if (cached && Date.now() - cached.timestamp < POOL_CACHE_TTL) {
+    return transformOnChainPool(cached.data);
+  }
+
+  console.log('[Alcor] Fetching pool', poolId, 'from blockchain');
+  const result = await fetchTableRows<OnChainPool>({
+    code: ALCOR_SWAP_CONTRACT,
+    scope: ALCOR_SWAP_CONTRACT,
+    table: 'pools',
+    lower_bound: String(poolId),
+    upper_bound: String(poolId),
+    limit: 1,
+  });
+
+  if (result?.rows?.[0]) {
+    poolCache.set(poolId, { data: result.rows[0], timestamp: Date.now() });
+    return transformOnChainPool(result.rows[0]);
+  }
+  return null;
+}
+
+/**
+ * Transform on-chain pool to API format
+ */
+function transformOnChainPool(pool: OnChainPool): any {
+  const tokenAParsed = parseAsset(pool.tokenA.quantity);
+  const tokenBParsed = parseAsset(pool.tokenB.quantity);
+  
+  return {
+    id: pool.id,
+    tokenA: {
+      contract: pool.tokenA.contract,
+      symbol: tokenAParsed.symbol,
+      quantity: pool.tokenA.quantity,
+    },
+    tokenB: {
+      contract: pool.tokenB.contract,
+      symbol: tokenBParsed.symbol,
+      quantity: pool.tokenB.quantity,
+    },
+    fee: pool.fee,
+    tick: pool.currSlot?.tick || 0,
+  };
+}
+
+/**
+ * Build farm positions from on-chain data (blockchain fallback)
+ */
+async function buildFarmPositionsFromOnChain(
+  accountName: string,
+  stakes: OnChainStake[],
+  positions: AlcorApiPosition[]
+): Promise<AlcorApiFarmPosition[]> {
+  // Create position map
+  const positionMap = new Map<number, AlcorApiPosition>();
+  positions.forEach(p => positionMap.set(p.id, p));
+
+  // Get all incentives for calculating daily rewards
+  const allIncentives = await fetchAllIncentives();
+  const incentiveMap = new Map<number, any>();
+  allIncentives.forEach(inc => incentiveMap.set(inc.id, inc));
+
+  return stakes.map(stake => {
+    const position = positionMap.get(stake.posId);
+    const incentive = incentiveMap.get(stake.incentiveId);
+    const rewardParsed = parseAsset(stake.rewards);
+    
+    // Calculate daily rewards estimate from incentive data
+    let dailyRewards = '0 TOKEN';
+    if (incentive) {
+      const rewardToken = incentive.rewardToken || incentive.reward || {};
+      const rewardAsset = parseAsset(rewardToken.quantity || '0 TOKEN');
+      // Rough estimate: total reward / duration in days
+      const periodFinish = incentive.periodFinish || 0;
+      const now = Math.floor(Date.now() / 1000);
+      const daysRemaining = Math.max(1, (periodFinish - now) / 86400);
+      const dailyAmount = rewardAsset.amount / daysRemaining;
+      dailyRewards = `${dailyAmount.toFixed(rewardParsed.precision)} ${rewardParsed.symbol}`;
+    }
+
+    return {
+      posId: stake.posId,
+      stakingWeight: position?.liquidity || '0',
+      rewards: rewardParsed.amount,
+      userRewardPerTokenPaid: stake.rewardPerTokenPaid,
+      incentiveId: stake.incentiveId,
+      incentive: stake.incentiveId,
+      pool: position?.pool || 0,
+      poolStats: position?.pool || 0,
+      farmedReward: stake.rewards,
+      userSharePercent: 0, // Would need total staked to calculate
+      dailyRewards,
+    };
+  });
+}
+
+// ============= API Functions with Blockchain Fallback =============
+
+/**
+ * Fetch user's staked farm positions - API with blockchain fallback
  */
 export async function fetchUserStakedFarms(accountName: string): Promise<AlcorApiFarmPosition[]> {
+  // Try API first with timeout
   try {
-    const response = await fetch(`${ALCOR_API_BASE}/account/${accountName}/farms`);
-    if (!response.ok) {
-      console.warn(`Alcor farms API returned ${response.status}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    
+    const response = await fetch(`${ALCOR_API_BASE}/account/${accountName}/farms`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        lastDataSource = 'api';
+        console.log('[Alcor] Farm positions from API');
+        return data;
+      }
+    }
+    console.warn(`[Alcor] Farms API returned ${response.status}, trying blockchain...`);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn('[Alcor] Farms API timeout, falling back to blockchain...');
+    } else {
+      console.warn('[Alcor] Farms API error:', error.message);
+    }
+  }
+
+  // Fallback to blockchain
+  try {
+    lastDataSource = 'blockchain';
+    console.log('[Alcor] Fetching farm data from blockchain...');
+    
+    const [stakes, positions] = await Promise.all([
+      fetchUserStakesOnChain(accountName),
+      fetchUserPositionsOnChain(accountName),
+    ]);
+    
+    if (stakes.length === 0) {
       return [];
     }
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Failed to fetch Alcor farms:', error);
+    
+    return buildFarmPositionsFromOnChain(accountName, stakes, positions);
+  } catch (blockchainError) {
+    console.error('[Alcor] Blockchain fallback also failed:', blockchainError);
     return [];
   }
 }
 
 /**
- * Fetch user's LP positions from Alcor API
+ * Fetch user's LP positions - API with blockchain fallback
  */
 export async function fetchUserPositions(accountName: string): Promise<AlcorApiPosition[]> {
+  // Try API first with timeout
   try {
-    const response = await fetch(`${ALCOR_API_BASE}/account/${accountName}/positions`);
-    if (!response.ok) {
-      console.warn(`Alcor positions API returned ${response.status}`);
-      return [];
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    
+    const response = await fetch(`${ALCOR_API_BASE}/account/${accountName}/positions`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        lastDataSource = 'api';
+        console.log('[Alcor] Positions from API:', data.length);
+        return data;
+      }
     }
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Failed to fetch Alcor positions:', error);
+    console.warn(`[Alcor] Positions API returned ${response.status}, trying blockchain...`);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.warn('[Alcor] Positions API timeout, falling back to blockchain...');
+    } else {
+      console.warn('[Alcor] Positions API error:', error.message);
+    }
+  }
+
+  // Fallback to blockchain
+  try {
+    lastDataSource = 'blockchain';
+    return fetchUserPositionsOnChain(accountName);
+  } catch (blockchainError) {
+    console.error('[Alcor] Blockchain fallback also failed:', blockchainError);
     return [];
   }
 }
 
 /**
- * Fetch pool details from Alcor API
+ * Fetch pool details - API with blockchain fallback
  */
 export async function fetchPoolDetails(poolId: number): Promise<any | null> {
+  // Try API first with timeout
   try {
-    const response = await fetch(`${ALCOR_API_BASE}/swap/pools/${poolId}`);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (error) {
-    console.error(`Failed to fetch pool ${poolId}:`, error);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    
+    const response = await fetch(`${ALCOR_API_BASE}/swap/pools/${poolId}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      lastDataSource = 'api';
+      return await response.json();
+    }
+  } catch (error: any) {
+    console.warn(`[Alcor] Pool ${poolId} API error, trying blockchain...`);
+  }
+
+  // Fallback to blockchain
+  try {
+    lastDataSource = 'blockchain';
+    return fetchPoolDetailsOnChain(poolId);
+  } catch (blockchainError) {
+    console.error(`[Alcor] Failed to fetch pool ${poolId}:`, blockchainError);
     return null;
   }
 }

@@ -5,6 +5,7 @@ import {
   fetchUserPositions,
   fetchPoolIncentives,
   fetchPoolDetails,
+  getAlcorDataSource,
   AlcorFarmPosition,
   AlcorApiPosition,
   UnstakedIncentive,
@@ -33,6 +34,7 @@ interface UseAlcorFarmsResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
+  dataSource: 'api' | 'blockchain'; // NEW: indicates where data came from
 }
 
 // Parse WAX asset string (e.g., "123.45678901 WAX")
@@ -191,5 +193,6 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
     isLoading,
     error: error as Error | null,
     refetch,
+    dataSource: getAlcorDataSource(), // Return current data source
   };
 }

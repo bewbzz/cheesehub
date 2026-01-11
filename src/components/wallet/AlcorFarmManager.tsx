@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap } from 'lucide-react';
+import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap, Wifi, Database } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms, UnstakedIncentivesMap, UnstakedLPPosition } from '@/hooks/useAlcorFarms';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { IncreaseLiquidityDialog } from './IncreaseLiquidityDialog';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
 interface AlcorFarmManagerProps {
   onTransactionComplete?: () => void;
@@ -36,7 +37,7 @@ interface GroupedFarmPosition {
 
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
-  const { stakedFarms, unstakedIncentives, unstakedPositions, isLoading, refetch } = useAlcorFarms();
+  const { stakedFarms, unstakedIncentives, unstakedPositions, isLoading, refetch, dataSource } = useAlcorFarms();
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
@@ -346,12 +347,36 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     <div className="space-y-4">
       {/* Header with claim all and refresh */}
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium">Your Farm Positions</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {totalPositionsWithFarms} position{totalPositionsWithFarms !== 1 ? 's' : ''} with farms
-            {totalEarningRewards > 0 && ` • ${totalEarningRewards} earning`}
-          </p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h3 className="text-sm font-medium">Your Farm Positions</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {totalPositionsWithFarms} position{totalPositionsWithFarms !== 1 ? 's' : ''} with farms
+              {totalEarningRewards > 0 && ` • ${totalEarningRewards} earning`}
+            </p>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {dataSource === 'api' ? (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 text-xs h-5">
+                    <Wifi className="h-3 w-3 mr-1" />
+                    API
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs h-5">
+                    <Database className="h-3 w-3 mr-1" />
+                    On-Chain
+                  </Badge>
+                )}
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {dataSource === 'api' 
+                  ? 'Connected to Alcor API' 
+                  : 'Using blockchain fallback (Alcor API unavailable)'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex items-center gap-2">
           {unstakedList.length > 0 && (

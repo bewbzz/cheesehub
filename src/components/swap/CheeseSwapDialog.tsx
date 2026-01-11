@@ -146,15 +146,20 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader className="p-4 pb-0">
+        <DialogHeader className="p-4 pb-0">
+          <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-bold">
               <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Swap</span>
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">
-              Swap tokens with best rates across all WAX DEXs
-            </DialogDescription>
-          </DialogHeader>
+            <span className="text-xs text-muted-foreground">
+              powered by <a href="https://waxonedge.app" target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline">WaxOnEdge</a>
+            </span>
+          </div>
+          <DialogDescription className="text-muted-foreground text-sm">
+            Swap tokens with best rates across all WAX DEXs
+          </DialogDescription>
+        </DialogHeader>
           <div className="cheese-swap-container p-4">
             <waxonedge-swap
               ref={swapRef}

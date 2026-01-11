@@ -13,6 +13,16 @@ export function getAlcorDataSource(): 'api' | 'blockchain' {
   return lastDataSource;
 }
 
+// ============= Pool Types =============
+
+export interface AlcorPool {
+  id: number;
+  tokenA: { contract: string; symbol: string; quantity: string };
+  tokenB: { contract: string; symbol: string; quantity: string };
+  fee: number;
+  tick: number;
+}
+
 // ============= On-Chain Data Types =============
 
 // Position from swap.alcor::positions table
@@ -866,10 +876,141 @@ export function buildIncreaseLiquidityAction(
         tokenBDesired: tokenBQuantity,
         tickLower,
         tickUpper,
-        tokenAMin: minTokenA,
-        tokenBMin: minTokenB,
-        deadline: 0,
-      },
+      tokenAMin: minTokenA,
+      tokenBMin: minTokenB,
+      deadline: 0,
     },
-  ];
+  },
+];
+}
+
+// ============= Pool Fetching Functions =============
+
+/**
+ * Fetch all pools from blockchain
+ */
+export async function fetchAllPools(): Promise<AlcorPool[]> {
+  console.log('[Alcor] Fetching all pools...');
+  const allPools: AlcorPool[] = [];
+  let lower_bound = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const result = await fetchTableRows<OnChainPool>({
+      code: ALCOR_SWAP_CONTRACT,
+      scope: ALCOR_SWAP_CONTRACT,
+      table: 'pools',
+      lower_bound: String(lower_bound),
+      limit: 500,
+    });
+
+    if (result?.rows?.length) {
+      for (const pool of result.rows) {
+        const tokenA = parseAsset(pool.tokenA.quantity);
+        const tokenB = parseAsset(pool.tokenB.quantity);
+        
+        allPools.push({
+          id: pool.id,
+          tokenA: {
+            contract: pool.tokenA.contract,
+            symbol: tokenA.symbol,
+            quantity: pool.tokenA.quantity,
+          },
+          tokenB: {
+            contract: pool.tokenB.contract,
+            symbol: tokenB.symbol,
+            quantity: pool.tokenB.quantity,
+          },
+          fee: pool.fee,
+          tick: pool.currSlot?.tick || 0,
+        });
+      }
+      
+      if (result.more && result.next_key) {
+        lower_bound = parseInt(result.next_key);
+      } else {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  console.log('[Alcor] Loaded', allPools.length, 'pools');
+  return allPools;
+}
+
+/**
+ * Get the next available incentive ID by querying the incentives table
+ */
+export async function getNextIncentiveId(): Promise<number> {
+  try {
+    const allIncentives = await fetchAllIncentives();
+    if (allIncentives.length === 0) return 0;
+    
+    // Find the max ID and add 1
+    const maxId = Math.max(...allIncentives.map((inc: any) => inc.id || 0));
+    return maxId + 1;
+  } catch (error) {
+    console.error('Failed to get next incentive ID:', error);
+    return 0;
+  }
+}
+
+/**
+ * Build create incentive actions for Alcor farms
+ * Creates newincentive + transfer actions for each reward token
+ */
+export function buildCreateIncentiveActions(
+  creator: string,
+  poolId: number,
+  duration: number,
+  rewards: Array<{
+    contract: string;
+    symbol: string;
+    precision: number;
+    amount: number;
+  }>,
+  startIncentiveId: number
+): TransactionAction[] {
+  const actions: TransactionAction[] = [];
+
+  rewards.forEach((reward, index) => {
+    const incentiveId = startIncentiveId + index;
+    
+    // Format quantity with proper precision
+    const quantity = `${reward.amount.toFixed(reward.precision)} ${reward.symbol}`;
+    const zeroQuantity = `${(0).toFixed(reward.precision)} ${reward.symbol}`;
+
+    // 1. Create incentive (newincentive action)
+    actions.push({
+      account: ALCOR_SWAP_CONTRACT,
+      name: 'newincentive',
+      authorization: [{ actor: creator, permission: 'active' }],
+      data: {
+        creator,
+        poolId,
+        rewardToken: {
+          contract: reward.contract,
+          quantity: zeroQuantity,
+        },
+        duration,
+      },
+    });
+
+    // 2. Transfer reward tokens with memo
+    actions.push({
+      account: reward.contract,
+      name: 'transfer',
+      authorization: [{ actor: creator, permission: 'active' }],
+      data: {
+        from: creator,
+        to: ALCOR_SWAP_CONTRACT,
+        quantity,
+        memo: `incentreward#${incentiveId}`,
+      },
+    });
+  });
+
+  return actions;
 }

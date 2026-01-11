@@ -13,6 +13,7 @@ import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { IncreaseLiquidityDialog } from './IncreaseLiquidityDialog';
+import { CreateAlcorFarmDialog } from './CreateAlcorFarmDialog';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
@@ -45,6 +46,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const [expandedPosition, setExpandedPosition] = useState<number | null>(null);
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
+  const [createFarmOpen, setCreateFarmOpen] = useState(false);
 
   // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
@@ -377,6 +379,15 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCreateFarmOpen(true)}
+            className="h-6 px-2 text-xs gap-1 border-cheese/50 text-cheese hover:bg-cheese/10"
+          >
+            <Plus className="h-3 w-3" />
+            Create Farm
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           {unstakedList.length > 0 && (
@@ -879,6 +890,17 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           }, 3000);
           onTransactionComplete?.();
         }}
+      />
+
+      {/* Create Farm Dialog */}
+      <CreateAlcorFarmDialog
+        open={createFarmOpen}
+        onOpenChange={setCreateFarmOpen}
+        onTransactionSuccess={(title, description, txId) => {
+          onTransactionSuccess?.(title, description, txId);
+          setTimeout(() => refetch(), 3000);
+        }}
+        onTransactionComplete={onTransactionComplete}
       />
     </div>
   );

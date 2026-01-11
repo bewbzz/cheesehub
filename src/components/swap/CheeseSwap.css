@@ -85,3 +85,9 @@
 .cheese-swap-container waxonedge-swap::part(swap-arrow):hover {
   background: hsl(var(--cheese-dark));
 }
+
+/* Hide the built-in powered by footer */
+.cheese-swap-container waxonedge-swap::part(footer),
+.cheese-swap-container waxonedge-swap::part(powered-by) {
+  display: none !important;
+}

@@ -68,12 +68,25 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
       }
 
       try {
-        const { actions, resolve, reject } = event.detail;
-        const result = await session.transact({ actions });
-        resolve(result);
+        // Per README: actions are in detail[0]
+        const actions = event.detail[0];
+        
+        if (!actions || !Array.isArray(actions)) {
+          console.error('Invalid actions format:', event.detail);
+          return;
+        }
+
+        // Set signing state
+        swapElement.setAttribute('signing', 'true');
+        
+        console.log('[CheeseSwap] Signing transaction with actions:', actions);
+        await session.transact({ actions });
+        
+        // Remove signing state
+        swapElement.removeAttribute('signing');
       } catch (error) {
         console.error('Transaction failed:', error);
-        event.detail.reject(error);
+        swapElement.removeAttribute('signing');
       }
     };
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,6 +7,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useWax } from '@/context/WaxContext';
+import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
+import { toast } from 'sonner';
 import '@waxonedge/swap';
 import './CheeseSwap.css';
 
@@ -33,6 +35,8 @@ declare global {
 export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: CheeseSwapDialogProps) {
   const { session, login } = useWax();
   const swapRef = useRef<HTMLElement>(null);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [lastTxId, setLastTxId] = useState<string | null>(null);
 
   const walletInfo = session ? JSON.stringify({
     accountName: String(session.actor),
@@ -92,13 +96,26 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           swapElement.setAttribute('signing', 'true');
           
           console.log('[CheeseSwap] Signing transaction with actions:', actions);
-          await session.transact({ actions });
+          const result = await session.transact({ actions });
+          
+          // Extract transaction ID
+          const txId = result?.response?.transaction_id || null;
+          setLastTxId(txId);
+          setSuccessDialogOpen(true);
           
           // Remove signing state
           swapElement.removeAttribute('signing');
-        } catch (error) {
+        } catch (error: any) {
           console.error('Transaction failed:', error);
           swapElement.removeAttribute('signing');
+          
+          // Show error toast
+          const errorMessage = error?.message || 'Transaction was cancelled or failed';
+          toast.error('Swap Failed', {
+            description: errorMessage.length > 100 
+              ? errorMessage.substring(0, 100) + '...' 
+              : errorMessage,
+          });
         }
       };
 
@@ -122,29 +139,39 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
   }, [open, session, login]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="cheese-swap-dialog sm:max-w-[480px] p-0 overflow-hidden bg-background border-cheese/30"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="p-4 pb-0">
-          <DialogTitle className="text-lg font-bold">
-            <span className="text-cheese">CHEESE</span>
-            <span className="text-foreground">Swap</span>
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm">
-            Swap tokens with best rates across all WAX DEXs
-          </DialogDescription>
-        </DialogHeader>
-        <div className="cheese-swap-container p-4">
-          <waxonedge-swap
-            ref={swapRef}
-            wallet={walletInfo}
-            default={defaultTokens}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent 
+          className="cheese-swap-dialog sm:max-w-[480px] p-0 overflow-hidden bg-background border-cheese/30"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="text-lg font-bold">
+              <span className="text-cheese">CHEESE</span>
+              <span className="text-foreground">Swap</span>
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm">
+              Swap tokens with best rates across all WAX DEXs
+            </DialogDescription>
+          </DialogHeader>
+          <div className="cheese-swap-container p-4">
+            <waxonedge-swap
+              ref={swapRef}
+              wallet={walletInfo}
+              default={defaultTokens}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <TransactionSuccessDialog
+        open={successDialogOpen}
+        onOpenChange={setSuccessDialogOpen}
+        title="Swap Successful!"
+        description="Your token swap has been completed successfully."
+        txId={lastTxId}
+      />
+    </>
   );
 }

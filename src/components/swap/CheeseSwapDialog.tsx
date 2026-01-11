@@ -101,7 +101,11 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="cheese-swap-dialog sm:max-w-[480px] p-0 overflow-hidden bg-background border-cheese/30">
+      <DialogContent 
+        className="cheese-swap-dialog sm:max-w-[480px] p-0 overflow-hidden bg-background border-cheese/30"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-lg font-bold">
             <span className="text-cheese">CHEESE</span>

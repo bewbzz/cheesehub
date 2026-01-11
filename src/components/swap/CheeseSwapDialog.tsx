@@ -146,8 +146,8 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-        <DialogHeader className="p-4 pb-0">
-          <div className="flex items-center justify-between">
+        <DialogHeader className="p-4 pb-0 pr-10">
+          <div className="flex items-center gap-3">
             <DialogTitle className="text-lg font-bold">
               <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Swap</span>

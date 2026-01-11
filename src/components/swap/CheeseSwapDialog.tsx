@@ -50,54 +50,76 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
   });
 
   useEffect(() => {
-    const swapElement = swapRef.current;
-    if (!swapElement) return;
-
-    const handleConnect = async () => {
-      try {
-        await login();
-      } catch (error) {
-        console.error('Failed to connect wallet:', error);
-      }
-    };
-
-    const handleSign = async (event: CustomEvent) => {
-      if (!session) {
-        console.error('No session available for signing');
+    if (!open) return;
+    
+    // Small delay to ensure DOM element is ready
+    const timer = setTimeout(() => {
+      const swapElement = swapRef.current;
+      if (!swapElement) {
+        console.error('[CheeseSwap] Swap element not found');
         return;
       }
 
-      try {
-        // Per README: actions are in detail[0]
-        const actions = event.detail[0];
+      console.log('[CheeseSwap] Attaching event listeners to swap element');
+
+      const handleConnect = async () => {
+        console.log('[CheeseSwap] Connect event received');
+        try {
+          await login();
+        } catch (error) {
+          console.error('Failed to connect wallet:', error);
+        }
+      };
+
+      const handleSign = async (event: CustomEvent) => {
+        console.log('[CheeseSwap] Sign event received:', event.detail);
         
-        if (!actions || !Array.isArray(actions)) {
-          console.error('Invalid actions format:', event.detail);
+        if (!session) {
+          console.error('No session available for signing');
           return;
         }
 
-        // Set signing state
-        swapElement.setAttribute('signing', 'true');
-        
-        console.log('[CheeseSwap] Signing transaction with actions:', actions);
-        await session.transact({ actions });
-        
-        // Remove signing state
-        swapElement.removeAttribute('signing');
-      } catch (error) {
-        console.error('Transaction failed:', error);
-        swapElement.removeAttribute('signing');
-      }
-    };
+        try {
+          // Per README: actions are in detail[0]
+          const actions = event.detail[0];
+          
+          if (!actions || !Array.isArray(actions)) {
+            console.error('Invalid actions format:', event.detail);
+            return;
+          }
 
-    swapElement.addEventListener('connect', handleConnect);
-    swapElement.addEventListener('sign', handleSign as EventListener);
+          // Set signing state
+          swapElement.setAttribute('signing', 'true');
+          
+          console.log('[CheeseSwap] Signing transaction with actions:', actions);
+          await session.transact({ actions });
+          
+          // Remove signing state
+          swapElement.removeAttribute('signing');
+        } catch (error) {
+          console.error('Transaction failed:', error);
+          swapElement.removeAttribute('signing');
+        }
+      };
+
+      swapElement.addEventListener('connect', handleConnect);
+      swapElement.addEventListener('sign', handleSign as EventListener);
+
+      // Store cleanup function
+      (swapElement as any)._cleanup = () => {
+        swapElement.removeEventListener('connect', handleConnect);
+        swapElement.removeEventListener('sign', handleSign as EventListener);
+      };
+    }, 100);
 
     return () => {
-      swapElement.removeEventListener('connect', handleConnect);
-      swapElement.removeEventListener('sign', handleSign as EventListener);
+      clearTimeout(timer);
+      const swapElement = swapRef.current;
+      if (swapElement && (swapElement as any)._cleanup) {
+        (swapElement as any)._cleanup();
+      }
     };
-  }, [session, login]);
+  }, [open, session, login]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

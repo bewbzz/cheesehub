@@ -981,10 +981,10 @@ export function CreateDao() {
                 <Button 
                   type="button" 
                   variant="ghost" 
-                  className="w-full justify-between border border-border/50 hover:bg-muted/50"
+                  className={`w-full justify-between border border-cheese/50 hover:bg-cheese/10 ${!showAdvanced ? 'animate-pulse' : ''}`}
                 >
-                  <span className="text-sm font-medium">Advanced Settings</span>
-                  {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="text-sm font-medium text-cheese uppercase tracking-wide">Advanced Settings</span>
+                  {showAdvanced ? <ChevronUp className="h-4 w-4 text-cheese" /> : <ChevronDown className="h-4 w-4 text-cheese" />}
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-6 pt-4">

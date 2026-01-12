@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap, Wifi, Database, Clock } from 'lucide-react';
+import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap, Wifi, Database, Clock, LogOut } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms, UnstakedIncentivesMap, UnstakedLPPosition } from '@/hooks/useAlcorFarms';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
@@ -34,6 +34,12 @@ interface GroupedFarmPosition {
   incentives: AlcorFarmPosition[];
   unstakedIncentives: UnstakedIncentive[];
   usdValue: number;
+}
+
+// Check if an incentive has expired
+function isIncentiveExpired(endTimestamp: number): boolean {
+  if (endTimestamp <= 0) return false; // Unknown = not expired
+  return endTimestamp <= Math.floor(Date.now() / 1000);
 }
 
 // Format remaining time for main row (compact: "45d", "3d 12h", "2h")
@@ -303,8 +309,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
       const firstIncentive = incentives[0];
       onTransactionSuccess?.(
-        'Position Unstaked!',
-        `Removed ${firstIncentive.tokenA.symbol}/${firstIncentive.tokenB.symbol} position from ${incentives.length} farm reward(s). Your LP tokens are still in the pool.`,
+        'Unstaked & Claimed!',
+        `Claimed rewards and removed ${firstIncentive.tokenA.symbol}/${firstIncentive.tokenB.symbol} position from ${incentives.length} farm(s). Your LP tokens are still in the pool.`,
         txId
       );
       refetch();
@@ -387,8 +393,13 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const totalPositionsWithFarms = allPositionsSorted.length;
   const totalEarningRewards = farmsList.length;
   
+  // Count finished farms (positions where all incentives have expired)
+  const finishedFarmsCount = Array.from(groupedPositions.values()).filter(
+    pos => pos.incentives.every(i => isIncentiveExpired(i.incentiveEndsAt))
+  ).length;
+  
   // Debug logging
-  console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'allPositionsSorted:', allPositionsSorted.length);
+  console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'allPositionsSorted:', allPositionsSorted.length, 'finishedFarms:', finishedFarmsCount);
 
   if (farmsList.length === 0 && unstakedList.length === 0) {
     return (
@@ -454,6 +465,12 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           </Button>
         </div>
         <div className="flex items-center gap-2">
+          {finishedFarmsCount > 0 && (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs">
+              <Clock className="h-3 w-3 mr-1" />
+              {finishedFarmsCount} ended
+            </Badge>
+          )}
           {unstakedList.length > 0 && (
             <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30 text-xs animate-pulse">
               <Zap className="h-3 w-3 mr-1" />
@@ -499,9 +516,21 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
               const position = item.data;
               const isExpanded = expandedPosition === position.positionId;
               const positionClaims = position.incentives.map(i => ({ incentiveId: i.incentiveId, posId: i.positionId }));
+              
+              // Check if all incentives for this position have expired
+              const allIncentivesExpired = position.incentives.every(i => isIncentiveExpired(i.incentiveEndsAt));
+              const someIncentivesExpired = position.incentives.some(i => isIncentiveExpired(i.incentiveEndsAt));
 
               return (
-                <Card key={position.positionId} className="bg-muted/30 border-border/50">
+                <Card 
+                  key={position.positionId} 
+                  className={cn(
+                    "border-border/50",
+                    allIncentivesExpired 
+                      ? "bg-amber-500/5 border-l-4 border-l-amber-500/70" 
+                      : "bg-muted/30"
+                  )}
+                >
                   <CardContent className="p-4">
                     {/* Main row - Position info */}
                     <div className="flex items-center justify-between gap-4">
@@ -614,14 +643,26 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
                       {/* Actions */}
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleClaimRewards(positionClaims)}
-                          disabled={isTransacting}
-                          className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          Claim
-                        </Button>
+                        {allIncentivesExpired ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handleUnstake(position.incentives)}
+                            disabled={isTransacting}
+                            className="h-8 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            <LogOut className="h-3 w-3 mr-1" />
+                            Claim & Unstake
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleClaimRewards(positionClaims)}
+                            disabled={isTransacting}
+                            className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Claim
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"

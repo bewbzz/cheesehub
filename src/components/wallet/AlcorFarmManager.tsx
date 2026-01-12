@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap, Wifi, Database } from 'lucide-react';
+import { Loader2, ExternalLink, TrendingUp, Percent, Coins, ChevronDown, ChevronUp, Plus, RefreshCw, Zap, Wifi, Database, Clock } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms, UnstakedIncentivesMap, UnstakedLPPosition } from '@/hooks/useAlcorFarms';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
@@ -34,6 +34,70 @@ interface GroupedFarmPosition {
   incentives: AlcorFarmPosition[];
   unstakedIncentives: UnstakedIncentive[];
   usdValue: number;
+}
+
+// Format remaining time for main row (compact: "45d", "3d 12h", "2h")
+function formatRemainingDays(endTimestamp: number): { 
+  label: string; 
+  isUrgent: boolean; 
+  isExpired: boolean 
+} {
+  const now = Math.floor(Date.now() / 1000);
+  
+  if (endTimestamp <= 0) {
+    return { label: '—', isUrgent: false, isExpired: false };
+  }
+  
+  if (endTimestamp <= now) {
+    return { label: 'Ended', isUrgent: false, isExpired: true };
+  }
+  
+  const secondsLeft = endTimestamp - now;
+  const daysLeft = Math.floor(secondsLeft / 86400);
+  const hoursLeft = Math.floor((secondsLeft % 86400) / 3600);
+  
+  if (daysLeft > 30) {
+    return { label: `${daysLeft}d`, isUrgent: false, isExpired: false };
+  } else if (daysLeft > 7) {
+    return { label: `${daysLeft}d`, isUrgent: false, isExpired: false };
+  } else if (daysLeft > 0) {
+    return { label: `${daysLeft}d ${hoursLeft}h`, isUrgent: true, isExpired: false };
+  } else {
+    return { label: `${hoursLeft}h`, isUrgent: true, isExpired: false };
+  }
+}
+
+// Format detailed countdown for dropdown
+function formatDetailedCountdown(endTimestamp: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  
+  if (endTimestamp <= 0) return 'Unknown end time';
+  if (endTimestamp <= now) return 'Farm has ended';
+  
+  const secondsLeft = endTimestamp - now;
+  const days = Math.floor(secondsLeft / 86400);
+  const hours = Math.floor((secondsLeft % 86400) / 3600);
+  const minutes = Math.floor((secondsLeft % 3600) / 60);
+  
+  // Format end date
+  const endDate = new Date(endTimestamp * 1000);
+  const dateStr = endDate.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  const timeStr = endDate.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+  
+  if (days > 0) {
+    return `${days}d ${hours}h ${minutes}m (${dateStr} ${timeStr})`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m (${dateStr} ${timeStr})`;
+  } else {
+    return `${minutes}m (${dateStr} ${timeStr})`;
+  }
 }
 
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
@@ -504,6 +568,31 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                         </div>
                       </div>
 
+                      {/* Remaining Time - stacked */}
+                      <div className="w-[80px] shrink-0 text-center">
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
+                          <Clock className="h-3 w-3" />
+                          Remaining
+                        </div>
+                        <div className="space-y-0.5">
+                          {position.incentives.map((incentive) => {
+                            const key = getIncentiveKey(incentive);
+                            const { label, isUrgent, isExpired } = formatRemainingDays(incentive.incentiveEndsAt);
+                            return (
+                              <div 
+                                key={key} 
+                                className={cn(
+                                  "font-mono text-xs",
+                                  isExpired ? "text-amber-500" : isUrgent ? "text-red-400" : "text-muted-foreground"
+                                )}
+                              >
+                                {label}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* All rewards for this position */}
                       <div className="min-w-[100px]">
                         <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
@@ -599,6 +688,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                             {position.incentives.map((incentive) => {
                               const key = getIncentiveKey(incentive);
                               const liveReward = liveRewards.get(key) || incentive.pendingReward;
+                              const detailedTime = formatDetailedCountdown(incentive.incentiveEndsAt);
+                              const { isExpired } = formatRemainingDays(incentive.incentiveEndsAt);
                               return (
                                 <div 
                                   key={key}
@@ -610,10 +701,22 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                                       symbol={incentive.rewardToken.symbol} 
                                       size="sm" 
                                     />
-                                    <span className="font-medium">{incentive.rewardToken.symbol}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      #{incentive.incentiveId}
-                                    </span>
+                                    <div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="font-medium">{incentive.rewardToken.symbol}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          #{incentive.incentiveId}
+                                        </span>
+                                      </div>
+                                      {/* Detailed countdown */}
+                                      <div className={cn(
+                                        "text-xs mt-0.5 flex items-center gap-1",
+                                        isExpired ? "text-amber-500" : "text-muted-foreground"
+                                      )}>
+                                        <Clock className="h-3 w-3" />
+                                        {detailedTime}
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="text-right">
                                     <div className="font-mono text-cheese">

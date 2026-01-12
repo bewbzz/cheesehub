@@ -687,7 +687,7 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
       rewardShare: farm.userSharePercent,
       dailyEarnRate: dailyRewards.amount,
       dailyRewardsDisplay: farm.dailyRewards,
-      incentiveEndsAt: 0, // API doesn't provide this directly
+      incentiveEndsAt: incentive?.periodFinish || 0,
       isInRange: lpPosition?.inRange ?? true,
       fee: 0, // Would need pool data for this
       lastUpdate: Math.floor(Date.now() / 1000),

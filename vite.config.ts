@@ -25,4 +25,9 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  // Strip console.log/warn/info in production builds (keep console.error)
+  esbuild: {
+    drop: mode === "production" ? ["console", "debugger"] : [],
+    pure: mode === "production" ? ["console.log", "console.info", "console.debug", "console.warn"] : [],
+  },
 }));

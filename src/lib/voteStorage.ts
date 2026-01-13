@@ -1,4 +1,5 @@
 import { UserVote } from "./dao";
+import { logger } from "./logger";
 
 const STORAGE_KEY_PREFIX = "dao_votes_";
 
@@ -38,9 +39,9 @@ export function saveVote(
     };
 
     localStorage.setItem(storageKey, JSON.stringify(storage));
-    console.log("Vote saved to localStorage:", { accountName, daoName, proposalId, vote });
+    logger.debug("Vote saved to localStorage:", { accountName, daoName, proposalId, vote });
   } catch (error) {
-    console.error("Failed to save vote to localStorage:", error);
+    logger.error("Failed to save vote to localStorage:", error);
   }
 }
 
@@ -133,8 +134,8 @@ export function clearVotes(accountName: string): void {
   try {
     const storageKey = getStorageKey(accountName);
     localStorage.removeItem(storageKey);
-    console.log("Cleared votes from localStorage for:", accountName);
+    logger.debug("Cleared votes from localStorage for:", accountName);
   } catch (error) {
-    console.error("Failed to clear votes from localStorage:", error);
+    logger.error("Failed to clear votes from localStorage:", error);
   }
 }

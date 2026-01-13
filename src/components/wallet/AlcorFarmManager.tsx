@@ -325,6 +325,11 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
+  // Handle unstaking a single incentive (for expired incentives cleanup)
+  const handleUnstakeSingle = useCallback(async (incentive: AlcorFarmPosition) => {
+    await handleUnstake([incentive]);
+  }, [handleUnstake]);
+
   const handleStakeToIncentive = useCallback(async (positionId: number, incentive: UnstakedIncentive) => {
     if (!session || !accountName) return;
 
@@ -730,11 +735,16 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                               const key = getIncentiveKey(incentive);
                               const liveReward = liveRewards.get(key) || incentive.pendingReward;
                               const detailedTime = formatDetailedCountdown(incentive.incentiveEndsAt);
-                              const { isExpired } = formatRemainingDays(incentive.incentiveEndsAt);
+                              const isExpired = isIncentiveExpired(incentive.incentiveEndsAt);
                               return (
                                 <div 
                                   key={key}
-                                  className="flex items-center justify-between p-2 rounded bg-background/50 text-sm"
+                                  className={cn(
+                                    "flex items-center justify-between p-2 rounded text-sm",
+                                    isExpired 
+                                      ? "bg-amber-500/10 border border-amber-500/30" 
+                                      : "bg-background/50"
+                                  )}
                                 >
                                   <div className="flex items-center gap-2">
                                     <TokenLogo 
@@ -748,6 +758,11 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                                         <span className="text-xs text-muted-foreground">
                                           #{incentive.incentiveId}
                                         </span>
+                                        {isExpired && (
+                                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-amber-500/20 text-amber-400 border-amber-500/50">
+                                            ENDED
+                                          </Badge>
+                                        )}
                                       </div>
                                       {/* Detailed countdown */}
                                       <div className={cn(
@@ -759,18 +774,34 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <div className="font-mono text-cheese">
-                                      {liveReward.toFixed(incentive.rewardToken.precision)}
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                      <div className="font-mono text-cheese">
+                                        {liveReward.toFixed(incentive.rewardToken.precision)}
+                                      </div>
+                                      {!isExpired && (
+                                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                          <TrendingUp className="h-3 w-3" />
+                                          {incentive.dailyEarnRate.toFixed(Math.min(4, incentive.rewardToken.precision))}/day
+                                          <span className="ml-1">
+                                            <Percent className="h-3 w-3 inline" />
+                                            {incentive.rewardShare.toFixed(2)}%
+                                          </span>
+                                        </div>
+                                      )}
                                     </div>
-                                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                      <TrendingUp className="h-3 w-3" />
-                                      {incentive.dailyEarnRate.toFixed(Math.min(4, incentive.rewardToken.precision))}/day
-                                      <span className="ml-1">
-                                        <Percent className="h-3 w-3 inline" />
-                                        {incentive.rewardShare.toFixed(2)}%
-                                      </span>
-                                    </div>
+                                    {isExpired && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleUnstakeSingle(incentive)}
+                                        disabled={isTransacting}
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                                      >
+                                        <LogOut className="h-3 w-3 mr-1" />
+                                        Claim & Unstake
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               );

@@ -876,7 +876,7 @@ export function buildCreateDaoAction(
       dao_type: daoType,
       gov_token_contract: useToken ? (config.tokenContract || "") : "",
       gov_token_symbol: useToken ? (config.tokenSymbol || "") : "",
-      gov_farm_name: useFarm ? (config.govFarmName || "") : "",
+      gov_farm_name: useFarm ? (config.govFarmName || "null") : "null",
       gov_schemas: useSchemas ? (config.govSchemas || []) : [],
       threshold: config.threshold || 50.0,
       hours_per_proposal: config.hoursPerProposal || 72,

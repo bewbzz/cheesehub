@@ -108,13 +108,19 @@ export const PROPOSER_TYPES: Record<number, string> = {
 };
 
 // Outcome codes from WaxDAO contract
-// WaxDAO proposal voting types
+// WaxDAO proposal voting types (internal app constants for display)
+// Contract proposal_type values (what we send/receive from blockchain):
+// 0 = Most Votes Wins (custom choices poll)
+// 1 = Ranked Choice voting
+// 2 = Token Transfer (treasury withdrawal)
+// 3 = NFT Transfer (treasury NFT withdrawal)
+// 4 = Yes/No/Abstain (standard 3-option poll)
 export const PROPOSAL_VOTING_TYPES = {
-  YES_NO_ABSTAIN: 1,    // Standard 3-option voting
-  MOST_VOTES_WINS: 2,   // Multi-option, highest wins
-  RANKED_CHOICE: 3,     // Ranked preference voting
-  TOKEN_TRANSFER: 4,    // Treasury withdrawal
-  NFT_TRANSFER: 5,      // NFT transfer
+  YES_NO_ABSTAIN: 1,    // Contract type: 4
+  MOST_VOTES_WINS: 2,   // Contract type: 0
+  RANKED_CHOICE: 3,     // Contract type: 1
+  TOKEN_TRANSFER: 4,    // Contract type: 2
+  NFT_TRANSFER: 5,      // Contract type: 3
 } as const;
 
 export const VOTING_TYPE_LABELS: Record<number, string> = {
@@ -634,32 +640,33 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       console.log(`Proposal ${row.proposal_id}: outcome=${outcome}, calculated status=${status}`);
       
       // Determine voting type based on contract's proposal_type field
-      // Contract uses: 0 = Yes/No/Abstain, 1 = Most Votes Wins, 2 = Token Transfer, 3 = NFT Transfer, 4 = Ranked Choice
+      // Contract types: 0=Most Votes Wins, 1=Ranked Choice, 2=Token Transfer, 3=NFT Transfer, 4=Yes/No/Abstain
       const contractProposalType = (row.proposal_type as number) ?? 0;
       const actions = (row.actions as ProposalAction[]) || [];
       
       let votingType: number;
       
       // Map contract proposal_type to our voting type constants
-      // Contract types: 0=Yes/No/Abstain, 1=Most Votes/Ranked, 2=Reserved, 3=Reserved, 4=Token Transfer, 5=NFT Transfer
       switch (contractProposalType) {
         case 0:
-          votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN;
+          // Most Votes Wins (custom choices poll)
+          votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS;
           break;
         case 1:
-          // Check for [RANKED] marker in description to distinguish ranked choice from most votes wins
-          const description = (row.description as string) || "";
-          if (description.startsWith("[RANKED]")) {
-            votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE;
-          } else {
-            votingType = PROPOSAL_VOTING_TYPES.MOST_VOTES_WINS;
-          }
+          // Ranked Choice voting
+          votingType = PROPOSAL_VOTING_TYPES.RANKED_CHOICE;
           break;
-        case 4:
+        case 2:
+          // Token Transfer (treasury withdrawal)
           votingType = PROPOSAL_VOTING_TYPES.TOKEN_TRANSFER;
           break;
-        case 5:
+        case 3:
+          // NFT Transfer (treasury NFT withdrawal)
           votingType = PROPOSAL_VOTING_TYPES.NFT_TRANSFER;
+          break;
+        case 4:
+          // Yes/No/Abstain (standard poll)
+          votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN;
           break;
         default:
           votingType = PROPOSAL_VOTING_TYPES.YES_NO_ABSTAIN;
@@ -675,7 +682,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       const nftReceivers = (row.nft_receivers as { wax_account: string; asset_ids: string[] }[]) || [];
       
       // Log raw data for transfer types
-      if (contractProposalType === 4 || contractProposalType === 5) {
+      if (contractProposalType === 2 || contractProposalType === 3) {
         console.log(`Proposal ${row.proposal_id} (type ${contractProposalType}) raw fields:`, 
           Object.keys(row));
         console.log(`Proposal ${row.proposal_id} token_receivers field:`, row.token_receivers);
@@ -943,7 +950,7 @@ export function buildCreateProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 0, // Yes/No/Abstain
+      proposal_type: 4, // Yes/No/Abstain (contract type 4)
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },
@@ -976,7 +983,7 @@ export function buildMultiOptionProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 1, // Most Votes Wins
+      proposal_type: 0, // Most Votes Wins (contract type 0)
       choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],
@@ -1004,8 +1011,8 @@ export function buildRankedChoiceProposalAction(
       user: proposer,
       dao: daoName,
       title: proposal.title,
-      description: `[RANKED] ${proposal.description}`, // Marker to identify ranked choice proposals
-      proposal_type: 1, // Use Most Votes Wins type (1) to preserve custom choices
+      description: proposal.description,
+      proposal_type: 1, // Ranked Choice (contract type 1)
       choices: proposal.options.map((opt, idx) => ({ choice: idx, description: opt, total_votes: 0 })),
       actions: [],
       token_receivers: [],
@@ -1647,7 +1654,7 @@ export function buildTokenTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 4, // Token Transfer type (uses token_receivers)
+      proposal_type: 2, // Token Transfer (contract type 2)
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },
@@ -1875,7 +1882,7 @@ export function buildNFTTransferProposalAction(
       dao: daoName,
       title: proposal.title,
       description: proposal.description,
-      proposal_type: 5, // NFT Transfer type (uses nft_receivers)
+      proposal_type: 3, // NFT Transfer (contract type 3)
       choices: [
         { choice: 0, description: "Yes", total_votes: 0 },
         { choice: 1, description: "No", total_votes: 0 },

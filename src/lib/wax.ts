@@ -1,116 +1,11 @@
-// WAX API endpoints
-const WAX_RPC_ENDPOINTS = [
-  "https://wax.greymass.com",
-  "https://wax.eosphere.io",
-  "https://api.wax.alohaeos.com",
-];
+// WAX blockchain utilities
+// Note: Wallet login/logout is handled by WharfKit in WaxContext.tsx
+// This file provides utility functions for direct RPC calls
+
+import { logger } from "./logger";
 
 // WaxDAO contract
 export const WAXDAO_CONTRACT = "waxdaolocker";
-
-// WAX Chain ID
-const WAX_CHAIN_ID = "1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4";
-
-export type WalletType = "wax" | "anchor";
-
-export interface WalletSession {
-  type: WalletType;
-  account: string;
-  anchorSession?: any;
-  waxInstance?: any;
-}
-
-// Lazy-loaded WAX instance
-let waxInstance: any = null;
-let anchorLinkInstance: any = null;
-
-async function getWaxInstance() {
-  if (!waxInstance) {
-    const waxjs = await import("@waxio/waxjs/dist");
-    waxInstance = new waxjs.WaxJS({
-      rpcEndpoint: WAX_RPC_ENDPOINTS[0],
-      tryAutoLogin: false,
-    });
-  }
-  return waxInstance;
-}
-
-async function getAnchorLink() {
-  if (!anchorLinkInstance) {
-    const [AnchorLink, AnchorLinkBrowserTransport] = await Promise.all([
-      import("anchor-link").then((m) => m.default),
-      import("anchor-link-browser-transport").then((m) => m.default),
-    ]);
-    const transport = new AnchorLinkBrowserTransport();
-    anchorLinkInstance = new AnchorLink({
-      transport,
-      chains: [
-        {
-          chainId: WAX_CHAIN_ID,
-          nodeUrl: WAX_RPC_ENDPOINTS[0],
-        },
-      ],
-    });
-  }
-  return anchorLinkInstance;
-}
-
-// Login with WAX Cloud Wallet
-export async function loginWithWax(): Promise<WalletSession> {
-  try {
-    const wax = await getWaxInstance();
-    const userAccount = await wax.login();
-    return {
-      type: "wax",
-      account: userAccount,
-      waxInstance: wax,
-    };
-  } catch (error) {
-    console.error("WAX Cloud Wallet login failed:", error);
-    throw error;
-  }
-}
-
-// Login with Anchor
-export async function loginWithAnchor(): Promise<WalletSession> {
-  try {
-    const anchorLink = await getAnchorLink();
-    const identity = await anchorLink.login("cheesedaotools");
-    return {
-      type: "anchor",
-      account: String(identity.session.auth.actor),
-      anchorSession: identity.session,
-    };
-  } catch (error) {
-    console.error("Anchor login failed:", error);
-    throw error;
-  }
-}
-
-// Logout
-export async function logout(session: WalletSession): Promise<void> {
-  if (session.type === "anchor" && session.anchorSession) {
-    await session.anchorSession.remove();
-  }
-  // WAX Cloud Wallet doesn't have a logout method
-}
-
-// Sign and broadcast transaction
-export async function transact(
-  session: WalletSession,
-  actions: any[]
-): Promise<any> {
-  if (session.type === "wax") {
-    const wax = session.waxInstance || (await getWaxInstance());
-    return await wax.api.transact(
-      { actions },
-      { blocksBehind: 3, expireSeconds: 120 }
-    );
-  } else if (session.type === "anchor" && session.anchorSession) {
-    return await session.anchorSession.transact({ actions });
-  }
-  throw new Error("Invalid session");
-}
 
 // Fetch table data from WAX blockchain with fallback endpoints and timeout
 export async function fetchTable<T>(
@@ -165,7 +60,7 @@ export async function fetchTable<T>(
       const data = await response.json();
       return data.rows as T[];
     } catch (error) {
-      console.warn(`fetchTable failed for ${endpoint}:`, error);
+      logger.warn(`fetchTable failed for ${endpoint}:`, error);
       continue;
     }
   }
@@ -186,7 +81,7 @@ export async function getTokenBalances(account: string): Promise<{ symbol: strin
       contract: t.contract,
     })) || [];
   } catch (error) {
-    console.error("Failed to fetch token balances:", error);
+    logger.error("Failed to fetch token balances:", error);
     return [];
   }
 }

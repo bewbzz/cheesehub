@@ -189,7 +189,7 @@ export interface Proposal {
   description: string;
   proposal_type: string;
   voting_type: number; // 1=yes/no/abstain, 2=most votes, 3=ranked choice, 4=token transfer
-  status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired";
+  status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" | "inconclusive";
   yes_votes: number;
   no_votes: number;
   abstain_votes: number;
@@ -603,7 +603,7 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       
       // Determine status based on outcome and end_time
       // WaxDAO outcome codes: 0 = voting, 1 = voting, 2 = passed, 3 = rejected, 4 = executed, 5 = finalized (check votes)
-      let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" = "pending";
+      let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" | "inconclusive" = "pending";
       
       // First check if outcome indicates already finalized
       if (outcome === 2) {
@@ -616,11 +616,18 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         // Outcome 5 means finalized - determine pass/fail based on proposal type
         if (contractProposalType === 4) {
           // Yes/No/Abstain: check yes vs no votes
-          const totalVotesExcludingAbstain = yesVotes + noVotes;
-          if (totalVotesExcludingAbstain > 0) {
-            status = yesVotes > noVotes ? "passed" : "rejected";
+          if (yesVotes === 0 && noVotes === 0) {
+            // No decisive votes cast
+            if (abstainVotes > 0) {
+              // Only abstain votes - inconclusive (no decision reached)
+              status = "inconclusive";
+            } else {
+              // No votes at all - rejected
+              status = "rejected";
+            }
           } else {
-            status = "rejected"; // No votes = rejected
+            // At least one yes or no vote - determine winner
+            status = yesVotes > noVotes ? "passed" : "rejected";
           }
         } else if (contractProposalType === 0 || contractProposalType === 1) {
           // Most Votes Wins (0) or Ranked Choice (1): check if any votes were cast

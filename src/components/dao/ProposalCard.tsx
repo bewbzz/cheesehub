@@ -377,6 +377,7 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     executed: "bg-purple-500/20 text-purple-500",
     expired: "bg-gray-500/20 text-gray-400",
     finalized: "bg-cheese/20 text-cheese",
+    inconclusive: "bg-purple-500/20 text-purple-300",
   };
 
   // Determine display status - if we just finalized, show result
@@ -384,9 +385,16 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
     if (proposal.status === "executed") {
       return "executed";
     }
+    if (proposal.status === "inconclusive") {
+      return "inconclusive";
+    }
     if (isFinalized) {
       // For yes/no type proposals, check threshold
       if (isYesNoType) {
+        // Check for abstain-only case (inconclusive)
+        if (proposal.yes_votes === 0 && proposal.no_votes === 0 && proposal.abstain_votes > 0) {
+          return "inconclusive";
+        }
         return meetsThreshold ? "passed" : "rejected";
       }
       // For ranked choice / most votes wins, they always "pass" (determine a winner)

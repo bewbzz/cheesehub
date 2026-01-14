@@ -597,6 +597,10 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         }
       });
       
+      // Get contract proposal type early - needed for status determination
+      // Contract types: 0=Most Votes Wins, 1=Ranked Choice, 2=Token Transfer, 3=NFT Transfer, 4=Yes/No/Abstain
+      const contractProposalType = (row.proposal_type as number) ?? 0;
+      
       // Determine status based on outcome and end_time
       // WaxDAO outcome codes: 0 = voting, 1 = voting, 2 = passed, 3 = rejected, 4 = executed, 5 = finalized (check votes)
       let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" = "pending";
@@ -609,16 +613,28 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       } else if (outcome === 4) {
         status = "executed";
       } else if (outcome === 5) {
-        // Outcome 5 means finalized - determine pass/fail from vote counts
-        // For Yes/No/Abstain proposals, calculate yes percentage
-        const totalVotesExcludingAbstain = yesVotes + noVotes;
-        if (totalVotesExcludingAbstain > 0) {
-          const yesPercent = (yesVotes / totalVotesExcludingAbstain) * 100;
-          // We don't have threshold here, but 51% is typical default
-          // Better to show as "passed" if yes > no, since contract finalized it
-          status = yesVotes > noVotes ? "passed" : "rejected";
+        // Outcome 5 means finalized - determine pass/fail based on proposal type
+        if (contractProposalType === 4) {
+          // Yes/No/Abstain: check yes vs no votes
+          const totalVotesExcludingAbstain = yesVotes + noVotes;
+          if (totalVotesExcludingAbstain > 0) {
+            status = yesVotes > noVotes ? "passed" : "rejected";
+          } else {
+            status = "rejected"; // No votes = rejected
+          }
+        } else if (contractProposalType === 0 || contractProposalType === 1) {
+          // Most Votes Wins (0) or Ranked Choice (1): check if any votes were cast
+          const totalChoiceVotes = choices.reduce((sum: number, c: ProposalChoice) => {
+            const votes = typeof c.total_votes === 'string' 
+              ? parseInt(c.total_votes) || 0 
+              : c.total_votes || 0;
+            return sum + votes;
+          }, 0);
+          // If finalized with votes, it passed (winning choice determined by contract)
+          status = totalChoiceVotes > 0 ? "passed" : "rejected";
         } else {
-          status = "rejected"; // No votes = rejected
+          // Token/NFT transfers (2, 3) - if finalized, default to passed
+          status = "passed";
         }
       } else if (outcome >= 6) {
         // Other finalized states
@@ -637,11 +653,8 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         }
       }
       
-      console.log(`Proposal ${row.proposal_id}: outcome=${outcome}, calculated status=${status}`);
+      console.log(`Proposal ${row.proposal_id}: type=${contractProposalType}, outcome=${outcome}, calculated status=${status}`);
       
-      // Determine voting type based on contract's proposal_type field
-      // Contract types: 0=Most Votes Wins, 1=Ranked Choice, 2=Token Transfer, 3=NFT Transfer, 4=Yes/No/Abstain
-      const contractProposalType = (row.proposal_type as number) ?? 0;
       const actions = (row.actions as ProposalAction[]) || [];
       
       let votingType: number;

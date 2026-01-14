@@ -2,26 +2,44 @@ import { SessionKit, ChainDefinition } from '@wharfkit/session';
 import { WebRenderer } from '@wharfkit/web-renderer';
 import { WalletPluginAnchor } from '@wharfkit/wallet-plugin-anchor';
 import { WalletPluginCloudWallet } from '@wharfkit/wallet-plugin-cloudwallet';
+import { TransactPluginResourceProvider } from '@wharfkit/transact-plugin-resource-provider';
 
 // Initialize the WebRenderer for wallet selection UI
 const webRenderer = new WebRenderer();
 
+// WAX mainnet chain ID for Greymass Fuel endpoint
+const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4';
+
 // Define WAX mainnet with a more reliable primary RPC endpoint
 const waxChain = ChainDefinition.from({
-  id: '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4',
+  id: WAX_CHAIN_ID,
   url: 'https://wax.eosusa.io',
 });
 
-// Create SessionKit with both wallet plugins
-export const sessionKit = new SessionKit({
-  appName: 'CHEESEHub',
-  chains: [waxChain],
-  ui: webRenderer,
-  walletPlugins: [
-    new WalletPluginAnchor(),
-    new WalletPluginCloudWallet(),
-  ],
-});
+// Create SessionKit with both wallet plugins and Greymass Fuel resource provider
+// The resource provider automatically cosigns transactions when users are out of CPU/NET
+export const sessionKit = new SessionKit(
+  {
+    appName: 'CHEESEHub',
+    chains: [waxChain],
+    ui: webRenderer,
+    walletPlugins: [
+      new WalletPluginAnchor(),
+      new WalletPluginCloudWallet(),
+    ],
+  },
+  {
+    transactPlugins: [
+      new TransactPluginResourceProvider({
+        endpoints: {
+          [WAX_CHAIN_ID]: 'https://wax.greymass.com',
+        },
+        // Don't allow paid Fuel - only use free resource sponsorship
+        allowFees: false,
+      }),
+    ],
+  }
+);
 
 // Track if a login is in progress to avoid removing modal during login
 let isLoginInProgress = false;

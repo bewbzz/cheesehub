@@ -606,43 +606,29 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
       let status: "pending" | "active" | "passed" | "rejected" | "executed" | "expired" | "inconclusive" = "pending";
       
       // First check if outcome indicates already finalized
-      if (outcome === 2) {
-        status = "passed";
-      } else if (outcome === 3) {
-        status = "rejected";
-      } else if (outcome === 4) {
-        status = "executed";
-      } else if (outcome === 5) {
-        // Outcome 5 means finalized - determine pass/fail based on proposal type
+      if (outcome === 2 || outcome === 4 || outcome === 5) {
+        // For Yes/No/Abstain proposals, check abstain-only condition FIRST
         if (contractProposalType === 4) {
-          // Yes/No/Abstain: check yes vs no votes
           if (yesVotes === 0 && noVotes === 0) {
-            // No decisive votes cast
             if (abstainVotes > 0) {
-              // Only abstain votes - inconclusive (no decision reached)
               status = "inconclusive";
             } else {
-              // No votes at all - rejected
               status = "rejected";
             }
           } else {
-            // At least one yes or no vote - determine winner
-            status = yesVotes > noVotes ? "passed" : "rejected";
+            status = outcome === 4 ? "executed" : (yesVotes > noVotes ? "passed" : "rejected");
           }
         } else if (contractProposalType === 0 || contractProposalType === 1) {
-          // Most Votes Wins (0) or Ranked Choice (1): check if any votes were cast
           const totalChoiceVotes = choices.reduce((sum: number, c: ProposalChoice) => {
-            const votes = typeof c.total_votes === 'string' 
-              ? parseInt(c.total_votes) || 0 
-              : c.total_votes || 0;
+            const votes = typeof c.total_votes === 'string' ? parseInt(c.total_votes) || 0 : c.total_votes || 0;
             return sum + votes;
           }, 0);
-          // If finalized with votes, it passed (winning choice determined by contract)
-          status = totalChoiceVotes > 0 ? "passed" : "rejected";
+          status = outcome === 4 ? "executed" : (totalChoiceVotes > 0 ? "passed" : "rejected");
         } else {
-          // Token/NFT transfers (2, 3) - if finalized, default to passed
-          status = "passed";
+          status = outcome === 4 ? "executed" : "passed";
         }
+      } else if (outcome === 3) {
+        status = "rejected";
       } else if (outcome >= 6) {
         // Other finalized states
         status = (OUTCOME_STATUS[outcome] as typeof status) || "rejected";

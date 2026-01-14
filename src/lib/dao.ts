@@ -640,15 +640,29 @@ export async function fetchProposals(daoName: string): Promise<Proposal[]> {
         // Other finalized states
         status = (OUTCOME_STATUS[outcome] as typeof status) || "rejected";
       } else {
-        // outcome is 0 or 1 - check if voting is still active or ended
+        // outcome is 0 or 1 - need to check time and proposal type
         if (endTime > now) {
-          status = "active";  // Voting in progress
+          status = "active";  // Voting still in progress
         } else if (endTime <= now) {
-          // Voting ended but not finalized
-          if (now - endTime > EXPIRY_THRESHOLD) {
-            status = "expired"; // Old unfinalized proposal
+          // Voting has ended
+          // For Most Votes Wins (0) and Ranked Choice (1), outcome=1 after finalization means "passed with winner"
+          // For Yes/No (4), outcome stays 0/1 until explicitly finalized via finalize action
+          if ((contractProposalType === 0 || contractProposalType === 1) && outcome === 1) {
+            // Most Votes Wins / Ranked Choice with outcome=1 after end = finalized with winner
+            const totalChoiceVotes = choices.reduce((sum: number, c: ProposalChoice) => {
+              const votes = typeof c.total_votes === 'string' 
+                ? parseInt(c.total_votes) || 0 
+                : c.total_votes || 0;
+              return sum + votes;
+            }, 0);
+            status = totalChoiceVotes > 0 ? "passed" : "rejected";
           } else {
-            status = "pending"; // Recently ended, awaiting finalization
+            // Not finalized yet
+            if (now - endTime > EXPIRY_THRESHOLD) {
+              status = "expired"; // Old unfinalized proposal
+            } else {
+              status = "pending"; // Recently ended, awaiting finalization
+            }
           }
         }
       }

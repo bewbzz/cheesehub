@@ -295,12 +295,26 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   // Only highlight unvoted proposals if user can vote (must be a member)
   const canVote = isMember;
 
+  // Count proposals needing finalization by the current user (proposal creator)
+  const proposalsNeedingFinalization = pastProposals.filter((p) => {
+    // Must be the proposal creator
+    if (p.proposer !== accountName) return false;
+    // Proposal must have ended and not be executed yet
+    const now = Math.floor(Date.now() / 1000);
+    const endTime = typeof p.end_time === 'string' ? parseInt(p.end_time) : p.end_time;
+    const hasEnded = endTime < now;
+    // "passed" and "rejected" are final states that still need finalization action to execute transfers
+    // "pending" means ended but not yet finalized
+    const needsFinalization = hasEnded && p.status !== 'executed' && p.status === 'pending';
+    return needsFinalization;
+  }).length;
+
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
     ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
     { id: "new-proposal", label: "New Proposal", icon: <Plus className="h-4 w-4" /> },
     { id: "active", label: "Active Proposals", icon: <Vote className="h-4 w-4" />, badge: activeProposals.length, hasUnvoted: canVote && unvotedActiveProposals > 0 },
-    { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length },
+    { id: "past", label: "Past Proposals", icon: <History className="h-4 w-4" />, badge: pastProposals.length, hasUnvoted: proposalsNeedingFinalization > 0 },
     { id: "treasury", label: "Treasury", icon: <Coins className="h-4 w-4" /> },
   ];
 

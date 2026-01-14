@@ -207,7 +207,11 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const handleTransactionComplete = useCallback(() => {
     // Force refresh resources by updating the key
     setResourcesKey(prev => prev + 1);
-  }, []);
+    // Delayed refetch of token balances (2s delay for indexer lag)
+    setTimeout(() => {
+      refetch();
+    }, 2000);
+  }, [refetch]);
 
   const showSuccessDialog = useCallback((title: string, description: string, txId: string | null) => {
     setSuccessTitle(title);

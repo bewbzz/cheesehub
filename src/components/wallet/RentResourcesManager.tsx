@@ -186,9 +186,9 @@ export function RentResourcesManager({
                          errorMessage.toLowerCase().includes('deadline exceeded');
 
       if (isCpuError) {
-        toast.error('Transaction failed - insufficient resources', {
-          description: 'Enable Greymass Fuel in Anchor settings or use WAX Cloud Wallet for free CPU.',
-          duration: 8000,
+        toast.error('Transaction failed - resource sponsorship unavailable', {
+          description: 'Greymass Fuel may be temporarily unavailable or at daily limit. Try again in a moment, or ask someone to send you a small amount of CPU first.',
+          duration: 10000,
         });
       } else {
         toast.error('PowerUp failed', {

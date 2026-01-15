@@ -385,6 +385,36 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
+  // Handle batch unstake of all expired/ended incentives
+  const handleClaimUnstakeAllExpired = useCallback(async (expiredIncentives: AlcorFarmPosition[]) => {
+    if (!session || !accountName || expiredIncentives.length === 0) return;
+
+    setIsTransacting(true);
+    try {
+      const actions = expiredIncentives.map(incentive => 
+        buildUnstakeAction(accountName, incentive.incentiveId, incentive.positionId)
+      );
+      
+      const result = await session.transact({ actions });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      onTransactionSuccess?.(
+        'Ended Farms Cleaned Up!',
+        `Claimed rewards and unstaked from ${expiredIncentives.length} ended farm(s). Active farms were not affected.`,
+        txId
+      );
+      refetch();
+      onTransactionComplete?.();
+    } catch (error: any) {
+      console.error('Unstake all expired error:', error);
+      toast.error(error?.message || 'Failed to unstake expired farms');
+    } finally {
+      setIsTransacting(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
+    }
+  }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -402,9 +432,22 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const finishedFarmsCount = Array.from(groupedPositions.values()).filter(
     pos => pos.incentives.every(i => isIncentiveExpired(i.incentiveEndsAt))
   ).length;
+
+  // Gather ALL expired incentives across all positions for batch unstake
+  const allExpiredIncentives = useMemo(() => {
+    const expired: AlcorFarmPosition[] = [];
+    groupedPositions.forEach((position) => {
+      position.incentives.forEach((incentive) => {
+        if (isIncentiveExpired(incentive.incentiveEndsAt)) {
+          expired.push(incentive);
+        }
+      });
+    });
+    return expired;
+  }, [groupedPositions]);
   
   // Debug logging
-  console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'allPositionsSorted:', allPositionsSorted.length, 'finishedFarms:', finishedFarmsCount);
+  console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'allPositionsSorted:', allPositionsSorted.length, 'finishedFarms:', finishedFarmsCount, 'expiredIncentives:', allExpiredIncentives.length);
 
   if (farmsList.length === 0 && unstakedList.length === 0) {
     return (
@@ -470,11 +513,34 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          {finishedFarmsCount > 0 && (
-            <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs">
-              <Clock className="h-3 w-3 mr-1" />
-              {finishedFarmsCount} ended
-            </Badge>
+          {allExpiredIncentives.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={() => handleClaimUnstakeAllExpired(allExpiredIncentives)}
+                    disabled={isTransacting}
+                    className="h-8 px-3 text-xs bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                  >
+                    {isTransacting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <LogOut className="h-3.5 w-3.5" />
+                        Claim & Unstake Ended ({allExpiredIncentives.length})
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-center">
+                  <p className="text-sm">
+                    Claims rewards and removes positions from <strong>{allExpiredIncentives.length} ended</strong> farm(s).
+                    <span className="text-green-400 block mt-1">Active farms will NOT be affected.</span>
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {unstakedList.length > 0 && (
             <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30 text-xs animate-pulse">

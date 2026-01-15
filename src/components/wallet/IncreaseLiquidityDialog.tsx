@@ -86,14 +86,16 @@ export function IncreaseLiquidityDialog({
     setTokenAAmount(amountA.toFixed(tokenABalance?.precision || 4));
   };
 
-  // Reset form when dialog opens
+  // Reset form and refetch balances when dialog opens
   useEffect(() => {
     if (open) {
       setTokenAAmount('');
       setTokenBAmount('');
       setLastEditedToken(null);
+      // Refetch balances to ensure we have the latest (e.g., after claiming rewards)
+      refetchBalances();
     }
-  }, [open]);
+  }, [open, refetchBalances]);
 
   const handleMaxA = () => {
     if (!tokenABalance) return;

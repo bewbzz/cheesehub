@@ -206,6 +206,19 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     return unified;
   }, [groupedPositions, unstakedList, getTokenUsdValue]);
 
+  // Gather ALL expired incentives across all positions for batch unstake
+  const allExpiredIncentives = useMemo(() => {
+    const expired: AlcorFarmPosition[] = [];
+    groupedPositions.forEach((position) => {
+      position.incentives.forEach((incentive) => {
+        if (isIncentiveExpired(incentive.incentiveEndsAt)) {
+          expired.push(incentive);
+        }
+      });
+    });
+    return expired;
+  }, [groupedPositions]);
+
   // Create unique key for each incentive
   const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
@@ -433,18 +446,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     pos => pos.incentives.every(i => isIncentiveExpired(i.incentiveEndsAt))
   ).length;
 
-  // Gather ALL expired incentives across all positions for batch unstake
-  const allExpiredIncentives = useMemo(() => {
-    const expired: AlcorFarmPosition[] = [];
-    groupedPositions.forEach((position) => {
-      position.incentives.forEach((incentive) => {
-        if (isIncentiveExpired(incentive.incentiveEndsAt)) {
-          expired.push(incentive);
-        }
-      });
-    });
-    return expired;
-  }, [groupedPositions]);
   
   // Debug logging
   console.log('[AlcorFarmManager] farmsList:', farmsList.length, 'unstakedList:', unstakedList.length, 'allPositionsSorted:', allPositionsSorted.length, 'finishedFarms:', finishedFarmsCount, 'expiredIncentives:', allExpiredIncentives.length);

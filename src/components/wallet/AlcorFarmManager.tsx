@@ -8,6 +8,7 @@ import { useWax } from '@/context/WaxContext';
 import { useAlcorFarms, UnstakedIncentivesMap, UnstakedLPPosition } from '@/hooks/useAlcorFarms';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { useWaxPrice } from '@/hooks/useWaxPrice';
+import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { buildClaimRewardsAction, buildUnstakeAction, buildStakeAction, AlcorFarmPosition, UnstakedIncentive } from '@/lib/alcorFarms';
 import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
@@ -109,6 +110,7 @@ function formatDetailedCountdown(endTimestamp: number): string {
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
   const { stakedFarms, unstakedIncentives, unstakedPositions, isLoading, refetch, dataSource } = useAlcorFarms();
+  const { refetch: refetchTokenBalances } = useAllTokenBalances(accountName);
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
@@ -269,6 +271,10 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
+      // Refetch token balances so claimed rewards show immediately in dialogs
+      setTimeout(() => {
+        refetchTokenBalances();
+      }, 2000);
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim error:', error);
@@ -278,7 +284,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       closeWharfkitModals();
       setTimeout(() => closeWharfkitModals(), 300);
     }
-  }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
+  }, [session, accountName, onTransactionSuccess, refetch, refetchTokenBalances, onTransactionComplete]);
 
   const handleClaimAll = useCallback(async () => {
     if (!session || !accountName || farmsList.length === 0) return;
@@ -305,6 +311,10 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
+      // Refetch token balances so claimed rewards show immediately in dialogs
+      setTimeout(() => {
+        refetchTokenBalances();
+      }, 2000);
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim all error:', error);
@@ -314,7 +324,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       closeWharfkitModals();
       setTimeout(() => closeWharfkitModals(), 300);
     }
-  }, [session, accountName, farmsList, onTransactionSuccess, refetch, onTransactionComplete]);
+  }, [session, accountName, farmsList, onTransactionSuccess, refetch, refetchTokenBalances, onTransactionComplete]);
 
   const handleUnstake = useCallback(async (incentives: AlcorFarmPosition[]) => {
     if (!session || !accountName || incentives.length === 0) return;

@@ -117,6 +117,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
   const [liveRewards, setLiveRewards] = useState<Map<string, number>>(new Map());
   const [increaseLiquidityPosition, setIncreaseLiquidityPosition] = useState<AlcorFarmPosition | null>(null);
   const [createFarmOpen, setCreateFarmOpen] = useState(false);
+  
+  // Track optimistically removed incentives (after unstaking) to prevent stale UI
+  const [optimisticallyRemovedIds, setOptimisticallyRemovedIds] = useState<Set<string>>(new Set());
 
   // Guard against non-array stakedFarms
   const farmsList = Array.isArray(stakedFarms) ? stakedFarms : [];
@@ -146,11 +149,17 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     return 0;
   }, [tokenPrices, waxUsdPrice]);
 
-  // Group farms by position ID and calculate USD value
+  // Group farms by position ID and calculate USD value, filtering out optimistically removed incentives
   const groupedPositions = useMemo(() => {
     const groups = new Map<number, GroupedFarmPosition>();
     
-    farmsList.forEach(farm => {
+    // Filter out optimistically removed incentives
+    const filteredFarms = farmsList.filter(farm => {
+      const key = `${farm.positionId}-${farm.incentiveId}`;
+      return !optimisticallyRemovedIds.has(key);
+    });
+    
+    filteredFarms.forEach(farm => {
       if (!groups.has(farm.positionId)) {
         // Calculate USD value of the position
         const tokenAValue = getTokenUsdValue(farm.tokenA.contract, farm.tokenA.symbol, farm.tokenA.amount);
@@ -177,7 +186,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     });
     
     return groups;
-  }, [farmsList, unstakedIncentives, getTokenUsdValue]);
+  }, [farmsList, unstakedIncentives, getTokenUsdValue, optimisticallyRemovedIds]);
   
   // Create a unified list combining staked and unstaked positions, sorted by USD value
   const allPositionsSorted = useMemo(() => {
@@ -320,13 +329,25 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
+      // Optimistically remove the unstaked incentives from UI immediately
+      const removedIds = new Set(
+        incentives.map(i => `${i.positionId}-${i.incentiveId}`)
+      );
+      setOptimisticallyRemovedIds(prev => new Set([...prev, ...removedIds]));
+
       const firstIncentive = incentives[0];
       onTransactionSuccess?.(
         'Unstaked & Claimed!',
         `Claimed rewards and removed ${firstIncentive.tokenA.symbol}/${firstIncentive.tokenB.symbol} position from ${incentives.length} farm(s). Your LP tokens are still in the pool.`,
         txId
       );
-      refetch();
+      
+      // Delay refetch to allow indexer to update, then clear optimistic state
+      setTimeout(() => {
+        refetch();
+        setOptimisticallyRemovedIds(new Set());
+      }, 3000);
+      
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -411,12 +432,24 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
+      // Optimistically remove the unstaked incentives from UI immediately
+      const removedIds = new Set(
+        expiredIncentives.map(i => `${i.positionId}-${i.incentiveId}`)
+      );
+      setOptimisticallyRemovedIds(prev => new Set([...prev, ...removedIds]));
+
       onTransactionSuccess?.(
         'Ended Farms Cleaned Up!',
         `Claimed rewards and unstaked from ${expiredIncentives.length} ended farm(s). Active farms were not affected.`,
         txId
       );
-      refetch();
+      
+      // Delay refetch to allow indexer to update, then clear optimistic state
+      setTimeout(() => {
+        refetch();
+        setOptimisticallyRemovedIds(new Set());
+      }, 3000);
+      
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Unstake all expired error:', error);

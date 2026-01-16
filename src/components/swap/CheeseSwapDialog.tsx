@@ -35,25 +35,8 @@ declare global {
 export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: CheeseSwapDialogProps) {
   const { session, login } = useWax();
   const swapRef = useRef<HTMLElement>(null);
-  const sessionRef = useRef(session);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [lastTxId, setLastTxId] = useState<string | null>(null);
-
-  // Keep sessionRef updated to avoid stale closures
-  useEffect(() => {
-    sessionRef.current = session;
-  }, [session]);
-
-  // Update widget wallet attribute when session changes
-  useEffect(() => {
-    if (open && swapRef.current && session) {
-      const walletData = JSON.stringify({
-        accountName: String(session.actor),
-        permission: String(session.permission),
-      });
-      swapRef.current.setAttribute('wallet', walletData);
-    }
-  }, [open, session]);
 
   const walletInfo = session ? JSON.stringify({
     accountName: String(session.actor),
@@ -75,14 +58,13 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
     
     // Small delay to ensure DOM element is ready
     const timer = setTimeout(() => {
-      // Use querySelector to find the element (more reliable for web components)
-      const swapElement = document.querySelector('waxonedge-swap') as HTMLElement;
+      const swapElement = swapRef.current;
       if (!swapElement) {
-        console.error('[CheeseSwap] Swap element not found via querySelector');
+        console.error('[CheeseSwap] Swap element not found');
         return;
       }
 
-      console.log('[CheeseSwap] Attaching event listeners to swap element', swapElement);
+      console.log('[CheeseSwap] Attaching event listeners to swap element');
 
       const handleConnect = async () => {
         console.log('[CheeseSwap] Connect event received');
@@ -93,62 +75,28 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         }
       };
 
-      const handleSign = async (event: Event) => {
-        const customEvent = event as CustomEvent;
-        console.log('[CheeseSwap] Sign event received:', customEvent.detail);
+      const handleSign = async (event: CustomEvent) => {
+        console.log('[CheeseSwap] Sign event received:', event.detail);
         
-        // Use ref to get current session (avoids stale closure)
-        const currentSession = sessionRef.current;
-        
-        if (!currentSession) {
+        if (!session) {
           console.error('No session available for signing');
-          toast.error('Wallet Not Connected', {
-            description: 'Please connect your wallet first',
-          });
           return;
         }
 
         try {
           // Per README: actions are in detail[0]
-          const rawActions = customEvent.detail[0];
+          const actions = event.detail[0];
           
-          console.log('[CheeseSwap] Raw actions from widget:', JSON.stringify(rawActions, null, 2));
-          
-          if (!rawActions || !Array.isArray(rawActions)) {
-            console.error('Invalid actions format:', customEvent.detail);
+          if (!actions || !Array.isArray(actions)) {
+            console.error('Invalid actions format:', event.detail);
             return;
           }
-
-          // Validate transfer actions have required 'to' field
-          for (const action of rawActions) {
-            if (action.name === 'transfer' && action.data) {
-              // Check if this is a standard transfer (needs 'to') vs inline action format
-              const hasTo = action.data.to !== undefined && action.data.to !== null;
-              const hasActionAccount = action.data.action_account !== undefined;
-              
-              if (!hasTo && !hasActionAccount) {
-                console.error('[CheeseSwap] Transfer action missing "to" field:', action);
-                toast.error('Swap Route Error', {
-                  description: 'Unable to find a valid swap route. Please try a different amount or token pair.',
-                });
-                return;
-              }
-            }
-          }
-
-          // Prepare actions with proper authorization
-          const actions = rawActions.map((action: any) => ({
-            account: action.account,
-            name: action.name,
-            authorization: action.authorization || [currentSession.permissionLevel],
-            data: action.data,
-          }));
 
           // Set signing state
           swapElement.setAttribute('signing', 'true');
           
-          console.log('[CheeseSwap] Signing transaction with actions:', JSON.stringify(actions, null, 2));
-          const result = await currentSession.transact({ actions });
+          console.log('[CheeseSwap] Signing transaction with actions:', actions);
+          const result = await session.transact({ actions });
           
           // Extract transaction ID
           const txId = result?.response?.transaction_id || null;
@@ -172,24 +120,23 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
       };
 
       swapElement.addEventListener('connect', handleConnect);
-      swapElement.addEventListener('sign', handleSign);
+      swapElement.addEventListener('sign', handleSign as EventListener);
 
-      // Store cleanup function on window to ensure we can clean up
-      (window as any).__cheeseSwapCleanup = () => {
-        console.log('[CheeseSwap] Cleaning up event listeners');
+      // Store cleanup function
+      (swapElement as any)._cleanup = () => {
         swapElement.removeEventListener('connect', handleConnect);
-        swapElement.removeEventListener('sign', handleSign);
+        swapElement.removeEventListener('sign', handleSign as EventListener);
       };
-    }, 200);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
-      if ((window as any).__cheeseSwapCleanup) {
-        (window as any).__cheeseSwapCleanup();
-        delete (window as any).__cheeseSwapCleanup;
+      const swapElement = swapRef.current;
+      if (swapElement && (swapElement as any)._cleanup) {
+        (swapElement as any)._cleanup();
       }
     };
-  }, [open, login]);
+  }, [open, session, login]);
 
   return (
     <>

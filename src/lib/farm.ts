@@ -572,7 +572,16 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
 export async function fetchUserFarms(account: string): Promise<FarmInfo[]> {
   try {
     const allFarms = await fetchAllFarms();
-    return allFarms.filter(farm => farm.creator === account);
+    
+    // Debug: log a sample of creators to verify field mapping
+    if (allFarms.length > 0) {
+      const sampleCreators = allFarms.slice(0, 5).map(f => ({ name: f.farm_name, creator: f.creator }));
+      console.log("Sample farm creators:", sampleCreators, "Looking for:", account);
+    }
+    
+    const userFarms = allFarms.filter(farm => farm.creator === account);
+    console.log(`Found ${userFarms.length} farms for user ${account}`);
+    return userFarms;
   } catch (error) {
     console.error("Error fetching user farms:", error);
     return [];

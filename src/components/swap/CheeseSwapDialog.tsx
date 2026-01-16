@@ -75,6 +75,58 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         }
       };
 
+      // Normalize actions from WaxOnEdge/NeftyBlocks to WharfKit format
+      const normalizeActions = (actions: any[], accountName: string, permission: string) => {
+        return actions.map(action => {
+          // Already in WharfKit format (has 'account' and 'name')
+          if (action.account && action.name) {
+            return action;
+          }
+          
+          // NeftyBlocks format with action_account/action_name (WaxFusion actions)
+          if (action.action_account && action.action_name) {
+            return {
+              account: action.action_account,
+              name: action.action_name,
+              authorization: [{ actor: accountName, permission }],
+              data: action.action_data || {}
+            };
+          }
+          
+          // Simplified transfer format (just to/quantity/memo)
+          if (action.to && action.quantity) {
+            const tokenSymbol = action.quantity.split(' ')[1];
+            // Map token symbols to their contracts
+            const tokenContractMap: Record<string, string> = {
+              'LSWAX': 'token.fusion',
+              'SWAX': 'token.fusion',
+              'WAX': 'eosio.token',
+              'CHEESE': 'cheeseburger',
+              'NWO': 'cointreasure',
+              'WAXUSDC': 'alclorstable',
+              'WAXUSDT': 'alclorstable',
+            };
+            const tokenContract = tokenContractMap[tokenSymbol] || 'eosio.token';
+            
+            return {
+              account: tokenContract,
+              name: 'transfer',
+              authorization: [{ actor: accountName, permission }],
+              data: {
+                from: accountName,
+                to: action.to,
+                quantity: action.quantity,
+                memo: action.memo || ''
+              }
+            };
+          }
+          
+          // Unknown format - return as-is and let WharfKit handle it
+          console.warn('[CheeseSwap] Unknown action format:', action);
+          return action;
+        });
+      };
+
       const handleSign = async (event: CustomEvent) => {
         console.log('[CheeseSwap] Sign event received:', event.detail);
         
@@ -84,18 +136,23 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         }
 
         try {
-          // Per README: actions are in detail[0]
-          const actions = event.detail[0];
+          const rawActions = event.detail[0];
           
-          if (!actions || !Array.isArray(actions)) {
+          if (!rawActions || !Array.isArray(rawActions)) {
             console.error('Invalid actions format:', event.detail);
             return;
           }
 
-          // Set signing state
+          // Normalize actions to WharfKit-compatible format
+          const actions = normalizeActions(
+            rawActions,
+            String(session.actor),
+            String(session.permission)
+          );
+
           swapElement.setAttribute('signing', 'true');
           
-          console.log('[CheeseSwap] Signing transaction with actions:', actions);
+          console.log('[CheeseSwap] Signing normalized actions:', actions);
           const result = await session.transact({ actions });
           
           // Extract transaction ID
@@ -103,13 +160,11 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           setLastTxId(txId);
           setSuccessDialogOpen(true);
           
-          // Remove signing state
           swapElement.removeAttribute('signing');
         } catch (error: any) {
           console.error('Transaction failed:', error);
           swapElement.removeAttribute('signing');
           
-          // Show error toast
           const errorMessage = error?.message || 'Transaction was cancelled or failed';
           toast.error('Swap Failed', {
             description: errorMessage.length > 100 

@@ -110,37 +110,37 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           // Per README: actions are in detail[0]
           const rawActions = event.detail[0];
           
+          console.log('[CheeseSwap] Raw actions from widget:', JSON.stringify(rawActions, null, 2));
+          
           if (!rawActions || !Array.isArray(rawActions)) {
             console.error('Invalid actions format:', event.detail);
             return;
           }
 
-          // Helper to recursively remove undefined values from objects
-          const cleanUndefined = (obj: any): any => {
-            if (obj === null || obj === undefined) return obj;
-            if (Array.isArray(obj)) return obj.map(cleanUndefined);
-            if (typeof obj === 'object') {
-              const cleaned: any = {};
-              for (const [key, value] of Object.entries(obj)) {
-                if (value !== undefined) {
-                  cleaned[key] = cleanUndefined(value);
-                }
+          // Validate transfer actions have required 'to' field
+          for (const action of rawActions) {
+            if (action.name === 'transfer' && action.data) {
+              // Check if this is a standard transfer (needs 'to') vs inline action format
+              const hasTo = action.data.to !== undefined && action.data.to !== null;
+              const hasActionAccount = action.data.action_account !== undefined;
+              
+              if (!hasTo && !hasActionAccount) {
+                console.error('[CheeseSwap] Transfer action missing "to" field:', action);
+                toast.error('Swap Route Error', {
+                  description: 'Unable to find a valid swap route. Please try a different amount or token pair.',
+                });
+                return;
               }
-              return cleaned;
             }
-            return obj;
-          };
+          }
 
-          // Clean and prepare actions with proper authorization
-          const actions = rawActions.map((action: any) => {
-            const cleanedData = cleanUndefined(action.data);
-            return {
-              account: action.account,
-              name: action.name,
-              authorization: action.authorization || [currentSession.permissionLevel],
-              data: cleanedData,
-            };
-          });
+          // Prepare actions with proper authorization
+          const actions = rawActions.map((action: any) => ({
+            account: action.account,
+            name: action.name,
+            authorization: action.authorization || [currentSession.permissionLevel],
+            data: action.data,
+          }));
 
           // Set signing state
           swapElement.setAttribute('signing', 'true');

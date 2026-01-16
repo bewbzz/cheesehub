@@ -75,13 +75,14 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
     
     // Small delay to ensure DOM element is ready
     const timer = setTimeout(() => {
-      const swapElement = swapRef.current;
+      // Use querySelector to find the element (more reliable for web components)
+      const swapElement = document.querySelector('waxonedge-swap') as HTMLElement;
       if (!swapElement) {
-        console.error('[CheeseSwap] Swap element not found');
+        console.error('[CheeseSwap] Swap element not found via querySelector');
         return;
       }
 
-      console.log('[CheeseSwap] Attaching event listeners to swap element');
+      console.log('[CheeseSwap] Attaching event listeners to swap element', swapElement);
 
       const handleConnect = async () => {
         console.log('[CheeseSwap] Connect event received');
@@ -92,8 +93,9 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         }
       };
 
-      const handleSign = async (event: CustomEvent) => {
-        console.log('[CheeseSwap] Sign event received:', event.detail);
+      const handleSign = async (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('[CheeseSwap] Sign event received:', customEvent.detail);
         
         // Use ref to get current session (avoids stale closure)
         const currentSession = sessionRef.current;
@@ -108,12 +110,12 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
 
         try {
           // Per README: actions are in detail[0]
-          const rawActions = event.detail[0];
+          const rawActions = customEvent.detail[0];
           
           console.log('[CheeseSwap] Raw actions from widget:', JSON.stringify(rawActions, null, 2));
           
           if (!rawActions || !Array.isArray(rawActions)) {
-            console.error('Invalid actions format:', event.detail);
+            console.error('Invalid actions format:', customEvent.detail);
             return;
           }
 
@@ -170,20 +172,21 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
       };
 
       swapElement.addEventListener('connect', handleConnect);
-      swapElement.addEventListener('sign', handleSign as EventListener);
+      swapElement.addEventListener('sign', handleSign);
 
-      // Store cleanup function
-      (swapElement as any)._cleanup = () => {
+      // Store cleanup function on window to ensure we can clean up
+      (window as any).__cheeseSwapCleanup = () => {
+        console.log('[CheeseSwap] Cleaning up event listeners');
         swapElement.removeEventListener('connect', handleConnect);
-        swapElement.removeEventListener('sign', handleSign as EventListener);
+        swapElement.removeEventListener('sign', handleSign);
       };
-    }, 100);
+    }, 200);
 
     return () => {
       clearTimeout(timer);
-      const swapElement = swapRef.current;
-      if (swapElement && (swapElement as any)._cleanup) {
-        (swapElement as any)._cleanup();
+      if ((window as any).__cheeseSwapCleanup) {
+        (window as any).__cheeseSwapCleanup();
+        delete (window as any).__cheeseSwapCleanup;
       }
     };
   }, [open, login]);

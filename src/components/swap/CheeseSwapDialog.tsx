@@ -93,8 +93,38 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         return actions.map((action, index) => {
           console.log(`[CheeseSwap] Processing action ${index}:`, JSON.stringify(action));
           
-          // Already in WharfKit format (has 'account' and 'name')
+          // Check if it's WharfKit format but with nested action data inside 'data'
+          // This happens with WaxFusion routes where data contains action_account/action_name/action_data
+          if (action.account && action.name && action.data?.action_account && action.data?.action_name) {
+            console.log(`[CheeseSwap] Action ${index}: Nested action format - extracting ${action.data.action_account}::${action.data.action_name}`);
+            
+            // Extract the real action from the nested structure
+            const nestedData = action.data.action_data || {};
+            
+            // Ensure 'from' is set for transfers
+            if (action.data.action_name === 'transfer' && !nestedData.from) {
+              nestedData.from = accountName;
+            }
+            
+            return {
+              account: action.data.action_account,
+              name: action.data.action_name,
+              authorization: [{ actor: accountName, permission }],
+              data: nestedData
+            };
+          }
+          
+          // Already in proper WharfKit format (has 'account', 'name', and proper data with to/quantity for transfers)
           if (action.account && action.name) {
+            // Verify transfer actions have required fields
+            if (action.name === 'transfer' && action.data) {
+              const hasProperTransferData = action.data.to && action.data.quantity;
+              if (!hasProperTransferData) {
+                console.warn(`[CheeseSwap] Action ${index}: Transfer missing to/quantity, skipping`);
+                // This shouldn't happen with proper actions, but log it
+              }
+            }
+            
             console.log(`[CheeseSwap] Action ${index}: Already in WharfKit format`);
             // Ensure authorization is present
             if (!action.authorization) {
@@ -103,11 +133,10 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             return action;
           }
           
-          // NeftyBlocks format with action_account/action_name
+          // NeftyBlocks format with action_account/action_name at top level
           if (action.action_account && action.action_name) {
             console.log(`[CheeseSwap] Action ${index}: NeftyBlocks format (${action.action_account}::${action.action_name})`);
             
-            // Handle transfer actions - ensure 'from' is set
             let data = action.action_data || {};
             if (action.action_name === 'transfer' && !data.from) {
               data = { ...data, from: accountName };
@@ -136,25 +165,6 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
                 to: action.to,
                 quantity: action.quantity,
                 memo: action.memo || ''
-              }
-            };
-          }
-          
-          // Check if it's a transfer with nested data structure
-          if (action.data && action.data.quantity && !action.account) {
-            const tokenSymbol = action.data.quantity.split(' ')[1];
-            const tokenContract = tokenContractMap[tokenSymbol] || 'eosio.token';
-            console.log(`[CheeseSwap] Action ${index}: Nested data transfer format (${tokenSymbol} -> ${tokenContract})`);
-            
-            return {
-              account: tokenContract,
-              name: 'transfer',
-              authorization: [{ actor: accountName, permission }],
-              data: {
-                from: action.data.from || accountName,
-                to: action.data.to,
-                quantity: action.data.quantity,
-                memo: action.data.memo || ''
               }
             };
           }

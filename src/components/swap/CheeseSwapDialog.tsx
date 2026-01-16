@@ -115,20 +115,38 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             return;
           }
 
-          // Add authorization to each action if missing
-          const actions = rawActions.map((action: any) => ({
-            ...action,
-            authorization: action.authorization || [{
-              actor: String(currentSession.actor),
-              permission: String(currentSession.permission),
-            }],
-          }));
+          // Helper to recursively remove undefined values from objects
+          const cleanUndefined = (obj: any): any => {
+            if (obj === null || obj === undefined) return obj;
+            if (Array.isArray(obj)) return obj.map(cleanUndefined);
+            if (typeof obj === 'object') {
+              const cleaned: any = {};
+              for (const [key, value] of Object.entries(obj)) {
+                if (value !== undefined) {
+                  cleaned[key] = cleanUndefined(value);
+                }
+              }
+              return cleaned;
+            }
+            return obj;
+          };
+
+          // Clean and prepare actions with proper authorization
+          const actions = rawActions.map((action: any) => {
+            const cleanedData = cleanUndefined(action.data);
+            return {
+              account: action.account,
+              name: action.name,
+              authorization: action.authorization || [currentSession.permissionLevel],
+              data: cleanedData,
+            };
+          });
 
           // Set signing state
           swapElement.setAttribute('signing', 'true');
           
           console.log('[CheeseSwap] Signing transaction with actions:', JSON.stringify(actions, null, 2));
-          const result = await currentSession.transact({ actions }, { broadcast: true });
+          const result = await currentSession.transact({ actions });
           
           // Extract transaction ID
           const txId = result?.response?.transaction_id || null;

@@ -35,8 +35,25 @@ declare global {
 export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: CheeseSwapDialogProps) {
   const { session, login } = useWax();
   const swapRef = useRef<HTMLElement>(null);
+  const sessionRef = useRef(session);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [lastTxId, setLastTxId] = useState<string | null>(null);
+
+  // Keep sessionRef updated to avoid stale closures
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  // Update widget wallet attribute when session changes
+  useEffect(() => {
+    if (open && swapRef.current && session) {
+      const walletData = JSON.stringify({
+        accountName: String(session.actor),
+        permission: String(session.permission),
+      });
+      swapRef.current.setAttribute('wallet', walletData);
+    }
+  }, [open, session]);
 
   const walletInfo = session ? JSON.stringify({
     accountName: String(session.actor),
@@ -78,8 +95,14 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
       const handleSign = async (event: CustomEvent) => {
         console.log('[CheeseSwap] Sign event received:', event.detail);
         
-        if (!session) {
+        // Use ref to get current session (avoids stale closure)
+        const currentSession = sessionRef.current;
+        
+        if (!currentSession) {
           console.error('No session available for signing');
+          toast.error('Wallet Not Connected', {
+            description: 'Please connect your wallet first',
+          });
           return;
         }
 
@@ -92,11 +115,24 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             return;
           }
 
+          // Validate actions have required fields before transacting
+          for (const action of actions) {
+            if (action.name === 'transfer' && action.data) {
+              if (!action.data.to) {
+                console.error('Transfer action missing "to" field:', action);
+                toast.error('Invalid Swap', {
+                  description: 'The swap transaction is missing required fields. Please try again.',
+                });
+                return;
+              }
+            }
+          }
+
           // Set signing state
           swapElement.setAttribute('signing', 'true');
           
           console.log('[CheeseSwap] Signing transaction with actions:', actions);
-          const result = await session.transact({ actions });
+          const result = await currentSession.transact({ actions });
           
           // Extract transaction ID
           const txId = result?.response?.transaction_id || null;
@@ -136,7 +172,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         (swapElement as any)._cleanup();
       }
     };
-  }, [open, session, login]);
+  }, [open, login]);
 
   return (
     <>

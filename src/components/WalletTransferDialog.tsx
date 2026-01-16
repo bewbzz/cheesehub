@@ -193,6 +193,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
         showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
         refetch(); // Refresh token balances immediately
+        // Delayed refetch for indexer lag
+        setTimeout(() => {
+          refetch();
+        }, 2000);
       }
     } finally {
       setIsSending(false);

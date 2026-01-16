@@ -108,18 +108,27 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
 
         try {
           // Per README: actions are in detail[0]
-          const actions = event.detail[0];
+          const rawActions = event.detail[0];
           
-          if (!actions || !Array.isArray(actions)) {
+          if (!rawActions || !Array.isArray(rawActions)) {
             console.error('Invalid actions format:', event.detail);
             return;
           }
 
+          // Add authorization to each action if missing
+          const actions = rawActions.map((action: any) => ({
+            ...action,
+            authorization: action.authorization || [{
+              actor: String(currentSession.actor),
+              permission: String(currentSession.permission),
+            }],
+          }));
+
           // Set signing state
           swapElement.setAttribute('signing', 'true');
           
-          console.log('[CheeseSwap] Signing transaction with actions:', actions);
-          const result = await currentSession.transact({ actions });
+          console.log('[CheeseSwap] Signing transaction with actions:', JSON.stringify(actions, null, 2));
+          const result = await currentSession.transact({ actions }, { broadcast: true });
           
           // Extract transaction ID
           const txId = result?.response?.transaction_id || null;

@@ -75,38 +75,57 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         }
       };
 
+      // Token symbol to contract mapping
+      const tokenContractMap: Record<string, string> = {
+        'LSWAX': 'token.fusion',
+        'SWAX': 'token.fusion',
+        'WAX': 'eosio.token',
+        'CHEESE': 'cheeseburger',
+        'NWO': 'cointreasure',
+        'WAXUSDC': 'alclorstable',
+        'WAXUSDT': 'alclorstable',
+      };
+
       // Normalize actions from WaxOnEdge/NeftyBlocks to WharfKit format
       const normalizeActions = (actions: any[], accountName: string, permission: string) => {
-        return actions.map(action => {
+        console.log('[CheeseSwap] Raw actions to normalize:', JSON.stringify(actions, null, 2));
+        
+        return actions.map((action, index) => {
+          console.log(`[CheeseSwap] Processing action ${index}:`, JSON.stringify(action));
+          
           // Already in WharfKit format (has 'account' and 'name')
           if (action.account && action.name) {
+            console.log(`[CheeseSwap] Action ${index}: Already in WharfKit format`);
+            // Ensure authorization is present
+            if (!action.authorization) {
+              action.authorization = [{ actor: accountName, permission }];
+            }
             return action;
           }
           
-          // NeftyBlocks format with action_account/action_name (WaxFusion actions)
+          // NeftyBlocks format with action_account/action_name
           if (action.action_account && action.action_name) {
+            console.log(`[CheeseSwap] Action ${index}: NeftyBlocks format (${action.action_account}::${action.action_name})`);
+            
+            // Handle transfer actions - ensure 'from' is set
+            let data = action.action_data || {};
+            if (action.action_name === 'transfer' && !data.from) {
+              data = { ...data, from: accountName };
+            }
+            
             return {
               account: action.action_account,
               name: action.action_name,
               authorization: [{ actor: accountName, permission }],
-              data: action.action_data || {}
+              data
             };
           }
           
-          // Simplified transfer format (just to/quantity/memo)
+          // Simplified transfer format (just to/quantity/memo - no account info)
           if (action.to && action.quantity) {
             const tokenSymbol = action.quantity.split(' ')[1];
-            // Map token symbols to their contracts
-            const tokenContractMap: Record<string, string> = {
-              'LSWAX': 'token.fusion',
-              'SWAX': 'token.fusion',
-              'WAX': 'eosio.token',
-              'CHEESE': 'cheeseburger',
-              'NWO': 'cointreasure',
-              'WAXUSDC': 'alclorstable',
-              'WAXUSDT': 'alclorstable',
-            };
             const tokenContract = tokenContractMap[tokenSymbol] || 'eosio.token';
+            console.log(`[CheeseSwap] Action ${index}: Simplified transfer format (${tokenSymbol} -> ${tokenContract})`);
             
             return {
               account: tokenContract,
@@ -121,8 +140,27 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             };
           }
           
-          // Unknown format - return as-is and let WharfKit handle it
-          console.warn('[CheeseSwap] Unknown action format:', action);
+          // Check if it's a transfer with nested data structure
+          if (action.data && action.data.quantity && !action.account) {
+            const tokenSymbol = action.data.quantity.split(' ')[1];
+            const tokenContract = tokenContractMap[tokenSymbol] || 'eosio.token';
+            console.log(`[CheeseSwap] Action ${index}: Nested data transfer format (${tokenSymbol} -> ${tokenContract})`);
+            
+            return {
+              account: tokenContract,
+              name: 'transfer',
+              authorization: [{ actor: accountName, permission }],
+              data: {
+                from: action.data.from || accountName,
+                to: action.data.to,
+                quantity: action.data.quantity,
+                memo: action.data.memo || ''
+              }
+            };
+          }
+          
+          // Unknown format - log details and return as-is
+          console.warn('[CheeseSwap] Unknown action format:', JSON.stringify(action));
           return action;
         });
       };

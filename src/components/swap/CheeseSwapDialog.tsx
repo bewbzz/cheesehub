@@ -115,19 +115,6 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             return;
           }
 
-          // Validate actions have required fields before transacting
-          for (const action of actions) {
-            if (action.name === 'transfer' && action.data) {
-              if (!action.data.to) {
-                console.error('Transfer action missing "to" field:', action);
-                toast.error('Invalid Swap', {
-                  description: 'The swap transaction is missing required fields. Please try again.',
-                });
-                return;
-              }
-            }
-          }
-
           // Set signing state
           swapElement.setAttribute('signing', 'true');
           

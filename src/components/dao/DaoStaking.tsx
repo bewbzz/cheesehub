@@ -138,7 +138,8 @@ export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
       
       setStakeAmount("");
       await loadStakingData();
-      onStakingChange?.();
+      // Delay membership check to allow blockchain indexer to catch up
+      setTimeout(() => onStakingChange?.(), 2000);
     } catch (error) {
       console.error("Stake failed:", error);
       closeWharfkitModals();
@@ -177,7 +178,8 @@ export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
       
       setUnstakeAmount("");
       await loadStakingData();
-      onStakingChange?.();
+      // Delay membership check to allow blockchain indexer to catch up
+      setTimeout(() => onStakingChange?.(), 2000);
     } catch (error) {
       console.error("Unstake failed:", error);
       closeWharfkitModals();
@@ -213,7 +215,8 @@ export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
       
       setSelectedToStake([]);
       await loadStakingData();
-      onStakingChange?.();
+      // Delay membership check to allow blockchain indexer to catch up
+      setTimeout(() => onStakingChange?.(), 2000);
     } catch (error) {
       console.error("Stake NFTs failed:", error);
       closeWharfkitModals();
@@ -249,7 +252,8 @@ export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
       
       setSelectedToUnstake([]);
       await loadStakingData();
-      onStakingChange?.();
+      // Delay membership check to allow blockchain indexer to catch up
+      setTimeout(() => onStakingChange?.(), 2000);
     } catch (error) {
       console.error("Unstake NFTs failed:", error);
       closeWharfkitModals();

@@ -24,8 +24,6 @@ import {
   ChevronRight,
   Wallet,
   ImageIcon,
-  UserPlus,
-  UserMinus,
   CheckCircle2,
   RefreshCw
 } from "lucide-react";
@@ -73,7 +71,7 @@ interface MenuItem {
 }
 
 export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
-  const { isConnected, accountName, joinDao, leaveDao } = useWax();
+  const { isConnected, accountName } = useWax();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
@@ -81,7 +79,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [isMember, setIsMember] = useState(false);
-  const [membershipLoading, setMembershipLoading] = useState(false);
+  
   // IPFS gateway fallback indices
   const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
   const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
@@ -186,39 +184,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
       setIsMember(false);
       return;
     }
-    setMembershipLoading(true);
     try {
       const result = await checkDaoMembership(dao.dao_name, accountName);
       setIsMember(result);
     } catch (error) {
       console.error("Failed to check membership:", error);
-    } finally {
-      setMembershipLoading(false);
-    }
-  }
-
-
-  async function handleJoinDao() {
-    setMembershipLoading(true);
-    try {
-      const result = await joinDao(dao.dao_name);
-      if (result) {
-        setIsMember(true);
-      }
-    } finally {
-      setMembershipLoading(false);
-    }
-  }
-
-  async function handleLeaveDao() {
-    setMembershipLoading(true);
-    try {
-      const result = await leaveDao(dao.dao_name);
-      if (result) {
-        setIsMember(false);
-      }
-    } finally {
-      setMembershipLoading(false);
     }
   }
 
@@ -400,35 +370,6 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 </p>
               </div>
             </div>
-            {/* Join/Leave Button - Available for all DAO types */}
-            {isConnected && (
-              <div className="shrink-0">
-                {membershipLoading ? (
-                  <Button size="sm" disabled>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </Button>
-                ) : isMember ? (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={handleLeaveDao}
-                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <UserMinus className="h-4 w-4 mr-1" />
-                    Leave
-                  </Button>
-                ) : (
-                  <Button 
-                    size="sm" 
-                    onClick={handleJoinDao}
-                    className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    Join DAO
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         </DialogHeader>
 
@@ -604,20 +545,13 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     </div>
                   ) : !isMember ? (
                     <div className="text-center py-12 bg-muted/30 rounded-lg">
-                      <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p className="text-muted-foreground mb-3">You must be a member to create proposals</p>
-                      <Button 
-                        onClick={handleJoinDao} 
-                        className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                        disabled={membershipLoading}
-                      >
-                        {membershipLoading ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <UserPlus className="h-4 w-4 mr-2" />
-                        )}
-                        Join DAO
-                      </Button>
+                      <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-muted-foreground mb-2">You must be a member to create proposals</p>
+                      <p className="text-sm text-muted-foreground">
+                        {dao.dao_type === 5 
+                          ? "Hold eligible NFTs to participate in this DAO" 
+                          : "Stake tokens using the Stake tab to become a member"}
+                      </p>
                     </div>
                   ) : (
                     <CreateProposal

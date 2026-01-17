@@ -91,16 +91,16 @@ export function EditDaoProfile({ dao, open, onClose, onProfileUpdated }: EditDao
     setIsSubmitting(true);
 
     try {
-      // Ensure all socials fields are present as strings
+      // Ensure all socials fields are present as strings in ALPHABETICAL ORDER (required by contract ABI)
       const sanitizedSocials = {
-        twitter: socials?.twitter || "",
+        atomichub: socials?.atomichub || "",
         discord: socials?.discord || "",
+        medium: socials?.medium || "",
         telegram: socials?.telegram || "",
+        twitter: socials?.twitter || "",
+        waxdao: socials?.waxdao || "",
         website: socials?.website || "",
         youtube: socials?.youtube || "",
-        medium: socials?.medium || "",
-        atomichub: socials?.atomichub || "",
-        waxdao: socials?.waxdao || "",
       };
       
       const action = buildSetProfileActionWithSocials(
@@ -111,8 +111,6 @@ export function EditDaoProfile({ dao, open, onClose, onProfileUpdated }: EditDao
         coverImage || "",
         sanitizedSocials
       );
-      
-      console.log("SetProfile action data:", JSON.stringify(action.data, null, 2));
 
       await session.transact({ actions: [action] });
 

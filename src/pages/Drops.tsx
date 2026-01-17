@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { NFTDrop } from "@/types/drop";
 import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
@@ -19,6 +21,7 @@ const Drops = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("newest");
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
 
   // Fetch all drops (includes cheesenftwax drops already)
   const { data: drops, isLoading, error } = useQuery({
@@ -46,6 +49,16 @@ const Drops = () => {
   // Filtered and sorted drops for browse tab
   const filteredDrops = useMemo(() => {
     let result = displayDrops;
+
+    // Filter active drops (not sold out, not ended)
+    if (showActiveOnly) {
+      const now = Date.now();
+      result = result.filter(drop => {
+        const isSoldOut = drop.remaining <= 0 && drop.totalSupply > 0;
+        const isEnded = drop.endDate ? new Date(drop.endDate).getTime() < now : false;
+        return !isSoldOut && !isEnded;
+      });
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -76,7 +89,7 @@ const Drops = () => {
     }
 
     return result;
-  }, [displayDrops, searchQuery, sortOption]);
+  }, [displayDrops, searchQuery, sortOption, showActiveOnly]);
 
   // Get unique collections for display
   const uniqueCollections = useMemo(() => {
@@ -150,7 +163,7 @@ const Drops = () => {
               </div>
 
               {/* Search and filter bar */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -169,13 +182,20 @@ const Drops = () => {
                     </button>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <span>{filteredDrops.length} drops</span>
-                  {searchQuery && (
-                    <span className="text-xs">
-                      (from {uniqueCollections.length} collections)
-                    </span>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="active-only"
+                      checked={showActiveOnly}
+                      onCheckedChange={setShowActiveOnly}
+                    />
+                    <Label htmlFor="active-only" className="text-sm text-muted-foreground cursor-pointer">
+                      Active only
+                    </Label>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {filteredDrops.length} drops
+                  </span>
                 </div>
               </div>
             </div>

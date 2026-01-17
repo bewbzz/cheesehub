@@ -351,17 +351,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                 <Badge variant="outline" className="text-cheese border-cheese/30 shrink-0">
                   {DAO_TYPES[dao.dao_type] || "Unknown"}
                 </Badge>
-                {isConnected && (
-                  isMember ? (
-                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30 shrink-0">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Member
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="shrink-0">
-                      Not a Member
-                    </Badge>
-                  )
+                {isConnected && isMember && (
+                  <Badge className="bg-green-500/20 text-green-500 border-green-500/30 shrink-0">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Member
+                  </Badge>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1">

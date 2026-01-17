@@ -392,15 +392,53 @@ export async function fetchDaoDetails(daoName: string): Promise<DaoInfo | null> 
   }
 }
 
-// Fetch DAOs where user is a member (has staked tokens/NFTs)
+// Helper to fetch user's NFT collections for Type 5 DAO eligibility check
+async function fetchUserNftCollections(account: string): Promise<Set<string>> {
+  const collections = new Set<string>();
+  let lower_bound = '';
+  let hasMore = true;
+
+  try {
+    while (hasMore) {
+      const response = await fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: "atomicassets",
+          scope: account,
+          table: "assets",
+          limit: 1000,
+          lower_bound,
+        }),
+      });
+
+      const data = await response.json();
+      for (const asset of data.rows || []) {
+        collections.add(`${asset.collection_name}:${asset.schema_name}`);
+      }
+
+      hasMore = data.more && data.rows?.length > 0;
+      if (hasMore && data.rows.length > 0) {
+        lower_bound = String(BigInt(data.rows[data.rows.length - 1].asset_id) + 1n);
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching user NFT collections:", error);
+  }
+
+  return collections;
+}
+
+// Fetch DAOs where user is a member (has staked tokens/NFTs or holds eligible NFTs for Type 5)
 export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
   console.log("Fetching DAOs for user:", account);
   
   try {
-    // Query the stakedtokens table scoped by the user to find all DAOs they've staked to
-    const stakedResponse = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
+    // Fetch all data in parallel for efficiency
+    const [stakedResponse, stakedNftResponse, allDaos, userNftCollections] = await Promise.all([
+      // Query the stakedtokens table scoped by the user
+      fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -410,16 +448,9 @@ export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
           table: "stakedtokens",
           limit: 100,
         }),
-      }
-    );
-    
-    const stakedData = await stakedResponse.json();
-    console.log("User staked tokens data:", stakedData);
-    
-    // Also check stakedassets table for NFT staking
-    const stakedNftResponse = await fetch(
-      `https://wax.eosusa.io/v1/chain/get_table_rows`,
-      {
+      }),
+      // Query stakedassets table for NFT staking
+      fetch(`https://wax.eosusa.io/v1/chain/get_table_rows`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -429,20 +460,27 @@ export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
           table: "stakedassets",
           limit: 100,
         }),
-      }
-    );
+      }),
+      // Fetch all DAOs
+      fetchAllDaos(),
+      // Fetch user's NFT collections for Type 5 check
+      fetchUserNftCollections(account),
+    ]);
+    
+    const stakedData = await stakedResponse.json();
+    console.log("User staked tokens data:", stakedData);
     
     const stakedNftData = await stakedNftResponse.json();
     console.log("User staked NFTs data:", stakedNftData);
     
-    // Collect unique DAO names from both tables
-    const daoNames = new Set<string>();
+    // Collect unique DAO names from staking tables
+    const stakedDaoNames = new Set<string>();
     
     // From stakedtokens - each row has dao_name field
     for (const row of stakedData.rows || []) {
       const daoName = row.dao_name || row.daoname || row.dao;
       if (daoName) {
-        daoNames.add(daoName);
+        stakedDaoNames.add(daoName);
       }
     }
     
@@ -450,17 +488,26 @@ export async function fetchUserDaos(account: string): Promise<DaoInfo[]> {
     for (const row of stakedNftData.rows || []) {
       const daoName = row.dao_name || row.daoname || row.dao;
       if (daoName) {
-        daoNames.add(daoName);
+        stakedDaoNames.add(daoName);
       }
     }
     
-    if (daoNames.size === 0) {
-      return [];
-    }
-    
-    // Fetch full DAO info for each DAO the user is a member of
-    const allDaos = await fetchAllDaos();
-    return allDaos.filter(dao => daoNames.has(dao.dao_name));
+    // Filter DAOs: staked OR (Type 5 with matching NFTs)
+    return allDaos.filter(dao => {
+      // Check if user has staked to this DAO
+      if (stakedDaoNames.has(dao.dao_name)) {
+        return true;
+      }
+      
+      // Check Type 5 DAOs: does user hold eligible NFTs?
+      if (dao.dao_type === 5 && dao.gov_schemas?.length > 0) {
+        return dao.gov_schemas.some(schema =>
+          userNftCollections.has(`${schema.collection_name}:${schema.schema_name}`)
+        );
+      }
+      
+      return false;
+    });
     
   } catch (error) {
     console.error("Error fetching user DAOs:", error);

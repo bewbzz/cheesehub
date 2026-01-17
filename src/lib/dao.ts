@@ -367,13 +367,18 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
     const data = await daoResponse.json();
     console.log("Raw DAO data:", data);
     
+    // Debug: Log all field names from first DAO
+    if (data.rows && data.rows.length > 0) {
+      console.log("DAO table fields:", Object.keys(data.rows[0]));
+    }
+    
     // Map the response to our interface based on actual contract fields
     return (data.rows || []).map((row: Record<string, unknown>) => {
       const daoName = row.daoname as string || "";
       const profile = profiles.get(daoName);
       
-      // Debug: Log raw authors field
-      console.log(`DAO ${daoName} raw authors:`, row.authors);
+      // Debug: Log raw authors field for this specific DAO
+      console.log(`DAO ${daoName} - creator:`, row.creator, "authors field:", row.authors, "all keys:", Object.keys(row));
       
       return {
         dao_name: daoName,

@@ -297,6 +297,25 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   // Only highlight unvoted proposals if user can vote (must be a member)
   const canVote = isMember;
 
+  // Determine if user can create proposals based on proposer_type
+  // proposer_type 0 = Authors Only
+  // proposer_type 1 = Anyone
+  // proposer_type 2 = Token Holders/Stake Weight (requires membership)
+  const canPropose = (() => {
+    if (!isConnected) return false;
+    
+    // proposer_type 1 = "Anyone" - any connected user can propose
+    if (dao.proposer_type === 1) return true;
+    
+    // proposer_type 0 = "Authors Only" - check if user is in authors list
+    if (dao.proposer_type === 0) {
+      return dao.authors?.includes(accountName || '') ?? false;
+    }
+    
+    // proposer_type 2 = "Token Holders/Stake Weight" or any other type - requires membership
+    return isMember;
+  })();
+
   // Count proposals needing finalization by the current user (proposal creator)
   const proposalsNeedingFinalization = pastProposals.filter((p) => {
     // Must be the proposal creator
@@ -537,15 +556,21 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p className="text-muted-foreground">Connect your wallet to create proposals</p>
                     </div>
-                  ) : !isMember ? (
+                  ) : !canPropose ? (
                     <div className="text-center py-12 bg-muted/30 rounded-lg">
                       <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                      <p className="text-muted-foreground mb-2">You must be a member to create proposals</p>
-                      <p className="text-sm text-muted-foreground">
-                        {dao.dao_type === 5 
-                          ? "Hold eligible NFTs to participate in this DAO" 
-                          : "Stake tokens using the Stake tab to become a member"}
+                      <p className="text-muted-foreground mb-2">
+                        {dao.proposer_type === 0 
+                          ? "Only designated authors can create proposals in this DAO"
+                          : "You must be a member to create proposals"}
                       </p>
+                      {dao.proposer_type !== 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {dao.dao_type === 5 
+                            ? "Hold eligible NFTs to participate in this DAO" 
+                            : "Stake tokens using the Stake tab to become a member"}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <CreateProposal
@@ -578,7 +603,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       >
                         <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                       </Button>
-                      {isMember && (
+                      {canPropose && (
                         <Button
                           size="sm"
                           onClick={() => setActiveSection("new-proposal")}
@@ -594,7 +619,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                     <div className="text-center py-12 text-muted-foreground">
                       <Vote className="h-12 w-12 mx-auto mb-3 opacity-30" />
                       <p>No active proposals</p>
-                      {isMember && (
+                      {canPropose && (
                         <Button
                           variant="link"
                           onClick={() => setActiveSection("new-proposal")}

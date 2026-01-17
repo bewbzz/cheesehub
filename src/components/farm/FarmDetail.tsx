@@ -146,6 +146,23 @@ export function FarmDetail() {
 
   return (
     <div className="space-y-6">
+      {/* Cover Image - Full width banner at top */}
+      {farm.profile?.cover_image && (
+        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 mb-6">
+          <div className="w-full aspect-[3/1] sm:aspect-[4/1] overflow-hidden">
+            <img
+              src={getIpfsUrl(farm.profile.cover_image)}
+              alt={`${farm.farm_name} cover`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).parentElement!.style.display = "none";
+              }}
+            />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+        </div>
+      )}
+
       {/* Back Button */}
       <Button onClick={() => navigate("/farm")} variant="ghost" className="gap-2">
         <ArrowLeft className="h-4 w-4" />
@@ -449,19 +466,6 @@ export function FarmDetail() {
         </Card>
       </div>
 
-      {/* Cover Image */}
-      {farm.profile?.cover_image && (
-        <div className="rounded-xl overflow-hidden border border-border/50">
-          <img
-            src={getIpfsUrl(farm.profile.cover_image)}
-            alt={`${farm.farm_name} cover`}
-            className="w-full h-auto object-contain"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        </div>
-      )}
 
       {/* NFT Staking Section */}
       <div className="space-y-4">

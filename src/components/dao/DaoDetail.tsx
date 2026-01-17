@@ -541,7 +541,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
 
               {/* Stake Section */}
               {activeSection === "stake" && showStakingTab && (
-                <DaoStaking dao={dao} />
+                <DaoStaking dao={dao} onStakingChange={checkMembership} />
               )}
 
               {/* New Proposal Section */}

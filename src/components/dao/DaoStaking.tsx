@@ -26,6 +26,7 @@ import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, Use
 
 interface DaoStakingProps {
   dao: DaoInfo;
+  onStakingChange?: () => void;
 }
 
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
@@ -39,7 +40,7 @@ function getImageUrl(img: string): string {
   return img;
 }
 
-export function DaoStaking({ dao }: DaoStakingProps) {
+export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
   const { session, isConnected, accountName } = useWax();
   const { toast } = useToast();
   
@@ -137,6 +138,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       
       setStakeAmount("");
       await loadStakingData();
+      onStakingChange?.();
     } catch (error) {
       console.error("Stake failed:", error);
       closeWharfkitModals();
@@ -175,6 +177,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       
       setUnstakeAmount("");
       await loadStakingData();
+      onStakingChange?.();
     } catch (error) {
       console.error("Unstake failed:", error);
       closeWharfkitModals();
@@ -210,6 +213,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       
       setSelectedToStake([]);
       await loadStakingData();
+      onStakingChange?.();
     } catch (error) {
       console.error("Stake NFTs failed:", error);
       closeWharfkitModals();
@@ -245,6 +249,7 @@ export function DaoStaking({ dao }: DaoStakingProps) {
       
       setSelectedToUnstake([]);
       await loadStakingData();
+      onStakingChange?.();
     } catch (error) {
       console.error("Unstake NFTs failed:", error);
       closeWharfkitModals();

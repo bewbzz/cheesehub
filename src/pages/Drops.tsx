@@ -1,11 +1,12 @@
 import { Layout } from "@/components/Layout";
 import { DropsHero } from "@/components/drops/DropsHero";
-import { DropCard } from "@/components/drops/DropCard";
 import { CartDrawer } from "@/components/drops/CartDrawer";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
+import { VirtualizedDropGrid, SimpleDropGrid } from "@/components/drops/VirtualizedDropGrid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllDrops, fetchCheeseDropStats } from "@/services/atomicApi";
+import { fetchCheeseDropStats } from "@/services/atomicApi";
+import { useDropsLoader } from "@/hooks/useDropsLoader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -16,20 +17,15 @@ import type { NFTDrop } from "@/types/drop";
 import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 import { useMemo, useState } from "react";
+
 const Drops = () => {
   const queryClient = useQueryClient();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState("newest");
   const [showActiveOnly, setShowActiveOnly] = useState(true);
 
-  // Fetch all drops (includes cheesenftwax drops already)
-  const { data: drops, isLoading, error } = useQuery({
-    queryKey: ['drops'],
-    queryFn: fetchAllDrops,
-    staleTime: 1000 * 60 * 2,
-    refetchInterval: 1000 * 60 * 5,
-  });
+  // Optimized drops loader with caching, batching, and progress
+  const { drops, isLoading, isRefreshing, error, progress, refresh } = useDropsLoader();
 
   // Fetch CHEESE drop stats from on-chain (includes historical)
   const { data: cheeseStats, isLoading: isLoadingStats } = useQuery({
@@ -91,19 +87,11 @@ const Drops = () => {
     return result;
   }, [displayDrops, searchQuery, sortOption, showActiveOnly]);
 
-  // Get unique collections for display
-  const uniqueCollections = useMemo(() => {
-    const collections = new Set(displayDrops.map(d => d.collectionName));
-    return Array.from(collections).sort();
-  }, [displayDrops]);
-
   const handleRefresh = async () => {
-    setIsRefreshing(true);
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['drops'] }),
+      refresh(),
       queryClient.invalidateQueries({ queryKey: ['cheese-drop-stats'] }),
     ]);
-    setIsRefreshing(false);
   };
 
   return (
@@ -137,6 +125,7 @@ const Drops = () => {
               onClick={handleRefresh}
               disabled={isRefreshing || isLoading}
               className="shrink-0"
+              title="Refresh drops"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
@@ -200,7 +189,7 @@ const Drops = () => {
               </div>
             </div>
 
-            {isLoading ? (
+          {isLoading && progress.total === 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">
@@ -213,6 +202,21 @@ const Drops = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : isLoading && progress.total > 0 ? (
+              <div className="py-12">
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span>Loading drops... {progress.loaded} of {progress.total} templates</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${Math.round((progress.loaded / progress.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             ) : error ? (
               <div className="text-center py-12">
@@ -234,12 +238,10 @@ const Drops = () => {
                   </Button>
                 )}
               </div>
+            ) : filteredDrops.length > 20 ? (
+              <VirtualizedDropGrid drops={filteredDrops} />
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredDrops.map((drop) => (
-                  <DropCard key={drop.id} drop={drop} />
-                ))}
-              </div>
+              <SimpleDropGrid drops={filteredDrops} />
             )}
           </TabsContent>
 
@@ -270,11 +272,7 @@ const Drops = () => {
                 <p className="text-lg text-muted-foreground">No active $CHEESE drops found.</p>
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {cheeseDrops.map((drop) => (
-                  <DropCard key={drop.id} drop={drop} />
-                ))}
-              </div>
+              <SimpleDropGrid drops={cheeseDrops} />
             )}
           </TabsContent>
 

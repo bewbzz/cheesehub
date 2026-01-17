@@ -125,7 +125,7 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className="flex-1 bg-cheese text-cheese-foreground border-cheese hover:bg-background hover:text-foreground hover:border-border"
             onClick={(e) => {
               e.stopPropagation();
               handleViewFarm();

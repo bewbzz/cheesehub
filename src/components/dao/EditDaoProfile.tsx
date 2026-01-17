@@ -91,14 +91,28 @@ export function EditDaoProfile({ dao, open, onClose, onProfileUpdated }: EditDao
     setIsSubmitting(true);
 
     try {
+      // Ensure all socials fields are present as strings
+      const sanitizedSocials = {
+        twitter: socials?.twitter || "",
+        discord: socials?.discord || "",
+        telegram: socials?.telegram || "",
+        website: socials?.website || "",
+        youtube: socials?.youtube || "",
+        medium: socials?.medium || "",
+        atomichub: socials?.atomichub || "",
+        waxdao: socials?.waxdao || "",
+      };
+      
       const action = buildSetProfileActionWithSocials(
         accountName,
         dao.dao_name,
-        description,
-        avatar,
-        coverImage,
-        socials
+        description || "",
+        avatar || "",
+        coverImage || "",
+        sanitizedSocials
       );
+      
+      console.log("SetProfile action data:", JSON.stringify(action.data, null, 2));
 
       await session.transact({ actions: [action] });
 

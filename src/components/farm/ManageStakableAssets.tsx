@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Settings2, Plus, Loader2, Trash2 } from "lucide-react";
+import { Settings2, Plus, Loader2, Trash2, ExternalLink } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
@@ -184,7 +184,15 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
         case 0:
           return config.collections?.map((c, i) => (
             <div key={i} className="p-2 rounded bg-muted/50 border border-border/50 text-sm">
-              <span className="font-medium">{c.collection}</span>
+              <a 
+                href={`https://atomichub.io/explorer/collection/wax-mainnet/${c.collection}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
+                {c.collection}
+                <ExternalLink className="h-3 w-3" />
+              </a>
               <span className="text-muted-foreground ml-2">
                 ({c.hourly_rates?.map(r => r.quantity).join(" + ") || "No rates"})
               </span>
@@ -193,7 +201,15 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
         case 1:
           return config.schemas?.map((s, i) => (
             <div key={i} className="p-2 rounded bg-muted/50 border border-border/50 text-sm">
-              <span className="font-medium">{s.collection}:{s.schema}</span>
+              <a 
+                href={`https://atomichub.io/explorer/schema/wax-mainnet/${s.collection}/${s.schema}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
+                {s.collection}:{s.schema}
+                <ExternalLink className="h-3 w-3" />
+              </a>
               <span className="text-muted-foreground ml-2">
                 ({s.hourly_rates?.map(r => r.quantity).join(" + ") || "No rates"})
               </span>
@@ -202,7 +218,15 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
         case 2:
           return config.templates?.map((t, i) => (
             <div key={i} className="p-2 rounded bg-muted/50 border border-border/50 text-sm">
-              <span className="font-medium">Template #{t.template_id}</span>
+              <a 
+                href={`https://wax.atomichub.io/explorer/template/wax-mainnet/_/${t.template_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
+                Template #{t.template_id}
+                <ExternalLink className="h-3 w-3" />
+              </a>
               <span className="text-muted-foreground ml-2">
                 ({t.hourly_rates?.map(r => r.quantity).join(" + ") || "No rates"})
               </span>

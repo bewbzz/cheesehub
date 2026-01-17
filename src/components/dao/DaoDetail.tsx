@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl, checkDaoMembership, UserVote, fetchUserVote } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, checkDaoMembership, UserVote, fetchUserVote } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
@@ -31,6 +31,31 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// IPFS gateway fallback list for reliable image loading
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  if (!url) return null;
+  if (url.startsWith('Qm') || url.startsWith('bafy')) return url;
+  const match = url.match(/(?:ipfs\/|ipfs:\/\/)?(Qm[a-zA-Z0-9]+|bafy[a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getIpfsUrlWithGateway(hash: string, gatewayIndex: number): string {
+  if (!hash) return "";
+  if (hash.startsWith("http") && !hash.includes("ipfs")) return hash;
+  const ipfsHash = extractIpfsHash(hash);
+  if (ipfsHash) {
+    return `${IPFS_GATEWAYS[gatewayIndex % IPFS_GATEWAYS.length]}${ipfsHash}`;
+  }
+  return hash;
+}
+
 interface DaoDetailProps {
   dao: DaoInfo;
   open: boolean;
@@ -57,6 +82,9 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [membershipLoading, setMembershipLoading] = useState(false);
+  // IPFS gateway fallback indices
+  const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
+  const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
   // Track which proposals the user has voted on (persists in localStorage per account)
   const [votedProposals, setVotedProposals] = useState<Record<number, UserVote>>({});
 
@@ -335,12 +363,13 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
             <div className="h-12 w-12 rounded-xl bg-cheese/10 flex items-center justify-center shrink-0 overflow-hidden">
               {dao.logo ? (
                 <img 
-                  src={getIpfsUrl(dao.logo)} 
+                  src={getIpfsUrlWithGateway(dao.logo, logoGatewayIndex)} 
                   alt={dao.dao_name}
                   className="h-full w-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden');
+                  onError={() => {
+                    if (logoGatewayIndex < IPFS_GATEWAYS.length - 1) {
+                      setLogoGatewayIndex(prev => prev + 1);
+                    }
                   }}
                 />
               ) : null}
@@ -539,13 +568,15 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       </h4>
                       <div className="rounded-lg overflow-hidden">
                         <img 
-                          src={getIpfsUrl(dao.cover_image)} 
+                          src={getIpfsUrlWithGateway(dao.cover_image, coverGatewayIndex)} 
                           alt={`${dao.dao_name} cover`}
                           className="w-full h-auto object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(getIpfsUrl(dao.cover_image), '_blank')}
+                          onClick={() => window.open(getIpfsUrlWithGateway(dao.cover_image, coverGatewayIndex), '_blank')}
                           title="Click to view full size"
-                          onError={(e) => {
-                            (e.currentTarget.parentElement?.parentElement as HTMLElement)?.classList.add('hidden');
+                          onError={() => {
+                            if (coverGatewayIndex < IPFS_GATEWAYS.length - 1) {
+                              setCoverGatewayIndex(prev => prev + 1);
+                            }
                           }}
                         />
                       </div>

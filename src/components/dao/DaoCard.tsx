@@ -1,4 +1,4 @@
-import { DaoInfo, DAO_TYPES, PROPOSER_TYPES, getIpfsUrl } from "@/lib/dao";
+import { DaoInfo, DAO_TYPES, PROPOSER_TYPES } from "@/lib/dao";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +7,38 @@ import { useState } from "react";
 import { DaoDetail } from "./DaoDetail";
 import { cn } from "@/lib/utils";
 
+// IPFS gateway fallback list for reliable image loading
+const IPFS_GATEWAYS = [
+  'https://ipfs.io/ipfs/',
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/',
+  'https://dweb.link/ipfs/',
+];
+
+function extractIpfsHash(url: string): string | null {
+  if (!url) return null;
+  if (url.startsWith('Qm') || url.startsWith('bafy')) return url;
+  const match = url.match(/(?:ipfs\/|ipfs:\/\/)?(Qm[a-zA-Z0-9]+|bafy[a-zA-Z0-9]+)/);
+  return match ? match[1] : null;
+}
+
+function getIpfsUrlWithGateway(hash: string, gatewayIndex: number): string {
+  if (!hash) return "";
+  if (hash.startsWith("http") && !hash.includes("ipfs")) return hash;
+  const ipfsHash = extractIpfsHash(hash);
+  if (ipfsHash) {
+    return `${IPFS_GATEWAYS[gatewayIndex % IPFS_GATEWAYS.length]}${ipfsHash}`;
+  }
+  return hash;
+}
+
 interface DaoCardProps {
   dao: DaoInfo;
 }
 
 export function DaoCard({ dao }: DaoCardProps) {
   const [showDetail, setShowDetail] = useState(false);
+  const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
 
   // Parse token symbol (format: "8,CHEESE" -> "CHEESE")
   const tokenDisplay = dao.token_symbol !== "0,NULL" 
@@ -35,12 +61,13 @@ export function DaoCard({ dao }: DaoCardProps) {
                 <div className="h-10 w-10 rounded-lg bg-cheese/10 flex items-center justify-center overflow-hidden">
                   {dao.logo ? (
                     <img 
-                      src={getIpfsUrl(dao.logo)} 
+                      src={getIpfsUrlWithGateway(dao.logo, logoGatewayIndex)} 
                       alt={dao.dao_name}
                       className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        (e.currentTarget.nextElementSibling as HTMLElement)?.classList.remove('hidden');
+                      onError={() => {
+                        if (logoGatewayIndex < IPFS_GATEWAYS.length - 1) {
+                          setLogoGatewayIndex(prev => prev + 1);
+                        }
                       }}
                     />
                   ) : null}

@@ -1065,18 +1065,10 @@ export function CreateDao() {
             )}
 
             {/* Advanced Settings */}
-            <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-              <CollapsibleTrigger asChild>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  className={`w-full justify-between border border-cheese/50 hover:bg-cheese/10 ${!showAdvanced ? 'animate-pulse' : ''}`}
-                >
-                  <span className="text-sm font-medium text-cheese uppercase tracking-wide">Advanced Settings</span>
-                  {showAdvanced ? <ChevronUp className="h-4 w-4 text-cheese" /> : <ChevronDown className="h-4 w-4 text-cheese" />}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-6 pt-4">
+            <div className="space-y-6">
+              <h3 className="text-sm font-medium text-cheese uppercase tracking-wide border-b border-cheese/30 pb-2">
+                Advanced Settings
+              </h3>
                 
                 {/* Voting Rules Section */}
                 <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border/50">
@@ -1289,8 +1281,7 @@ export function CreateDao() {
                     </p>
                   </div>
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
+            </div>
 
             {/* Creation Fee Section - Only visible if NOT prepaid with CHEESE and NOT wanting CHEESE prepay */}
             {!wantsCheesePrepay && !hasPrepaid && (

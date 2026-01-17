@@ -725,12 +725,17 @@ export async function fetchUserStakes(
           // Log available farms
           const farms = userIndexData.rows.map((r: Record<string, unknown>) => r.farmname || r.farm_name);
           console.log("[Strategy 0] User's staked farms:", farms);
+          // User is confirmed to have no stake in this specific farm - return early!
+          console.log(`[Strategy 0] Early return - user not staked in ${farmName}`);
+          return [];
         }
       } else {
-        console.log(`[Strategy 0] No staking rows found for user ${account}`);
+        console.log(`[Strategy 0] No staking rows found for user ${account} - not staked anywhere`);
+        // User confirmed not staked anywhere - return early!
+        return [];
       }
     } catch (e) {
-      console.log("[Strategy 0] Failed:", e);
+      console.log("[Strategy 0] Failed, falling back to other strategies:", e);
     }
     
     // Strategy 0b: Query 'stakers' table with reverse order (newest first) + pagination

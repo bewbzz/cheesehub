@@ -343,12 +343,15 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
     return needsFinalization;
   }).length;
 
-  // Check if user can edit DAO profile (must be an author)
-  const canEditProfile = accountName && dao.authors?.includes(accountName);
+  // Check if user can edit DAO profile (must be an author OR the creator)
+  const canEditProfile = accountName && (
+    dao.authors?.includes(accountName) || dao.creator === accountName
+  );
   
   // Debug logging for profile edit permissions
   console.log("Edit Profile Check:", {
     accountName,
+    daoCreator: dao.creator,
     daoAuthors: dao.authors,
     canEditProfile,
     daoSocials: dao.socials

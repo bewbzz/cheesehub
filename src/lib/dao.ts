@@ -372,6 +372,9 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
       const daoName = row.daoname as string || "";
       const profile = profiles.get(daoName);
       
+      // Debug: Log raw authors field
+      console.log(`DAO ${daoName} raw authors:`, row.authors);
+      
       return {
         dao_name: daoName,
         creator: row.creator as string || "",

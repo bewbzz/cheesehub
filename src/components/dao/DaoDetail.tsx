@@ -121,7 +121,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     }
     
     // Also do a background refresh to get accurate blockchain data
-    setTimeout(() => loadProposals(), 3000);
+    // Also refresh membership status in case voting registered the user
+    setTimeout(() => {
+      loadProposals();
+      checkMembership();
+    }, 3000);
   };
 
   // Check if current user is the DAO creator (creators are automatically members)

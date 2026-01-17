@@ -233,6 +233,15 @@ export function CreateDao() {
         }
       );
 
+      // Build setprofile action for DAO metadata (description, avatar, cover)
+      const setProfileAction = buildSetProfileAction(
+        accountName,
+        formData.daoName,
+        formData.description,
+        formData.avatar,
+        formData.coverImage
+      );
+
       // Handle CHEESE prepayment flow (user already prepaid)
       if (hasPrepaid) {
         // Fetch prepayment to get ID for finalise action
@@ -262,13 +271,14 @@ export function CreateDao() {
           waxdaoFeeAction,    // 2. User pays WAXDAO to dao.waxdao
           assertAction,       // 3. Assert point
           createAction,       // 4. Create DAO
-          finaliseAction,     // 5. Transfer CHEESE to eosio.null (only if all above succeed)
+          setProfileAction,   // 5. Set DAO profile (description, images)
+          finaliseAction,     // 6. Transfer CHEESE to eosio.null (only if all above succeed)
         ];
         await session.transact({ actions });
       } else {
-        // Standard WAX payment (unchanged)
+        // Standard WAX payment
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const actions: any[] = [assertAction, feeAction, createAction];
+        const actions: any[] = [assertAction, feeAction, createAction, setProfileAction];
         await session.transact({ actions });
       }
       

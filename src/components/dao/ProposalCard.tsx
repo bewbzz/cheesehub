@@ -19,7 +19,7 @@ import {
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel, ChevronDown } from "lucide-react";
 import { NFTVotePicker } from "./NFTVotePicker";
 
 interface ProposalCardProps {
@@ -43,6 +43,9 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   
   // NFT voting state for Type 5 DAOs
   const [selectedNFTIds, setSelectedNFTIds] = useState<string[]>([]);
+  
+  // Expandable description state
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   // Sync userVote with initialVote when it changes (e.g., after fetching from blockchain)
   useEffect(() => {
@@ -820,9 +823,27 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
         <div className="flex items-start justify-between gap-2 overflow-hidden">
           <div className="flex-1 min-w-0 overflow-hidden">
             <h4 className="font-semibold text-foreground truncate">{proposal.title}</h4>
-            <p className="text-sm text-muted-foreground line-clamp-2 break-all overflow-hidden" style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
-              {proposal.description}
-            </p>
+            <div className="mt-1">
+              <p 
+                className={`text-sm text-muted-foreground break-all overflow-hidden ${
+                  isDescriptionExpanded ? '' : 'line-clamp-2'
+                }`} 
+                style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
+              >
+                {proposal.description}
+              </p>
+              {proposal.description && proposal.description.length > 100 && (
+                <button
+                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                  className="text-xs text-cheese hover:text-cheese/80 flex items-center gap-1 mt-1 transition-colors"
+                >
+                  <ChevronDown 
+                    className={`h-3 w-3 transition-transform ${isDescriptionExpanded ? 'rotate-180' : ''}`} 
+                  />
+                  {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">
             <Badge className={`${statusColors[displayStatus] || "bg-muted"} ${

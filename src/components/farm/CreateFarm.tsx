@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play, CheckCircle2, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play, CheckCircle2, RefreshCw, ChevronDown, Globe, Youtube, BookOpen } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -117,6 +118,13 @@ export function CreateFarm() {
     description: "",
     hoursBetweenPayouts: "1",
     farmType: FARM_TYPES.COLLECTIONS as FarmType,
+    // Social links
+    twitter: "",
+    discord: "",
+    telegram: "",
+    website: "",
+    youtube: "",
+    medium: "",
   });
 
   const [rewardTokens, setRewardTokens] = useState<RewardToken[]>([
@@ -234,16 +242,16 @@ export function CreateFarm() {
         description: formData.description.trim(),
       };
 
-      // Build socials object (empty - not exposed in UI)
+      // Build socials object from form data
       const socials = {
-        website: "",
-        telegram: "",
-        discord: "",
-        twitter: "",
-        medium: "",
-        youtube: "",
         atomichub: "",
+        discord: formData.discord.trim(),
+        medium: formData.medium.trim(),
+        telegram: formData.telegram.trim(),
+        twitter: formData.twitter.trim(),
         waxdao: "",
+        website: formData.website.trim(),
+        youtube: formData.youtube.trim(),
       };
 
       // Build create farm action
@@ -306,6 +314,12 @@ export function CreateFarm() {
         description: "",
         hoursBetweenPayouts: "1",
         farmType: FARM_TYPES.COLLECTIONS,
+        twitter: "",
+        discord: "",
+        telegram: "",
+        website: "",
+        youtube: "",
+        medium: "",
       });
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
       setPaymentMethod("wax");
@@ -696,6 +710,105 @@ export function CreateFarm() {
               </p>
             </div>
           </div>
+
+          {/* Social Links Section (Collapsible) */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-lg border border-cheese/50 bg-cheese/5 hover:bg-cheese/10 transition-colors text-cheese font-medium text-sm">
+              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              Social Links (Optional)
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <p className="text-xs text-muted-foreground">
+                Add social media links to help users connect with your project. All fields are optional.
+              </p>
+              
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="twitter" className="flex items-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    Twitter / X
+                  </Label>
+                  <Input
+                    id="twitter"
+                    placeholder="https://twitter.com/yourproject"
+                    value={formData.twitter}
+                    onChange={(e) => setFormData({ ...formData, twitter: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="discord" className="flex items-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.317 4.369a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037c-1.687.29-3.33.8-4.885 1.515a.07.07 0 00-.032.028C.533 9.045-.32 13.58.099 18.058a.082.082 0 00.031.056 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.009c.12.098.246.198.373.293a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 00.084.029 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.055c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 00-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z" />
+                    </svg>
+                    Discord
+                  </Label>
+                  <Input
+                    id="discord"
+                    placeholder="https://discord.gg/yourserver"
+                    value={formData.discord}
+                    onChange={(e) => setFormData({ ...formData, discord: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telegram" className="flex items-center gap-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635z" />
+                    </svg>
+                    Telegram
+                  </Label>
+                  <Input
+                    id="telegram"
+                    placeholder="https://t.me/yourgroup"
+                    value={formData.telegram}
+                    onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website" className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Website
+                  </Label>
+                  <Input
+                    id="website"
+                    placeholder="https://yourproject.com"
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="youtube" className="flex items-center gap-2">
+                    <Youtube className="h-4 w-4" />
+                    YouTube
+                  </Label>
+                  <Input
+                    id="youtube"
+                    placeholder="https://youtube.com/@yourchannel"
+                    value={formData.youtube}
+                    onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="medium" className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Medium
+                  </Label>
+                  <Input
+                    id="medium"
+                    placeholder="https://medium.com/@yourprofile"
+                    value={formData.medium}
+                    onChange={(e) => setFormData({ ...formData, medium: e.target.value })}
+                  />
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           <div className="border-t border-border/50" />
 

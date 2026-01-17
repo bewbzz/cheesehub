@@ -83,6 +83,8 @@ export interface FarmSocials {
   twitter?: string;
   atomichub?: string;
   waxdao?: string;
+  youtube?: string;
+  medium?: string;
 }
 
 export interface FarmInfo {

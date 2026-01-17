@@ -730,9 +730,9 @@ export async function fetchUserStakes(
           return [];
         }
       } else {
-        console.log(`[Strategy 0] No staking rows found for user ${account} - not staked anywhere`);
-        // User confirmed not staked anywhere - return early!
-        return [];
+        console.log(`[Strategy 0] Secondary index returned 0 rows for user ${account} - trying fallback strategies`);
+        // Don't early return - WAX RPC secondary indexes are unreliable
+        // Continue to Strategy 0b which searches actual table data
       }
     } catch (e) {
       console.log("[Strategy 0] Failed, falling back to other strategies:", e);

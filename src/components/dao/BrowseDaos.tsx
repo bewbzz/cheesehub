@@ -25,10 +25,13 @@ export function BrowseDaos() {
     }
   }
 
-  const filteredDaos = daos.filter((dao) =>
-    dao.dao_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dao.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter to only show Type 4 (Stake Tokens) and Type 5 (Hold NFTs) DAOs
+  const filteredDaos = daos
+    .filter((dao) => dao.dao_type === 4 || dao.dao_type === 5)
+    .filter((dao) =>
+      dao.dao_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dao.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   return (
     <div className="space-y-6">

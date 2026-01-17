@@ -20,8 +20,28 @@ import {
   Construction,
   Globe,
   Youtube,
-  BookOpen
+  BookOpen,
+  ImageIcon
 } from "lucide-react";
+
+// IPFS gateway fallback system
+const IPFS_GATEWAYS = [
+  "https://ipfs.io/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/"
+];
+
+const getIpfsUrlWithGateway = (url: string, gatewayIndex: number): string => {
+  if (!url) return "";
+  // Extract IPFS hash from various formats
+  const ipfsMatch = url.match(/(?:ipfs:\/\/|\/ipfs\/|^Qm|^bafy)([a-zA-Z0-9]+)/);
+  if (ipfsMatch) {
+    const hash = url.startsWith("Qm") || url.startsWith("bafy") ? url : ipfsMatch[1];
+    return `${IPFS_GATEWAYS[gatewayIndex]}${hash}`;
+  }
+  return url;
+};
 
 // Custom social icons
 const TwitterIcon = ({ className }: { className?: string }) => (
@@ -66,6 +86,7 @@ export function FarmDetail() {
   const { toast } = useToast();
   const { accountName } = useWax();
   const [copied, setCopied] = useState(false);
+  const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
 
   const queryClient = useQueryClient();
   
@@ -146,22 +167,6 @@ export function FarmDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Cover Image - Full width banner at top */}
-      {farm.profile?.cover_image && (
-        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 mb-6">
-          <div className="w-full aspect-[3/1] sm:aspect-[4/1] overflow-hidden">
-            <img
-              src={getIpfsUrl(farm.profile.cover_image)}
-              alt={`${farm.farm_name} cover`}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).parentElement!.style.display = "none";
-              }}
-            />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-        </div>
-      )}
 
       {/* Back Button */}
       <Button onClick={() => navigate("/farm")} variant="ghost" className="gap-2">
@@ -475,6 +480,30 @@ export function FarmDetail() {
         </h2>
         <NFTStaking farm={farm} />
       </div>
+
+      {/* Cover Image Section */}
+      {farm.profile?.cover_image && (
+        <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+          <h4 className="font-medium flex items-center gap-2">
+            <ImageIcon className="h-4 w-4 text-cheese" />
+            Cover Image
+          </h4>
+          <div className="rounded-lg overflow-hidden">
+            <img 
+              src={getIpfsUrlWithGateway(farm.profile.cover_image, coverGatewayIndex)} 
+              alt={`${farm.farm_name} cover`}
+              className="w-full h-auto object-contain cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => window.open(getIpfsUrlWithGateway(farm.profile.cover_image, coverGatewayIndex), '_blank')}
+              title="Click to view full size"
+              onError={() => {
+                if (coverGatewayIndex < IPFS_GATEWAYS.length - 1) {
+                  setCoverGatewayIndex(prev => prev + 1);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* External Link */}
       <Card className="border-border/50 bg-card/50">

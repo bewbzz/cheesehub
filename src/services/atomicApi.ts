@@ -162,101 +162,234 @@ export async function fetchTemplates(): Promise<NFTDrop[]> {
   }
 }
 
-// Fetch NFT Hive drops - optionally filter by collection
-export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]> {
-  try {
-    // Fetch drops from NFT Hive, optionally filtered by collection
-    const url = collection 
-      ? `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${collection}`
-      : `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
+// On-chain NFTHive drops table row type
+interface OnChainNFTHiveDrop {
+  drop_id: number;
+  authorized_account: string;
+  collection_name: string;
+  assets_to_mint: Array<{
+    template_id: number;
+    tokens_to_back: unknown[];
+    pool_id: number;
+  }>;
+  listing_price: string;
+  settlement_symbol: string;
+  price_recipient: string;
+  fee_rate: string;
+  auth_required: number;
+  is_hidden: number;
+  max_claimable: number;
+  current_claimed: number;
+  account_limit: number;
+  account_limit_cooldown: number;
+  start_time: number;
+  end_time: number;
+  display_data: string;
+}
 
-    const response = await fetch(url);
-    const drops = await response.json() as NFTHiveDrop[];
-
-    // Helper to extract data from NFT Hive's immutableData array format
-    const getData = (immutableData: Array<{ key: string; value: [string, string] }>, key: string): string => {
-      const item = immutableData.find(d => d.key === key);
-      return item?.value?.[1] || '';
+// Parse price string like "4.00 USD" or "5.90000000 LIMBO" into number and currency
+function parseListingPrice(listingPrice: string): { price: number; currency: string } {
+  const parts = listingPrice.trim().split(' ');
+  if (parts.length >= 2) {
+    return {
+      price: parseFloat(parts[0]) || 0,
+      currency: parts[1] || 'WAX',
     };
+  }
+  return { price: 0, currency: 'WAX' };
+}
 
-    // Map all drops to NFTDrop format and enrich with template data if needed
+// Fetch drops directly from on-chain nfthivedrops contract
+async function fetchOnChainNFTHiveDrops(collection?: string): Promise<NFTDrop[]> {
+  try {
+    const { fetchTableRows } = await import('@/lib/waxRpcFallback');
+
+    const result = await fetchTableRows<OnChainNFTHiveDrop>({
+      code: 'nfthivedrops',
+      scope: 'nfthivedrops',
+      table: 'drops',
+      limit: 1000,
+    });
+
+    let drops = result.rows;
+
+    // Filter by collection if specified
+    if (collection) {
+      drops = drops.filter(d => d.collection_name === collection);
+    }
+
+    // Filter out hidden drops and apply time-based filtering
+    const now = Math.floor(Date.now() / 1000);
+    drops = drops.filter(d => {
+      if (d.is_hidden) return false;
+      // Show drops that haven't ended (end_time 0 means no end)
+      if (d.end_time > 0 && d.end_time < now) return false;
+      return true;
+    });
+
+    // Enrich drops with template metadata from AtomicAssets
     const enrichedDrops = await Promise.all(
-      drops.map(async (drop): Promise<NFTDrop> => {
-        const template = drop.templatesToMint?.[0];
-        const immutableData = template?.immutableData || [];
+      drops.map(async (drop): Promise<NFTDrop | null> => {
+        const templateId = drop.assets_to_mint?.[0]?.template_id;
+        const { price, currency } = parseListingPrice(drop.listing_price);
 
-        const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
-        const displayDescription = drop.displayData?.description || '';
-        const immutableDescription = getData(immutableData, 'description') || '';
-        const description = displayDescription || immutableDescription || 'A unique NFT drop from the Cheese collection';
-        const templateDescription = displayDescription && immutableDescription ? immutableDescription : undefined;
-        const img = getData(immutableData, 'img') || getData(immutableData, 'image');
-
-        // Build attributes from immutable data
-        const excludeKeys = ['name', 'img', 'video', 'description', 'image'];
-        const attributes = immutableData
-          .filter(item => !excludeKeys.includes(item.key.toLowerCase()))
-          .map(item => ({ trait: item.key, value: item.value?.[1] || '' }))
-          .slice(0, 6);
-
-        const maxClaimable = drop.maxClaimable || 0;
-        
-        // Get numClaimed with fallbacks for accurate sold out status
-        let numClaimed = drop.numClaimed;
-        
-        // Fallback 1: Use template stats.numMinted from NFTHive response
-        if (numClaimed === null || numClaimed === undefined) {
-          const templateStats = (template as any)?.stats;
-          if (templateStats?.numMinted !== undefined) {
-            numClaimed = templateStats.numMinted;
+        // Parse display_data JSON
+        let displayData: { name?: string; description?: string } = {};
+        try {
+          if (drop.display_data) {
+            displayData = JSON.parse(drop.display_data);
           }
+        } catch (e) {
+          // Invalid JSON, ignore
         }
-        
-        // Fallback 2: Fetch issuedSupply from AtomicAssets API
-        if ((numClaimed === null || numClaimed === undefined) && template?.templateId) {
+
+        let name = displayData.name || `Drop #${drop.drop_id}`;
+        let description = displayData.description || 'A unique NFT drop';
+        let image = '/placeholder.svg';
+        let attributes: { trait: string; value: string }[] = [{ trait: 'Rarity', value: 'Common' }];
+
+        // Fetch template data for image and additional metadata
+        if (templateId) {
           try {
-            const templateData = await fetchTemplateById(
-              String(template.templateId),
-              drop.collection?.collectionName
-            );
+            const templateData = await fetchTemplateById(String(templateId), drop.collection_name);
             if (templateData) {
-              numClaimed = templateData.issuedSupply;
+              image = templateData.image || image;
+              if (templateData.name && !displayData.name) {
+                name = templateData.name;
+              }
             }
           } catch (e) {
-            console.warn('Could not fetch template supply:', e);
+            console.warn('Could not fetch template for drop:', drop.drop_id, e);
           }
         }
-        
-        const claimCount = numClaimed || 0;
+
+        const maxClaimable = drop.max_claimable || 0;
+        const remaining = Math.max(0, maxClaimable - drop.current_claimed);
 
         return {
-          id: `nfthive-${drop.dropId}`,
-          dropId: String(drop.dropId),
-          templateId: template?.templateId ? String(template.templateId) : undefined,
-          collectionName: drop.collection?.collectionName || 'unknown',
+          id: `nfthive-${drop.drop_id}`,
+          dropId: String(drop.drop_id),
+          templateId: templateId ? String(templateId) : undefined,
+          collectionName: drop.collection_name,
           name,
           description,
-          templateDescription,
-          image: getImageUrl(img),
-          price: drop.price,
+          image,
+          price,
           totalSupply: maxClaimable,
-          remaining: Math.max(0, maxClaimable - claimCount),
-          attributes: attributes.length > 0 ? attributes : [{ trait: 'Rarity', value: 'Common' }],
-          endDate: drop.endTime > 0 ? new Date(drop.endTime * 1000).toISOString() : undefined,
+          remaining,
+          attributes,
+          endDate: drop.end_time > 0 ? new Date(drop.end_time * 1000).toISOString() : undefined,
           dropSource: 'nfthive',
-          settlementSymbol: `4,${drop.currency}`,
-          listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
-          currency: drop.currency,
-          tokenContract: drop.contract,
+          settlementSymbol: drop.settlement_symbol,
+          listingPrice: drop.listing_price,
+          currency,
         };
       })
     );
 
-    return enrichedDrops;
+    return enrichedDrops.filter((d): d is NFTDrop => d !== null);
   } catch (error) {
-    console.error('Error fetching NFT Hive drops:', error);
+    console.error('Error fetching on-chain NFTHive drops:', error);
     return [];
   }
+}
+
+// Fetch NFT Hive drops - tries API first, then falls back to on-chain data
+export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]> {
+  // Try API first (may be down or CORS blocked)
+  try {
+    const url = collection 
+      ? `${NFTHIVE_CONFIG.apiUrl}/api/drops?collection=${collection}`
+      : `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (response.ok) {
+      const drops = await response.json() as NFTHiveDrop[];
+
+      if (drops && drops.length > 0) {
+        // Helper to extract data from NFT Hive's immutableData array format
+        const getData = (immutableData: Array<{ key: string; value: [string, string] }>, key: string): string => {
+          const item = immutableData.find(d => d.key === key);
+          return item?.value?.[1] || '';
+        };
+
+        // Map all drops to NFTDrop format and enrich with template data if needed
+        const enrichedDrops = await Promise.all(
+          drops.map(async (drop): Promise<NFTDrop> => {
+            const template = drop.templatesToMint?.[0];
+            const immutableData = template?.immutableData || [];
+
+            const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
+            const displayDescription = drop.displayData?.description || '';
+            const immutableDescription = getData(immutableData, 'description') || '';
+            const description = displayDescription || immutableDescription || 'A unique NFT drop from the Cheese collection';
+            const templateDescription = displayDescription && immutableDescription ? immutableDescription : undefined;
+            const img = getData(immutableData, 'img') || getData(immutableData, 'image');
+
+            const excludeKeys = ['name', 'img', 'video', 'description', 'image'];
+            const attributes = immutableData
+              .filter(item => !excludeKeys.includes(item.key.toLowerCase()))
+              .map(item => ({ trait: item.key, value: item.value?.[1] || '' }))
+              .slice(0, 6);
+
+            const maxClaimable = drop.maxClaimable || 0;
+            let numClaimed = drop.numClaimed;
+            
+            if (numClaimed === null || numClaimed === undefined) {
+              const templateStats = (template as any)?.stats;
+              if (templateStats?.numMinted !== undefined) {
+                numClaimed = templateStats.numMinted;
+              }
+            }
+            
+            if ((numClaimed === null || numClaimed === undefined) && template?.templateId) {
+              try {
+                const templateData = await fetchTemplateById(
+                  String(template.templateId),
+                  drop.collection?.collectionName
+                );
+                if (templateData) {
+                  numClaimed = templateData.issuedSupply;
+                }
+              } catch (e) {
+                console.warn('Could not fetch template supply:', e);
+              }
+            }
+            
+            const claimCount = numClaimed || 0;
+
+            return {
+              id: `nfthive-${drop.dropId}`,
+              dropId: String(drop.dropId),
+              templateId: template?.templateId ? String(template.templateId) : undefined,
+              collectionName: drop.collection?.collectionName || 'unknown',
+              name,
+              description,
+              templateDescription,
+              image: getImageUrl(img),
+              price: drop.price,
+              totalSupply: maxClaimable,
+              remaining: Math.max(0, maxClaimable - claimCount),
+              attributes: attributes.length > 0 ? attributes : [{ trait: 'Rarity', value: 'Common' }],
+              endDate: drop.endTime > 0 ? new Date(drop.endTime * 1000).toISOString() : undefined,
+              dropSource: 'nfthive',
+              settlementSymbol: `4,${drop.currency}`,
+              listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
+              currency: drop.currency,
+              tokenContract: drop.contract,
+            };
+          })
+        );
+
+        return enrichedDrops;
+      }
+    }
+  } catch (error) {
+    console.warn('NFTHive API unavailable, falling back to on-chain data:', error);
+  }
+
+  // Fallback: fetch directly from blockchain
+  return fetchOnChainNFTHiveDrops(collection);
 }
 
 // Fetch NeftyBlocks/AtomicHub drops (WAX only, for reference)

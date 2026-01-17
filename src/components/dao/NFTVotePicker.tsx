@@ -45,6 +45,7 @@ export function NFTVotePicker({ dao, proposalId, userAccount, onSelect, disabled
   useEffect(() => {
     async function loadNFTs() {
       if (!userAccount || !dao.gov_schemas || dao.gov_schemas.length === 0) {
+        console.log('[NFTVotePicker] No user account or no gov_schemas configured');
         setLoading(false);
         return;
       }
@@ -57,15 +58,22 @@ export function NFTVotePicker({ dao, proposalId, userAccount, onSelect, disabled
         const collections = dao.gov_schemas.map(s => s.collection_name);
         const schemas = dao.gov_schemas.map(s => s.schema_name);
         
+        console.log('[NFTVotePicker] Fetching NFTs for', userAccount);
+        console.log('[NFTVotePicker] Eligible collections:', collections);
+        console.log('[NFTVotePicker] Eligible schemas:', schemas);
+        
         const [userNFTs, voted] = await Promise.all([
           fetchUserNFTsBySchema(userAccount, collections, schemas),
           fetchVotedNFTs(proposalId)
         ]);
         
+        console.log('[NFTVotePicker] Found', userNFTs.length, 'eligible NFTs');
+        console.log('[NFTVotePicker] Already voted:', voted.length);
+        
         setEligibleNFTs(userNFTs);
         setVotedAssetIds(voted);
       } catch (err) {
-        console.error("Failed to load NFTs for voting:", err);
+        console.error("[NFTVotePicker] Failed to load NFTs for voting:", err);
         setError("Failed to load your NFTs");
       } finally {
         setLoading(false);

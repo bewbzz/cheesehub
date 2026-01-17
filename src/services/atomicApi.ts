@@ -468,50 +468,185 @@ export async function fetchAllDrops(): Promise<NFTDrop[]> {
   });
 }
 
-// Fetch user's NFTs filtered by collections and schemas (for DAO staking)
+// Fetch user's NFTs filtered by collections and schemas (for DAO voting)
+// Uses hybrid approach: on-chain ownership + API metadata with template fallback
 export async function fetchUserNFTsBySchema(
   account: string,
   collections: string[],
   schemas: string[]
 ): Promise<{ asset_id: string; name: string; image: string; collection: string; schema: string; template_id: string }[]> {
   try {
-    const results: { asset_id: string; name: string; image: string; collection: string; schema: string; template_id: string }[] = [];
-    
-    // Fetch NFTs for each collection/schema pair
-    for (let i = 0; i < collections.length; i++) {
-      const collection = collections[i];
-      const schema = schemas[i];
-      
-      const params = new URLSearchParams({
-        owner: account,
-        collection_name: collection,
-        limit: '100',
+    console.log('[NFT Fetch] Starting hybrid fetch for', account);
+    console.log('[NFT Fetch] Eligible collections:', collections);
+    console.log('[NFT Fetch] Eligible schemas:', schemas);
+
+    // Import waxRpcCall dynamically to avoid circular deps
+    const { fetchTableRows: fetchTableRowsRpc } = await import('@/lib/waxRpcFallback');
+
+    // Step 1: Query blockchain directly for user's owned assets
+    // The atomicassets contract stores assets in a table scoped by owner
+    const onChainAssets: Array<{
+      asset_id: string;
+      collection_name: string;
+      schema_name: string;
+      template_id: number;
+    }> = [];
+
+    let lower_bound = '';
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await fetchTableRowsRpc<{
+        asset_id: string;
+        collection_name: string;
+        schema_name: string;
+        template_id: number;
+      }>({
+        code: 'atomicassets',
+        scope: account,
+        table: 'assets',
+        limit: 1000,
+        lower_bound,
       });
-      if (schema) {
-        params.set('schema_name', schema);
+
+      for (const asset of response.rows) {
+        // Filter by eligible collection/schema pairs
+        const isEligible = collections.some((col, idx) => {
+          const targetSchema = schemas[idx];
+          const colMatch = asset.collection_name === col;
+          const schemaMatch = !targetSchema || asset.schema_name === targetSchema;
+          return colMatch && schemaMatch;
+        });
+
+        if (isEligible) {
+          onChainAssets.push(asset);
+        }
       }
-      const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
-      
-      const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-      const json = await response.json();
-      
-      if (json.success && json.data) {
-        for (const asset of json.data) {
-          results.push({
-            asset_id: asset.asset_id,
-            name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-            image: getImageUrl(asset.data?.img || asset.data?.image),
-            collection: asset.collection?.collection_name || collection,
-            schema: asset.schema?.schema_name || schema,
-            template_id: asset.template?.template_id || '',
-          });
+
+      hasMore = response.more && response.rows.length > 0;
+      if (hasMore && response.rows.length > 0) {
+        // Use next key or increment last asset_id
+        lower_bound = response.next_key || String(BigInt(response.rows[response.rows.length - 1].asset_id) + 1n);
+      }
+    }
+
+    console.log('[NFT Fetch] Found', onChainAssets.length, 'eligible assets on-chain');
+
+    if (onChainAssets.length === 0) {
+      return [];
+    }
+
+    // Step 2: Try to fetch metadata from AtomicAssets API in batches
+    const results: { asset_id: string; name: string; image: string; collection: string; schema: string; template_id: string }[] = [];
+    const missingMetadata: typeof onChainAssets = [];
+
+    // Batch fetch from API (max 100 per request)
+    const assetIds = onChainAssets.map(a => a.asset_id);
+    const batchSize = 100;
+
+    for (let i = 0; i < assetIds.length; i += batchSize) {
+      const batch = assetIds.slice(i, i + batchSize);
+      try {
+        const params = new URLSearchParams({
+          ids: batch.join(','),
+          limit: String(batchSize),
+        });
+        const path = `${ATOMIC_API.paths.assets}?${params.toString()}`;
+        const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+        const json = await response.json();
+
+        if (json.success && json.data) {
+          const apiAssets = new Map<string, { asset_id: string; name?: string; data?: { name?: string; img?: string; image?: string } }>(
+            json.data.map((a: { asset_id: string; name?: string; data?: { name?: string; img?: string; image?: string } }) => [a.asset_id, a])
+          );
+
+          for (const onChain of onChainAssets.filter(a => batch.includes(a.asset_id))) {
+            const apiData = apiAssets.get(onChain.asset_id);
+            if (apiData) {
+              results.push({
+                asset_id: onChain.asset_id,
+                name: apiData.data?.name || apiData.name || `NFT #${onChain.asset_id}`,
+                image: getImageUrl(apiData.data?.img || apiData.data?.image),
+                collection: onChain.collection_name,
+                schema: onChain.schema_name,
+                template_id: String(onChain.template_id || ''),
+              });
+            } else {
+              missingMetadata.push(onChain);
+            }
+          }
+        } else {
+          // API failed for this batch, add all to missing
+          missingMetadata.push(...onChainAssets.filter(a => batch.includes(a.asset_id)));
+        }
+      } catch (err) {
+        console.warn('[NFT Fetch] API batch failed, will fallback to template:', err);
+        missingMetadata.push(...onChainAssets.filter(a => batch.includes(a.asset_id)));
+      }
+    }
+
+    // Step 3: Fallback to template metadata for missing assets
+    if (missingMetadata.length > 0) {
+      console.log('[NFT Fetch] Fetching template metadata for', missingMetadata.length, 'unindexed assets');
+
+      // Group by template_id to minimize API calls
+      const templateGroups = new Map<string, typeof missingMetadata>();
+      for (const asset of missingMetadata) {
+        const key = `${asset.collection_name}:${asset.template_id}`;
+        if (!templateGroups.has(key)) {
+          templateGroups.set(key, []);
+        }
+        templateGroups.get(key)!.push(asset);
+      }
+
+      for (const [key, assets] of templateGroups) {
+        const [collectionName, templateId] = key.split(':');
+        if (templateId && templateId !== '0') {
+          try {
+            const templateData = await fetchTemplateById(templateId, collectionName);
+            for (const asset of assets) {
+              results.push({
+                asset_id: asset.asset_id,
+                name: templateData?.name || `NFT #${asset.asset_id}`,
+                image: templateData?.image || '/placeholder.svg',
+                collection: asset.collection_name,
+                schema: asset.schema_name,
+                template_id: String(asset.template_id || ''),
+              });
+            }
+          } catch {
+            // Last resort: placeholder
+            for (const asset of assets) {
+              results.push({
+                asset_id: asset.asset_id,
+                name: `NFT #${asset.asset_id}`,
+                image: '/placeholder.svg',
+                collection: asset.collection_name,
+                schema: asset.schema_name,
+                template_id: String(asset.template_id || ''),
+              });
+            }
+          }
+        } else {
+          // No template, use placeholder
+          for (const asset of assets) {
+            results.push({
+              asset_id: asset.asset_id,
+              name: `NFT #${asset.asset_id}`,
+              image: '/placeholder.svg',
+              collection: asset.collection_name,
+              schema: asset.schema_name,
+              template_id: '',
+            });
+          }
         }
       }
     }
-    
+
+    console.log('[NFT Fetch] Total results:', results.length);
     return results;
   } catch (error) {
-    console.error('Error fetching user NFTs by schema:', error);
+    console.error('[NFT Fetch] Error fetching user NFTs by schema:', error);
     return [];
   }
 }

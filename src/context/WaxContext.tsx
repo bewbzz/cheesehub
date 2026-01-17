@@ -398,9 +398,22 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Join DAO failed:', error);
       closeWharfkitModals();
+      
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // If already a member, treat as success and update UI
+      if (errorMsg.toLowerCase().includes('already') || 
+          errorMsg.toLowerCase().includes('member')) {
+        toast({
+          title: 'Already a Member',
+          description: `You are already a member of ${daoName}`,
+        });
+        return 'already_member'; // Signal to update UI
+      }
+      
       toast({
         title: 'Join Failed',
-        description: error instanceof Error ? error.message : 'Failed to join DAO',
+        description: errorMsg || 'Failed to join DAO',
         variant: 'destructive',
       });
       return null;

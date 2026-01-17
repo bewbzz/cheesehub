@@ -33,20 +33,8 @@ import {
 import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
 import { useCheeseFeePricing } from "@/hooks/useCheeseFeePricing";
 
-// DAO Type descriptions for the selector
+// DAO Type descriptions for the selector (only Type 4 and 5 available)
 const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
-  1: {
-    short: "Stake NFTs to a V1 WaxDAO NFT Farm",
-    long: "Members stake their NFTs to an existing V1 WaxDAO NFT farm (waxdaofarmer contract). Voting power is based on the number of NFTs staked. Requires an existing V1 NFT farm."
-  },
-  2: {
-    short: "Stake Tokens to a V1 WaxDAO Token Farm",
-    long: "Members stake tokens to an existing V1 WaxDAO token farm (waxdaofarmer contract). Voting power equals staked token amount. Requires an existing V1 token farm."
-  },
-  3: {
-    short: "Stake to External V1 WaxDAO Pool",
-    long: "Stakes to an external V1 WaxDAO farmer pool. Similar to Type 2 but uses external pool reference. Requires V1 farm."
-  },
   4: {
     short: "Stake Tokens to DAO (Custodial)",
     long: "Members stake governance tokens directly to the DAO contract. Tokens are held custodially until unstaked. Voting power equals staked balance. No external farm needed."
@@ -107,10 +95,9 @@ export function CreateDao() {
   // Temp state for adding new schema
   const [newSchema, setNewSchema] = useState({ collection_name: "", schema_name: "" });
 
-  // Determine which fields to show based on DAO type
+  // Determine which fields to show based on DAO type (only Type 4 and 5 available)
   const showTokenFields = formData.daoType === 4;
-  const showFarmField = [1, 2, 3].includes(formData.daoType);
-  const showSchemaFields = [1, 2, 5].includes(formData.daoType);
+  const showSchemaFields = formData.daoType === 5;
 
   function addSchema() {
     if (newSchema.collection_name.trim() && newSchema.schema_name.trim()) {
@@ -198,10 +185,6 @@ export function CreateDao() {
       return;
     }
 
-    if (showFarmField && !formData.govFarmName.trim()) {
-      toast.error("Farm name is required for Farm-based DAOs");
-      return;
-    }
 
     if (showSchemaFields && formData.govSchemas.length === 0) {
       toast.error("At least one collection/schema pair is required for NFT DAOs");
@@ -417,43 +400,19 @@ export function CreateDao() {
                           DAO Types Explained
                         </AccordionTrigger>
                         <AccordionContent className="text-sm text-foreground space-y-3">
-                          <p className="font-medium">WaxDAO supports 5 different DAO types:</p>
+                          <p className="font-medium">CHEESEDao supports 2 DAO types:</p>
                           
                           <div className="space-y-3">
-                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
-                              <p className="font-medium text-amber-500">Type 1: Custodial NFT Farm (V1)</p>
-                              <p className="text-xs mt-1">
-                                Requires an existing <strong>V1 WaxDAO NFT farm</strong> (waxdaofarmer contract). 
-                                Members stake NFTs to that farm to gain voting power. V2 farms are NOT compatible.
-                              </p>
-                            </div>
-                            
-                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
-                              <p className="font-medium text-amber-500">Type 2: Custodial Token Farm (V1)</p>
-                              <p className="text-xs mt-1">
-                                Requires an existing <strong>V1 WaxDAO token farm</strong> (waxdaofarmer contract). 
-                                Members stake tokens to that farm for voting power. V2 farms are NOT compatible.
-                              </p>
-                            </div>
-                            
-                            <div className="p-2 rounded border border-amber-500/30 bg-amber-500/5">
-                              <p className="font-medium text-amber-500">Type 3: Stake to V1 WaxDAO Pool</p>
-                              <p className="text-xs mt-1">
-                                Similar to Type 2, uses external V1 WaxDAO farmer pool reference. 
-                                Requires existing V1 farm.
-                              </p>
-                            </div>
-                            
                             <div className="p-2 rounded border border-cheese/50 bg-cheese/5">
-                              <p className="font-medium text-cheese">Type 4: Stake Tokens (Custodial) ⭐ Popular</p>
+                              <p className="font-medium text-cheese">Stake Tokens (Custodial) ⭐ Popular</p>
                               <p className="text-xs mt-1">
                                 Members stake governance tokens directly to the DAO. <strong>No external farm needed.</strong>
-                                Tokens are held by the DAO contract until unstaked.
+                                Tokens are held by the DAO contract until unstaked. Voting power equals staked balance.
                               </p>
                             </div>
                             
                             <div className="p-2 rounded border border-green-500/50 bg-green-500/5">
-                              <p className="font-medium text-green-500">Type 5: Hold NFTs (Non-Custodial) 🆕 Easiest</p>
+                              <p className="font-medium text-green-500">Hold NFTs (Non-Custodial) 🆕 Easiest</p>
                               <p className="text-xs mt-1">
                                 <strong>No staking required!</strong> NFTs stay in user's wallet. 
                                 Simply hold eligible NFTs to vote. Each NFT = 1 vote. 
@@ -755,7 +714,7 @@ export function CreateDao() {
                 onValueChange={(value) => setFormData({ ...formData, daoType: parseInt(value) })}
                 className="grid grid-cols-1 gap-2"
               >
-                {[4, 5, 1, 2, 3].map((type) => (
+                {[4, 5].map((type) => (
                   <div 
                     key={type}
                     className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
@@ -888,36 +847,15 @@ export function CreateDao() {
               </div>
             )}
 
-            {/* Farm Name (Types 1, 2, 3) */}
-            {showFarmField && (
-              <div className="space-y-4 p-4 bg-blue-500/5 rounded-lg border border-blue-500/30">
-                <h3 className="text-sm font-medium text-blue-500 uppercase tracking-wide">WaxDAO Farm</h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="govFarmName">Farm Name *</Label>
-                  <Input
-                    id="govFarmName"
-                    placeholder="e.g., myfarm"
-                    value={formData.govFarmName}
-                    onChange={(e) => setFormData({ ...formData, govFarmName: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The name of your existing WaxDAO farmer pool
-                  </p>
-                </div>
-              </div>
-            )}
 
-            {/* NFT Collections/Schemas (Types 1, 2, 5) */}
+            {/* NFT Collections/Schemas (Type 5 only) */}
             {showSchemaFields && (
               <div className="space-y-4 p-4 bg-green-500/5 rounded-lg border border-green-500/30">
                 <h3 className="text-sm font-medium text-green-500 uppercase tracking-wide">
                   Eligible NFT Collections
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {formData.daoType === 5 
-                    ? "Users holding NFTs from these collections can vote. Each NFT = 1 vote."
-                    : "NFTs from these collections can be staked for voting power."}
+                  Users holding NFTs from these collections can vote. Each NFT = 1 vote.
                 </p>
                 
                 {/* Current schemas */}

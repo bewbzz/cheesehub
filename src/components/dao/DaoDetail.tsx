@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, checkDaoMembership, UserVote, fetchUserVote } from "@/lib/dao";
+import { DaoInfo, Proposal, fetchProposals, fetchDaoTreasury, fetchDaoTreasuryNFTs, TreasuryBalance, TreasuryNFT, DAO_TYPES, PROPOSER_TYPES, checkDaoMembership, UserVote, fetchUserVote, fetchDaoDetails } from "@/lib/dao";
 import { ProposalCard } from "./ProposalCard";
 import { CreateProposal } from "./CreateProposal";
 import { DaoStaking } from "./DaoStaking";
 import { TreasuryDeposit } from "./TreasuryDeposit";
 import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
+import { EditDaoProfile } from "./EditDaoProfile";
 import { useWax } from "@/context/WaxContext";
 import { saveVote, getVotesForDao } from "@/lib/voteStorage";
 import { 
@@ -25,7 +26,12 @@ import {
   Wallet,
   ImageIcon,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  Globe,
+  Youtube,
+  BookOpen,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,8 +76,9 @@ interface MenuItem {
   hasUnvoted?: boolean;
 }
 
-export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
+export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   const { isConnected, accountName } = useWax();
+  const [dao, setDao] = useState<DaoInfo>(initialDao);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>("info");
@@ -79,6 +86,7 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
   const [treasuryNFTs, setTreasuryNFTs] = useState<TreasuryNFT[]>([]);
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   // IPFS gateway fallback indices
   const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
@@ -156,6 +164,11 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
 
   // Check if current user is the DAO creator (creators are automatically members)
   const isCreator = accountName && dao.creator === accountName;
+
+  // Reset DAO state when the initial dao prop changes
+  useEffect(() => {
+    setDao(initialDao);
+  }, [initialDao]);
 
   useEffect(() => {
     if (open) {
@@ -330,6 +343,21 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
     return needsFinalization;
   }).length;
 
+  // Check if user can edit DAO profile (must be an author)
+  const canEditProfile = accountName && dao.authors?.includes(accountName);
+
+  // Handler for profile update - refetch DAO data
+  const handleProfileUpdated = async () => {
+    try {
+      const updatedDao = await fetchDaoDetails(dao.dao_name);
+      if (updatedDao) {
+        setDao(updatedDao);
+      }
+    } catch (error) {
+      console.error("Failed to refresh DAO data:", error);
+    }
+  };
+
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
     ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
@@ -435,10 +463,23 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
               {/* DAO Info Section */}
               {activeSection === "info" && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-cheese" />
-                    DAO Information
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-cheese" />
+                      DAO Information
+                    </h3>
+                    {canEditProfile && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowEditProfile(true)}
+                        className="border-cheese/50 text-cheese hover:bg-cheese/10"
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit Profile
+                      </Button>
+                    )}
+                  </div>
 
                   {/* Stats Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -510,6 +551,81 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {dao.description}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Social Links Section */}
+                  {dao.socials && (dao.socials.twitter || dao.socials.discord || dao.socials.telegram || 
+                    dao.socials.website || dao.socials.youtube || dao.socials.medium || 
+                    dao.socials.atomichub || dao.socials.waxdao) && (
+                    <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                      <h4 className="font-medium">Social Links</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {dao.socials.twitter && (
+                          <a href={dao.socials.twitter} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <svg className="h-3 w-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
+                              Twitter
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.discord && (
+                          <a href={dao.socials.discord} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              Discord
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.telegram && (
+                          <a href={dao.socials.telegram} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              Telegram
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.website && (
+                          <a href={dao.socials.website} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <Globe className="h-3 w-3 mr-1" />
+                              Website
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.youtube && (
+                          <a href={dao.socials.youtube} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <Youtube className="h-3 w-3 mr-1" />
+                              YouTube
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.medium && (
+                          <a href={dao.socials.medium} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <BookOpen className="h-3 w-3 mr-1" />
+                              Medium
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.atomichub && (
+                          <a href={dao.socials.atomichub} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              AtomicHub
+                            </Badge>
+                          </a>
+                        )}
+                        {dao.socials.waxdao && (
+                          <a href={dao.socials.waxdao} target="_blank" rel="noopener noreferrer">
+                            <Badge variant="outline" className="hover:bg-cheese/10 cursor-pointer">
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              WaxDAO
+                            </Badge>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -806,6 +922,16 @@ export function DaoDetail({ dao, open, onClose }: DaoDetailProps) {
           </ScrollArea>
         </div>
       </DialogContent>
+
+      {/* Edit Profile Dialog */}
+      {showEditProfile && (
+        <EditDaoProfile
+          dao={dao}
+          open={showEditProfile}
+          onClose={() => setShowEditProfile(false)}
+          onProfileUpdated={handleProfileUpdated}
+        />
+      )}
     </Dialog>
   );
 }

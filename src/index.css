@@ -36,10 +36,10 @@
 
     --radius: 0.75rem;
 
-    --cheese: 30 100% 50%;
-    --cheese-light: 35 100% 60%;
-    --cheese-dark: 25 90% 40%;
-    --cheese-glow: 30 100% 55%;
+    --cheese: 45 100% 50%;
+    --cheese-light: 48 100% 65%;
+    --cheese-dark: 40 90% 40%;
+    --cheese-glow: 45 100% 60%;
   }
 
   .dark {
@@ -72,10 +72,10 @@
     --ring: 42 90% 50%;
 
     /* Custom tokens - Cheese theme */
-    --cheese: 30 100% 50%;
-    --cheese-light: 35 100% 60%;
-    --cheese-dark: 25 90% 40%;
-    --cheese-glow: 30 100% 55%;
+    --cheese: 42 90% 50%;
+    --cheese-light: 48 100% 65%;
+    --cheese-dark: 38 80% 35%;
+    --cheese-glow: 45 95% 60%;
     --cream: 45 40% 85%;
     --cream-dark: 40 25% 70%;
     --brown: 30 40% 25%;

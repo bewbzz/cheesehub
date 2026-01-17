@@ -9,14 +9,16 @@ import { fetchAllDrops, fetchCheeseDropStats } from "@/services/atomicApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { NFTDrop } from "@/types/drop";
-import { Package, Plus, Grid, Sandwich, RefreshCw } from "lucide-react";
+import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 import { useMemo, useState } from "react";
-
 const Drops = () => {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("newest");
 
   // Fetch all drops (includes cheesenftwax drops already)
   const { data: drops, isLoading, error } = useQuery({
@@ -39,6 +41,47 @@ const Drops = () => {
   // Filter CHEESE drops from the already-fetched drops data (no extra API call)
   const cheeseDrops = useMemo(() => {
     return displayDrops.filter(drop => drop.collectionName === CHEESE_CONFIG.collectionName);
+  }, [displayDrops]);
+
+  // Filtered and sorted drops for browse tab
+  const filteredDrops = useMemo(() => {
+    let result = displayDrops;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(drop =>
+        drop.collectionName.toLowerCase().includes(query) ||
+        drop.name.toLowerCase().includes(query) ||
+        drop.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    switch (sortOption) {
+      case "price-low":
+        result = [...result].sort((a, b) => a.price - b.price);
+        break;
+      case "price-high":
+        result = [...result].sort((a, b) => b.price - a.price);
+        break;
+      case "newest":
+        result = [...result].sort((a, b) => Number(b.id) - Number(a.id));
+        break;
+      case "popular":
+        result = [...result].sort((a, b) => 
+          (b.totalSupply - b.remaining) - (a.totalSupply - a.remaining)
+        );
+        break;
+    }
+
+    return result;
+  }, [displayDrops, searchQuery, sortOption]);
+
+  // Get unique collections for display
+  const uniqueCollections = useMemo(() => {
+    const collections = new Set(displayDrops.map(d => d.collectionName));
+    return Array.from(collections).sort();
   }, [displayDrops]);
 
   const handleRefresh = async () => {
@@ -86,18 +129,54 @@ const Drops = () => {
             </Button>
           </div>
           <TabsContent value="browse">
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="font-display text-3xl font-bold text-foreground">
-                All Drops
-              </h2>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Sort by:</span>
-                <select className="rounded-lg border border-border/50 bg-card px-3 py-1.5 text-foreground focus:border-primary focus:outline-none">
-                  <option>Price: Low to High</option>
-                  <option>Price: High to Low</option>
-                  <option>Newest</option>
-                  <option>Most Popular</option>
-                </select>
+            <div className="mb-6 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="font-display text-3xl font-bold text-foreground">
+                  All Drops
+                </h2>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Sort by:</span>
+                  <select 
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="rounded-lg border border-border/50 bg-card px-3 py-1.5 text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="popular">Most Popular</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Search and filter bar */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search by collection, name, or description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-10 bg-card border-border/50"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <span>{filteredDrops.length} drops</span>
+                  {searchQuery && (
+                    <span className="text-xs">
+                      (from {uniqueCollections.length} collections)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -119,13 +198,25 @@ const Drops = () => {
               <div className="text-center py-12">
                 <p className="text-lg text-muted-foreground">Failed to load drops. Please try again later.</p>
               </div>
-            ) : displayDrops.length === 0 ? (
+            ) : filteredDrops.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground">No active drops found.</p>
+                <p className="text-lg text-muted-foreground">
+                  {searchQuery ? `No drops found matching "${searchQuery}"` : "No active drops found."}
+                </p>
+                {searchQuery && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    Clear search
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {displayDrops.map((drop) => (
+                {filteredDrops.map((drop) => (
                   <DropCard key={drop.id} drop={drop} />
                 ))}
               </div>

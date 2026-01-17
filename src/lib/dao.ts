@@ -2033,11 +2033,16 @@ export async function checkDaoMembership(daoName: string, user: string): Promise
     console.log("Staked tokens for user", user, ":", stakedData);
     console.log("Staked NFTs for user", user, ":", stakedNftsData);
     
-    // Check staked tokens
+    // Check staked tokens - must have non-zero balance
     if (stakedData.rows && stakedData.rows.length > 0) {
       const hasStakedToDao = stakedData.rows.some((row: any) => {
         const rowDao = row.dao_name || row.daoname || row.dao;
-        return rowDao === daoName;
+        if (rowDao !== daoName) return false;
+        
+        // Check if balance is greater than 0
+        const balance = row.balance || "0";
+        const amount = parseFloat(balance.split(" ")[0]);
+        return amount > 0;
       });
       if (hasStakedToDao) {
         console.log("User", user, "has staked tokens for DAO", daoName);

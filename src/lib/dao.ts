@@ -1997,51 +1997,43 @@ export async function fetchDaoMembers(daoName: string): Promise<DaoMember[]> {
 // Check if a user is a member of a DAO
 export async function checkDaoMembership(daoName: string, user: string): Promise<boolean> {
   try {
-    // Check 1: Users table (scoped by DAO name) - for general membership
-    const usersResponse = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: daoName,
-        table: "users",
-        limit: 100,
+    // Check staking tables in parallel for efficiency
+    const [stakedResponse, stakedNftsResponse] = await Promise.all([
+      // Check 1: Staked tokens table (scoped by user) - for Token Staking DAOs
+      fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: user,
+          table: "stakedtokens",
+          limit: 100,
+        }),
       }),
-    });
-    const usersData = await usersResponse.json();
-    console.log("Users table data for DAO", daoName, ":", usersData);
-    
-    // Check if user exists in users table
-    if (usersData.rows && usersData.rows.length > 0) {
-      const isInUsersTable = usersData.rows.some((row: any) => {
-        const rowValues = Object.values(row);
-        if (rowValues.includes(user)) return true;
-        return row.user === user || row.account === user || 
-               row.wallet === user || row.name === user ||
-               row.staker === user || row.voter === user;
-      });
-      if (isInUsersTable) {
-        console.log("User", user, "found in users table for DAO", daoName);
-        return true;
-      }
-    }
+      // Check 2: Staked NFTs table (scoped by user) - for NFT-based DAOs
+      fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          json: true,
+          code: DAO_CONTRACT,
+          scope: user,
+          table: "stakedassets",
+          limit: 100,
+        }),
+      }),
+    ]);
 
-    // Check 2: Staked tokens table (scoped by user) - for Type 4 DAOs (Stake Tokens - Custodial)
-    const stakedResponse = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: user,
-        table: "stakedtokens",
-        limit: 100,
-      }),
-    });
-    const stakedData = await stakedResponse.json();
-    console.log("Staked tokens for user", user, ":", stakedData);
+    const [stakedData, stakedNftsData] = await Promise.all([
+      stakedResponse.json(),
+      stakedNftsResponse.json(),
+    ]);
     
+    console.log("Staked tokens for user", user, ":", stakedData);
+    console.log("Staked NFTs for user", user, ":", stakedNftsData);
+    
+    // Check staked tokens
     if (stakedData.rows && stakedData.rows.length > 0) {
       const hasStakedToDao = stakedData.rows.some((row: any) => {
         const rowDao = row.dao_name || row.daoname || row.dao;
@@ -2053,21 +2045,7 @@ export async function checkDaoMembership(daoName: string, user: string): Promise
       }
     }
 
-    // Check 3: Staked NFTs table (scoped by user) - for NFT-based DAOs
-    const stakedNftsResponse = await fetch("https://wax.eosusa.io/v1/chain/get_table_rows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        json: true,
-        code: DAO_CONTRACT,
-        scope: user,
-        table: "stakedassets",
-        limit: 100,
-      }),
-    });
-    const stakedNftsData = await stakedNftsResponse.json();
-    console.log("Staked NFTs for user", user, ":", stakedNftsData);
-    
+    // Check staked NFTs
     if (stakedNftsData.rows && stakedNftsData.rows.length > 0) {
       const hasStakedNftsToDao = stakedNftsData.rows.some((row: any) => {
         const rowDao = row.dao_name || row.daoname || row.dao;

@@ -163,6 +163,7 @@ export interface DaoInfo {
   gov_schemas: { collection_name: string; schema_name: string }[];
   time_created: number;
   status: number;
+  socials?: DaoSocials;
 }
 
 // Convert IPFS hash to full URL
@@ -277,12 +278,25 @@ export interface NFTTransferProposalData {
   assetIds: string[];
 }
 
+// Social links structure for DAO profiles
+export interface DaoSocials {
+  twitter?: string;
+  discord?: string;
+  telegram?: string;
+  website?: string;
+  youtube?: string;
+  medium?: string;
+  atomichub?: string;
+  waxdao?: string;
+}
+
 // Fetch DAO profiles from the daoprofiles table
 interface DaoProfile {
   dao_name: string;
   description: string;
   avatar: string;
   cover_image: string;
+  socials?: DaoSocials;
 }
 
 async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
@@ -307,12 +321,18 @@ async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
     
     for (const row of data.rows || []) {
       const daoName = (row.dao_name || row.daoname) as string;
-      const profile = row.profile as { description?: string; avatar?: string; cover_image?: string } | undefined;
+      const profile = row.profile as { 
+        description?: string; 
+        avatar?: string; 
+        cover_image?: string;
+        socials?: DaoSocials;
+      } | undefined;
       profiles.set(daoName, {
         dao_name: daoName,
         description: (profile?.description || "") as string,
         avatar: (profile?.avatar || "") as string,
         cover_image: (profile?.cover_image || "") as string,
+        socials: profile?.socials || {},
       });
     }
     
@@ -373,6 +393,7 @@ export async function fetchAllDaos(): Promise<DaoInfo[]> {
         gov_schemas: row.gov_schemas as { collection_name: string; schema_name: string }[] || [],
         time_created: row.time_created as number || 0,
         status: row.status as number || 0,
+        socials: profile?.socials,
       };
     });
   } catch (error) {
@@ -991,6 +1012,41 @@ export function buildSetProfileAction(
           waxdao: "",
           website: "",
           youtube: "",
+        },
+      },
+    },
+  };
+}
+
+// Build action for setting DAO profile with social links
+export function buildSetProfileActionWithSocials(
+  user: string,
+  daoName: string,
+  description: string,
+  avatar: string = "",
+  coverImage: string = "",
+  socials: DaoSocials = {}
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "setprofile",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      profile: {
+        avatar: avatar || "",
+        cover_image: coverImage || "",
+        description: description || "",
+        socials: {
+          atomichub: socials.atomichub || "",
+          discord: socials.discord || "",
+          medium: socials.medium || "",
+          telegram: socials.telegram || "",
+          twitter: socials.twitter || "",
+          waxdao: socials.waxdao || "",
+          website: socials.website || "",
+          youtube: socials.youtube || "",
         },
       },
     },

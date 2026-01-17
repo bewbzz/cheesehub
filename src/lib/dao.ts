@@ -321,18 +321,25 @@ async function fetchDaoProfiles(): Promise<Map<string, DaoProfile>> {
     
     for (const row of data.rows || []) {
       const daoName = (row.dao_name || row.daoname) as string;
+      
+      // Profile contains description, avatar, cover_image
       const profile = row.profile as { 
         description?: string; 
         avatar?: string; 
         cover_image?: string;
-        socials?: DaoSocials;
       } | undefined;
+      
+      // Socials is at root level (sibling to profile), NOT inside profile
+      const socials = row.socials as DaoSocials | undefined;
+      
+      console.log(`DAO Profile ${daoName}:`, { profile, socials, rawRow: row });
+      
       profiles.set(daoName, {
         dao_name: daoName,
         description: (profile?.description || "") as string,
         avatar: (profile?.avatar || "") as string,
         cover_image: (profile?.cover_image || "") as string,
-        socials: profile?.socials || {},
+        socials: socials || {},
       });
     }
     

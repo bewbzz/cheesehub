@@ -443,6 +443,7 @@ export async function fetchCombinedAssetBacking(
 
 /**
  * Fetch combined backing for multiple assets in batch
+ * Errors are caught per-asset so one failure doesn't break all
  */
 export async function fetchMultipleCombinedBackings(
   assets: Array<{ asset_id: string; collection: string }>
@@ -458,8 +459,14 @@ export async function fetchMultipleCombinedBackings(
     const batch = assets.slice(i, i + BATCH_SIZE);
     
     const promises = batch.map(async ({ asset_id, collection }) => {
-      const backing = await fetchCombinedAssetBacking(asset_id, collection);
-      return { asset_id, backing };
+      try {
+        const backing = await fetchCombinedAssetBacking(asset_id, collection);
+        return { asset_id, backing };
+      } catch (error) {
+        console.warn(`Failed to fetch backing for asset ${asset_id}:`, error);
+        // Return empty backing on error so it doesn't break the entire batch
+        return { asset_id, backing: { native: [], waxdao: [] } as CombinedBacking };
+      }
     });
     
     const results = await Promise.all(promises);

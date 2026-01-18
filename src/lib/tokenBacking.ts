@@ -493,7 +493,7 @@ export function buildWaxdaoClaimAction(
     authorization: [permissionLevel],
     data: {
       user,
-      asset_ids: assetIds.map(id => parseInt(id)),
+      asset_ids: assetIds, // Keep as strings - WharfKit handles serialization
       contract_ignore_list: [],
     },
   };

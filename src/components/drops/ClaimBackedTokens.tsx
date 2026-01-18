@@ -46,6 +46,8 @@ export function ClaimBackedTokens() {
         session.permissionLevel
       );
 
+      console.log('WaxDAO Claim action:', JSON.stringify(action, null, 2));
+
       await session.transact({ actions: [action] as any });
       
       toast.success(`Successfully claimed backed tokens from ${ids.length} NFT(s)!`);

@@ -114,7 +114,7 @@ export function TokenBacking() {
 
   // Virtual grid - 6 columns for high density
   const COLUMNS = 6;
-  const ROW_HEIGHT = 90;
+  const ROW_HEIGHT = 100; // Square cards + gap
   const rowCount = Math.ceil(filteredNFTs.length / COLUMNS);
 
   const virtualizer = useVirtualizer({
@@ -518,7 +518,7 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     <button
       onClick={onToggle}
       className={cn(
-        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 h-[80px]',
+        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 aspect-square',
         isSelected ? 'border-cheese ring-1 ring-cheese' : 'border-transparent hover:border-muted-foreground/30'
       )}
     >

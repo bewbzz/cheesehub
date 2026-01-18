@@ -21,8 +21,13 @@ import {
   Globe,
   Youtube,
   BookOpen,
-  ImageIcon
+  ImageIcon,
+  TrendingUp,
+  Timer
 } from "lucide-react";
+import { useAlcorTokenPrices } from "@/hooks/useAlcorTokenPrices";
+import { useFarmMetrics, formatMetricAmount, formatUsdValue } from "@/hooks/useFarmMetrics";
+import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 
 // IPFS gateway fallback system
 const IPFS_GATEWAYS = [
@@ -62,7 +67,6 @@ const TelegramIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
-import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
 import { ManageStakableAssets } from "./ManageStakableAssets";
@@ -89,6 +93,9 @@ export function FarmDetail() {
   const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
 
   const queryClient = useQueryClient();
+
+  // Fetch token prices for metrics
+  const { data: tokenPrices } = useAlcorTokenPrices();
   
   const { data: farm, isLoading, error, refetch } = useQuery({
     queryKey: ["farmDetail", farmName],
@@ -96,6 +103,9 @@ export function FarmDetail() {
     enabled: !!farmName,
     staleTime: 30000,
   });
+
+  // Calculate farm metrics
+  const farmMetrics = useFarmMetrics(farm, tokenPrices);
 
   const handleFarmUpdated = async () => {
     await refetch();
@@ -471,8 +481,111 @@ export function FarmDetail() {
         </Card>
       </div>
 
+      {/* Reward Metrics Card */}
+      {farmMetrics && farmMetrics.totalDailyEmissions.length > 0 && (
+        <Card className="border-border/50 bg-card/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-400" />
+              Reward Metrics
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Per NFT Daily Rewards */}
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sprout className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">Per NFT (Daily)</span>
+                </div>
+                {farmMetrics.stakedCount > 0 ? (
+                  <div className="space-y-2">
+                    {farmMetrics.rewardsPerNft.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <img
+                          src={getTokenLogoUrl(r.contract, r.symbol)}
+                          alt={r.symbol}
+                          className="h-5 w-5 rounded-full"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                          }}
+                        />
+                        <span className="font-medium">
+                          {formatMetricAmount(r.amountPerDay, r.precision)} {r.symbol}
+                        </span>
+                        {r.usdPerDay !== null && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatUsdValue(r.usdPerDay)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Stake first NFT to see rates
+                  </p>
+                )}
+              </div>
 
-      {/* NFT Staking Section */}
+              {/* Total Daily Emissions */}
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Coins className="h-4 w-4 text-cheese" />
+                  <span className="text-sm font-medium text-muted-foreground">Daily Emissions</span>
+                </div>
+                <div className="space-y-2">
+                  {farmMetrics.totalDailyEmissions.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <img
+                        src={getTokenLogoUrl(r.contract, r.symbol)}
+                        alt={r.symbol}
+                        className="h-5 w-5 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                        }}
+                      />
+                      <span className="font-medium">
+                        {formatMetricAmount(r.amountPerDay, r.precision)} {r.symbol}
+                      </span>
+                    </div>
+                  ))}
+                  {farmMetrics.totalDailyEmissionsUsd !== null && (
+                    <div className="pt-1 text-sm text-muted-foreground border-t border-border/50 mt-2">
+                      Total: {formatUsdValue(farmMetrics.totalDailyEmissionsUsd)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pool Runway */}
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Timer className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-muted-foreground">Pool Runway</span>
+                </div>
+                {farmMetrics.poolRunwayDays !== null ? (
+                  <div>
+                    <span className="text-2xl font-bold">
+                      ~{Math.floor(farmMetrics.poolRunwayDays)}
+                    </span>
+                    <span className="text-muted-foreground ml-1">days</span>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      at current emission rate
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No active emissions
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       <div className="space-y-4">
         <h2 className="text-xl font-semibold flex items-center gap-2">
           <Sprout className="h-5 w-5 text-primary" />

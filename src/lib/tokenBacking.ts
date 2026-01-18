@@ -494,6 +494,7 @@ export function buildWaxdaoClaimAction(
     data: {
       user,
       asset_ids: assetIds.map(id => parseInt(id)),
+      contract_ignore_list: [],
     },
   };
 }

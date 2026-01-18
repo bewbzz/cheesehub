@@ -181,3 +181,135 @@ export function validateBackingConfig(config: BackingConfig): string | null {
 
   return null;
 }
+
+// ============================================================================
+// BURN & CLAIM UTILITIES
+// ============================================================================
+
+export interface AssetWithBacking {
+  asset_id: string;
+  name: string;
+  collection: string;
+  template_id: string;
+  image: string;
+  backed_tokens: BackedToken[];
+}
+
+export interface ParsedToken {
+  amount: number;
+  symbol: string;
+  precision: number;
+  contract: string;
+}
+
+/**
+ * Parse backed token quantity string to number
+ * e.g., "100.0000 CHEESE" -> { amount: 100, symbol: "CHEESE", precision: 4 }
+ */
+export function parseTokenQuantity(quantity: string): Omit<ParsedToken, 'contract'> {
+  const parts = quantity.trim().split(' ');
+  if (parts.length !== 2) {
+    throw new Error(`Invalid quantity format: ${quantity}`);
+  }
+  
+  const [amountStr, symbol] = parts;
+  const amount = parseFloat(amountStr);
+  
+  // Calculate precision from decimal places
+  const decimalIndex = amountStr.indexOf('.');
+  const precision = decimalIndex === -1 ? 0 : amountStr.length - decimalIndex - 1;
+  
+  return { amount, symbol, precision };
+}
+
+/**
+ * Fetch backing for multiple assets in batch
+ * Uses direct RPC calls to atomicassets contract
+ */
+export async function fetchMultipleAssetBackings(
+  assetIds: string[]
+): Promise<Map<string, BackedToken[]>> {
+  const backingMap = new Map<string, BackedToken[]>();
+  
+  if (assetIds.length === 0) return backingMap;
+  
+  // Process in batches of 100 for performance
+  const BATCH_SIZE = 100;
+  
+  for (let i = 0; i < assetIds.length; i += BATCH_SIZE) {
+    const batch = assetIds.slice(i, i + BATCH_SIZE);
+    
+    // Fetch each asset individually (atomicassets doesn't support batch query easily)
+    const promises = batch.map(async (assetId) => {
+      const backing = await fetchAssetBacking(assetId);
+      return { assetId, backing };
+    });
+    
+    const results = await Promise.all(promises);
+    results.forEach(({ assetId, backing }) => {
+      backingMap.set(assetId, backing);
+    });
+  }
+  
+  return backingMap;
+}
+
+/**
+ * Calculate total backed value from multiple assets
+ * Groups by token symbol and sums amounts
+ */
+export function calculateTotalBacking(
+  assets: AssetWithBacking[]
+): Map<string, { amount: number; contract: string; precision: number }> {
+  const totals = new Map<string, { amount: number; contract: string; precision: number }>();
+  
+  for (const asset of assets) {
+    for (const token of asset.backed_tokens) {
+      const parsed = parseTokenQuantity(token.quantity);
+      const existing = totals.get(parsed.symbol);
+      
+      if (existing) {
+        existing.amount += parsed.amount;
+      } else {
+        totals.set(parsed.symbol, {
+          amount: parsed.amount,
+          contract: token.token_contract,
+          precision: parsed.precision,
+        });
+      }
+    }
+  }
+  
+  return totals;
+}
+
+/**
+ * Build atomicassets::burnasset action
+ * Burning automatically releases backed tokens to the burner
+ */
+export function buildBurnAssetAction(
+  owner: string,
+  assetId: string,
+  permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
+) {
+  return {
+    account: 'atomicassets',
+    name: 'burnasset',
+    authorization: [permissionLevel],
+    data: {
+      asset_owner: owner,
+      asset_id: parseInt(assetId),
+    },
+  };
+}
+
+/**
+ * Build batch burn actions for multiple assets
+ */
+export function buildBatchBurnActions(
+  owner: string,
+  assetIds: string[],
+  permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
+) {
+  return assetIds.map((assetId) => buildBurnAssetAction(owner, assetId, permissionLevel));
+}

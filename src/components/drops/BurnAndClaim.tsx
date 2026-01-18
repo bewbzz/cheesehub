@@ -199,37 +199,65 @@ export function BurnAndClaim() {
   
   const hasBackedTokens = formattedTotals.native.length > 0 || formattedTotals.waxdao.length > 0;
   
-  // Burn handler
+  // Burn handler - now separates burn and claim into two transactions
   const handleBurn = async () => {
     if (!session || selectedNFTs.size === 0) return;
     
     setIsBurning(true);
+    const assetIds = Array.from(selectedNFTs);
+    const hasWaxdaoBacking = selectedBackingTotals.waxdaoAssetIds.length > 0;
+    
     try {
-      const assetIds = Array.from(selectedNFTs);
-      const actions: any[] = [];
-      
       // 1. Build burn actions for all selected NFTs
+      const burnActions: any[] = [];
       for (const assetId of assetIds) {
-        actions.push(buildBurnAssetAction(accountName!, assetId, session.permissionLevel));
+        burnActions.push(buildBurnAssetAction(accountName!, assetId, session.permissionLevel));
       }
       
-      // 2. If any NFTs have WaxDAO backing, add claim action
-      if (selectedBackingTotals.waxdaoAssetIds.length > 0) {
-        actions.push(
-          buildWaxdaoClaimAction(
+      // Execute burn transaction first
+      await session.transact({ actions: burnActions });
+      
+      const nativeMsg = formattedTotals.native.length > 0 
+        ? ` Native backing (${formattedTotals.native.join(', ')}) claimed!` 
+        : '';
+      
+      toast.success(`Burned ${assetIds.length} NFT(s)!${nativeMsg}`);
+      
+      // 2. If WaxDAO backing exists, wait for contract state update then claim
+      if (hasWaxdaoBacking) {
+        toast.info('WaxDAO backing detected. Claiming tokens in 3 seconds...', {
+          duration: 3000,
+        });
+        
+        // Wait for the burn notification to propagate in the contract
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        try {
+          const claimAction = buildWaxdaoClaimAction(
             accountName!,
             selectedBackingTotals.waxdaoAssetIds,
             session.permissionLevel
-          )
-        );
+          );
+          
+          console.log('WaxDAO Claim action:', JSON.stringify(claimAction, null, 2));
+          
+          await session.transact({ actions: [claimAction] as any });
+          
+          toast.success(`Claimed WaxDAO backed tokens: ${formattedTotals.waxdao.join(', ')}`);
+        } catch (claimError: any) {
+          console.error('WaxDAO claim failed:', claimError);
+          
+          // Provide helpful guidance for manual claim
+          if (claimError?.message?.includes('user not found') || claimError?.message?.includes('no tokens')) {
+            toast.error(
+              'WaxDAO claim pending. The contract may need more time to process. Use "Claim Backed Tokens" tab to claim manually.',
+              { duration: 8000 }
+            );
+          } else {
+            toast.error(`Claim failed: ${claimError?.message || 'Unknown error'}. Try manual claim.`);
+          }
+        }
       }
-      
-      await session.transact({ actions });
-      
-      const tokenMsg = hasBackedTokens 
-        ? ' Backed tokens have been claimed!' 
-        : '';
-      toast.success(`Successfully burned ${assetIds.length} NFT(s)!${tokenMsg}`);
       
       // Clear selection and refetch
       setSelectedNFTs(new Set());

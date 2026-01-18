@@ -7,6 +7,12 @@ import { fetchTableRows } from './waxRpcFallback';
 
 export const BACKING_CONTRACT = 'backbywaxpls';
 
+// Known backing contracts - different collections deploy their own versions
+export const KNOWN_BACKING_CONTRACTS = [
+  'backbywaxpls',  // Generic WaxDAO contract
+  'backtokencon',  // Terraformers/HoodPunks/WaxyWojaks contract
+] as const;
+
 // Token presets with correct precision
 export const BACKING_TOKENS = {
   CHEESE: {
@@ -247,10 +253,12 @@ export interface TemplateBackingConfig {
   token_contract: string;
   quantity: string;
   enabled: boolean;
+  backing_contract: string;  // Which contract holds this backing config
 }
 
 /**
- * Fetch template backing configurations from backbywaxpls contract
+ * Fetch template backing configurations from all known backing contracts
+ * Different collections deploy their own backing contracts (backbywaxpls, backtokencon, etc.)
  * This detects NFTs that have WaxDAO backing configured at the template level
  */
 export async function fetchTemplateBackingConfigs(
@@ -263,66 +271,77 @@ export async function fetchTemplateBackingConfigs(
   // Remove duplicates
   const uniqueTemplateIds = [...new Set(templateIds)];
   
-  console.log(`[TemplateBacking] Fetching configs for ${uniqueTemplateIds.length} unique templates`);
+  console.log(`[TemplateBacking] Fetching configs for ${uniqueTemplateIds.length} unique templates from ${KNOWN_BACKING_CONTRACTS.length} contracts`);
   
   try {
-    // Query the backbywaxpls::templates table
-    // The table is scoped by 'backbywaxpls' and indexed by template_id
-    const BATCH_SIZE = 100;
-    
-    for (let i = 0; i < uniqueTemplateIds.length; i += BATCH_SIZE) {
-      const batch = uniqueTemplateIds.slice(i, i + BATCH_SIZE);
+    // Query each known backing contract
+    for (const backingContract of KNOWN_BACKING_CONTRACTS) {
+      // Skip templates we already found
+      const remainingTemplates = uniqueTemplateIds.filter(id => !configMap.has(id));
+      if (remainingTemplates.length === 0) break;
       
-      // Fetch each template individually since we need specific template IDs
-      const promises = batch.map(async (templateId) => {
-        try {
-          const response = await fetchTableRows<{
-            template_id: number;
-            token_contract: string;
-            quantity: string;
-            maintenance?: boolean;
-            enabled?: boolean;
-          }>({
-            code: BACKING_CONTRACT,
-            scope: BACKING_CONTRACT,
-            table: 'templates',
-            lower_bound: templateId.toString(),
-            upper_bound: templateId.toString(),
-            limit: 1,
-          });
-          
-          if (response.rows.length > 0) {
-            const row = response.rows[0];
-            // Check if this template actually matches (table might return next key)
-            if (row.template_id === templateId) {
-              return {
-                templateId,
-                config: {
-                  template_id: row.template_id,
-                  token_contract: row.token_contract,
-                  quantity: row.quantity,
-                  enabled: row.enabled !== false && row.maintenance !== true,
-                },
-              };
+      console.log(`[TemplateBacking] Checking ${backingContract} for ${remainingTemplates.length} templates`);
+      
+      const BATCH_SIZE = 50;
+      
+      for (let i = 0; i < remainingTemplates.length; i += BATCH_SIZE) {
+        const batch = remainingTemplates.slice(i, i + BATCH_SIZE);
+        
+        // Fetch each template individually
+        const promises = batch.map(async (templateId) => {
+          try {
+            const response = await fetchTableRows<{
+              template_id: number;
+              token_contract: string;
+              quantity: string;
+              token?: string;  // Some contracts use 'token' instead of 'quantity'
+              maintenance?: boolean;
+              enabled?: boolean;
+            }>({
+              code: backingContract,
+              scope: backingContract,
+              table: 'templates',
+              lower_bound: templateId.toString(),
+              upper_bound: templateId.toString(),
+              limit: 1,
+            });
+            
+            if (response.rows.length > 0) {
+              const row = response.rows[0];
+              // Check if this template actually matches
+              if (row.template_id === templateId) {
+                const quantity = row.quantity || row.token || '';
+                return {
+                  templateId,
+                  config: {
+                    template_id: row.template_id,
+                    token_contract: row.token_contract,
+                    quantity,
+                    enabled: row.enabled !== false && row.maintenance !== true,
+                    backing_contract: backingContract,
+                  },
+                };
+              }
             }
+            return null;
+          } catch (error) {
+            // Don't warn on individual failures - might just not exist on this contract
+            return null;
           }
-          return null;
-        } catch (error) {
-          console.warn(`[TemplateBacking] Failed to fetch template ${templateId}:`, error);
-          return null;
+        });
+        
+        const results = await Promise.all(promises);
+        results.forEach((result) => {
+          if (result) {
+            configMap.set(result.templateId, result.config);
+            console.log(`[TemplateBacking] Found template ${result.templateId} on ${backingContract}: ${result.config.quantity}`);
+          }
+        });
+        
+        // Small delay between batches
+        if (i + BATCH_SIZE < remainingTemplates.length) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
         }
-      });
-      
-      const results = await Promise.all(promises);
-      results.forEach((result) => {
-        if (result) {
-          configMap.set(result.templateId, result.config);
-        }
-      });
-      
-      // Small delay between batches
-      if (i + BATCH_SIZE < uniqueTemplateIds.length) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
       }
     }
     
@@ -340,6 +359,7 @@ export async function fetchTemplateBackingConfigs(
 export interface UnifiedBackingInfo {
   backed_tokens: BackedToken[];
   hasTemplateBacking: boolean;  // True if backing comes from template (needs claim first)
+  backingContract?: string;     // Which contract to call for claimtokens
 }
 
 /**
@@ -405,6 +425,7 @@ export async function fetchUnifiedAssetBackings(
             token_contract: templateConfig.token_contract,
           }],
           hasTemplateBacking: true,
+          backingContract: templateConfig.backing_contract,
         });
       } else {
         // No backing at all
@@ -535,7 +556,7 @@ export function buildBatchBurnActions(
  */
 export function buildSmartBurnActions(
   owner: string,
-  assets: Array<{ asset_id: string; hasTemplateBacking: boolean }>,
+  assets: Array<{ asset_id: string; hasTemplateBacking: boolean; backingContract?: string }>,
   permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
 ) {
   const actions: Array<{
@@ -547,9 +568,9 @@ export function buildSmartBurnActions(
   
   // First, add claimtokens for all template-backed assets
   for (const asset of assets) {
-    if (asset.hasTemplateBacking) {
+    if (asset.hasTemplateBacking && asset.backingContract) {
       actions.push({
-        account: BACKING_CONTRACT,
+        account: asset.backingContract,  // Use the correct contract for this asset
         name: 'claimtokens',
         authorization: [permissionLevel],
         data: {

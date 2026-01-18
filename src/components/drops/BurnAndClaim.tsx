@@ -153,6 +153,7 @@ export function BurnAndClaim() {
         image: nft.image || '',
         backed_tokens: backingInfo?.backed_tokens || [],
         hasTemplateBacking: backingInfo?.hasTemplateBacking || false,
+        backingContract: backingInfo?.backingContract,
       };
     });
   }, [nfts, backingMap]);
@@ -272,6 +273,7 @@ export function BurnAndClaim() {
         return {
           asset_id: assetId,
           hasTemplateBacking: nft?.hasTemplateBacking || false,
+          backingContract: nft?.backingContract,
         };
       });
       

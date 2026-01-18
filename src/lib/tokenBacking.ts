@@ -168,7 +168,7 @@ export function buildBackNftActions(
  * 
  * Transaction flow:
  * 1. transfer - Send tokens to waxdaobacker with memo "deposit"
- * 2. backasset - Lock tokens from deposit into each NFT
+ * 2. backnft - Lock tokens from deposit into each NFT
  */
 export function buildWaxdaoBackNftActions(
   owner: string,
@@ -196,11 +196,11 @@ export function buildWaxdaoBackNftActions(
     },
   });
 
-  // 2. Back each NFT using waxdaobacker::backasset
+  // 2. Back each NFT using waxdaobacker::backnft
   for (const assetId of assetIds) {
     actions.push({
       account: WAXDAO_BACKER_CONTRACT,
-      name: 'backasset',
+      name: 'backnft',
       authorization: [permissionLevel],
       data: {
         payer: owner,

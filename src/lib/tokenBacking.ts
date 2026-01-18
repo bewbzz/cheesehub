@@ -21,8 +21,8 @@ export const BACKING_TOKENS = {
   },
 } as const;
 
-// WaxDAO packs contract for non-whitelisted token backing
-export const WAXDAO_PACKS_CONTRACT = 'packs.waxdao';
+// WaxDAO backer contract for non-whitelisted token backing
+export const WAXDAO_BACKER_CONTRACT = 'waxdaobacker';
 
 export type BackingTokenKey = keyof typeof BACKING_TOKENS;
 
@@ -163,11 +163,11 @@ export function buildBackNftActions(
 }
 
 /**
- * Build actions to back NFTs via WaxDAO packs.waxdao contract
+ * Build actions to back NFTs via WaxDAO waxdaobacker contract
  * This method works with ANY token (CHEESE, WAX, etc.)
  * 
  * Transaction flow:
- * 1. transfer - Send tokens to packs.waxdao with memo "deposit"
+ * 1. transfer - Send tokens to waxdaobacker with memo "deposit"
  * 2. backasset - Lock tokens from deposit into each NFT
  */
 export function buildWaxdaoBackNftActions(
@@ -183,23 +183,23 @@ export function buildWaxdaoBackNftActions(
 
   const actions = [];
 
-  // 1. Transfer tokens to packs.waxdao with memo "deposit"
+  // 1. Transfer tokens to waxdaobacker with memo "deposit"
   actions.push({
     account: contract,
     name: 'transfer',
     authorization: [permissionLevel],
     data: {
       from: owner,
-      to: WAXDAO_PACKS_CONTRACT,
+      to: WAXDAO_BACKER_CONTRACT,
       quantity: totalQuantity,
       memo: 'deposit',
     },
   });
 
-  // 2. Back each NFT using packs.waxdao::backasset
+  // 2. Back each NFT using waxdaobacker::backasset
   for (const assetId of assetIds) {
     actions.push({
-      account: WAXDAO_PACKS_CONTRACT,
+      account: WAXDAO_BACKER_CONTRACT,
       name: 'backasset',
       authorization: [permissionLevel],
       data: {

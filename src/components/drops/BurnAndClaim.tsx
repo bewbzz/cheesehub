@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Flame, Search, Coins, AlertTriangle, Loader2, Filter } from 'lucide-react';
+import { Flame, Search, AlertTriangle, Loader2, Filter } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs } from '@/hooks/useUserNFTs';
@@ -8,9 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -32,13 +29,6 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals, isLoginActive } from '@/lib/wharfKit';
-import {
-  fetchMultipleAssetBackings,
-  calculateTotalBacking,
-  buildBatchBurnActions,
-  AssetWithBacking,
-  BackedToken,
-} from '@/lib/tokenBacking';
 
 // IPFS gateways for image loading
 const IPFS_GATEWAYS = [
@@ -55,7 +45,7 @@ function extractIpfsHash(url: string): string | null {
   return match ? match[1] : null;
 }
 
-type SortOption = 'name-asc' | 'name-desc' | 'id-asc' | 'id-desc' | 'backed-first';
+type SortOption = 'name-asc' | 'name-desc' | 'id-asc' | 'id-desc';
 
 export function BurnAndClaim() {
   const { session, accountName } = useWax();
@@ -65,58 +55,29 @@ export function BurnAndClaim() {
   
   // UI state
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('backed-first');
+  const [sortBy, setSortBy] = useState<SortOption>('id-desc');
   const [collectionFilter, setCollectionFilter] = useState<string>('all');
-  const [showOnlyBacked, setShowOnlyBacked] = useState(true);
   const [selectedNFTs, setSelectedNFTs] = useState<Set<string>>(new Set());
-  
-  // Backing data
-  const [backingMap, setBackingMap] = useState<Map<string, BackedToken[]>>(new Map());
-  const [backingLoading, setBackingLoading] = useState(false);
-  const [backingFetched, setBackingFetched] = useState(false);
   
   // Transaction state
   const [isBurning, setIsBurning] = useState(false);
   
   const debouncedSearch = useDebounce(search, 300);
   
-  // Fetch backing data when NFTs load
-  useEffect(() => {
-    async function fetchBacking() {
-      if (!nfts.length || backingFetched) return;
-      
-      setBackingLoading(true);
-      try {
-        const assetIds = nfts.map(nft => nft.asset_id);
-        const result = await fetchMultipleAssetBackings(assetIds);
-        setBackingMap(result);
-        setBackingFetched(true);
-      } catch (error) {
-        console.error('Failed to fetch backing data:', error);
-        toast.error('Failed to load NFT backing data');
-      } finally {
-        setBackingLoading(false);
-      }
-    }
-    
-    fetchBacking();
-  }, [nfts, backingFetched]);
-  
-  // Build NFTs with backing info
-  const nftsWithBacking: AssetWithBacking[] = useMemo(() => {
+  // Build NFTs list
+  const nftList = useMemo(() => {
     return nfts.map(nft => ({
       asset_id: nft.asset_id,
       name: nft.name || `#${nft.asset_id}`,
       collection: nft.collection || 'Unknown',
       template_id: nft.template_id || '',
       image: nft.image || '',
-      backed_tokens: backingMap.get(nft.asset_id) || [],
     }));
-  }, [nfts, backingMap]);
+  }, [nfts]);
   
   // Filter and sort NFTs
   const filteredNFTs = useMemo(() => {
-    let result = [...nftsWithBacking];
+    let result = [...nftList];
     
     // Filter by search
     if (debouncedSearch) {
@@ -134,11 +95,6 @@ export function BurnAndClaim() {
       result = result.filter(nft => nft.collection === collectionFilter);
     }
     
-    // Filter by backed only
-    if (showOnlyBacked) {
-      result = result.filter(nft => nft.backed_tokens.length > 0);
-    }
-    
     // Sort
     switch (sortBy) {
       case 'name-asc':
@@ -153,13 +109,10 @@ export function BurnAndClaim() {
       case 'id-desc':
         result.sort((a, b) => parseInt(b.asset_id) - parseInt(a.asset_id));
         break;
-      case 'backed-first':
-        result.sort((a, b) => b.backed_tokens.length - a.backed_tokens.length);
-        break;
     }
     
     return result;
-  }, [nftsWithBacking, debouncedSearch, collectionFilter, showOnlyBacked, sortBy]);
+  }, [nftList, debouncedSearch, collectionFilter, sortBy]);
   
   // Virtual grid - 6 columns
   const COLUMNS = 6;
@@ -201,19 +154,6 @@ export function BurnAndClaim() {
     setSelectedNFTs(newSet);
   }, [filteredNFTs]);
   
-  // Get selected NFTs with backing info
-  const selectedWithBacking = useMemo(() => {
-    return nftsWithBacking.filter(nft => selectedNFTs.has(nft.asset_id));
-  }, [nftsWithBacking, selectedNFTs]);
-  
-  // Calculate totals
-  const totalBacking = useMemo(() => {
-    return calculateTotalBacking(selectedWithBacking);
-  }, [selectedWithBacking]);
-  
-  const backedCount = useMemo(() => {
-    return selectedWithBacking.filter(nft => nft.backed_tokens.length > 0).length;
-  }, [selectedWithBacking]);
   
   // Burn handler
   const handleBurn = async () => {
@@ -236,9 +176,8 @@ export function BurnAndClaim() {
       
       toast.success(`Successfully burned ${assetIds.length} NFT(s)!`);
       
-      // Clear selection and reset backing cache
+      // Clear selection
       setSelectedNFTs(new Set());
-      setBackingFetched(false);
     } catch (error: any) {
       console.error('Burn failed:', error);
       
@@ -330,25 +269,12 @@ export function BurnAndClaim() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="backed-first">Backed First</SelectItem>
                 <SelectItem value="name-asc">Name A-Z</SelectItem>
                 <SelectItem value="name-desc">Name Z-A</SelectItem>
                 <SelectItem value="id-asc">ID (Low-High)</SelectItem>
                 <SelectItem value="id-desc">ID (High-Low)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          
-          {/* Only Backed Toggle */}
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="only-backed"
-              checked={showOnlyBacked}
-              onCheckedChange={(checked) => setShowOnlyBacked(checked as boolean)}
-            />
-            <Label htmlFor="only-backed" className="text-sm cursor-pointer">
-              Show only NFTs with backed tokens
-            </Label>
           </div>
         </CardContent>
       </Card>
@@ -371,18 +297,14 @@ export function BurnAndClaim() {
           </div>
         </CardHeader>
         <CardContent>
-          {nftsLoading || backingLoading ? (
+          {nftsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="ml-3 text-muted-foreground">
-                {nftsLoading ? 'Loading NFTs...' : 'Fetching backing data...'}
-              </span>
+              <span className="ml-3 text-muted-foreground">Loading NFTs...</span>
             </div>
           ) : filteredNFTs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              {showOnlyBacked
-                ? 'No NFTs with backed tokens found.'
-                : 'No NFTs found matching your filters.'}
+              No NFTs found matching your filters.
             </div>
           ) : (
             <div
@@ -435,29 +357,10 @@ export function BurnAndClaim() {
         <Card className="bg-card/50 border-destructive/30">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="space-y-2">
+              <div>
                 <p className="font-medium">
                   {selectedNFTs.size} NFT{selectedNFTs.size !== 1 ? 's' : ''} selected
-                  {backedCount > 0 && (
-                    <span className="text-muted-foreground">
-                      {' '}({backedCount} with backing)
-                    </span>
-                  )}
                 </p>
-                
-                {totalBacking.size > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">You will receive:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(totalBacking.entries()).map(([symbol, data]) => (
-                        <Badge key={symbol} variant="secondary" className="text-sm">
-                          <Coins className="h-3 w-3 mr-1" />
-                          {data.amount.toFixed(data.precision)} {symbol}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               
               <AlertDialog>
@@ -474,7 +377,6 @@ export function BurnAndClaim() {
                       <Flame className="h-4 w-4" />
                     )}
                     Burn {selectedNFTs.size} NFT{selectedNFTs.size !== 1 ? 's' : ''}
-                    {totalBacking.size > 0 && ' & Claim Tokens'}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -483,30 +385,11 @@ export function BurnAndClaim() {
                       <Flame className="h-5 w-5" />
                       Confirm Burn
                     </AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div className="space-y-4">
-                        <p>
-                          You are about to permanently burn{' '}
-                          <strong>{selectedNFTs.size} NFT{selectedNFTs.size !== 1 ? 's' : ''}</strong>.
-                          This action <strong>cannot be undone</strong>.
-                        </p>
-                        
-                        {totalBacking.size > 0 && (
-                          <div className="p-3 bg-muted rounded-lg space-y-2">
-                            <p className="font-medium text-foreground">
-                              You will receive:
-                            </p>
-                            {Array.from(totalBacking.entries()).map(([symbol, data]) => (
-                              <div key={symbol} className="flex items-center gap-2 text-foreground">
-                                <Coins className="h-4 w-4 text-cheese" />
-                                <span>
-                                  {data.amount.toFixed(data.precision)} {symbol}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                    <AlertDialogDescription>
+                      You are about to permanently burn{' '}
+                      <strong>{selectedNFTs.size} NFT{selectedNFTs.size !== 1 ? 's' : ''}</strong>.
+                      This action <strong>cannot be undone</strong>. Any backed tokens will be 
+                      automatically released to your wallet.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -530,7 +413,13 @@ export function BurnAndClaim() {
 
 // NFT Card Component
 interface NFTCardProps {
-  nft: AssetWithBacking;
+  nft: {
+    asset_id: string;
+    name: string;
+    collection: string;
+    template_id: string;
+    image: string;
+  };
   isSelected: boolean;
   onToggle: () => void;
 }
@@ -539,8 +428,6 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
   const [imgSrc, setImgSrc] = useState<string>('');
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
-  
-  const hasBacking = nft.backed_tokens.length > 0;
   
   useEffect(() => {
     const hash = extractIpfsHash(nft.image);
@@ -586,13 +473,6 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       ) : (
         <div className="w-full h-full bg-muted flex items-center justify-center">
           <span className="text-xs text-muted-foreground">No Image</span>
-        </div>
-      )}
-      
-      {/* Backing indicator */}
-      {hasBacking && (
-        <div className="absolute top-1 right-1 p-1 rounded-full bg-cheese/90">
-          <Coins className="h-3 w-3 text-background" />
         </div>
       )}
       

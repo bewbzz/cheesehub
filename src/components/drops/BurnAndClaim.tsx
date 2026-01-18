@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Flame, Search, Coins, AlertTriangle, Loader2, Filter } from 'lucide-react';
+import { Flame, Search, Coins, AlertTriangle, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs } from '@/hooks/useUserNFTs';
@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { closeWharfkitModals, isLoginActive } from '@/lib/wharfKit';
 import {
   fetchMultipleAssetBackings,
+  fetchAssetBacking,
   calculateTotalBacking,
   buildBatchBurnActions,
   AssetWithBacking,
@@ -74,11 +75,28 @@ export function BurnAndClaim() {
   const [backingMap, setBackingMap] = useState<Map<string, BackedToken[]>>(new Map());
   const [backingLoading, setBackingLoading] = useState(false);
   const [backingFetched, setBackingFetched] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   // Transaction state
   const [isBurning, setIsBurning] = useState(false);
   
   const debouncedSearch = useDebounce(search, 300);
+  
+  // Expose debug function to window for console testing
+  useEffect(() => {
+    if (accountName) {
+      (window as any).testBacking = async (assetId: string) => {
+        console.log(`[Debug] Testing backing for asset ${assetId} (owner: ${accountName})`);
+        const backing = await fetchAssetBacking(assetId, accountName);
+        console.log('[Debug] Result:', backing);
+        return backing;
+      };
+      console.log('[Burn & Claim] Debug: Use testBacking("assetId") in console to test a single asset');
+    }
+    return () => {
+      delete (window as any).testBacking;
+    };
+  }, [accountName]);
   
   // Fetch backing data when NFTs load
   useEffect(() => {
@@ -86,13 +104,19 @@ export function BurnAndClaim() {
       if (!nfts.length || backingFetched || !accountName) return;
       
       setBackingLoading(true);
+      setDebugInfo(`Fetching backing for ${nfts.length} NFTs...`);
+      
       try {
         const assetIds = nfts.map(nft => nft.asset_id);
         const result = await fetchMultipleAssetBackings(assetIds, accountName);
         setBackingMap(result);
         setBackingFetched(true);
+        
+        const backedCount = Array.from(result.values()).filter(b => b.length > 0).length;
+        setDebugInfo(`Found ${backedCount} NFTs with backing out of ${nfts.length}`);
       } catch (error) {
         console.error('Failed to fetch backing data:', error);
+        setDebugInfo(`Error: ${(error as Error).message}`);
         toast.error('Failed to load NFT backing data');
       } finally {
         setBackingLoading(false);
@@ -101,6 +125,13 @@ export function BurnAndClaim() {
     
     fetchBacking();
   }, [nfts, backingFetched, accountName]);
+  
+  // Manual refresh handler
+  const handleRefreshBacking = useCallback(() => {
+    setBackingFetched(false);
+    setBackingMap(new Map());
+    setDebugInfo('');
+  }, []);
   
   // Build NFTs with backing info
   const nftsWithBacking: AssetWithBacking[] = useMemo(() => {
@@ -357,10 +388,19 @@ export function BurnAndClaim() {
       <Card className="bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              Select NFTs to Burn ({selectedNFTs.size}/50)
-            </CardTitle>
+            <div>
+              <CardTitle className="text-base">
+                Select NFTs to Burn ({selectedNFTs.size}/50)
+              </CardTitle>
+              {debugInfo && (
+                <p className="text-xs text-muted-foreground mt-1">{debugInfo}</p>
+              )}
+            </div>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleRefreshBacking} disabled={backingLoading}>
+                <RefreshCw className={cn("h-4 w-4 mr-1", backingLoading && "animate-spin")} />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" onClick={selectAllVisible}>
                 Select All
               </Button>

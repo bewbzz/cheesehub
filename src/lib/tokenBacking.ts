@@ -76,7 +76,13 @@ export function getTokenDetails(config: BackingConfig): {
  */
 export async function fetchAssetBacking(assetId: string, owner: string): Promise<BackedToken[]> {
   try {
-    const response = await fetchTableRows<{ backed_tokens?: BackedToken[] }>({
+    console.log(`[Backing] Fetching asset ${assetId} (owner: ${owner})`);
+    
+    const response = await fetchTableRows<{ 
+      asset_id: string;
+      backed_tokens?: BackedToken[];
+      collection_name?: string;
+    }>({
       code: 'atomicassets',
       scope: owner,
       table: 'assets',
@@ -85,12 +91,21 @@ export async function fetchAssetBacking(assetId: string, owner: string): Promise
       limit: 1,
     });
 
-    if (response.rows.length > 0 && response.rows[0].backed_tokens) {
-      return response.rows[0].backed_tokens;
+    console.log(`[Backing] Response for ${assetId}:`, JSON.stringify(response, null, 2));
+
+    if (response.rows.length > 0) {
+      const row = response.rows[0];
+      console.log(`[Backing] Asset ${assetId} backed_tokens:`, row.backed_tokens);
+      
+      if (row.backed_tokens && row.backed_tokens.length > 0) {
+        return row.backed_tokens;
+      }
+    } else {
+      console.warn(`[Backing] No row found for asset ${assetId}`);
     }
     return [];
   } catch (error) {
-    console.error('Failed to fetch asset backing:', error);
+    console.error(`[Backing] Failed to fetch asset ${assetId}:`, error);
     return [];
   }
 }
@@ -235,11 +250,17 @@ export async function fetchMultipleAssetBackings(
   
   if (assetIds.length === 0 || !owner) return backingMap;
   
-  // Process in batches of 100 for performance
-  const BATCH_SIZE = 100;
+  console.log(`[Backing] Starting fetch for ${assetIds.length} assets (owner: ${owner})`);
+  
+  // Reduced batch size to prevent rate limiting
+  const BATCH_SIZE = 20;
+  let backedCount = 0;
   
   for (let i = 0; i < assetIds.length; i += BATCH_SIZE) {
     const batch = assetIds.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(assetIds.length / BATCH_SIZE);
+    console.log(`[Backing] Processing batch ${batchNum}/${totalBatches}`);
     
     // Fetch each asset individually (atomicassets doesn't support batch query easily)
     const promises = batch.map(async (assetId) => {
@@ -250,9 +271,16 @@ export async function fetchMultipleAssetBackings(
     const results = await Promise.all(promises);
     results.forEach(({ assetId, backing }) => {
       backingMap.set(assetId, backing);
+      if (backing.length > 0) backedCount++;
     });
+    
+    // Small delay between batches to avoid rate limiting
+    if (i + BATCH_SIZE < assetIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
   
+  console.log(`[Backing] Complete: ${backedCount}/${assetIds.length} have backing`);
   return backingMap;
 }
 

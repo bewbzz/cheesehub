@@ -1,8 +1,9 @@
-import { Coins, Flame, Wrench, Sparkles } from 'lucide-react';
+import { Coins, Flame, Wrench, Sparkles, HandCoins } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { TokenBacking } from './TokenBacking';
 import { BurnAndClaim } from './BurnAndClaim';
 import { MintWithBacking } from './MintWithBacking';
+import { ClaimBackedTokens } from './ClaimBackedTokens';
 
 export function NFTTools() {
   return (
@@ -77,6 +78,26 @@ export function NFTTools() {
           </AccordionTrigger>
           <AccordionContent className="pb-6">
             <BurnAndClaim />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Claim Backed Tokens (fallback for failed burns) */}
+        <AccordionItem value="claim-tokens" className="border border-border/50 rounded-xl bg-card/30 px-4">
+          <AccordionTrigger className="text-lg font-semibold hover:no-underline py-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <HandCoins className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <span className="block">Claim Backed Tokens</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Manually claim WaxDAO tokens from burned NFTs
+                </span>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pb-6">
+            <ClaimBackedTokens />
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -22,8 +22,7 @@ import {
   Youtube,
   BookOpen,
   ImageIcon,
-  TrendingUp,
-  Timer
+  TrendingUp
 } from "lucide-react";
 import { useAlcorTokenPrices } from "@/hooks/useAlcorTokenPrices";
 import { useFarmMetrics, formatMetricAmount, formatUsdValue } from "@/hooks/useFarmMetrics";
@@ -428,7 +427,14 @@ export function FarmDetail() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">NFTs Staked</p>
-                <p className="text-2xl font-bold">{farm.staked_count.toLocaleString()}</p>
+                <p className="text-2xl font-bold">
+                  {farm.staked_count.toLocaleString()}
+                  {farmMetrics?.maxCapacity !== null && (
+                    <span className="text-muted-foreground text-sm font-normal">
+                      {' '}/ {farmMetrics.maxCapacity.toLocaleString()}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -558,25 +564,36 @@ export function FarmDetail() {
                 </div>
               </div>
 
-              {/* Pool Runway */}
+              {/* Staking Slots */}
               <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                 <div className="flex items-center gap-2 mb-3">
-                  <Timer className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium text-muted-foreground">Pool Runway</span>
+                  <Users className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-medium text-muted-foreground">Staking Slots</span>
                 </div>
-                {farmMetrics.poolRunwayDays !== null ? (
+                {farmMetrics.stakingSlotsAvailable !== null ? (
                   <div>
-                    <span className="text-2xl font-bold">
-                      ~{Math.floor(farmMetrics.poolRunwayDays)}
-                    </span>
-                    <span className="text-muted-foreground ml-1">days</span>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      at current emission rate
-                    </p>
+                    {farmMetrics.stakingSlotsAvailable > 0 ? (
+                      <>
+                        <span className="text-2xl font-bold text-green-400">
+                          {farmMetrics.stakingSlotsAvailable.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground ml-1">available</span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          based on reward pool capacity
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg font-bold text-yellow-400">Farm Full</span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          deposit more rewards to open slots
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No active emissions
+                    No capacity info
                   </p>
                 )}
               </div>

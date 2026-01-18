@@ -16,7 +16,8 @@ export interface FarmMetrics {
   rewardsPerNft: RewardMetric[];
   totalDailyEmissions: RewardMetric[];
   totalDailyEmissionsUsd: number | null;
-  poolRunwayDays: number | null;
+  stakingSlotsAvailable: number | null;
+  maxCapacity: number | null;
   stakedCount: number;
   isActive: boolean;
 }
@@ -69,8 +70,13 @@ export function useFarmMetrics(
     // Calculate total hourly emissions from reward pools
     const totalDailyEmissions: RewardMetric[] = [];
     const rewardsPerNft: RewardMetric[] = [];
-    let minRunwayDays: number | null = null;
+    let minCapacity: number | null = null;
     let totalDailyEmissionsUsd: number | null = null;
+
+    // Calculate payouts remaining until expiration
+    const payoutsRemaining = farm.payout_interval > 0 
+      ? Math.ceil((farm.expiration - now) / farm.payout_interval)
+      : 0;
 
     for (const pool of farm.reward_pools) {
       // Parse total_hourly_reward if available
@@ -86,12 +92,13 @@ export function useFarmMetrics(
       const dailyAmount = hourlyAmount * 24;
       const balance = parseFloat(pool.balance) || 0;
 
-      // Calculate runway
-      if (hourlyAmount > 0) {
-        const runwayHours = balance / hourlyAmount;
-        const runwayDays = runwayHours / 24;
-        if (minRunwayDays === null || runwayDays < minRunwayDays) {
-          minRunwayDays = runwayDays;
+      // Calculate staking capacity based on reward per payout
+      // Capacity = pool_balance / (reward_per_payout * payouts_remaining)
+      if (hourlyAmount > 0 && payoutsRemaining > 0 && farm.payout_interval > 0) {
+        const rewardPerPayout = hourlyAmount * (farm.payout_interval / 3600);
+        const capacity = Math.floor(balance / (rewardPerPayout * payoutsRemaining));
+        if (minCapacity === null || capacity < minCapacity) {
+          minCapacity = capacity;
         }
       }
 
@@ -129,11 +136,17 @@ export function useFarmMetrics(
       }
     }
 
+    // Staking slots available = capacity - currently staked
+    const stakingSlotsAvailable = minCapacity !== null 
+      ? Math.max(0, minCapacity - stakedCount) 
+      : null;
+
     return {
       rewardsPerNft,
       totalDailyEmissions,
       totalDailyEmissionsUsd,
-      poolRunwayDays: minRunwayDays,
+      stakingSlotsAvailable,
+      maxCapacity: minCapacity,
       stakedCount,
       isActive,
     };

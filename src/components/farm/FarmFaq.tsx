@@ -18,7 +18,7 @@ const FAQ_ITEMS = [
   },
   {
     question: "Is there a limit to how many NFTs can be staked in my farm?",
-    answer: "There is no hard limit on the number of NFTs that can be staked in a V2 farm. However, you should ensure you have enough reward tokens deposited to cover payouts for all stakers.",
+    answer: "V2 farms automatically limit staking based on the reward pool capacity. The contract calculates how many NFTs can be supported until expiration based on the reward per payout, and blocks new stakes if the pool is insufficient. You can increase capacity by depositing more reward tokens.",
   },
   {
     question: "Where can I view/edit my farms after creation?",

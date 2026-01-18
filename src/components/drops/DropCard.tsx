@@ -85,6 +85,24 @@ export function DropCard({ drop }: DropCardProps) {
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+          
+          {/* Price overlay badge */}
+          <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 border border-border/50 shadow-lg">
+            {(() => {
+              const { logo, symbol } = getCurrencyDisplay(drop);
+              return logo ? (
+                <img src={logo} alt={symbol} className="h-4 w-4" />
+              ) : (
+                <Coins className="h-4 w-4 text-muted-foreground" />
+              );
+            })()}
+            <span className="font-display text-sm font-bold text-primary">
+              {drop.price.toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {getCurrencyDisplay(drop).symbol}
+            </span>
+          </div>
         </div>
       </Link>
 

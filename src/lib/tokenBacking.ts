@@ -72,12 +72,13 @@ export function getTokenDetails(config: BackingConfig): {
 
 /**
  * Fetch backed tokens for an asset from atomicassets
+ * The assets table is scoped by owner account, not 'atomicassets'
  */
-export async function fetchAssetBacking(assetId: string): Promise<BackedToken[]> {
+export async function fetchAssetBacking(assetId: string, owner: string): Promise<BackedToken[]> {
   try {
     const response = await fetchTableRows<{ backed_tokens?: BackedToken[] }>({
       code: 'atomicassets',
-      scope: 'atomicassets',
+      scope: owner,
       table: 'assets',
       lower_bound: assetId,
       upper_bound: assetId,
@@ -227,11 +228,12 @@ export function parseTokenQuantity(quantity: string): Omit<ParsedToken, 'contrac
  * Uses direct RPC calls to atomicassets contract
  */
 export async function fetchMultipleAssetBackings(
-  assetIds: string[]
+  assetIds: string[],
+  owner: string
 ): Promise<Map<string, BackedToken[]>> {
   const backingMap = new Map<string, BackedToken[]>();
   
-  if (assetIds.length === 0) return backingMap;
+  if (assetIds.length === 0 || !owner) return backingMap;
   
   // Process in batches of 100 for performance
   const BATCH_SIZE = 100;
@@ -241,7 +243,7 @@ export async function fetchMultipleAssetBackings(
     
     // Fetch each asset individually (atomicassets doesn't support batch query easily)
     const promises = batch.map(async (assetId) => {
-      const backing = await fetchAssetBacking(assetId);
+      const backing = await fetchAssetBacking(assetId, owner);
       return { assetId, backing };
     });
     

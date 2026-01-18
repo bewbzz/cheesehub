@@ -508,7 +508,7 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
       className={cn(
         'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 aspect-square',
         isSelected
-          ? 'border-destructive ring-1 ring-destructive'
+          ? 'border-destructive ring-2 ring-destructive'
           : 'border-transparent hover:border-muted-foreground/30'
       )}
     >
@@ -538,14 +538,19 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
         </div>
       )}
       
-      {/* Selection overlay */}
+      {/* Selection checkmark - top right corner only */}
       {isSelected && (
-        <div className="absolute inset-0 bg-destructive/20 flex items-center justify-center">
-          <Flame className="h-6 w-6 text-destructive" />
+        <div className="absolute top-1 right-1 p-1 rounded-full bg-destructive">
+          <Flame className="h-3 w-3 text-white" />
         </div>
       )}
       
-      {/* Hover info */}
+      {/* Asset ID - always visible */}
+      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white font-mono">
+        #{nft.asset_id}
+      </div>
+      
+      {/* Hover info - name at bottom */}
       <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
         <p className="text-[10px] text-white truncate">{nft.name}</p>
       </div>

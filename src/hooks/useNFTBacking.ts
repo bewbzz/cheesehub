@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   CombinedBacking, 
   fetchMultipleCombinedBackings,
@@ -34,23 +34,28 @@ interface UseNFTBackingResult {
  * Fetches from both AtomicAssets native and WaxDAO backer
  */
 export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
-  const [backingMap, setBackingMap] = useState<Map<string, CombinedBacking>>(new Map());
+  const [backingMap, setBackingMap] = useState<Map<string, CombinedBacking>>(() => new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef<Set<string>>(new Set());
   const isFetchingRef = useRef(false);
+  const nftsRef = useRef<NFTWithCollection[]>([]);
+
+  // Store nfts in ref to access in callback without dependency
+  nftsRef.current = nfts;
 
   // Create stable key from NFT asset IDs to detect actual content changes
-  const nftKey = useMemo(() => 
-    nfts.map(n => `${n.asset_id}:${n.collection}`).sort().join(','), 
-    [nfts]
-  );
+  const nftKey = nfts.length > 0 
+    ? nfts.map(n => `${n.asset_id}:${n.collection}`).sort().join(',')
+    : '';
 
-  const fetchBacking = useCallback(async (nftsToFetch: NFTWithCollection[]) => {
-    if (nftsToFetch.length === 0) return;
+  // Fetch backing when NFTs change - use stable key for dependency
+  useEffect(() => {
+    const currentNfts = nftsRef.current;
+    if (currentNfts.length === 0) return;
 
     // Filter out already fetched
-    const unfetched = nftsToFetch.filter(
+    const unfetched = currentNfts.filter(
       nft => !fetchedRef.current.has(nft.asset_id)
     );
 
@@ -63,33 +68,27 @@ export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const results = await fetchMultipleCombinedBackings(unfetched);
-      
-      // Mark as fetched
-      unfetched.forEach(nft => fetchedRef.current.add(nft.asset_id));
-      
-      // Merge with existing
-      setBackingMap(prev => {
-        const next = new Map(prev);
-        results.forEach((value, key) => next.set(key, value));
-        return next;
+    fetchMultipleCombinedBackings(unfetched)
+      .then(results => {
+        // Mark as fetched
+        unfetched.forEach(nft => fetchedRef.current.add(nft.asset_id));
+        
+        // Merge with existing
+        setBackingMap(prev => {
+          const next = new Map(prev);
+          results.forEach((value, key) => next.set(key, value));
+          return next;
+        });
+      })
+      .catch((err: any) => {
+        console.error('Failed to fetch NFT backing:', err);
+        setError(err.message || 'Failed to fetch backing info');
+      })
+      .finally(() => {
+        setIsLoading(false);
+        isFetchingRef.current = false;
       });
-    } catch (err: any) {
-      console.error('Failed to fetch NFT backing:', err);
-      setError(err.message || 'Failed to fetch backing info');
-    } finally {
-      setIsLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, []);
-
-  // Fetch backing when NFTs change - use stable key for dependency
-  useEffect(() => {
-    if (nfts.length > 0) {
-      fetchBacking(nfts);
-    }
-  }, [nftKey, fetchBacking]);
+  }, [nftKey]);
 
   const getBackingForAsset = useCallback(
     (assetId: string) => backingMap.get(assetId),
@@ -152,11 +151,9 @@ export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
 
   const refetch = useCallback(() => {
     fetchedRef.current.clear();
+    isFetchingRef.current = false;
     setBackingMap(new Map());
-    if (nfts.length > 0) {
-      fetchBacking(nfts);
-    }
-  }, [nfts, fetchBacking]);
+  }, []);
 
   return {
     backingMap,

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Flame, Search, AlertTriangle, Loader2, Filter } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Flame, Search, AlertTriangle, Loader2, Filter, RefreshCw } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs } from '@/hooks/useUserNFTs';
@@ -40,9 +40,15 @@ const IPFS_GATEWAYS = [
 
 function extractIpfsHash(url: string): string | null {
   if (!url) return null;
-  if (url.startsWith('Qm') || url.startsWith('bafy')) return url;
-  const match = url.match(/(?:ipfs\/|ipfs:\/\/)(Qm[a-zA-Z0-9]+|bafy[a-zA-Z0-9]+)/);
-  return match ? match[1] : null;
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+.*)/);
+  if (ipfsMatch) return ipfsMatch[1];
+  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
+    return url;
+  }
+  return null;
 }
 
 type SortOption = 'name-asc' | 'name-desc' | 'id-asc' | 'id-desc';
@@ -51,7 +57,7 @@ export function BurnAndClaim() {
   const { session, accountName } = useWax();
   
   // NFT fetching
-  const { nfts, isLoading: nftsLoading, collections } = useUserNFTs(accountName || null);
+  const { nfts, isLoading: nftsLoading, loadingProgress, refetch, collections } = useUserNFTs(accountName || null);
   
   // UI state
   const [search, setSearch] = useState('');
@@ -62,7 +68,15 @@ export function BurnAndClaim() {
   // Transaction state
   const [isBurning, setIsBurning] = useState(false);
   
+  // Virtualization ref
+  const parentRef = useRef<HTMLDivElement>(null);
+  const loadedImagesRef = useRef<Set<string>>(new Set());
+  
   const debouncedSearch = useDebounce(search, 300);
+  
+  const handleImageLoaded = useCallback((assetId: string) => {
+    loadedImagesRef.current.add(assetId);
+  }, []);
   
   // Build NFTs list
   const nftList = useMemo(() => {
@@ -121,9 +135,9 @@ export function BurnAndClaim() {
   
   const virtualizer = useVirtualizer({
     count: rowCount,
-    getScrollElement: () => document.getElementById('burn-nft-grid-container'),
+    getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 3,
+    overscan: 5,
   });
   
   // Selection handlers
@@ -230,8 +244,17 @@ export function BurnAndClaim() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            Filter NFTs
+            Filter NFTs ({nfts.length} total)
           </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={nftsLoading}
+            className="h-7 px-2"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", nftsLoading && "animate-spin")} />
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
@@ -283,9 +306,23 @@ export function BurnAndClaim() {
       <Card className="bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              Select NFTs to Burn ({selectedNFTs.size}/50)
-            </CardTitle>
+            <div>
+              <CardTitle className="text-base">
+                Select NFTs to Burn
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {nftsLoading && loadingProgress.total > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading {loadingProgress.loaded}/{loadingProgress.total}...
+                  </span>
+                ) : (
+                  <>
+                    {selectedNFTs.size} selected {selectedNFTs.size >= 50 && '(max 50 per tx)'}
+                  </>
+                )}
+              </p>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={selectAllVisible}>
                 Select All
@@ -297,10 +334,13 @@ export function BurnAndClaim() {
           </div>
         </CardHeader>
         <CardContent>
-          {nftsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="ml-3 text-muted-foreground">Loading NFTs...</span>
+          {nftsLoading && nfts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <div className="flex items-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-3 text-muted-foreground">Loading NFTs...</span>
+              </div>
+              <span className="text-xs text-muted-foreground/70">May take up to 30 seconds for large collections</span>
             </div>
           ) : filteredNFTs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -308,7 +348,7 @@ export function BurnAndClaim() {
             </div>
           ) : (
             <div
-              id="burn-nft-grid-container"
+              ref={parentRef}
               className="h-[400px] overflow-auto rounded-lg border border-border/30"
             >
               <div
@@ -341,6 +381,8 @@ export function BurnAndClaim() {
                           nft={nft}
                           isSelected={selectedNFTs.has(nft.asset_id)}
                           onToggle={() => toggleNFTSelection(nft.asset_id)}
+                          isImageCached={loadedImagesRef.current.has(nft.asset_id)}
+                          onImageLoaded={handleImageLoaded}
                         />
                       ))}
                     </div>
@@ -422,34 +464,43 @@ interface NFTCardProps {
   };
   isSelected: boolean;
   onToggle: () => void;
+  isImageCached?: boolean;
+  onImageLoaded?: (assetId: string) => void;
 }
 
-function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
-  const [imgSrc, setImgSrc] = useState<string>('');
+function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(isImageCached ?? false);
   
-  useEffect(() => {
-    const hash = extractIpfsHash(nft.image);
-    if (hash) {
-      setImgSrc(`${IPFS_GATEWAYS[0]}${hash}`);
-    } else if (nft.image) {
-      setImgSrc(nft.image);
+  const ipfsHash = extractIpfsHash(nft.image);
+  const hasValidImage = Boolean(nft.image && nft.image.length > 0);
+  
+  // Build current image URL
+  const currentImageUrl = useMemo(() => {
+    if (!nft.image) return '';
+    if (ipfsHash) {
+      return `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
     }
-    setGatewayIndex(0);
-    setImgError(false);
-  }, [nft.image]);
+    return nft.image;
+  }, [nft.image, ipfsHash, gatewayIndex]);
   
-  const handleImageError = () => {
-    const hash = extractIpfsHash(nft.image);
-    if (hash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
-      const nextIndex = gatewayIndex + 1;
-      setGatewayIndex(nextIndex);
-      setImgSrc(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
+  const handleImageError = useCallback(() => {
+    if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
+      setGatewayIndex(prev => prev + 1);
+      setImgLoaded(false);
     } else {
       setImgError(true);
     }
-  };
+  }, [ipfsHash, gatewayIndex]);
+  
+  const handleImageLoad = useCallback(() => {
+    setImgLoaded(true);
+    onImageLoaded?.(nft.asset_id);
+  }, [nft.asset_id, onImageLoaded]);
+  
+  // Show error state if no valid image or if loading failed
+  const showErrorState = !hasValidImage || imgError;
   
   return (
     <button
@@ -462,14 +513,25 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
       )}
     >
       {/* Image */}
-      {imgSrc && !imgError ? (
-        <img
-          src={imgSrc}
-          alt={nft.name}
-          className="w-full h-full object-cover"
-          onError={handleImageError}
-          loading="lazy"
-        />
+      {!showErrorState ? (
+        <>
+          {!imgLoaded && (
+            <div className="absolute inset-0 bg-muted flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <img
+            src={currentImageUrl}
+            alt={nft.name}
+            className={cn(
+              "w-full h-full object-cover transition-opacity",
+              imgLoaded ? "opacity-100" : "opacity-0"
+            )}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+            loading="lazy"
+          />
+        </>
       ) : (
         <div className="w-full h-full bg-muted flex items-center justify-center">
           <span className="text-xs text-muted-foreground">No Image</span>

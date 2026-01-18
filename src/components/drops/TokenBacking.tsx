@@ -14,7 +14,7 @@ import {
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs, UserNFT } from '@/hooks/useUserNFTs';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Check, Loader2, Search, Image, Coins, RefreshCw, Info, Wallet } from 'lucide-react';
+import { Check, Loader2, Search, Image, Coins, RefreshCw, Info, Wallet, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { toast } from 'sonner';
@@ -64,10 +64,10 @@ export function TokenBacking() {
   const [isBacking, setIsBacking] = useState(false);
   const [showCustomToken, setShowCustomToken] = useState(false);
 
-  // Backing configuration
+  // Backing configuration - default to WAX since CHEESE isn't whitelisted for backasset
   const [config, setConfig] = useState<BackingConfig>({
-    tokenKey: 'CHEESE',
-    amountPerNFT: 100,
+    tokenKey: 'WAX',
+    amountPerNFT: 1,
     customContract: '',
     customSymbol: '',
     customPrecision: 4,
@@ -212,12 +212,21 @@ export function TokenBacking() {
 
   return (
     <div className="space-y-6">
+      {/* Important Limitation Alert */}
+      <Alert className="border-amber-500/30 bg-amber-500/5">
+        <AlertTriangle className="h-4 w-4 text-amber-500" />
+        <AlertDescription className="text-sm">
+          <strong>WAX Only:</strong> Backing existing NFTs only works with WAX tokens (whitelisted in atomicassets).
+          To back NFTs with <span className="text-cheese font-medium">CHEESE</span>, use{' '}
+          <strong>"Mint with Backing"</strong> above to create new NFTs with tokens locked inside from the start.
+        </AlertDescription>
+      </Alert>
+
       {/* Info Alert */}
       <Alert className="border-cheese/30 bg-cheese/5">
         <Info className="h-4 w-4 text-cheese" />
         <AlertDescription className="text-sm">
-          Token backing locks tokens inside your NFTs. When the NFT is burned, the backed tokens are released to the burner.
-          This gives your NFTs intrinsic value.
+          Token backing locks WAX inside your NFTs. When the NFT is burned, the backed tokens are released to the burner.
         </AlertDescription>
       </Alert>
 
@@ -246,9 +255,8 @@ export function TokenBacking() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CHEESE">🧀 CHEESE (4 decimals)</SelectItem>
                   <SelectItem value="WAX">💎 WAX (8 decimals)</SelectItem>
-                  <SelectItem value="CUSTOM">⚙️ Custom Token</SelectItem>
+                  <SelectItem value="CUSTOM">⚙️ Custom Token (must be whitelisted)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

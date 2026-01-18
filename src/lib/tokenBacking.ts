@@ -6,12 +6,9 @@
 import { fetchTableRows } from './waxRpcFallback';
 
 // Token presets with correct precision
+// NOTE: atomicassets::backasset only works with WAX (whitelisted tokens)
+// For CHEESE backing, use "Mint with Backing" to create new NFTs with tokens locked inside
 export const BACKING_TOKENS = {
-  CHEESE: {
-    contract: 'cheeseburger',
-    symbol: 'CHEESE',
-    precision: 4,
-  },
   WAX: {
     contract: 'eosio.token',
     symbol: 'WAX',

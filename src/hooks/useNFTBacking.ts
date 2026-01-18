@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   CombinedBacking, 
   fetchMultipleCombinedBackings,
@@ -38,7 +38,13 @@ export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef<Set<string>>(new Set());
-  const abortRef = useRef<AbortController | null>(null);
+  const isFetchingRef = useRef(false);
+
+  // Create stable key from NFT asset IDs to detect actual content changes
+  const nftKey = useMemo(() => 
+    nfts.map(n => `${n.asset_id}:${n.collection}`).sort().join(','), 
+    [nfts]
+  );
 
   const fetchBacking = useCallback(async (nftsToFetch: NFTWithCollection[]) => {
     if (nftsToFetch.length === 0) return;
@@ -50,11 +56,9 @@ export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
 
     if (unfetched.length === 0) return;
 
-    // Abort previous request
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    abortRef.current = new AbortController();
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
 
     setIsLoading(true);
     setError(null);
@@ -72,21 +76,20 @@ export function useNFTBacking(nfts: NFTWithCollection[]): UseNFTBackingResult {
         return next;
       });
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.error('Failed to fetch NFT backing:', err);
-        setError(err.message || 'Failed to fetch backing info');
-      }
+      console.error('Failed to fetch NFT backing:', err);
+      setError(err.message || 'Failed to fetch backing info');
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
-  // Fetch backing when NFTs change
+  // Fetch backing when NFTs change - use stable key for dependency
   useEffect(() => {
     if (nfts.length > 0) {
       fetchBacking(nfts);
     }
-  }, [nfts, fetchBacking]);
+  }, [nftKey, fetchBacking]);
 
   const getBackingForAsset = useCallback(
     (assetId: string) => backingMap.get(assetId),

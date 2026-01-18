@@ -15,7 +15,9 @@ export const WAX_RPC_ENDPOINTS = [
   "https://wax.eosphere.io",
   "https://wax.pink.gg",
   "https://api.waxsweden.org",
-  "https://wax.greymass.com",
+  "https://wax.cryptolions.io",
+  "https://wax.eu.eosamsterdam.net",
+  // Note: wax.greymass.com removed due to CORS issues in browser
 ];
 
 interface TableRowsParams {

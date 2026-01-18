@@ -184,17 +184,17 @@ export function buildWaxdaoBackNftActions(
 
   const actions = [];
 
-  // Symbol format for announcedepo: "precision,SYMBOL" (e.g., "4,CHEESE" or "8,WAX")
-  const symbolToAnnounce = `${precision},${symbol}`;
-
-  // 1. Announce deposit for the token symbol
+  // 1. Announce deposit for the token
   actions.push({
     account: WAXDAO_BACKER_CONTRACT,
     name: 'announcedepo',
     authorization: [permissionLevel],
     data: {
       user: owner,
-      symbol_to_announce: symbolToAnnounce,
+      tokens: [{
+        quantity: totalQuantity,
+        token_contract: contract,
+      }],
     },
   });
 

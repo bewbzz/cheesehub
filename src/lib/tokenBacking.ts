@@ -1,20 +1,28 @@
 /**
- * Token Backing utilities using native AtomicAssets backing
- * Allows backing NFTs with tokens (CHEESE, WAX, etc.) that are registered in atomicassets
+ * Token Backing utilities
+ * Supports two methods:
+ * 1. AtomicAssets native backing (WAX only - whitelisted tokens)
+ * 2. WaxDAO packs.waxdao backing (any token including CHEESE)
  */
 
 import { fetchTableRows } from './waxRpcFallback';
 
 // Token presets with correct precision
-// NOTE: atomicassets::backasset only works with WAX (whitelisted tokens)
-// For CHEESE backing, use "Mint with Backing" to create new NFTs with tokens locked inside
 export const BACKING_TOKENS = {
+  CHEESE: {
+    contract: 'cheeseburger',
+    symbol: 'CHEESE',
+    precision: 4,
+  },
   WAX: {
     contract: 'eosio.token',
     symbol: 'WAX',
     precision: 8,
   },
 } as const;
+
+// WaxDAO packs contract for non-whitelisted token backing
+export const WAXDAO_PACKS_CONTRACT = 'packs.waxdao';
 
 export type BackingTokenKey = keyof typeof BACKING_TOKENS;
 
@@ -145,6 +153,57 @@ export function buildBackNftActions(
       data: {
         payer: owner,
         asset_owner: owner,
+        asset_id: parseInt(assetId),
+        token_to_back: perNftQuantity,
+      },
+    });
+  }
+
+  return actions;
+}
+
+/**
+ * Build actions to back NFTs via WaxDAO packs.waxdao contract
+ * This method works with ANY token (CHEESE, WAX, etc.)
+ * 
+ * Transaction flow:
+ * 1. transfer - Send tokens to packs.waxdao with memo "deposit"
+ * 2. backasset - Lock tokens from deposit into each NFT
+ */
+export function buildWaxdaoBackNftActions(
+  owner: string,
+  assetIds: string[],
+  config: BackingConfig,
+  permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
+) {
+  const { contract, symbol, precision } = getTokenDetails(config);
+  const totalAmount = config.amountPerNFT * assetIds.length;
+  const totalQuantity = formatTokenAmount(totalAmount, precision, symbol);
+  const perNftQuantity = formatTokenAmount(config.amountPerNFT, precision, symbol);
+
+  const actions = [];
+
+  // 1. Transfer tokens to packs.waxdao with memo "deposit"
+  actions.push({
+    account: contract,
+    name: 'transfer',
+    authorization: [permissionLevel],
+    data: {
+      from: owner,
+      to: WAXDAO_PACKS_CONTRACT,
+      quantity: totalQuantity,
+      memo: 'deposit',
+    },
+  });
+
+  // 2. Back each NFT using packs.waxdao::backasset
+  for (const assetId of assetIds) {
+    actions.push({
+      account: WAXDAO_PACKS_CONTRACT,
+      name: 'backasset',
+      authorization: [permissionLevel],
+      data: {
+        payer: owner,
         asset_id: parseInt(assetId),
         token_to_back: perNftQuantity,
       },

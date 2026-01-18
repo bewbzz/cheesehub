@@ -489,7 +489,7 @@ export function buildWaxdaoClaimAction(
 ) {
   return {
     account: WAXDAO_BACKER_CONTRACT,
-    name: 'claimtokens',
+    name: 'withdraw',
     authorization: [permissionLevel],
     data: {
       user,

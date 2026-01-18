@@ -208,7 +208,7 @@ export function buildWaxdaoBackNftActions(
         asset_id: parseInt(assetId),
         tokens_to_back: [{
           quantity: perNftQuantity,
-          contract: contract,
+          token_contract: contract,
         }],
       },
     });

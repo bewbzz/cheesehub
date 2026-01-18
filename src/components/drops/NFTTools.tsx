@@ -1,4 +1,4 @@
-import { Coins, Send, Flame, Wrench } from 'lucide-react';
+import { Coins, Flame, Wrench } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { TokenBacking } from './TokenBacking';
 import { BurnAndClaim } from './BurnAndClaim';
@@ -18,7 +18,7 @@ export function NFTTools() {
       </div>
 
       {/* Tools Accordion */}
-      <Accordion type="single" collapsible defaultValue="backing" className="space-y-4">
+      <Accordion type="single" collapsible className="space-y-4">
         {/* Token Backing */}
         <AccordionItem value="backing" className="border border-border/50 rounded-xl bg-card/30 px-4">
           <AccordionTrigger className="text-lg font-semibold hover:no-underline py-4">
@@ -36,29 +36,6 @@ export function NFTTools() {
           </AccordionTrigger>
           <AccordionContent className="pb-6">
             <TokenBacking />
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Bulk Transfer - Coming Soon */}
-        <AccordionItem value="bulk-transfer" className="border border-border/50 rounded-xl bg-card/30 px-4 opacity-60">
-          <AccordionTrigger className="text-lg font-semibold hover:no-underline py-4" disabled>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <Send className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="text-left">
-                <span className="block">Bulk Transfer</span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  Coming Soon — Send NFTs to multiple recipients
-                </span>
-              </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pb-6">
-            <p className="text-muted-foreground text-sm">
-              This feature will allow you to send multiple NFTs to different recipients in a single transaction.
-              Perfect for airdrops, rewards distribution, and community giveaways.
-            </p>
           </AccordionContent>
         </AccordionItem>
 

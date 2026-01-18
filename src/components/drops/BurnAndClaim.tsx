@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Flame, Search, Coins, AlertTriangle, Loader2, Filter, RefreshCw } from 'lucide-react';
+import { Flame, Search, Coins, AlertTriangle, Loader2, Filter } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs } from '@/hooks/useUserNFTs';
@@ -33,13 +33,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals, isLoginActive } from '@/lib/wharfKit';
 import {
-  fetchUnifiedAssetBackings,
-  fetchAssetBacking,
+  fetchMultipleAssetBackings,
   calculateTotalBacking,
-  buildSmartBurnActions,
+  buildBatchBurnActions,
   AssetWithBacking,
   BackedToken,
-  UnifiedBackingInfo,
 } from '@/lib/tokenBacking';
 
 // IPFS gateways for image loading
@@ -72,59 +70,29 @@ export function BurnAndClaim() {
   const [showOnlyBacked, setShowOnlyBacked] = useState(true);
   const [selectedNFTs, setSelectedNFTs] = useState<Set<string>>(new Set());
   
-  // Backing data - now includes template backing info
-  const [backingMap, setBackingMap] = useState<Map<string, UnifiedBackingInfo>>(new Map());
+  // Backing data
+  const [backingMap, setBackingMap] = useState<Map<string, BackedToken[]>>(new Map());
   const [backingLoading, setBackingLoading] = useState(false);
   const [backingFetched, setBackingFetched] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
   
   // Transaction state
   const [isBurning, setIsBurning] = useState(false);
   
   const debouncedSearch = useDebounce(search, 300);
   
-  // Expose debug function to window for console testing
-  useEffect(() => {
-    if (accountName) {
-      (window as any).testBacking = async (assetId: string) => {
-        console.log(`[Debug] Testing backing for asset ${assetId} (owner: ${accountName})`);
-        const backing = await fetchAssetBacking(assetId, accountName);
-        console.log('[Debug] Result:', backing);
-        return backing;
-      };
-      console.log('[Burn & Claim] Debug: Use testBacking("assetId") in console to test a single asset');
-    }
-    return () => {
-      delete (window as any).testBacking;
-    };
-  }, [accountName]);
-  
-  // Fetch unified backing data (both atomicassets + WaxDAO template backing)
+  // Fetch backing data when NFTs load
   useEffect(() => {
     async function fetchBacking() {
-      if (!nfts.length || backingFetched || !accountName) return;
+      if (!nfts.length || backingFetched) return;
       
       setBackingLoading(true);
-      setDebugInfo(`Fetching backing for ${nfts.length} NFTs...`);
-      
       try {
-        // Build asset list with template IDs for unified backing check
-        const assets = nfts.map(nft => ({
-          asset_id: nft.asset_id,
-          template_id: nft.template_id || '',
-        }));
-        
-        // Fetch unified backing (checks both atomicassets + WaxDAO templates)
-        const result = await fetchUnifiedAssetBackings(assets, accountName);
+        const assetIds = nfts.map(nft => nft.asset_id);
+        const result = await fetchMultipleAssetBackings(assetIds);
         setBackingMap(result);
         setBackingFetched(true);
-        
-        const backedCount = Array.from(result.values()).filter(b => b.backed_tokens.length > 0).length;
-        const templateCount = Array.from(result.values()).filter(b => b.hasTemplateBacking).length;
-        setDebugInfo(`Found ${backedCount} NFTs with backing (${templateCount} from templates)`);
       } catch (error) {
         console.error('Failed to fetch backing data:', error);
-        setDebugInfo(`Error: ${(error as Error).message}`);
         toast.error('Failed to load NFT backing data');
       } finally {
         setBackingLoading(false);
@@ -132,33 +100,19 @@ export function BurnAndClaim() {
     }
     
     fetchBacking();
-  }, [nfts, backingFetched, accountName]);
+  }, [nfts, backingFetched]);
   
-  // Manual refresh handler
-  const handleRefreshBacking = useCallback(() => {
-    setBackingFetched(false);
-    setBackingMap(new Map());
-    setDebugInfo('');
-  }, []);
-  
-  // Build NFTs with backing info (unified from both sources)
-  const nftsWithBacking = useMemo(() => {
-    return nfts.map(nft => {
-      const backingInfo = backingMap.get(nft.asset_id);
-      return {
-        asset_id: nft.asset_id,
-        name: nft.name || `#${nft.asset_id}`,
-        collection: nft.collection || 'Unknown',
-        template_id: nft.template_id || '',
-        image: nft.image || '',
-        backed_tokens: backingInfo?.backed_tokens || [],
-        hasTemplateBacking: backingInfo?.hasTemplateBacking || false,
-        backingContract: backingInfo?.backingContract,
-      };
-    });
+  // Build NFTs with backing info
+  const nftsWithBacking: AssetWithBacking[] = useMemo(() => {
+    return nfts.map(nft => ({
+      asset_id: nft.asset_id,
+      name: nft.name || `#${nft.asset_id}`,
+      collection: nft.collection || 'Unknown',
+      template_id: nft.template_id || '',
+      image: nft.image || '',
+      backed_tokens: backingMap.get(nft.asset_id) || [],
+    }));
   }, [nfts, backingMap]);
-  
-  type NFTWithUnifiedBacking = typeof nftsWithBacking[number];
   
   // Filter and sort NFTs
   const filteredNFTs = useMemo(() => {
@@ -261,28 +215,26 @@ export function BurnAndClaim() {
     return selectedWithBacking.filter(nft => nft.backed_tokens.length > 0).length;
   }, [selectedWithBacking]);
   
-  // Burn handler - uses smart burn that auto-claims template backing
+  // Burn handler
   const handleBurn = async () => {
-    if (!session || selectedNFTs.size === 0 || !accountName) return;
+    if (!session || selectedNFTs.size === 0) return;
     
     setIsBurning(true);
     try {
-      // Build asset list with template backing info
-      const assetsToburn = Array.from(selectedNFTs).map((assetId) => {
-        const nft = nftsWithBacking.find((n) => n.asset_id === assetId);
-        return {
-          asset_id: assetId,
-          hasTemplateBacking: nft?.hasTemplateBacking || false,
-          backingContract: nft?.backingContract,
-        };
-      });
-      
-      // Smart burn: automatically includes claimtokens for template-backed NFTs
-      const actions = buildSmartBurnActions(accountName, assetsToburn, session.permissionLevel);
+      const assetIds = Array.from(selectedNFTs);
+      const actions = assetIds.map((assetId) => ({
+        account: 'atomicassets',
+        name: 'burnasset',
+        authorization: [session.permissionLevel],
+        data: {
+          asset_owner: accountName,
+          asset_id: parseInt(assetId),
+        },
+      }));
       
       await session.transact({ actions });
       
-      toast.success(`Successfully burned ${selectedNFTs.size} NFT(s)!`);
+      toast.success(`Successfully burned ${assetIds.length} NFT(s)!`);
       
       // Clear selection and reset backing cache
       setSelectedNFTs(new Set());
@@ -405,19 +357,10 @@ export function BurnAndClaim() {
       <Card className="bg-card/50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">
-                Select NFTs to Burn ({selectedNFTs.size}/50)
-              </CardTitle>
-              {debugInfo && (
-                <p className="text-xs text-muted-foreground mt-1">{debugInfo}</p>
-              )}
-            </div>
+            <CardTitle className="text-base">
+              Select NFTs to Burn ({selectedNFTs.size}/50)
+            </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleRefreshBacking} disabled={backingLoading}>
-                <RefreshCw className={cn("h-4 w-4 mr-1", backingLoading && "animate-spin")} />
-                Refresh
-              </Button>
               <Button variant="outline" size="sm" onClick={selectAllVisible}>
                 Select All
               </Button>
@@ -587,7 +530,7 @@ export function BurnAndClaim() {
 
 // NFT Card Component
 interface NFTCardProps {
-  nft: AssetWithBacking & { hasTemplateBacking?: boolean };
+  nft: AssetWithBacking;
   isSelected: boolean;
   onToggle: () => void;
 }

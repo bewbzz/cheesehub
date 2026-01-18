@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { ShoppingCart, Coins, ImageOff } from "lucide-react";
+import { ShoppingCart, Coins, ImageOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -67,6 +67,9 @@ export function DropCard({ drop }: DropCardProps) {
     }
   }, [currentImageUrl, gatewayIndex]);
 
+  // Determine if this is a free auth-required drop
+  const isFreeAuthDrop = drop.authRequired && (drop.isFree || drop.price === 0);
+
   return (
     <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover-cheese-glow">
       <Link to={`/drops/${drop.id}`}>
@@ -86,22 +89,42 @@ export function DropCard({ drop }: DropCardProps) {
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
           
+          {/* Auth required indicator */}
+          {drop.authRequired && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-amber-500/90 backdrop-blur-sm px-2 py-1 text-xs font-medium text-black">
+              <Lock className="h-3 w-3" />
+              {isFreeAuthDrop ? 'Holders Only' : 'Auth Required'}
+            </div>
+          )}
+          
           {/* Price overlay badge */}
-          <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/90 backdrop-blur-sm px-2.5 py-1 border border-border/50 shadow-lg">
-            {(() => {
-              const { logo, symbol } = getCurrencyDisplay(drop);
-              return logo ? (
-                <img src={logo} alt={symbol} className="h-4 w-4" />
-              ) : (
-                <Coins className="h-4 w-4 text-muted-foreground" />
-              );
-            })()}
-            <span className="font-display text-sm font-bold text-primary">
-              {drop.price.toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {getCurrencyDisplay(drop).symbol}
-            </span>
+          <div className={`absolute bottom-2 right-2 flex items-center gap-1 rounded-full backdrop-blur-sm px-2.5 py-1 border shadow-lg ${
+            isFreeAuthDrop 
+              ? 'bg-green-500/90 border-green-400/50' 
+              : 'bg-background/90 border-border/50'
+          }`}>
+            {isFreeAuthDrop ? (
+              <span className="font-display text-sm font-bold text-white">
+                FREE
+              </span>
+            ) : (
+              <>
+                {(() => {
+                  const { logo, symbol } = getCurrencyDisplay(drop);
+                  return logo ? (
+                    <img src={logo} alt={symbol} className="h-4 w-4" />
+                  ) : (
+                    <Coins className="h-4 w-4 text-muted-foreground" />
+                  );
+                })()}
+                <span className="font-display text-sm font-bold text-primary">
+                  {drop.price.toLocaleString()}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {getCurrencyDisplay(drop).symbol}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </Link>

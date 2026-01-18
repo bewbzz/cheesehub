@@ -283,6 +283,9 @@ async function fetchOnChainNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
           settlementSymbol: drop.settlement_symbol,
           listingPrice: drop.listing_price,
           currency,
+          authRequired: drop.auth_required === 1,
+          isFree: price === 0,
+          accountLimit: drop.account_limit || undefined,
         };
       })
     );
@@ -358,6 +361,9 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
             
             const claimCount = numClaimed || 0;
 
+            // Check if drop is auth-required (look for authRequired in API response)
+            const isAuthRequired = (drop as any).authRequired === true || (drop as any).auth_required === 1;
+            
             return {
               id: `nfthive-${drop.dropId}`,
               dropId: String(drop.dropId),
@@ -377,6 +383,8 @@ export async function fetchNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
               listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
               currency: drop.currency,
               tokenContract: drop.contract,
+              authRequired: isAuthRequired,
+              isFree: drop.price === 0,
             };
           })
         );
@@ -550,6 +558,9 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
       
       const claimCount = numClaimed || 0;
 
+      // Check if drop is auth-required
+      const isAuthRequired = (drop as any).authRequired === true || (drop as any).auth_required === 1;
+
       return {
         id: `nfthive-${drop.dropId}`,
         dropId: String(drop.dropId),
@@ -568,6 +579,8 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
         settlementSymbol: `4,${drop.currency}`,
         listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
         currency: drop.currency,
+        authRequired: isAuthRequired,
+        isFree: drop.price === 0,
       };
     }
 

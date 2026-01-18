@@ -83,12 +83,12 @@ export function BurnAndClaim() {
   // Fetch backing data when NFTs load
   useEffect(() => {
     async function fetchBacking() {
-      if (!nfts.length || backingFetched) return;
+      if (!nfts.length || backingFetched || !accountName) return;
       
       setBackingLoading(true);
       try {
         const assetIds = nfts.map(nft => nft.asset_id);
-        const result = await fetchMultipleAssetBackings(assetIds);
+        const result = await fetchMultipleAssetBackings(assetIds, accountName);
         setBackingMap(result);
         setBackingFetched(true);
       } catch (error) {
@@ -100,7 +100,7 @@ export function BurnAndClaim() {
     }
     
     fetchBacking();
-  }, [nfts, backingFetched]);
+  }, [nfts, backingFetched, accountName]);
   
   // Build NFTs with backing info
   const nftsWithBacking: AssetWithBacking[] = useMemo(() => {

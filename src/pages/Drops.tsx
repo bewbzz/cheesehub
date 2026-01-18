@@ -3,6 +3,7 @@ import { DropsHero } from "@/components/drops/DropsHero";
 import { CartDrawer } from "@/components/drops/CartDrawer";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
+import { NFTTools } from "@/components/drops/NFTTools";
 import { VirtualizedDropGrid, SimpleDropGrid } from "@/components/drops/VirtualizedDropGrid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCheeseDropStats } from "@/services/atomicApi";
@@ -14,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { NFTDrop } from "@/types/drop";
-import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
+import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X, Wrench } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 import { useMemo, useState } from "react";
 
@@ -101,7 +102,7 @@ const Drops = () => {
       <main className="container pb-20">
         <Tabs defaultValue="cheese" className="w-full">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            <TabsList className="grid w-full max-w-lg grid-cols-4">
+            <TabsList className="grid w-full max-w-2xl grid-cols-5">
               <TabsTrigger value="browse" className="flex items-center gap-2">
                 <Grid className="h-4 w-4" />
                 <span className="hidden sm:inline">Browse</span>
@@ -117,6 +118,10 @@ const Drops = () => {
               <TabsTrigger value="create" className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Create</span>
+              </TabsTrigger>
+              <TabsTrigger value="tools" className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                <span className="hidden sm:inline">Tools</span>
               </TabsTrigger>
             </TabsList>
             <Button
@@ -278,6 +283,10 @@ const Drops = () => {
 
           <TabsContent value="create">
             <CreateDrop />
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <NFTTools />
           </TabsContent>
         </Tabs>
       </main>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { FarmInfo, RewardPool } from '@/lib/farm';
+import { FarmInfo, FarmStakableConfig, RewardRate } from '@/lib/farm';
 import { TokenPriceMap } from './useAlcorTokenPrices';
 import { useWaxPrice } from './useWaxPrice';
 
@@ -54,9 +54,68 @@ function getTokenPrice(contract: string, symbol: string, tokenPrices: TokenPrice
   return null;
 }
 
+// Get the minimum per-NFT hourly rate for a specific reward pool from stakable config
+function getMinPerNftHourlyRate(
+  config: FarmStakableConfig | undefined,
+  poolSymbol: string,
+  poolContract: string
+): number | null {
+  if (!config) return null;
+
+  let minRate: number | null = null;
+
+  const checkRates = (rates: RewardRate[] | undefined, fallbackRate: string) => {
+    // First check hourly_rates array
+    if (rates && rates.length > 0) {
+      for (const rate of rates) {
+        if (rate.contract === poolContract) {
+          const parsed = parseTokenAmount(rate.quantity);
+          if (parsed.symbol === poolSymbol && parsed.amount > 0) {
+            if (minRate === null || parsed.amount < minRate) {
+              minRate = parsed.amount;
+            }
+          }
+        }
+      }
+    }
+    // Fallback to hourly_rate string
+    if (minRate === null && fallbackRate) {
+      const parsed = parseTokenAmount(fallbackRate);
+      if (parsed.symbol === poolSymbol && parsed.amount > 0) {
+        if (minRate === null || parsed.amount < minRate) {
+          minRate = parsed.amount;
+        }
+      }
+    }
+  };
+
+  // Check templates
+  for (const template of config.templates) {
+    checkRates(template.hourly_rates, template.hourly_rate);
+  }
+
+  // Check schemas
+  for (const schema of config.schemas) {
+    checkRates(schema.hourly_rates, schema.hourly_rate);
+  }
+
+  // Check collections
+  for (const collection of config.collections) {
+    checkRates(collection.hourly_rates, collection.hourly_rate);
+  }
+
+  // Check attributes
+  for (const attr of config.attributes) {
+    checkRates(attr.hourly_rates, attr.hourly_rate);
+  }
+
+  return minRate;
+}
+
 export function useFarmMetrics(
   farm: FarmInfo | undefined,
-  tokenPrices: TokenPriceMap | undefined
+  tokenPrices: TokenPriceMap | undefined,
+  stakableConfig?: FarmStakableConfig
 ): FarmMetrics | null {
   const { data: waxPrice } = useWaxPrice();
 
@@ -73,10 +132,8 @@ export function useFarmMetrics(
     let minCapacity: number | null = null;
     let totalDailyEmissionsUsd: number | null = null;
 
-    // Calculate payouts remaining until expiration
-    const payoutsRemaining = farm.payout_interval > 0 
-      ? Math.ceil((farm.expiration - now) / farm.payout_interval)
-      : 0;
+    // Calculate hours until expiration
+    const hoursUntilExpiration = Math.max(0, (farm.expiration - now) / 3600);
 
     for (const pool of farm.reward_pools) {
       // Parse total_hourly_reward if available
@@ -92,13 +149,15 @@ export function useFarmMetrics(
       const dailyAmount = hourlyAmount * 24;
       const balance = parseFloat(pool.balance) || 0;
 
-      // Calculate staking capacity based on reward per payout
-      // Capacity = pool_balance / (reward_per_payout * payouts_remaining)
-      if (hourlyAmount > 0 && payoutsRemaining > 0 && farm.payout_interval > 0) {
-        const rewardPerPayout = hourlyAmount * (farm.payout_interval / 3600);
-        const capacity = Math.floor(balance / (rewardPerPayout * payoutsRemaining));
-        if (minCapacity === null || capacity < minCapacity) {
-          minCapacity = capacity;
+      // Calculate staking capacity using per-NFT hourly rate from stakable config
+      // Capacity = pool_balance / (per_nft_rate * hours_until_expiration)
+      if (stakableConfig && hoursUntilExpiration > 0) {
+        const perNftRate = getMinPerNftHourlyRate(stakableConfig, pool.symbol, pool.contract);
+        if (perNftRate && perNftRate > 0) {
+          const capacity = Math.floor(balance / (perNftRate * hoursUntilExpiration));
+          if (minCapacity === null || capacity < minCapacity) {
+            minCapacity = capacity;
+          }
         }
       }
 
@@ -150,7 +209,7 @@ export function useFarmMetrics(
       stakedCount,
       isActive,
     };
-  }, [farm, tokenPrices, waxPrice]);
+  }, [farm, tokenPrices, waxPrice, stakableConfig]);
 }
 
 export function formatMetricAmount(amount: number, precision: number): string {

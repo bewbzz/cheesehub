@@ -6,7 +6,7 @@ import { WAX_EXPLORER } from '@/lib/waxConfig';
 import type { NFTDrop } from '@/types/drop';
 
 export function usePurchaseDrop() {
-  const { isConnected, cheeseBalance, login, transferCheese, claimDrop } = useWax();
+  const { isConnected, cheeseBalance, login, transferCheese, claimDrop, claimFreeDrop } = useWax();
   const { clearCart } = useCart();
   const { toast } = useToast();
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -17,9 +17,13 @@ export function usePurchaseDrop() {
       return null;
     }
 
-    const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Separate free and paid drops
+    const freeDrops = items.filter(item => item.isFree || item.price === 0);
+    const paidDrops = items.filter(item => !item.isFree && item.price > 0);
 
-    if (cheeseBalance < totalPrice) {
+    const totalPrice = paidDrops.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    if (totalPrice > 0 && cheeseBalance < totalPrice) {
       toast({
         title: 'Insufficient Balance',
         description: `You need ${totalPrice.toLocaleString()} CHEESE but only have ${cheeseBalance.toLocaleString()}`,
@@ -33,7 +37,19 @@ export function usePurchaseDrop() {
     try {
       let txId: string | null = null;
 
-      for (const item of items) {
+      // Process free drops first
+      for (const item of freeDrops) {
+        if (item.dropSource === 'nfthive' && item.dropId) {
+          txId = await claimFreeDrop(item.dropId, item.quantity);
+        }
+
+        if (!txId) {
+          throw new Error(`Failed to claim free drop: ${item.name}`);
+        }
+      }
+
+      // Process paid drops
+      for (const item of paidDrops) {
         if (item.dropSource === 'nfthive' && item.dropId) {
           txId = await claimDrop(item.dropId, item.quantity, item.price * item.quantity);
         } else {

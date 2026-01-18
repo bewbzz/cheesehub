@@ -1,17 +1,20 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff, Coins } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchDropById } from "@/services/atomicApi";
 import { mockDrops } from "@/data/mockDrops";
 import { useCart } from "@/context/CartContext";
+import { useWax } from "@/context/WaxContext";
+import { useDropEligibility, fetchDropAuthRequirements } from "@/hooks/useDropEligibility";
 import cheeseLogo from "@/assets/cheese-logo.png";
-import type { NFTDrop } from "@/types/drop";
+import type { NFTDrop, DropAuthRequirement } from "@/types/drop";
 
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
@@ -51,9 +54,11 @@ function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: strin
 const DropDetail = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
+  const { isConnected, accountName, login } = useWax();
   const [imageError, setImageError] = useState(false);
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
 
   const { data: drop, isLoading } = useQuery({
     queryKey: ['drop', id],
@@ -68,6 +73,25 @@ const DropDetail = () => {
     },
     enabled: !!id,
   });
+
+  // Fetch auth requirements when drop is loaded and auth is required
+  useEffect(() => {
+    async function loadAuthRequirements() {
+      if (drop?.authRequired && drop.dropId) {
+        const reqs = await fetchDropAuthRequirements(drop.dropId);
+        setAuthRequirements(reqs);
+      }
+    }
+    loadAuthRequirements();
+  }, [drop?.authRequired, drop?.dropId]);
+
+  // Check user eligibility
+  const eligibility = useDropEligibility(
+    drop?.dropId,
+    drop?.authRequired,
+    authRequirements,
+    accountName
+  );
 
   // Initialize currentImageUrl when drop loads
   const imageUrl = currentImageUrl ?? drop?.image;
@@ -125,8 +149,17 @@ const DropDetail = () => {
   }
 
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
+  const isFreeAuthDrop = drop.authRequired && (drop.isFree || drop.price === 0);
+  const isSoldOut = drop.remaining === 0;
+
+  // Determine if user can add to cart
+  const canAddToCart = !isSoldOut && (!drop.authRequired || eligibility.isEligible);
 
   const handleAddToCart = () => {
+    if (!isConnected && drop.authRequired) {
+      login();
+      return;
+    }
     addToCart(drop);
   };
 
@@ -155,6 +188,14 @@ const DropDetail = () => {
                 onError={handleImageError}
               />
             )}
+            
+            {/* Auth required badge */}
+            {drop.authRequired && (
+              <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-amber-500/90 backdrop-blur-sm px-3 py-1.5 text-sm font-medium text-black">
+                <Lock className="h-4 w-4" />
+                {isFreeAuthDrop ? 'Holders Only' : 'Auth Required'}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col">
@@ -178,21 +219,100 @@ const DropDetail = () => {
               </div>
             )}
 
+            {/* Auth Requirements Section */}
+            {drop.authRequired && (
+              <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="h-5 w-5 text-amber-500" />
+                  <h3 className="font-display font-semibold text-foreground">
+                    Eligibility Requirements
+                  </h3>
+                </div>
+                
+                {eligibility.requirementsSummary.length > 0 ? (
+                  <ul className="space-y-2 mb-4">
+                    {eligibility.requirementsSummary.map((req, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-amber-500 mt-0.5">•</span>
+                        {req}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    This drop requires holding specific NFTs to claim.
+                  </p>
+                )}
+
+                {/* Eligibility Status */}
+                {!isConnected ? (
+                  <Alert className="border-muted bg-muted/50">
+                    <AlertDescription className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4" />
+                      Connect your wallet to check eligibility
+                    </AlertDescription>
+                  </Alert>
+                ) : eligibility.isChecking ? (
+                  <Alert className="border-muted bg-muted/50">
+                    <AlertDescription className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking your eligibility...
+                    </AlertDescription>
+                  </Alert>
+                ) : eligibility.isEligible ? (
+                  <Alert className="border-green-500/30 bg-green-500/10">
+                    <AlertDescription className="flex items-center gap-2 text-green-500">
+                      <CheckCircle className="h-4 w-4" />
+                      You are eligible! You own {eligibility.matchingAssetIds.length} qualifying NFT(s).
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-3">
+                    <Alert className="border-destructive/30 bg-destructive/10">
+                      <AlertDescription className="flex items-center gap-2 text-destructive">
+                        <XCircle className="h-4 w-4" />
+                        You don't own the required NFTs
+                      </AlertDescription>
+                    </Alert>
+                    {authRequirements.length > 0 && (
+                      <a
+                        href={`https://atomichub.io/market/wax?collection_name=${authRequirements[0].collectionName}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                      >
+                        Buy required NFTs on AtomicHub
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="mt-8 rounded-xl border border-border/50 bg-card/50 p-6">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Price</span>
                 <div className="flex items-center gap-2">
-                  {(() => {
-                    const { logo, symbol } = getCurrencyDisplay(drop);
-                    return logo ? (
-                      <img src={logo} alt={symbol} className="h-8 w-8" />
-                    ) : (
-                      <Coins className="h-7 w-7 text-muted-foreground" />
-                    );
-                  })()}
-                  <span className="font-display text-3xl font-bold text-primary">
-                    {drop.price.toLocaleString()} {getCurrencyDisplay(drop).symbol}
-                  </span>
+                  {isFreeAuthDrop ? (
+                    <span className="font-display text-3xl font-bold text-green-500">
+                      FREE
+                    </span>
+                  ) : (
+                    <>
+                      {(() => {
+                        const { logo, symbol } = getCurrencyDisplay(drop);
+                        return logo ? (
+                          <img src={logo} alt={symbol} className="h-8 w-8" />
+                        ) : (
+                          <Coins className="h-7 w-7 text-muted-foreground" />
+                        );
+                      })()}
+                      <span className="font-display text-3xl font-bold text-primary">
+                        {drop.price.toLocaleString()} {getCurrencyDisplay(drop).symbol}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -209,21 +329,51 @@ const DropDetail = () => {
                 </p>
               </div>
 
-              <Button
-                size="lg"
-                className="mt-6 w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleAddToCart}
-                disabled={drop.remaining === 0}
-              >
-                {drop.remaining === 0 ? (
-                  "Sold Out"
-                ) : (
-                  <>
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                    Add to Cart
-                  </>
-                )}
-              </Button>
+              {/* Add to Cart Button */}
+              {!isConnected && drop.authRequired ? (
+                <Button
+                  size="lg"
+                  className="mt-6 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => login()}
+                >
+                  Connect Wallet to Check Eligibility
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  className={`mt-6 w-full ${
+                    canAddToCart 
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  }`}
+                  onClick={handleAddToCart}
+                  disabled={!canAddToCart}
+                >
+                  {isSoldOut ? (
+                    "Sold Out"
+                  ) : !drop.authRequired ? (
+                    <>
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      Add to Cart
+                    </>
+                  ) : eligibility.isChecking ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Checking...
+                    </>
+                  ) : eligibility.isEligible ? (
+                    <>
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      {isFreeAuthDrop ? 'Claim Free' : 'Add to Cart'}
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-5 w-5" />
+                      Not Eligible
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             <div className="mt-8">

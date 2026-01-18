@@ -25,6 +25,7 @@ interface WaxContextType {
   ) => Promise<string | null>;
   transferNFTs: (to: string, assetIds: string[], memo: string) => Promise<string | null>;
   claimDrop: (dropId: string, quantity: number, totalPrice: number) => Promise<string | null>;
+  claimFreeDrop: (dropId: string, quantity: number) => Promise<string | null>;
   joinDao: (daoName: string) => Promise<string | null>;
   leaveDao: (daoName: string) => Promise<string | null>;
 }
@@ -365,6 +366,59 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Claim a free auth-required drop (no payment needed)
+  const claimFreeDrop = async (
+    dropId: string,
+    quantity: number
+  ): Promise<string | null> => {
+    if (!session) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    try {
+      const action = {
+        account: NFTHIVE_CONFIG.dropContract,
+        name: 'claimdrop',
+        authorization: [session.permissionLevel],
+        data: {
+          claimer: session.actor.toString(),
+          drop_id: parseInt(dropId),
+          amount: quantity,
+          intended_delphi_median: 0,
+          referrer: '',
+          country: '',
+          currency: '0,NULL', // Free drops don't need currency
+        },
+      };
+
+      const result = await session.transact({ actions: [action] });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      toast({
+        title: 'Claim Successful! 🧀',
+        description: 'Your free NFT has been claimed!',
+      });
+
+      return txId;
+    } catch (error) {
+      console.error('Claim free drop failed:', error);
+      closeWharfkitModals();
+      toast({
+        title: 'Claim Failed',
+        description: error instanceof Error ? error.message : 'Failed to claim free drop',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
+    }
+  };
+
   const joinDao = async (daoName: string): Promise<string | null> => {
     if (!session) {
       toast({
@@ -481,6 +535,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         transferToken,
         transferNFTs,
         claimDrop,
+        claimFreeDrop,
         joinDao,
         leaveDao,
       }}

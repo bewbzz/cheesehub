@@ -111,22 +111,22 @@ export function buildBackNftActions(
   const totalAmount = config.amountPerNFT * assetIds.length;
   const quantity = formatTokenAmount(totalAmount, precision, symbol);
   const perNftQuantity = formatTokenAmount(config.amountPerNFT, precision, symbol);
+  
+  // Symbol format for announcedepo: "precision,SYMBOL" (e.g., "4,CHEESE" or "8,WAX")
+  const symbolToAnnounce = `${precision},${symbol}`;
 
-  const authorization = [permissionLevel];
   const actions = [];
 
-  // 1. Announce deposit for each asset
-  for (const assetId of assetIds) {
-    actions.push({
-      account: 'atomicassets',
-      name: 'announcedepo',
-      authorization: [permissionLevel],
-      data: {
-        owner,
-        asset_ids: [assetId],
-      },
-    });
-  }
+  // 1. Announce deposit for the token symbol (only needed once per token type)
+  actions.push({
+    account: 'atomicassets',
+    name: 'announcedepo',
+    authorization: [permissionLevel],
+    data: {
+      owner,
+      symbol_to_announce: symbolToAnnounce,
+    },
+  });
 
   // 2. Transfer total tokens to atomicassets with memo "deposit"
   actions.push({

@@ -167,8 +167,9 @@ export function buildBackNftActions(
  * This method works with ANY token (CHEESE, WAX, etc.)
  * 
  * Transaction flow:
- * 1. transfer - Send tokens to waxdaobacker with memo "deposit"
- * 2. backnft - Lock tokens from deposit into each NFT
+ * 1. announcedepo - Prepare deposit slot for the token symbol
+ * 2. transfer - Send tokens to waxdaobacker with memo "deposit"
+ * 3. backnft - Lock tokens from deposit into each NFT
  */
 export function buildWaxdaoBackNftActions(
   owner: string,
@@ -183,7 +184,21 @@ export function buildWaxdaoBackNftActions(
 
   const actions = [];
 
-  // 1. Transfer tokens to waxdaobacker with memo "deposit"
+  // Symbol format for announcedepo: "precision,SYMBOL" (e.g., "4,CHEESE" or "8,WAX")
+  const symbolToAnnounce = `${precision},${symbol}`;
+
+  // 1. Announce deposit for the token symbol
+  actions.push({
+    account: WAXDAO_BACKER_CONTRACT,
+    name: 'announcedepo',
+    authorization: [permissionLevel],
+    data: {
+      user: owner,
+      symbol_to_announce: symbolToAnnounce,
+    },
+  });
+
+  // 2. Transfer tokens to waxdaobacker with memo "deposit"
   actions.push({
     account: contract,
     name: 'transfer',

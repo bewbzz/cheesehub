@@ -1041,7 +1041,14 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             <span className="text-foreground inline-flex flex-wrap gap-x-2 gap-y-1">
               {stakableConfig.schemas.map((s, i) => (
                 <span key={i} className="inline-flex items-center">
-                  <span className="text-primary">{s.collection}/{s.schema}</span>
+                  <a 
+                    href={`https://wax.atomichub.io/explorer/schema/wax-mainnet/${s.collection}/${s.schema}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {s.collection}/{s.schema}
+                  </a>
                   {s.hourly_rates && s.hourly_rates.length > 0 ? (
                     <span className="text-cheese ml-1">
                       ({s.hourly_rates.map(r => r.quantity).join(' + ')}/hr)

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Flame, Search, AlertTriangle, Loader2, Filter, RefreshCw } from 'lucide-react';
+import { Flame, Search, AlertTriangle, Loader2, Filter, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs } from '@/hooks/useUserNFTs';
@@ -472,18 +472,21 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(isImageCached ?? false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const ipfsHash = extractIpfsHash(nft.image);
   const hasValidImage = Boolean(nft.image && nft.image.length > 0);
   
-  // Build current image URL
+  // Build current image URL with cache-busting on retry
   const currentImageUrl = useMemo(() => {
     if (!nft.image) return '';
     if (ipfsHash) {
-      return `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      const baseUrl = `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      return retryCount > 0 ? `${baseUrl}?retry=${retryCount}` : baseUrl;
     }
-    return nft.image;
-  }, [nft.image, ipfsHash, gatewayIndex]);
+    const separator = nft.image.includes('?') ? '&' : '?';
+    return retryCount > 0 ? `${nft.image}${separator}retry=${retryCount}` : nft.image;
+  }, [nft.image, ipfsHash, gatewayIndex, retryCount]);
   
   const handleImageError = useCallback(() => {
     if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
@@ -494,10 +497,13 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
     }
   }, [ipfsHash, gatewayIndex]);
   
-  const handleImageLoad = useCallback(() => {
-    setImgLoaded(true);
-    onImageLoaded?.(nft.asset_id);
-  }, [nft.asset_id, onImageLoaded]);
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgError(false);
+    setImgLoaded(false);
+    setGatewayIndex(0);
+    setRetryCount(prev => prev + 1);
+  };
   
   // Show error state if no valid image or if loading failed
   const showErrorState = !hasValidImage || imgError;
@@ -506,20 +512,31 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
     <button
       onClick={onToggle}
       className={cn(
-        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 aspect-square',
+        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 h-[130px]',
         isSelected
           ? 'border-destructive ring-2 ring-destructive'
           : 'border-transparent hover:border-muted-foreground/30'
       )}
     >
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className="absolute top-1 right-1 z-10 p-1 rounded-full bg-destructive">
+          <Flame className="h-3 w-3 text-white" />
+        </div>
+      )}
+
       {/* Image */}
-      {!showErrorState ? (
-        <>
-          {!imgLoaded && (
-            <div className="absolute inset-0 bg-muted flex items-center justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          )}
+      <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
+        {showErrorState ? (
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted transition-colors z-10"
+            onClick={handleRetry}
+            title="Click to retry loading image"
+          >
+            <ImageIcon className="h-5 w-5 text-destructive mb-1" />
+            <span className="text-[9px] text-destructive font-medium">Retry</span>
+          </div>
+        ) : (
           <img
             src={currentImageUrl}
             alt={nft.name}
@@ -527,32 +544,31 @@ function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NF
               "w-full h-full object-cover transition-opacity",
               imgLoaded ? "opacity-100" : "opacity-0"
             )}
-            onError={handleImageError}
-            onLoad={handleImageLoad}
             loading="lazy"
+            onError={handleImageError}
+            onLoad={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.naturalWidth === 0) {
+                handleImageError();
+              } else {
+                setImgLoaded(true);
+                onImageLoaded?.(nft.asset_id);
+              }
+            }}
           />
-        </>
-      ) : (
-        <div className="w-full h-full bg-muted flex items-center justify-center">
-          <span className="text-xs text-muted-foreground">No Image</span>
-        </div>
-      )}
-      
-      {/* Selection checkmark - top right corner only */}
-      {isSelected && (
-        <div className="absolute top-1 right-1 p-1 rounded-full bg-destructive">
-          <Flame className="h-3 w-3 text-white" />
-        </div>
-      )}
-      
-      {/* Asset ID - always visible */}
-      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] text-white font-mono">
-        #{nft.asset_id}
+        )}
       </div>
-      
-      {/* Hover info - name at bottom */}
-      <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-        <p className="text-[10px] text-white truncate">{nft.name}</p>
+
+      {/* Info */}
+      <div className="p-1 bg-background/80 absolute bottom-0 left-0 right-0">
+        <p className="text-[10px] font-medium truncate">{nft.name}</p>
+        <span className="text-[9px] text-muted-foreground truncate block">
+          {nft.collection}
+        </span>
+      </div>
+      {/* Asset ID overlay on hover */}
+      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="text-destructive font-mono text-xs font-bold">#{nft.asset_id}</span>
       </div>
     </button>
   );

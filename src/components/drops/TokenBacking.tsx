@@ -112,10 +112,16 @@ export function TokenBacking() {
     return result;
   }, [nfts, collectionFilter, debouncedSearch, sortBy]);
 
-  // Virtual grid - 6 columns for high density
-  const COLUMNS = 6;
-  const ROW_HEIGHT = 100; // Square cards + gap
+  // Virtual grid - 4 columns for proper visibility
+  const COLUMNS = 4;
+  const ROW_HEIGHT = 140;
   const rowCount = Math.ceil(filteredNFTs.length / COLUMNS);
+
+  const loadedImagesRef = useRef<Set<string>>(new Set());
+
+  const handleImageLoaded = useCallback((assetId: string) => {
+    loadedImagesRef.current.add(assetId);
+  }, []);
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -421,7 +427,7 @@ export function TokenBacking() {
                         height: `${virtualRow.size}px`,
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
-                      className="grid grid-cols-6 gap-1 p-1"
+                      className="grid grid-cols-4 gap-2 p-1"
                     >
                       {rowNFTs.map((nft) => (
                         <NFTCard
@@ -429,6 +435,8 @@ export function TokenBacking() {
                           nft={nft}
                           isSelected={selectedNFTs.has(nft.asset_id)}
                           onToggle={() => toggleNFTSelection(nft.asset_id)}
+                          isImageCached={loadedImagesRef.current.has(nft.asset_id)}
+                          onImageLoaded={handleImageLoaded}
                         />
                       ))}
                     </div>
@@ -485,12 +493,15 @@ interface NFTCardProps {
   nft: UserNFT;
   isSelected: boolean;
   onToggle: () => void;
+  isImageCached?: boolean;
+  onImageLoaded?: (assetId: string) => void;
 }
 
-function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
+function NFTCard({ nft, isSelected, onToggle, isImageCached, onImageLoaded }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(isImageCached ?? false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const ipfsHash = extractIpfsHash(nft.image);
   const hasValidImage = Boolean(nft.image && nft.image.length > 0);
@@ -498,10 +509,12 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
   const currentImageUrl = useMemo(() => {
     if (!nft.image) return '';
     if (ipfsHash) {
-      return `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      const baseUrl = `${IPFS_GATEWAYS[gatewayIndex]}${ipfsHash}`;
+      return retryCount > 0 ? `${baseUrl}?retry=${retryCount}` : baseUrl;
     }
-    return nft.image;
-  }, [nft.image, ipfsHash, gatewayIndex]);
+    const separator = nft.image.includes('?') ? '&' : '?';
+    return retryCount > 0 ? `${nft.image}${separator}retry=${retryCount}` : nft.image;
+  }, [nft.image, ipfsHash, gatewayIndex, retryCount]);
 
   const handleImageError = useCallback(() => {
     if (ipfsHash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
@@ -512,49 +525,75 @@ function NFTCard({ nft, isSelected, onToggle }: NFTCardProps) {
     }
   }, [ipfsHash, gatewayIndex]);
 
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImgError(false);
+    setImgLoaded(false);
+    setGatewayIndex(0);
+    setRetryCount(prev => prev + 1);
+  };
+
   const showErrorState = !hasValidImage || imgError;
 
   return (
     <button
       onClick={onToggle}
       className={cn(
-        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 aspect-square',
+        'group relative rounded-md overflow-hidden border-2 transition-all hover:opacity-90 h-[130px]',
         isSelected ? 'border-cheese ring-1 ring-cheese' : 'border-transparent hover:border-muted-foreground/30'
       )}
     >
+      {/* Selection indicator */}
       {isSelected && (
         <div className="absolute top-1 right-1 z-10 bg-cheese rounded-full p-0.5">
-          <Check className="h-3 w-3 text-cheese-foreground" />
+          <Check className="h-3 w-3 text-primary-foreground" />
         </div>
       )}
 
-      <div className="w-full h-full bg-muted/50">
+      {/* Image */}
+      <div className="aspect-square bg-muted h-[90px] flex items-center justify-center">
         {showErrorState ? (
-          <div className="flex items-center justify-center h-full">
-            <Image className="h-6 w-6 text-muted-foreground/50" />
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center bg-muted/50 cursor-pointer hover:bg-muted transition-colors z-10"
+            onClick={handleRetry}
+            title="Click to retry loading image"
+          >
+            <Image className="h-5 w-5 text-cheese mb-1" />
+            <span className="text-[9px] text-cheese font-medium">Retry</span>
           </div>
         ) : (
-          <>
-            {!imgLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
+          <img
+            src={currentImageUrl}
+            alt={nft.name}
+            className={cn(
+              "w-full h-full object-cover transition-opacity",
+              imgLoaded ? "opacity-100" : "opacity-0"
             )}
-            <img
-              src={currentImageUrl}
-              alt={nft.name}
-              className={cn('w-full h-full object-cover transition-opacity', imgLoaded ? 'opacity-100' : 'opacity-0')}
-              onLoad={() => setImgLoaded(true)}
-              onError={handleImageError}
-            />
-          </>
+            loading="lazy"
+            onError={handleImageError}
+            onLoad={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.naturalWidth === 0) {
+                handleImageError();
+              } else {
+                setImgLoaded(true);
+                onImageLoaded?.(nft.asset_id);
+              }
+            }}
+          />
         )}
       </div>
 
-      {/* Hover overlay with name */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <p className="text-[10px] text-white truncate">{nft.name}</p>
-        <p className="text-[8px] text-white/70">#{nft.asset_id}</p>
+      {/* Info */}
+      <div className="p-1 bg-background/80 absolute bottom-0 left-0 right-0">
+        <p className="text-[10px] font-medium truncate">{nft.name}</p>
+        <span className="text-[9px] text-muted-foreground truncate block">
+          {nft.collection}
+        </span>
+      </div>
+      {/* Asset ID overlay on hover */}
+      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="text-cheese font-mono text-xs font-bold">#{nft.asset_id}</span>
       </div>
     </button>
   );

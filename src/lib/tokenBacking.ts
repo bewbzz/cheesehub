@@ -203,7 +203,7 @@ export function buildWaxdaoBackNftActions(
       name: 'backnft',
       authorization: [permissionLevel],
       data: {
-        payer: owner,
+        user: owner,
         asset_id: parseInt(assetId),
         token_to_back: perNftQuantity,
       },

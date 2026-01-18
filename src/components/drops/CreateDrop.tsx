@@ -357,26 +357,30 @@ export function CreateDrop() {
                   </AccordionItem>
 
                   <AccordionItem value="backing" className="border border-border/50 rounded-lg px-4">
-                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
-                      Token Backing
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline text-muted-foreground">
+                      Token Backing (Coming Soon)
                     </AccordionTrigger>
                     <AccordionContent className="text-sm text-foreground space-y-2">
                       <p className="text-xs bg-amber-500/10 text-amber-500 p-2 rounded">
-                        <strong>Note:</strong> Token backing is not supported during drop creation by the nfthivedrops contract.
+                        <strong>Note:</strong> Token backing for drops is not yet supported by the nfthivedrops smart contract. 
+                        This feature is planned for a future update.
                       </p>
                       <p className="mt-2">
-                        To back your NFTs with CHEESE, WAX, or other tokens, use the{' '}
-                        <strong className="text-cheese">NFT Tools</strong> tab after minting.
+                        Token backing would allow you to lock WAX or CHEESE tokens inside each NFT. 
+                        When the NFT is burned, the backed tokens are released to the burner.
                       </p>
-                      <p className="font-medium text-cheese mt-3">Use cases:</p>
-                      <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                      <p className="font-medium text-muted-foreground mt-3">Planned use cases:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2 text-xs text-muted-foreground">
                         <li>Give your NFTs intrinsic value</li>
                         <li>Create "treasure" NFTs with hidden rewards</li>
                         <li>Incentivize burning for token recycling</li>
                         <li>Build deflationary mechanics</li>
                       </ul>
-                      <p className="text-xs bg-cheese/10 p-2 rounded mt-2 text-cheese">
-                        <strong>→ Go to the "Tools" tab</strong> to back existing NFTs with tokens!
+                      <p className="text-xs bg-muted/50 p-2 rounded mt-2">
+                        <strong>Alternative:</strong> For token-infused NFTs now, try the{' '}
+                        <a href="https://nfthive.io/pack" target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline">
+                          NFTHive Pack Creator
+                        </a>.
                       </p>
                     </AccordionContent>
                   </AccordionItem>

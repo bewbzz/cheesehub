@@ -1,11 +1,9 @@
 /**
- * Token Backing utilities for WaxDAO's backbywaxpls contract
- * Allows backing NFTs with tokens (CHEESE, WAX, etc.)
+ * Token Backing utilities using native AtomicAssets backing
+ * Allows backing NFTs with tokens (CHEESE, WAX, etc.) that are registered in atomicassets
  */
 
 import { fetchTableRows } from './waxRpcFallback';
-
-export const BACKING_CONTRACT = 'backbywaxpls';
 
 // Token presets with correct precision
 export const BACKING_TOKENS = {
@@ -97,9 +95,9 @@ export async function fetchAssetBacking(assetId: string): Promise<BackedToken[]>
 /**
  * Build the actions needed to back NFTs with tokens
  * Transaction flow:
- * 1. announcedepo - Prepare deposit slots for each NFT
+ * 1. announcedepo - Prepare deposit slot for the token symbol
  * 2. transfer - Send tokens to atomicassets with memo "deposit"
- * 3. backnft - Execute backing via backbywaxpls contract
+ * 3. backasset - Lock tokens from deposit into each NFT using native atomicassets action
  */
 export function buildBackNftActions(
   owner: string,
@@ -141,17 +139,17 @@ export function buildBackNftActions(
     },
   });
 
-  // 3. Back each NFT using backbywaxpls contract
+  // 3. Back each NFT using native atomicassets::backasset action
   for (const assetId of assetIds) {
     actions.push({
-      account: BACKING_CONTRACT,
-      name: 'backnft',
+      account: 'atomicassets',
+      name: 'backasset',
       authorization: [permissionLevel],
       data: {
-        user: owner,
+        payer: owner,
+        asset_owner: owner,
         asset_id: parseInt(assetId),
-        quantity: perNftQuantity,
-        token_contract: contract,
+        token_to_back: perNftQuantity,
       },
     });
   }

@@ -128,9 +128,9 @@ export function BurnAndClaim() {
     return result;
   }, [nftList, debouncedSearch, collectionFilter, sortBy]);
   
-  // Virtual grid - 6 columns
-  const COLUMNS = 6;
-  const ROW_HEIGHT = 100;
+  // Virtual grid - 4 columns for better visibility
+  const COLUMNS = 4;
+  const ROW_HEIGHT = 140;
   const rowCount = Math.ceil(filteredNFTs.length / COLUMNS);
   
   const virtualizer = useVirtualizer({
@@ -373,7 +373,7 @@ export function BurnAndClaim() {
                         height: `${virtualRow.size}px`,
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
-                      className="grid grid-cols-6 gap-2 px-2"
+                      className="grid grid-cols-4 gap-2 px-2 py-1"
                     >
                       {rowNFTs.map((nft) => (
                         <NFTCard

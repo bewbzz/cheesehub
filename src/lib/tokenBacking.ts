@@ -238,11 +238,195 @@ export function parseTokenQuantity(quantity: string): Omit<ParsedToken, 'contrac
   return { amount, symbol, precision };
 }
 
+// ============================================================================
+// WAXDAO TEMPLATE BACKING DETECTION
+// ============================================================================
+
+export interface TemplateBackingConfig {
+  template_id: number;
+  token_contract: string;
+  quantity: string;
+  enabled: boolean;
+}
+
 /**
- * Fetch backing for multiple assets in batch
- * Uses direct RPC calls to atomicassets contract
+ * Fetch template backing configurations from backbywaxpls contract
+ * This detects NFTs that have WaxDAO backing configured at the template level
  */
-export async function fetchMultipleAssetBackings(
+export async function fetchTemplateBackingConfigs(
+  templateIds: number[]
+): Promise<Map<number, TemplateBackingConfig>> {
+  const configMap = new Map<number, TemplateBackingConfig>();
+  
+  if (templateIds.length === 0) return configMap;
+  
+  // Remove duplicates
+  const uniqueTemplateIds = [...new Set(templateIds)];
+  
+  console.log(`[TemplateBacking] Fetching configs for ${uniqueTemplateIds.length} unique templates`);
+  
+  try {
+    // Query the backbywaxpls::templates table
+    // The table is scoped by 'backbywaxpls' and indexed by template_id
+    const BATCH_SIZE = 100;
+    
+    for (let i = 0; i < uniqueTemplateIds.length; i += BATCH_SIZE) {
+      const batch = uniqueTemplateIds.slice(i, i + BATCH_SIZE);
+      
+      // Fetch each template individually since we need specific template IDs
+      const promises = batch.map(async (templateId) => {
+        try {
+          const response = await fetchTableRows<{
+            template_id: number;
+            token_contract: string;
+            quantity: string;
+            maintenance?: boolean;
+            enabled?: boolean;
+          }>({
+            code: BACKING_CONTRACT,
+            scope: BACKING_CONTRACT,
+            table: 'templates',
+            lower_bound: templateId.toString(),
+            upper_bound: templateId.toString(),
+            limit: 1,
+          });
+          
+          if (response.rows.length > 0) {
+            const row = response.rows[0];
+            // Check if this template actually matches (table might return next key)
+            if (row.template_id === templateId) {
+              return {
+                templateId,
+                config: {
+                  template_id: row.template_id,
+                  token_contract: row.token_contract,
+                  quantity: row.quantity,
+                  enabled: row.enabled !== false && row.maintenance !== true,
+                },
+              };
+            }
+          }
+          return null;
+        } catch (error) {
+          console.warn(`[TemplateBacking] Failed to fetch template ${templateId}:`, error);
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach((result) => {
+        if (result) {
+          configMap.set(result.templateId, result.config);
+        }
+      });
+      
+      // Small delay between batches
+      if (i + BATCH_SIZE < uniqueTemplateIds.length) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+    
+    console.log(`[TemplateBacking] Found ${configMap.size} templates with backing configured`);
+  } catch (error) {
+    console.error('[TemplateBacking] Failed to fetch template configs:', error);
+  }
+  
+  return configMap;
+}
+
+/**
+ * Unified backing data that includes both direct and template backing
+ */
+export interface UnifiedBackingInfo {
+  backed_tokens: BackedToken[];
+  hasTemplateBacking: boolean;  // True if backing comes from template (needs claim first)
+}
+
+/**
+ * Fetch unified backing for multiple assets
+ * Checks both atomicassets backed_tokens AND WaxDAO template backing
+ * Returns a map with backing info that seamlessly handles both sources
+ */
+export async function fetchUnifiedAssetBackings(
+  assets: Array<{ asset_id: string; template_id: string | number }>,
+  owner: string
+): Promise<Map<string, UnifiedBackingInfo>> {
+  const resultMap = new Map<string, UnifiedBackingInfo>();
+  
+  if (assets.length === 0 || !owner) return resultMap;
+  
+  console.log(`[UnifiedBacking] Starting fetch for ${assets.length} assets (owner: ${owner})`);
+  
+  // Step 1: Fetch direct atomicassets backing
+  const assetIds = assets.map((a) => a.asset_id);
+  const directBackingMap = await fetchMultipleAssetBackingsInternal(assetIds, owner);
+  
+  // Step 2: Extract unique template IDs for assets without direct backing
+  const assetsNeedingTemplateCheck: Array<{ asset_id: string; template_id: number }> = [];
+  
+  for (const asset of assets) {
+    const directBacking = directBackingMap.get(asset.asset_id) || [];
+    if (directBacking.length === 0 && asset.template_id) {
+      const templateId = typeof asset.template_id === 'string' 
+        ? parseInt(asset.template_id, 10) 
+        : asset.template_id;
+      if (!isNaN(templateId) && templateId > 0) {
+        assetsNeedingTemplateCheck.push({ asset_id: asset.asset_id, template_id: templateId });
+      }
+    }
+  }
+  
+  // Step 3: Fetch template backing configs
+  const templateIds = assetsNeedingTemplateCheck.map((a) => a.template_id);
+  const templateConfigs = await fetchTemplateBackingConfigs(templateIds);
+  
+  // Step 4: Build unified result
+  for (const asset of assets) {
+    const directBacking = directBackingMap.get(asset.asset_id) || [];
+    
+    if (directBacking.length > 0) {
+      // Has direct backing - already claimed/applied
+      resultMap.set(asset.asset_id, {
+        backed_tokens: directBacking,
+        hasTemplateBacking: false,
+      });
+    } else {
+      // Check for template backing
+      const templateId = typeof asset.template_id === 'string' 
+        ? parseInt(asset.template_id, 10) 
+        : asset.template_id;
+      const templateConfig = templateId ? templateConfigs.get(templateId) : undefined;
+      
+      if (templateConfig && templateConfig.enabled) {
+        // Has template backing - needs claim before burn
+        resultMap.set(asset.asset_id, {
+          backed_tokens: [{
+            quantity: templateConfig.quantity,
+            token_contract: templateConfig.token_contract,
+          }],
+          hasTemplateBacking: true,
+        });
+      } else {
+        // No backing at all
+        resultMap.set(asset.asset_id, {
+          backed_tokens: [],
+          hasTemplateBacking: false,
+        });
+      }
+    }
+  }
+  
+  const backedCount = Array.from(resultMap.values()).filter((b) => b.backed_tokens.length > 0).length;
+  const templateBackedCount = Array.from(resultMap.values()).filter((b) => b.hasTemplateBacking).length;
+  console.log(`[UnifiedBacking] Complete: ${backedCount} have backing (${templateBackedCount} from templates)`);
+  
+  return resultMap;
+}
+
+/**
+ * Internal function to fetch direct atomicassets backing
+ */
+async function fetchMultipleAssetBackingsInternal(
   assetIds: string[],
   owner: string
 ): Promise<Map<string, BackedToken[]>> {
@@ -250,19 +434,11 @@ export async function fetchMultipleAssetBackings(
   
   if (assetIds.length === 0 || !owner) return backingMap;
   
-  console.log(`[Backing] Starting fetch for ${assetIds.length} assets (owner: ${owner})`);
-  
-  // Reduced batch size to prevent rate limiting
   const BATCH_SIZE = 20;
-  let backedCount = 0;
   
   for (let i = 0; i < assetIds.length; i += BATCH_SIZE) {
     const batch = assetIds.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(assetIds.length / BATCH_SIZE);
-    console.log(`[Backing] Processing batch ${batchNum}/${totalBatches}`);
     
-    // Fetch each asset individually (atomicassets doesn't support batch query easily)
     const promises = batch.map(async (assetId) => {
       const backing = await fetchAssetBacking(assetId, owner);
       return { assetId, backing };
@@ -271,17 +447,26 @@ export async function fetchMultipleAssetBackings(
     const results = await Promise.all(promises);
     results.forEach(({ assetId, backing }) => {
       backingMap.set(assetId, backing);
-      if (backing.length > 0) backedCount++;
     });
     
-    // Small delay between batches to avoid rate limiting
     if (i + BATCH_SIZE < assetIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
   
-  console.log(`[Backing] Complete: ${backedCount}/${assetIds.length} have backing`);
   return backingMap;
+}
+
+/**
+ * Legacy function - kept for backwards compatibility
+ * Now wraps the unified backing function
+ */
+export async function fetchMultipleAssetBackings(
+  assetIds: string[],
+  owner: string
+): Promise<Map<string, BackedToken[]>> {
+  // This is the legacy version that only checks atomicassets
+  return fetchMultipleAssetBackingsInternal(assetIds, owner);
 }
 
 /**
@@ -342,4 +527,51 @@ export function buildBatchBurnActions(
   permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
 ) {
   return assetIds.map((assetId) => buildBurnAssetAction(owner, assetId, permissionLevel));
+}
+
+/**
+ * Build smart burn actions that include claim for template-backed NFTs
+ * This combines claimtokens + burnasset in a single transaction where needed
+ */
+export function buildSmartBurnActions(
+  owner: string,
+  assets: Array<{ asset_id: string; hasTemplateBacking: boolean }>,
+  permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
+) {
+  const actions: Array<{
+    account: string;
+    name: string;
+    authorization: any[];
+    data: any;
+  }> = [];
+  
+  // First, add claimtokens for all template-backed assets
+  for (const asset of assets) {
+    if (asset.hasTemplateBacking) {
+      actions.push({
+        account: BACKING_CONTRACT,
+        name: 'claimtokens',
+        authorization: [permissionLevel],
+        data: {
+          user: owner,
+          asset_id: parseInt(asset.asset_id),
+        },
+      });
+    }
+  }
+  
+  // Then, add burnasset for all assets
+  for (const asset of assets) {
+    actions.push({
+      account: 'atomicassets',
+      name: 'burnasset',
+      authorization: [permissionLevel],
+      data: {
+        asset_owner: owner,
+        asset_id: parseInt(asset.asset_id),
+      },
+    });
+  }
+  
+  return actions;
 }

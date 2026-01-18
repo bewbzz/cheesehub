@@ -1,6 +1,7 @@
 import { Coins, Send, Flame, Wrench } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { TokenBacking } from './TokenBacking';
+import { BurnAndClaim } from './BurnAndClaim';
 
 export function NFTTools() {
   return (
@@ -61,26 +62,23 @@ export function NFTTools() {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Burn & Claim - Coming Soon */}
-        <AccordionItem value="burn-claim" className="border border-border/50 rounded-xl bg-card/30 px-4 opacity-60">
-          <AccordionTrigger className="text-lg font-semibold hover:no-underline py-4" disabled>
+        {/* Burn & Claim */}
+        <AccordionItem value="burn-claim" className="border border-border/50 rounded-xl bg-card/30 px-4">
+          <AccordionTrigger className="text-lg font-semibold hover:no-underline py-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <Flame className="h-5 w-5 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <Flame className="h-5 w-5 text-destructive" />
               </div>
               <div className="text-left">
                 <span className="block">Burn & Claim</span>
                 <span className="text-sm font-normal text-muted-foreground">
-                  Coming Soon — Burn NFTs and claim backed tokens
+                  Burn NFTs and receive backed tokens
                 </span>
               </div>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pb-6">
-            <p className="text-muted-foreground text-sm">
-              This feature will allow you to burn NFTs that have backed tokens and automatically receive
-              the locked tokens in your wallet. Great for token-backed collectibles and reward mechanics.
-            </p>
+            <BurnAndClaim />
           </AccordionContent>
         </AccordionItem>
       </Accordion>

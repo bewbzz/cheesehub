@@ -386,3 +386,167 @@ export function buildBatchBurnActions(
 ) {
   return assetIds.map((assetId) => buildBurnAssetAction(owner, assetId, permissionLevel));
 }
+
+// ============================================================================
+// WAXDAO BACKING FETCH & CLAIM
+// ============================================================================
+
+/**
+ * Fetch backed tokens for an asset from WaxDAO waxdaobacker contract
+ * WaxDAO stores backing in its own `assets` table, scoped by collection
+ */
+export async function fetchWaxdaoAssetBacking(
+  assetId: string,
+  collectionName: string
+): Promise<BackedToken[]> {
+  try {
+    const response = await fetchTableRows<{ 
+      asset_id: number;
+      backed_tokens: BackedToken[];
+    }>({
+      code: WAXDAO_BACKER_CONTRACT,
+      scope: collectionName,
+      table: 'assets',
+      lower_bound: assetId,
+      upper_bound: assetId,
+      limit: 1,
+    });
+
+    if (response.rows.length > 0 && response.rows[0].backed_tokens) {
+      return response.rows[0].backed_tokens;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch WaxDAO asset backing:', error);
+    return [];
+  }
+}
+
+export interface CombinedBacking {
+  native: BackedToken[];
+  waxdao: BackedToken[];
+}
+
+/**
+ * Fetch backing from both AtomicAssets native and WaxDAO
+ */
+export async function fetchCombinedAssetBacking(
+  assetId: string,
+  collectionName: string
+): Promise<CombinedBacking> {
+  const [native, waxdao] = await Promise.all([
+    fetchAssetBacking(assetId),
+    fetchWaxdaoAssetBacking(assetId, collectionName),
+  ]);
+  return { native, waxdao };
+}
+
+/**
+ * Fetch combined backing for multiple assets in batch
+ */
+export async function fetchMultipleCombinedBackings(
+  assets: Array<{ asset_id: string; collection: string }>
+): Promise<Map<string, CombinedBacking>> {
+  const backingMap = new Map<string, CombinedBacking>();
+  
+  if (assets.length === 0) return backingMap;
+  
+  // Process in batches of 50 for performance
+  const BATCH_SIZE = 50;
+  
+  for (let i = 0; i < assets.length; i += BATCH_SIZE) {
+    const batch = assets.slice(i, i + BATCH_SIZE);
+    
+    const promises = batch.map(async ({ asset_id, collection }) => {
+      const backing = await fetchCombinedAssetBacking(asset_id, collection);
+      return { asset_id, backing };
+    });
+    
+    const results = await Promise.all(promises);
+    results.forEach(({ asset_id, backing }) => {
+      backingMap.set(asset_id, backing);
+    });
+  }
+  
+  return backingMap;
+}
+
+/**
+ * Build WaxDAO claimtokens action
+ * This claims backed tokens after burning the NFT
+ */
+export function buildWaxdaoClaimAction(
+  user: string,
+  assetIds: string[],
+  permissionLevel: { actor: { toString: () => string }; permission: { toString: () => string } }
+) {
+  return {
+    account: WAXDAO_BACKER_CONTRACT,
+    name: 'claimtokens',
+    authorization: [permissionLevel],
+    data: {
+      user,
+      asset_ids: assetIds.map(id => parseInt(id)),
+    },
+  };
+}
+
+/**
+ * Calculate total backing from a map of combined backings
+ * Returns separate totals for native and WaxDAO backing
+ */
+export function calculateCombinedBackingTotals(
+  backingMap: Map<string, CombinedBacking>,
+  selectedAssetIds: string[]
+): { 
+  native: Map<string, { amount: number; contract: string; precision: number }>;
+  waxdao: Map<string, { amount: number; contract: string; precision: number }>;
+  waxdaoAssetIds: string[];
+} {
+  const nativeTotals = new Map<string, { amount: number; contract: string; precision: number }>();
+  const waxdaoTotals = new Map<string, { amount: number; contract: string; precision: number }>();
+  const waxdaoAssetIds: string[] = [];
+  
+  for (const assetId of selectedAssetIds) {
+    const backing = backingMap.get(assetId);
+    if (!backing) continue;
+    
+    // Sum native backing
+    for (const token of backing.native) {
+      const parsed = parseTokenQuantity(token.quantity);
+      const existing = nativeTotals.get(parsed.symbol);
+      
+      if (existing) {
+        existing.amount += parsed.amount;
+      } else {
+        nativeTotals.set(parsed.symbol, {
+          amount: parsed.amount,
+          contract: token.token_contract,
+          precision: parsed.precision,
+        });
+      }
+    }
+    
+    // Sum WaxDAO backing
+    if (backing.waxdao.length > 0) {
+      waxdaoAssetIds.push(assetId);
+      
+      for (const token of backing.waxdao) {
+        const parsed = parseTokenQuantity(token.quantity);
+        const existing = waxdaoTotals.get(parsed.symbol);
+        
+        if (existing) {
+          existing.amount += parsed.amount;
+        } else {
+          waxdaoTotals.set(parsed.symbol, {
+            amount: parsed.amount,
+            contract: token.token_contract,
+            precision: parsed.precision,
+          });
+        }
+      }
+    }
+  }
+  
+  return { native: nativeTotals, waxdao: waxdaoTotals, waxdaoAssetIds };
+}

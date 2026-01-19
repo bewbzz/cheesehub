@@ -23,6 +23,7 @@ function isLpToken(contract: string): boolean {
 export function useAllTokenBalances(accountName: string | null) {
   const [tokens, setTokens] = useState<TokenWithBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
 
   // Hyperion-first fetch with full RPC fallback when Hyperion fails
   const fetchBalances = useCallback(async () => {
@@ -136,6 +137,7 @@ export function useAllTokenBalances(accountName: string | null) {
       sorted.filter(t => !t.isLpToken).map(t => t.symbol).join(', '),
       '| LP:', sorted.filter(t => t.isLpToken).map(t => t.symbol).join(', ')
     );
+    setIsUsingFallback(usedFallback);
     setTokens(sorted);
     setIsLoading(false);
   }, [accountName]);
@@ -144,5 +146,5 @@ export function useAllTokenBalances(accountName: string | null) {
     fetchBalances();
   }, [fetchBalances]);
 
-  return { tokens, isLoading, refetch: fetchBalances };
+  return { tokens, isLoading, isUsingFallback, refetch: fetchBalances };
 }

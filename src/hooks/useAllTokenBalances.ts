@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
-import { fetchAllTokenBalances, fetchSingleTokenBalance, fetchCriticalTokenBalancesDirect, REALTIME_TOKENS, HyperionToken } from '@/lib/waxRpcFallback';
+import { fetchAllTokenBalances, fetchAllTokenBalancesViaRpc, HyperionToken } from '@/lib/waxRpcFallback';
 
 export interface TokenWithBalance extends TokenConfig {
   balance: number;
@@ -16,12 +16,6 @@ WAX_TOKENS.forEach(token => {
 // LP token contracts
 const LP_TOKEN_CONTRACTS = ['lptoken.box', 'swap.taco'];
 
-// Critical tokens that must always be checked via fallback if missing from Hyperion
-// Only CHEESE is critical - WAX and other tokens are reliably returned by Hyperion
-const CRITICAL_TOKENS = [
-  { symbol: 'CHEESE', contract: 'cheeseburger', precision: 4, displayName: 'CHEESE' },
-];
-
 function isLpToken(contract: string): boolean {
   return LP_TOKEN_CONTRACTS.includes(contract);
 }
@@ -30,22 +24,25 @@ export function useAllTokenBalances(accountName: string | null) {
   const [tokens, setTokens] = useState<TokenWithBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Standard fetch using Hyperion (fast, all tokens, but may lag)
+  // Hyperion-first fetch with full RPC fallback when Hyperion fails
   const fetchBalances = useCallback(async () => {
     if (!accountName) {
       setTokens([]);
       return;
     }
 
-    console.log('[Balance] Fetching balances via Hyperion for:', accountName);
+    console.log('[Balance] Fetching balances for:', accountName);
     setIsLoading(true);
     
+    let results: TokenWithBalance[] = [];
+    let usedFallback = false;
+    
     try {
-      // Single API call to get ALL token balances
+      // Try Hyperion first (fast, single API call, discovers unknown tokens)
       const hyperionTokens = await fetchAllTokenBalances(accountName);
       
       // Map Hyperion response to our TokenWithBalance format
-      const results: TokenWithBalance[] = hyperionTokens.map((ht: HyperionToken) => {
+      results = hyperionTokens.map((ht: HyperionToken) => {
         const key = `${ht.contract}:${ht.symbol}`;
         const knownToken = TOKEN_REGISTRY_MAP.get(key);
         
@@ -67,109 +64,59 @@ export function useAllTokenBalances(accountName: string | null) {
         }
       });
       
-      // Fallback: Check for missing critical tokens
-      for (const critical of CRITICAL_TOKENS) {
-        const found = results.find(t => 
-          t.symbol === critical.symbol && t.contract === critical.contract
+      console.log('[Balance] Hyperion returned', results.length, 'tokens');
+    } catch (error) {
+      // Hyperion failed - fall back to direct RPC for all registry tokens
+      console.warn('[Balance] Hyperion failed, using RPC fallback for all tokens:', error);
+      usedFallback = true;
+      
+      try {
+        const rpcBalances = await fetchAllTokenBalancesViaRpc(
+          accountName,
+          WAX_TOKENS.map(t => ({ contract: t.contract, symbol: t.symbol, precision: t.precision }))
         );
-        if (!found) {
-          console.log(`[Balance] ${critical.symbol} missing from Hyperion, fetching directly...`);
-          const balance = await fetchSingleTokenBalance(
-            accountName,
-            critical.contract,
-            critical.symbol
-          );
-          if (balance > 0) {
-            const knownToken = TOKEN_REGISTRY_MAP.get(`${critical.contract}:${critical.symbol}`);
-            results.push({
-              ...(knownToken || critical),
-              balance,
-              isLpToken: false,
-            });
-          }
-        }
-      }
-      
-      // Sort: alphabetically, with LP tokens at bottom
-      const sorted = results
-        .filter(t => t.balance > 0)
-        .sort((a, b) => {
-          // LP tokens go to bottom
-          if (a.isLpToken && !b.isLpToken) return 1;
-          if (!a.isLpToken && b.isLpToken) return -1;
-          // Within same category, sort alphabetically
-          return a.symbol.localeCompare(b.symbol);
-        });
-
-      console.log('[Balance] Found', sorted.length, 'tokens:', 
-        sorted.filter(t => !t.isLpToken).map(t => t.symbol).join(', '),
-        '| LP:', sorted.filter(t => t.isLpToken).map(t => t.symbol).join(', ')
-      );
-      setTokens(sorted);
-    } catch (error) {
-      console.error('[Balance] Hyperion failed:', error);
-      setTokens([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountName]);
-
-  // Real-time fetch for critical tokens using direct RPC (bypasses indexer lag)
-  const refetchRealTime = useCallback(async () => {
-    if (!accountName) return;
-    
-    console.log('[Balance] Fetching real-time balances via direct RPC...');
-    
-    try {
-      // Fetch critical tokens via direct RPC
-      const directBalances = await fetchCriticalTokenBalancesDirect(accountName, REALTIME_TOKENS);
-      
-      // Update tokens with real-time balances
-      setTokens(prev => {
-        const updated = [...prev];
         
-        for (const [key, balance] of directBalances) {
+        // Convert RPC results to TokenWithBalance format
+        for (const [key, data] of rpcBalances) {
           const [contract, symbol] = key.split(':');
-          const existingIndex = updated.findIndex(t => t.contract === contract && t.symbol === symbol);
+          const knownToken = TOKEN_REGISTRY_MAP.get(key);
           
-          if (existingIndex >= 0) {
-            // Update existing token
-            updated[existingIndex] = { ...updated[existingIndex], balance };
-          } else if (balance > 0) {
-            // Add new token if it has balance
-            const knownToken = TOKEN_REGISTRY_MAP.get(key);
-            updated.push({
-              symbol,
-              contract,
-              precision: knownToken?.precision || 8,
-              displayName: knownToken?.displayName || symbol,
-              balance,
-              isLpToken: false,
-            });
-          }
+          results.push({
+            symbol,
+            contract,
+            precision: knownToken?.precision || data.precision,
+            displayName: knownToken?.displayName || symbol,
+            balance: data.balance,
+            isLpToken: isLpToken(contract),
+          });
         }
         
-        // Re-sort and filter
-        return updated
-          .filter(t => t.balance > 0)
-          .sort((a, b) => {
-            if (a.isLpToken && !b.isLpToken) return 1;
-            if (!a.isLpToken && b.isLpToken) return -1;
-            return a.symbol.localeCompare(b.symbol);
-          });
-      });
-      
-      console.log('[Balance] Real-time refresh complete');
-    } catch (error) {
-      console.error('[Balance] Real-time fetch failed:', error);
-      // Fall back to standard fetch
-      await fetchBalances();
+        console.log('[Balance] RPC fallback returned', results.length, 'tokens with balance');
+      } catch (rpcError) {
+        console.error('[Balance] RPC fallback also failed:', rpcError);
+      }
     }
-  }, [accountName, fetchBalances]);
+    
+    // Sort: alphabetically, with LP tokens at bottom
+    const sorted = results
+      .filter(t => t.balance > 0)
+      .sort((a, b) => {
+        if (a.isLpToken && !b.isLpToken) return 1;
+        if (!a.isLpToken && b.isLpToken) return -1;
+        return a.symbol.localeCompare(b.symbol);
+      });
+
+    console.log('[Balance]', usedFallback ? '(RPC fallback)' : '(Hyperion)', 'Found', sorted.length, 'tokens:', 
+      sorted.filter(t => !t.isLpToken).map(t => t.symbol).join(', '),
+      '| LP:', sorted.filter(t => t.isLpToken).map(t => t.symbol).join(', ')
+    );
+    setTokens(sorted);
+    setIsLoading(false);
+  }, [accountName]);
 
   useEffect(() => {
     fetchBalances();
   }, [fetchBalances]);
 
-  return { tokens, isLoading, refetch: fetchBalances, refetchRealTime };
+  return { tokens, isLoading, refetch: fetchBalances };
 }

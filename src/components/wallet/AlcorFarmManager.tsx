@@ -110,7 +110,7 @@ function formatDetailedCountdown(endTimestamp: number): string {
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
   const { stakedFarms, unstakedIncentives, unstakedPositions, isLoading, refetch, dataSource } = useAlcorFarms();
-  const { refetch: refetchTokenBalances, refetchRealTime } = useAllTokenBalances(accountName);
+  const { refetch: refetchTokenBalances } = useAllTokenBalances(accountName);
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
@@ -271,10 +271,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
-      // Refetch token balances using real-time RPC to bypass indexer lag
-      setTimeout(() => {
-        refetchRealTime();
-      }, 2000);
+      // Delayed refetch to allow indexer to update
+      setTimeout(() => refetchTokenBalances(), 2000);
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim error:', error);
@@ -311,10 +309,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
-      // Refetch token balances using real-time RPC to bypass indexer lag
-      setTimeout(() => {
-        refetchRealTime();
-      }, 2000);
+      // Delayed refetch to allow indexer to update
+      setTimeout(() => refetchTokenBalances(), 2000);
       onTransactionComplete?.();
     } catch (error: any) {
       console.error('Claim all error:', error);

@@ -82,7 +82,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [successDescription, setSuccessDescription] = useState('');
   const [successTxId, setSuccessTxId] = useState<string | null>(null);
 
-  const { tokens, isLoading: isLoadingBalances, refetch, refetchRealTime } = useAllTokenBalances(accountName);
+  const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const { data: tokenPrices } = useAlcorTokenPrices();
 
@@ -192,11 +192,8 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       if (txId) {
         const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
         showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
-        refetch(); // Refresh token balances immediately
-        // Delayed real-time refetch to bypass indexer lag
-        setTimeout(() => {
-          refetchRealTime();
-        }, 2000);
+        // Delayed refetch to allow indexer to update
+        setTimeout(() => refetch(), 2000);
       }
     } finally {
       setIsSending(false);
@@ -211,11 +208,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const handleTransactionComplete = useCallback(() => {
     // Force refresh resources by updating the key
     setResourcesKey(prev => prev + 1);
-    // Delayed real-time refetch to bypass indexer lag
-    setTimeout(() => {
-      refetchRealTime();
-    }, 2000);
-  }, [refetchRealTime]);
+    // Delayed refetch to allow indexer to update
+    setTimeout(() => refetch(), 2000);
+  }, [refetch]);
 
   const showSuccessDialog = useCallback((title: string, description: string, txId: string | null) => {
     setSuccessTitle(title);

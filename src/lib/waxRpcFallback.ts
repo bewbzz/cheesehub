@@ -209,29 +209,46 @@ export async function fetchSingleTokenBalance(
   return 0;
 }
 
-// Critical tokens that should be fetched via direct RPC for real-time accuracy
-export const REALTIME_TOKENS = [
-  { symbol: 'CHEESE', contract: 'cheeseburger' },
-  { symbol: 'WAX', contract: 'eosio.token' },
-];
-
 /**
- * Fetch balances for critical tokens using direct RPC calls (real-time, bypasses indexer)
- * Returns a map of "contract:symbol" -> balance
+ * Fetch ALL token balances via direct RPC calls (bypasses Hyperion indexer)
+ * Used as fallback when Hyperion is unavailable or stale
+ * Uses Promise.allSettled for graceful error handling
  */
-export async function fetchCriticalTokenBalancesDirect(
+export async function fetchAllTokenBalancesViaRpc(
   account: string,
-  tokens: Array<{ contract: string; symbol: string }> = REALTIME_TOKENS
-): Promise<Map<string, number>> {
-  const results = new Map<string, number>();
+  tokens: Array<{ contract: string; symbol: string; precision?: number }>
+): Promise<Map<string, { balance: number; precision: number }>> {
+  console.log(`[RPC Fallback] Fetching ${tokens.length} token balances via direct RPC...`);
   
-  await Promise.all(
-    tokens.map(async ({ contract, symbol }) => {
-      const balance = await fetchSingleTokenBalance(account, contract, symbol);
-      results.set(`${contract}:${symbol}`, balance);
+  const results = await Promise.allSettled(
+    tokens.map(async ({ contract, symbol, precision }) => {
+      const balance = await fetchSingleTokenBalance(account, contract, symbol, 3000);
+      return { 
+        key: `${contract}:${symbol}`, 
+        balance,
+        precision: precision || 8
+      };
     })
   );
   
-  console.log('[RPC] Direct balance fetch:', Object.fromEntries(results));
-  return results;
+  const balanceMap = new Map<string, { balance: number; precision: number }>();
+  let successCount = 0;
+  let failCount = 0;
+  
+  results.forEach(result => {
+    if (result.status === 'fulfilled') {
+      successCount++;
+      if (result.value.balance > 0) {
+        balanceMap.set(result.value.key, {
+          balance: result.value.balance,
+          precision: result.value.precision
+        });
+      }
+    } else {
+      failCount++;
+    }
+  });
+  
+  console.log(`[RPC Fallback] Complete: ${successCount} succeeded, ${failCount} failed, ${balanceMap.size} with balance`);
+  return balanceMap;
 }

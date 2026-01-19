@@ -28,7 +28,7 @@ import { WalletResources, AccountResources, StakedResourcesSection, AccountDetai
 import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
@@ -82,7 +82,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const [successDescription, setSuccessDescription] = useState('');
   const [successTxId, setSuccessTxId] = useState<string | null>(null);
 
-  const { tokens, isLoading: isLoadingBalances, refetch } = useAllTokenBalances(accountName);
+  const { tokens, isLoading: isLoadingBalances, isUsingFallback, refetch } = useAllTokenBalances(accountName);
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const { data: tokenPrices } = useAlcorTokenPrices();
 
@@ -332,6 +332,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                         </div>
                       )}
                     </div>
+                    {isUsingFallback && !isLoadingBalances && (
+                      <div className="mb-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs flex items-center gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span>Using backup data source. Some tokens may not appear.</span>
+                      </div>
+                    )}
                     {isLoadingBalances ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />

@@ -54,7 +54,7 @@ export const WAX_TOKENS: TokenConfig[] = [
   { symbol: 'WUF', contract: 'wuftoken1111', precision: 8, displayName: 'WUF' },
   { symbol: 'KEK', contract: 'waxpepetoken', precision: 4, displayName: 'KEK' },
   { symbol: 'LSW', contract: 'lsw.alcor', precision: 8, displayName: 'LSW' },
-  { symbol: 'ROOK', contract: 'pixilminirpg', precision: 4, displayName: 'ROOK' },
+  { symbol: 'ROOK', contract: 'pixilminirpg', precision: 8, displayName: 'ROOK' },
   { symbol: 'BUZZ', contract: 'buzzingarden', precision: 4, displayName: 'BUZZ' },
   { symbol: 'LEEF', contract: 'leefmaincorp', precision: 4, displayName: 'LEEF' },
   // Wrapped tokens via eth.token bridge

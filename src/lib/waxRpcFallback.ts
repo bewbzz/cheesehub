@@ -239,43 +239,96 @@ export async function fetchSingleTokenBalance(
 /**
  * Fetch ALL token balances via direct RPC calls (bypasses Hyperion indexer)
  * Used as fallback when Hyperion is unavailable or stale
- * Uses Promise.allSettled for graceful error handling
+ * Batches requests to avoid rate limiting, with retry logic for failed tokens
  */
 export async function fetchAllTokenBalancesViaRpc(
   account: string,
   tokens: Array<{ contract: string; symbol: string; precision?: number }>
 ): Promise<Map<string, { balance: number; precision: number }>> {
-  console.log(`[RPC Fallback] Fetching ${tokens.length} token balances via direct RPC...`);
+  console.log(`[RPC Fallback] Fetching ${tokens.length} token balances via direct RPC (batched)...`);
   
-  const results = await Promise.allSettled(
-    tokens.map(async ({ contract, symbol, precision }) => {
-      const balance = await fetchSingleTokenBalance(account, contract, symbol, 3000);
-      return { 
-        key: `${contract}:${symbol}`, 
-        balance,
-        precision: precision || 8
-      };
-    })
-  );
+  const BATCH_SIZE = 10;
+  const BATCH_DELAY_MS = 200;
+  const TIMEOUT_MS = 5000;
   
   const balanceMap = new Map<string, { balance: number; precision: number }>();
+  const failedTokens: Array<{ contract: string; symbol: string; precision?: number }> = [];
   let successCount = 0;
-  let failCount = 0;
   
-  results.forEach(result => {
-    if (result.status === 'fulfilled') {
-      successCount++;
-      if (result.value.balance > 0) {
-        balanceMap.set(result.value.key, {
-          balance: result.value.balance,
-          precision: result.value.precision
-        });
+  // Process tokens in batches to avoid rate limiting
+  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+    const batch = tokens.slice(i, i + BATCH_SIZE);
+    
+    const results = await Promise.allSettled(
+      batch.map(async ({ contract, symbol, precision }) => {
+        const balance = await fetchSingleTokenBalance(account, contract, symbol, TIMEOUT_MS);
+        return { 
+          key: `${contract}:${symbol}`, 
+          balance,
+          precision: precision || 8,
+          contract,
+          symbol
+        };
+      })
+    );
+    
+    results.forEach((result, idx) => {
+      if (result.status === 'fulfilled') {
+        successCount++;
+        if (result.value.balance > 0) {
+          balanceMap.set(result.value.key, {
+            balance: result.value.balance,
+            precision: result.value.precision
+          });
+        }
+      } else {
+        // Track failed tokens for retry
+        failedTokens.push(batch[idx]);
       }
-    } else {
-      failCount++;
+    });
+    
+    // Small delay between batches to avoid rate limits
+    if (i + BATCH_SIZE < tokens.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
     }
-  });
+  }
   
-  console.log(`[RPC Fallback] Complete: ${successCount} succeeded, ${failCount} failed, ${balanceMap.size} with balance`);
+  // Retry failed tokens once with longer timeout
+  if (failedTokens.length > 0) {
+    console.log(`[RPC Fallback] Retrying ${failedTokens.length} failed tokens...`);
+    
+    for (let i = 0; i < failedTokens.length; i += BATCH_SIZE) {
+      const batch = failedTokens.slice(i, i + BATCH_SIZE);
+      
+      const retryResults = await Promise.allSettled(
+        batch.map(async ({ contract, symbol, precision }) => {
+          const balance = await fetchSingleTokenBalance(account, contract, symbol, TIMEOUT_MS * 2);
+          return { 
+            key: `${contract}:${symbol}`, 
+            balance,
+            precision: precision || 8
+          };
+        })
+      );
+      
+      retryResults.forEach(result => {
+        if (result.status === 'fulfilled') {
+          successCount++;
+          if (result.value.balance > 0) {
+            balanceMap.set(result.value.key, {
+              balance: result.value.balance,
+              precision: result.value.precision
+            });
+          }
+        }
+      });
+      
+      if (i + BATCH_SIZE < failedTokens.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+  }
+  
+  console.log(`[RPC Fallback] Complete: ${successCount}/${tokens.length} succeeded, ${balanceMap.size} tokens with balance`);
   return balanceMap;
 }

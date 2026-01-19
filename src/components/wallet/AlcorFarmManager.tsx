@@ -110,7 +110,7 @@ function formatDetailedCountdown(endTimestamp: number): string {
 export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }: AlcorFarmManagerProps) {
   const { session, accountName } = useWax();
   const { stakedFarms, unstakedIncentives, unstakedPositions, isLoading, refetch, dataSource } = useAlcorFarms();
-  const { refetch: refetchTokenBalances } = useAllTokenBalances(accountName);
+  const { refetch: refetchTokenBalances, refetchRealTime } = useAllTokenBalances(accountName);
   const { data: tokenPrices } = useAlcorTokenPrices();
   const { data: waxUsdPrice = 0 } = useWaxPrice();
   const [isTransacting, setIsTransacting] = useState(false);
@@ -271,9 +271,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
-      // Refetch token balances so claimed rewards show immediately in dialogs
+      // Refetch token balances using real-time RPC to bypass indexer lag
       setTimeout(() => {
-        refetchTokenBalances();
+        refetchRealTime();
       }, 2000);
       onTransactionComplete?.();
     } catch (error: any) {
@@ -311,9 +311,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
         txId
       );
       refetch();
-      // Refetch token balances so claimed rewards show immediately in dialogs
+      // Refetch token balances using real-time RPC to bypass indexer lag
       setTimeout(() => {
-        refetchTokenBalances();
+        refetchRealTime();
       }, 2000);
       onTransactionComplete?.();
     } catch (error: any) {

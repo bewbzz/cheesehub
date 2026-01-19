@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { WAX_TOKENS, TokenConfig } from '@/lib/tokenRegistry';
-import { fetchAllTokenBalances, fetchSingleTokenBalance, HyperionToken } from '@/lib/waxRpcFallback';
+import { fetchAllTokenBalances, fetchSingleTokenBalance, fetchCriticalTokenBalancesDirect, REALTIME_TOKENS, HyperionToken } from '@/lib/waxRpcFallback';
 
 export interface TokenWithBalance extends TokenConfig {
   balance: number;
@@ -30,6 +30,7 @@ export function useAllTokenBalances(accountName: string | null) {
   const [tokens, setTokens] = useState<TokenWithBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Standard fetch using Hyperion (fast, all tokens, but may lag)
   const fetchBalances = useCallback(async () => {
     if (!accountName) {
       setTokens([]);
@@ -113,9 +114,62 @@ export function useAllTokenBalances(accountName: string | null) {
     }
   }, [accountName]);
 
+  // Real-time fetch for critical tokens using direct RPC (bypasses indexer lag)
+  const refetchRealTime = useCallback(async () => {
+    if (!accountName) return;
+    
+    console.log('[Balance] Fetching real-time balances via direct RPC...');
+    
+    try {
+      // Fetch critical tokens via direct RPC
+      const directBalances = await fetchCriticalTokenBalancesDirect(accountName, REALTIME_TOKENS);
+      
+      // Update tokens with real-time balances
+      setTokens(prev => {
+        const updated = [...prev];
+        
+        for (const [key, balance] of directBalances) {
+          const [contract, symbol] = key.split(':');
+          const existingIndex = updated.findIndex(t => t.contract === contract && t.symbol === symbol);
+          
+          if (existingIndex >= 0) {
+            // Update existing token
+            updated[existingIndex] = { ...updated[existingIndex], balance };
+          } else if (balance > 0) {
+            // Add new token if it has balance
+            const knownToken = TOKEN_REGISTRY_MAP.get(key);
+            updated.push({
+              symbol,
+              contract,
+              precision: knownToken?.precision || 8,
+              displayName: knownToken?.displayName || symbol,
+              balance,
+              isLpToken: false,
+            });
+          }
+        }
+        
+        // Re-sort and filter
+        return updated
+          .filter(t => t.balance > 0)
+          .sort((a, b) => {
+            if (a.isLpToken && !b.isLpToken) return 1;
+            if (!a.isLpToken && b.isLpToken) return -1;
+            return a.symbol.localeCompare(b.symbol);
+          });
+      });
+      
+      console.log('[Balance] Real-time refresh complete');
+    } catch (error) {
+      console.error('[Balance] Real-time fetch failed:', error);
+      // Fall back to standard fetch
+      await fetchBalances();
+    }
+  }, [accountName, fetchBalances]);
+
   useEffect(() => {
     fetchBalances();
   }, [fetchBalances]);
 
-  return { tokens, isLoading, refetch: fetchBalances };
+  return { tokens, isLoading, refetch: fetchBalances, refetchRealTime };
 }

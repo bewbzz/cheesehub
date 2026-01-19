@@ -195,18 +195,43 @@ export async function fetchSingleTokenBalance(
       timeout
     );
     
-    console.log(`[Fallback] ${symbol}@${contract} response:`, balances);
+    console.log(`[RPC] ${symbol}@${contract} response:`, balances);
     
     if (balances && balances.length > 0) {
       // Parse "123.45678900 CHEESE" format
       const parts = balances[0].split(' ');
       const amount = parseFloat(parts[0]) || 0;
-      console.log(`[Fallback] ${symbol} balance: ${amount}`);
       return amount;
     }
-    console.log(`[Fallback] ${symbol} returned empty array`);
   } catch (error) {
-    console.warn(`[Fallback] Failed to fetch ${symbol} balance:`, error);
+    console.warn(`[RPC] Failed to fetch ${symbol} balance:`, error);
   }
   return 0;
+}
+
+// Critical tokens that should be fetched via direct RPC for real-time accuracy
+export const REALTIME_TOKENS = [
+  { symbol: 'CHEESE', contract: 'cheeseburger' },
+  { symbol: 'WAX', contract: 'eosio.token' },
+];
+
+/**
+ * Fetch balances for critical tokens using direct RPC calls (real-time, bypasses indexer)
+ * Returns a map of "contract:symbol" -> balance
+ */
+export async function fetchCriticalTokenBalancesDirect(
+  account: string,
+  tokens: Array<{ contract: string; symbol: string }> = REALTIME_TOKENS
+): Promise<Map<string, number>> {
+  const results = new Map<string, number>();
+  
+  await Promise.all(
+    tokens.map(async ({ contract, symbol }) => {
+      const balance = await fetchSingleTokenBalance(account, contract, symbol);
+      results.set(`${contract}:${symbol}`, balance);
+    })
+  );
+  
+  console.log('[RPC] Direct balance fetch:', Object.fromEntries(results));
+  return results;
 }

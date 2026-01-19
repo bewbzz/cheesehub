@@ -39,34 +39,60 @@ export function useAllTokenBalances(accountName: string | null) {
     
     try {
       // Try Hyperion first (fast, single API call, discovers unknown tokens)
-      const hyperionTokens = await fetchAllTokenBalances(accountName);
+      const hyperionResult = await fetchAllTokenBalances(accountName);
       
-      // Map Hyperion response to our TokenWithBalance format
-      results = hyperionTokens.map((ht: HyperionToken) => {
-        const key = `${ht.contract}:${ht.symbol}`;
-        const knownToken = TOKEN_REGISTRY_MAP.get(key);
+      // If Hyperion is stale, use RPC fallback instead
+      if (hyperionResult.isStale) {
+        console.warn('[Balance] Hyperion is stale, falling back to RPC for real-time balances');
+        usedFallback = true;
         
-        if (knownToken) {
-          return {
-            ...knownToken,
-            balance: ht.amount,
-            isLpToken: isLpToken(ht.contract),
-          };
-        } else {
-          return {
-            symbol: ht.symbol,
-            contract: ht.contract,
-            precision: ht.precision || 8,
-            displayName: ht.symbol,
-            balance: ht.amount,
-            isLpToken: isLpToken(ht.contract),
-          };
+        const rpcBalances = await fetchAllTokenBalancesViaRpc(
+          accountName,
+          WAX_TOKENS.map(t => ({ contract: t.contract, symbol: t.symbol, precision: t.precision }))
+        );
+        
+        // Convert RPC results to TokenWithBalance format
+        for (const [key, data] of rpcBalances) {
+          const [contract, symbol] = key.split(':');
+          const knownToken = TOKEN_REGISTRY_MAP.get(key);
+          
+          results.push({
+            symbol,
+            contract,
+            precision: knownToken?.precision || data.precision,
+            displayName: knownToken?.displayName || symbol,
+            balance: data.balance,
+            isLpToken: isLpToken(contract),
+          });
         }
-      });
-      
-      console.log('[Balance] Hyperion returned', results.length, 'tokens');
+      } else {
+        // Hyperion is fresh - use its data
+        results = hyperionResult.tokens.map((ht: HyperionToken) => {
+          const key = `${ht.contract}:${ht.symbol}`;
+          const knownToken = TOKEN_REGISTRY_MAP.get(key);
+          
+          if (knownToken) {
+            return {
+              ...knownToken,
+              balance: ht.amount,
+              isLpToken: isLpToken(ht.contract),
+            };
+          } else {
+            return {
+              symbol: ht.symbol,
+              contract: ht.contract,
+              precision: ht.precision || 8,
+              displayName: ht.symbol,
+              balance: ht.amount,
+              isLpToken: isLpToken(ht.contract),
+            };
+          }
+        });
+        
+        console.log('[Balance] Hyperion returned', results.length, 'tokens (fresh data)');
+      }
     } catch (error) {
-      // Hyperion failed - fall back to direct RPC for all registry tokens
+      // Hyperion completely failed - fall back to direct RPC for all registry tokens
       console.warn('[Balance] Hyperion failed, using RPC fallback for all tokens:', error);
       usedFallback = true;
       

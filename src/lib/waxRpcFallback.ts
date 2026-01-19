@@ -134,16 +134,27 @@ export interface HyperionToken {
 interface HyperionTokensResponse {
   account: string;
   tokens: HyperionToken[];
+  last_indexed_block?: number;
+  last_indexed_block_time?: string;  // ISO 8601 timestamp
 }
+
+export interface HyperionResult {
+  tokens: HyperionToken[];
+  lastIndexedTime: Date | null;
+  isStale: boolean;  // true if indexer is > 5 minutes behind
+}
+
+// Stale threshold: 5 minutes
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
 /**
  * Fetch ALL token balances for an account using Hyperion API
- * This is much faster than querying each contract individually
+ * Returns staleness info so caller can decide to use RPC fallback
  */
 export async function fetchAllTokenBalances(
   account: string,
   timeout: number = 8000
-): Promise<HyperionToken[]> {
+): Promise<HyperionResult> {
   let lastError: Error | null = null;
 
   for (const baseUrl of HYPERION_ENDPOINTS) {
@@ -164,8 +175,24 @@ export async function fetchAllTokenBalances(
 
       if (response.ok) {
         const data = (await response.json()) as HyperionTokensResponse;
-        console.log(`[Hyperion] Got ${data.tokens?.length || 0} tokens from ${baseUrl}`);
-        return data.tokens || [];
+        const tokens = data.tokens || [];
+        
+        // Parse last indexed time and check staleness
+        const lastIndexedTime = data.last_indexed_block_time 
+          ? new Date(data.last_indexed_block_time) 
+          : null;
+        
+        const isStale = lastIndexedTime 
+          ? (Date.now() - lastIndexedTime.getTime()) > STALE_THRESHOLD_MS
+          : false;
+        
+        const ageMinutes = lastIndexedTime 
+          ? Math.round((Date.now() - lastIndexedTime.getTime()) / 60000) 
+          : 'unknown';
+        
+        console.log(`[Hyperion] Got ${tokens.length} tokens from ${baseUrl} (indexed ${ageMinutes} min ago, stale: ${isStale})`);
+        
+        return { tokens, lastIndexedTime, isStale };
       }
 
       console.warn(`Hyperion endpoint ${baseUrl} returned ${response.status}, trying next...`);

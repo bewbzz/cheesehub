@@ -171,7 +171,7 @@ export function FeePaymentSelector({
                         poolHasEnoughWaxdao ? (
                           <>
                             <CheckCircle2 className="h-3 w-3 text-green-500" />
-                            <span className="text-green-600">Pool ready ({Math.floor(poolBalance).toLocaleString()} WAXDAO available)</span>
+                            <span className="text-green-600">Contract ready</span>
                           </>
                         ) : (
                           <>

@@ -17,7 +17,7 @@ import cheeseLogo from "@/assets/cheese-logo.png";
 
 interface FeePaymentSelectorProps {
   waxFee?: number;
-  selectedMethod: PaymentMethod;
+  selectedMethod: PaymentMethod | null;
   onMethodChange: (method: PaymentMethod) => void;
   onCheeseAmountChange: (amount: string) => void;
   onWaxdaoAmountChange?: (amount: string) => void;
@@ -40,19 +40,19 @@ export function FeePaymentSelector({
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
 
-  // Update parent with CHEESE amount when pricing changes
+  // Update parent with CHEESE amount when pricing changes and CHEESE is selected
   useEffect(() => {
-    if (cheesePricing.isAvailable) {
+    if (cheesePricing.isAvailable && selectedMethod === "cheese") {
       onCheeseAmountChange(cheesePricing.formattedForTx);
     }
-  }, [cheesePricing.formattedForTx, cheesePricing.isAvailable, onCheeseAmountChange]);
+  }, [cheesePricing.formattedForTx, cheesePricing.isAvailable, selectedMethod, onCheeseAmountChange]);
 
-  // Update parent with WAXDAO amount when pricing changes
+  // Update parent with WAXDAO amount when pricing changes and CHEESE is selected
   useEffect(() => {
-    if (waxdaoPricing.isAvailable && onWaxdaoAmountChange) {
+    if (waxdaoPricing.isAvailable && onWaxdaoAmountChange && selectedMethod === "cheese") {
       onWaxdaoAmountChange(waxdaoPricing.formattedForTx);
     }
-  }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, onWaxdaoAmountChange]);
+  }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, selectedMethod, onWaxdaoAmountChange]);
 
   // Check pool balance when CHEESE is selected
   useEffect(() => {
@@ -80,6 +80,9 @@ export function FeePaymentSelector({
   // Determine if CHEESE option is fully available
   const isCheeseSelectable = CHEESE_FEE_ENABLED && cheesePricing.isAvailable;
 
+  // Is CHEESE option not selected (for glow effect)
+  const showCheeseGlow = !hideCheeseOption && isCheeseSelectable && selectedMethod !== "cheese";
+
   return (
     <TooltipProvider>
       <div className="p-4 rounded-lg border border-cheese/30 bg-cheese/5 space-y-4">
@@ -103,35 +106,19 @@ export function FeePaymentSelector({
         </div>
 
         <RadioGroup
-          value={selectedMethod}
+          value={selectedMethod ?? ""}
           onValueChange={(v) => onMethodChange(v as PaymentMethod)}
           className="space-y-3"
           disabled={disabled}
         >
-          {/* WAX Option */}
-          <div
-            className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-              selectedMethod === "wax"
-                ? "border-blue-500/50 bg-blue-500/10"
-                : "border-border/50 hover:bg-muted/30"
-            }`}
-            onClick={() => !disabled && onMethodChange("wax")}
-          >
-            <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
-            <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{waxFee} WAX</span>
-                <span className="text-xs text-muted-foreground">Standard</span>
-              </div>
-            </Label>
-          </div>
-
-          {/* CHEESE Option - Hidden when hideCheeseOption is true */}
+          {/* CHEESE Option - First, labeled as Standard */}
           {!hideCheeseOption && (
             <div
-              className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+              className={`relative flex items-start space-x-3 p-3 rounded-lg border transition-all cursor-pointer ${
                 selectedMethod === "cheese"
                   ? "border-cheese/50 bg-cheese/10"
+                  : showCheeseGlow
+                  ? "border-cheese/40 bg-cheese/5 shadow-[0_0_12px_rgba(255,200,50,0.25)] hover:shadow-[0_0_16px_rgba(255,200,50,0.35)]"
                   : "border-border/50 hover:bg-muted/30"
               } ${!cheesePricing.isAvailable ? "opacity-50" : ""}`}
               onClick={() => cheesePricing.isAvailable && !disabled && onMethodChange("cheese")}
@@ -148,17 +135,26 @@ export function FeePaymentSelector({
                     <img src={cheeseLogo} alt="CHEESE" className="w-5 h-5" />
                     <span className="font-medium">Pay with CHEESE</span>
                   </div>
-                  <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
-                    Save 20%
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="bg-cheese/10 text-cheese border-cheese/30 text-xs">
+                      Standard
+                    </Badge>
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
+                      Save 20%
+                    </Badge>
+                  </div>
                 </div>
                 
-                {/* Show pricing calculation */}
+                {/* Show pricing calculation or placeholder */}
                 <div className="flex items-center gap-2 mt-1">
-                  {cheesePricing.isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  {selectedMethod === "cheese" ? (
+                    cheesePricing.isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">{cheesePricing.displayAmount}</span>
+                    )
                   ) : (
-                    <span className="text-sm text-muted-foreground">{cheesePricing.displayAmount}</span>
+                    <span className="text-sm text-muted-foreground/70 italic">Select to see price</span>
                   )}
                 </div>
                 
@@ -207,6 +203,23 @@ export function FeePaymentSelector({
               </Label>
             </div>
           )}
+
+          {/* WAX Option */}
+          <div
+            className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+              selectedMethod === "wax"
+                ? "border-blue-500/50 bg-blue-500/10"
+                : "border-border/50 hover:bg-muted/30"
+            }`}
+            onClick={() => !disabled && onMethodChange("wax")}
+          >
+            <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
+            <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{waxFee} WAX</span>
+              </div>
+            </Label>
+          </div>
         </RadioGroup>
 
         {!hideCheeseOption && CHEESE_FEE_ENABLED && !cheesePricing.isAvailable && !cheesePricing.isLoading && (

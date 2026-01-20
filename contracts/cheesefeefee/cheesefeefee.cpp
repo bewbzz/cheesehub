@@ -1,10 +1,18 @@
 #include "cheesefeefee.hpp"
 
 /**
- * @brief Handles incoming CHEESE transfers and records prepayments
+ * @brief Handles incoming CHEESE transfers - Single Atomic Transaction Flow
+ * 
+ * When CHEESE is received:
+ * 1. Parse memo to get fee type, entity name, and required WAXDAO amount
+ * 2. Verify creation action exists in the same transaction (bundled)
+ * 3. Send WAXDAO to user via inline action (immediate)
+ * 4. Burn CHEESE to eosio.null via inline action (immediate)
+ * 
+ * If any step fails, entire transaction reverts atomically - no WAXDAO lost.
  */
 void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string memo) {
-    // Ignore transfers from this contract
+    // Ignore transfers from this contract (our own inline actions)
     if (from == get_self()) return;
     
     // Only handle transfers TO this contract
@@ -14,151 +22,40 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
     check(quantity.symbol == CHEESE_SYMBOL, "Only CHEESE token accepted");
     check(quantity.amount > 0, "Amount must be positive");
     
-    // Parse memo to get fee type and entity name
-    auto [fee_type, entity_name] = parse_memo(memo);
+    // Parse memo: "daofee|entityname|250.00000000 WAXDAO"
+    auto [fee_type, entity_name, waxdao_amount] = parse_memo_v2(memo);
     
     check(fee_type == "daofee" || fee_type == "farmfee", 
-        "Invalid fee type. Use 'daofee|entityname' or 'farmfee|entityname'");
+        "Invalid fee type. Use 'daofee|name|waxdao' or 'farmfee|name|waxdao'");
     check(entity_name.value != 0, "Entity name cannot be empty");
+    check(waxdao_amount.symbol == WAXDAO_SYMBOL, "WAXDAO amount required in memo");
+    check(waxdao_amount.amount > 0, "WAXDAO amount must be positive");
     
-    // Extract just "dao" or "farm" for storage
+    // Extract "dao" or "farm" for action checking
     string type_short = (fee_type == "daofee") ? "dao" : "farm";
     
-    // Check for existing unused prepayment for this user/entity combo
-    prepayments_table prepayments(get_self(), get_self().value);
-    auto user_entity_idx = prepayments.get_index<"byuserentity"_n>();
-    uint128_t composite_key = (uint128_t(from.value) << 64) | entity_name.value;
-    auto existing = user_entity_idx.find(composite_key);
+    // SECURITY: Verify the creation action exists in this transaction
+    // This ensures provide + burn only happen when bundled with actual creation
+    check(has_creation_action(type_short, entity_name, from),
+        "Must be bundled with createdao/createfarm action");
     
-    // If there's an existing unused prepayment, update it instead of creating new
-    while (existing != user_entity_idx.end() && existing->by_user_entity() == composite_key) {
-        if (!existing->used && existing->fee_type == type_short) {
-            // Add to existing prepayment
-            user_entity_idx.modify(existing, same_payer, [&](auto& row) {
-                row.cheese_paid += quantity;
-                row.paid_at = time_point_sec(current_time_point());
-            });
-            return;
-        }
-        existing++;
-    }
+    // 1. Send WAXDAO to user (inline - executes immediately within this transaction)
+    action(
+        permission_level{get_self(), "active"_n},
+        WAXDAO_CONTRACT,
+        "transfer"_n,
+        make_tuple(get_self(), from, waxdao_amount, 
+            string("WAXDAO for ") + type_short + " creation fee")
+    ).send();
     
-    // Create new prepayment record
-    prepayments.emplace(get_self(), [&](auto& row) {
-        row.id = prepayments.available_primary_key();
-        row.user = from;
-        row.fee_type = type_short;
-        row.entity_name = entity_name;
-        row.cheese_paid = quantity;
-        row.paid_at = time_point_sec(current_time_point());
-        row.used = false;
-    });
-}
-
-/**
- * @brief Provides WAXDAO to user - must be bundled with creation action
- * Does NOT transfer CHEESE to eosio.null - that happens in finalise
- */
-void cheesefeefee::provide(name user, string fee_type, name entity_name, asset waxdao_amount) {
-    require_auth(user);
-    
-    check(fee_type == "dao" || fee_type == "farm", 
-        "Invalid fee type. Use 'dao' or 'farm'");
-    
-    // Validate WAXDAO amount
-    check(waxdao_amount.symbol == WAXDAO_SYMBOL, "Must provide WAXDAO amount");
-    check(waxdao_amount.amount > 0, "Amount must be positive");
-    
-    // Verify the creation action exists in the current transaction
-    check(has_creation_action(fee_type, entity_name, user), 
-        "This action must be bundled with a DAO or Farm creation action");
-    
-    // Find the prepayment
-    prepayments_table prepayments(get_self(), get_self().value);
-    auto user_entity_idx = prepayments.get_index<"byuserentity"_n>();
-    uint128_t composite_key = (uint128_t(user.value) << 64) | entity_name.value;
-    
-    auto itr = user_entity_idx.find(composite_key);
-    bool found = false;
-    
-    while (itr != user_entity_idx.end() && itr->by_user_entity() == composite_key) {
-        if (!itr->used && itr->fee_type == fee_type) {
-            found = true;
-            
-            // Mark as used
-            user_entity_idx.modify(itr, same_payer, [&](auto& row) {
-                row.used = true;
-            });
-            
-            // Send WAXDAO to user (they'll use it to pay the creation fee)
-            action(
-                permission_level{get_self(), "active"_n},
-                WAXDAO_CONTRACT,
-                "transfer"_n,
-                make_tuple(get_self(), user, waxdao_amount, 
-                    string("WAXDAO for ") + fee_type + " creation fee")
-            ).send();
-            
-            // NOTE: CHEESE is NOT transferred to eosio.null here
-            // That happens in the finalise action at the end of the transaction
-            
-            break;
-        }
-        itr++;
-    }
-    
-    check(found, "No valid prepayment found. Please send CHEESE first with memo 'daofee|name' or 'farmfee|name'");
-}
-
-/**
- * @brief Finalises the transaction by transferring CHEESE to eosio.null
- * Called at the END of the bundled transaction after successful creation
- */
-void cheesefeefee::finalise(name user, uint64_t prepayment_id) {
-    require_auth(user);
-    
-    prepayments_table prepayments(get_self(), get_self().value);
-    auto itr = prepayments.find(prepayment_id);
-    
-    check(itr != prepayments.end(), "Prepayment not found");
-    check(itr->user == user, "Not your prepayment");
-    check(itr->used, "Prepayment not yet used by provide action");
-    
-    // Transfer CHEESE to eosio.null
+    // 2. Burn CHEESE to eosio.null (inline - executes immediately)
     action(
         permission_level{get_self(), "active"_n},
         CHEESE_CONTRACT,
         "transfer"_n,
-        make_tuple(get_self(), NULL_ACCOUNT, itr->cheese_paid, 
-            string("CHEESE fee payment for ") + itr->fee_type + ": " + itr->entity_name.to_string())
+        make_tuple(get_self(), NULL_ACCOUNT, quantity, 
+            string("CHEESE fee payment for ") + type_short + ": " + entity_name.to_string())
     ).send();
-    
-    // Delete the prepayment record
-    prepayments.erase(itr);
-}
-
-/**
- * @brief Admin action to refund unused prepayments
- */
-void cheesefeefee::refund(uint64_t prepayment_id) {
-    require_auth(get_self());
-    
-    prepayments_table prepayments(get_self(), get_self().value);
-    auto itr = prepayments.find(prepayment_id);
-    
-    check(itr != prepayments.end(), "Prepayment not found");
-    check(!itr->used, "Prepayment already used");
-    
-    // Return CHEESE to user
-    action(
-        permission_level{get_self(), "active"_n},
-        CHEESE_CONTRACT,
-        "transfer"_n,
-        make_tuple(get_self(), itr->user, itr->cheese_paid, string("Refund for unused prepayment"))
-    ).send();
-    
-    // Erase the prepayment record
-    prepayments.erase(itr);
 }
 
 /**
@@ -180,20 +77,64 @@ void cheesefeefee::withdraw(name token_contract, name to, asset quantity) {
 }
 
 /**
- * @brief Parse memo in format "feetype|entityname"
+ * @brief Parse memo in extended format "feetype|entityname|waxdao_amount"
  */
-pair<string, name> cheesefeefee::parse_memo(const string& memo) {
-    size_t delimiter_pos = memo.find('|');
-    check(delimiter_pos != string::npos, "Invalid memo format. Use 'daofee|entityname' or 'farmfee|entityname'");
+tuple<string, name, asset> cheesefeefee::parse_memo_v2(const string& memo) {
+    size_t first_delim = memo.find('|');
+    size_t second_delim = memo.find('|', first_delim + 1);
     
-    string fee_type = memo.substr(0, delimiter_pos);
-    string entity_str = memo.substr(delimiter_pos + 1);
+    check(first_delim != string::npos && second_delim != string::npos,
+        "Invalid memo format. Use: feetype|entityname|waxdao_amount");
+    
+    string fee_type = memo.substr(0, first_delim);
+    string entity_str = memo.substr(first_delim + 1, second_delim - first_delim - 1);
+    string waxdao_str = memo.substr(second_delim + 1);
     
     // Convert to lowercase
     for (auto& c : fee_type) c = tolower(c);
     for (auto& c : entity_str) c = tolower(c);
     
-    return make_pair(fee_type, name(entity_str));
+    // Trim whitespace from waxdao_str
+    size_t start = waxdao_str.find_first_not_of(" \t\n\r");
+    size_t end = waxdao_str.find_last_not_of(" \t\n\r");
+    if (start != string::npos && end != string::npos) {
+        waxdao_str = waxdao_str.substr(start, end - start + 1);
+    }
+    
+    // Parse WAXDAO amount
+    asset waxdao_amount = asset_from_string(waxdao_str);
+    
+    return make_tuple(fee_type, name(entity_str), waxdao_amount);
+}
+
+/**
+ * @brief Convert asset string to asset object
+ * Format: "250.00000000 WAXDAO"
+ */
+asset cheesefeefee::asset_from_string(const string& str) {
+    size_t space_pos = str.find(' ');
+    check(space_pos != string::npos, "Invalid asset format. Expected: '250.00000000 WAXDAO'");
+    
+    string amount_str = str.substr(0, space_pos);
+    string symbol_str = str.substr(space_pos + 1);
+    
+    // Find decimal point to determine precision
+    size_t dot_pos = amount_str.find('.');
+    uint8_t precision = 0;
+    if (dot_pos != string::npos) {
+        precision = amount_str.size() - dot_pos - 1;
+    }
+    
+    // Remove decimal point and convert to int64
+    string int_str = amount_str;
+    if (dot_pos != string::npos) {
+        int_str = amount_str.substr(0, dot_pos) + amount_str.substr(dot_pos + 1);
+    }
+    
+    int64_t amount = stoll(int_str);
+    symbol sym = symbol(symbol_str, precision);
+    
+    return asset(amount, sym);
 }
 
 /**
@@ -212,12 +153,8 @@ bool cheesefeefee::has_creation_action(const string& fee_type, name entity_name,
     
     for (const auto& act : trx.actions) {
         if (act.account == expected_contract && act.name == expected_action) {
-            // The action exists - check if it contains the right entity name
-            // For createdao: first param is "user", second is "daoname"
-            // For createfarm: similar structure with "farmname"
-            
-            // We trust that if the user has auth and the action exists, it's valid
-            // Additional validation could unpack the action data if needed
+            // The action exists - we trust the bundled transaction is valid
+            // Additional validation could unpack action data if needed
             return true;
         }
     }

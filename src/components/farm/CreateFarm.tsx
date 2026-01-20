@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play, CheckCircle2, RefreshCw, ChevronDown, Globe, Youtube, BookOpen } from "lucide-react";
+import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play, ChevronDown, Globe, Youtube, BookOpen } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   FARM_TYPES,
   FARM_TYPE_LABELS,
@@ -29,11 +28,8 @@ import { FeePaymentSelector } from "@/components/shared/FeePaymentSelector";
 import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
-  buildCheesePrepayAction,
-  buildProvideAction,
-  buildFinaliseAction,
+  buildCheesePaymentAction,
   buildWaxdaoFeeAction,
-  fetchUserPrepayment,
   WAX_FEE_AMOUNT,
   CHEESE_DISCOUNT,
 } from "@/lib/cheeseFees";
@@ -45,7 +41,7 @@ import { useCheeseFeePricing } from "@/hooks/useCheeseFeePricing";
 const FAQ_ITEMS = [
   {
     question: "Can I pay with CHEESE tokens?",
-    answer: "Yes! You can prepay with CHEESE tokens and receive a 20% discount on the creation fee. Due to smart contract limitations, you must complete the CHEESE prepayment before filling in the rest of the form. The prepayment locks in your farm name. If you decide not to create the farm after prepaying, your CHEESE is 100% refundable.",
+    answer: "Yes! You can pay with CHEESE tokens and receive a 20% discount on the creation fee. Simply select the CHEESE option and the transaction will handle the conversion automatically in a single step.",
   },
   {
     question: "What is the correct format for my farm name?",
@@ -93,15 +89,10 @@ export function CreateFarm() {
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   
-  // CHEESE prepayment state
-  const [wantsCheesePrepay, setWantsCheesePrepay] = useState(CHEESE_FEE_ENABLED);
-  const [prepayFarmName, setPrepayFarmName] = useState("");
-  const [hasPrepaid, setHasPrepaid] = useState(false);
-  const [isPrepaying, setIsPrepaying] = useState(false);
-  
-  // Legacy payment state for WAX option
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wax");
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(CHEESE_FEE_ENABLED ? "cheese" : "wax");
   const [cheeseAmount, setCheeseAmount] = useState("");
+  const [waxdaoAmount, setWaxdaoAmount] = useState("");
   
   // Pricing hooks
   const waxdaoPricing = useWaxdaoFeePricing();
@@ -109,6 +100,10 @@ export function CreateFarm() {
   
   const handleCheeseAmountChange = useCallback((amount: string) => {
     setCheeseAmount(amount);
+  }, []);
+  
+  const handleWaxdaoAmountChange = useCallback((amount: string) => {
+    setWaxdaoAmount(amount);
   }, []);
   
   const [formData, setFormData] = useState({
@@ -149,54 +144,6 @@ export function CreateFarm() {
     setRewardTokens(updated);
   };
 
-  // Handle CHEESE prepayment (separate from creation)
-  async function handlePrepayment() {
-    if (!session) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-    
-    if (!prepayFarmName.trim()) {
-      toast.error("Enter farm name before prepaying");
-      return;
-    }
-    
-    // Validate farm name
-    const nameValidation = validateFarmName(prepayFarmName);
-    if (!nameValidation.valid) {
-      toast.error(nameValidation.error || "Invalid farm name");
-      return;
-    }
-    
-    if (!cheesePricing.isAvailable) {
-      toast.error("CHEESE pricing not available. Please try again.");
-      return;
-    }
-    
-    setIsPrepaying(true);
-    try {
-      const accountName = String(session.actor);
-      const prepayAction = buildCheesePrepayAction(
-        accountName,
-        cheesePricing.formattedForTx,
-        "farm",
-        prepayFarmName
-      );
-      await session.transact({ actions: [prepayAction] });
-      setHasPrepaid(true);
-      // Sync farm name to main form
-      setFormData(prev => ({ ...prev, farmName: prepayFarmName }));
-      toast.success("CHEESE prepayment successful! Now complete the form and create your farm.");
-    } catch (error) {
-      console.error("Prepayment failed:", error);
-      closeWharfkitModals();
-      toast.error(error instanceof Error ? error.message : "Prepayment failed");
-    } finally {
-      setIsPrepaying(false);
-      closeWharfkitModals();
-    }
-  }
-
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     
@@ -231,9 +178,6 @@ export function CreateFarm() {
 
       // Build assertpoint action (required before fee payment)
       const assertAction = buildAssertPointAction(accountName);
-      
-      // Build fee payment action (250 WAX)
-      const feeAction = buildFarmCreationFeeWaxAction(accountName);
 
       // Build profile object
       const profile = {
@@ -265,44 +209,50 @@ export function CreateFarm() {
         socials
       );
 
-      // Handle CHEESE prepayment flow (user already prepaid)
-      if (hasPrepaid) {
-        // Fetch prepayment to get ID for finalise action
-        const prepayment = await fetchUserPrepayment(accountName, "farm", formData.farmName);
-        if (!prepayment) {
-          throw new Error("Prepayment not found. Please try again.");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let actions: any[];
+
+      if (paymentMethod === "cheese" && CHEESE_FEE_ENABLED) {
+        // CHEESE payment flow - Single atomic transaction
+        // 1. User sends CHEESE → contract sends WAXDAO back (inline) and burns CHEESE (inline)
+        // 2. User pays WAXDAO to farms.waxdao
+        // 3. Assert point
+        // 4. Create farm
+        
+        if (!cheesePricing.isAvailable || !waxdaoPricing.isAvailable) {
+          toast.error("Pricing data not available. Please try again.");
+          setLoading(false);
+          return;
         }
         
-        // Bundled creation with WAXDAO + finalise at end
-        const provideAction = buildProvideAction(
-          accountName, 
-          "farm", 
-          formData.farmName, 
-          waxdaoPricing.formattedForTx
+        const cheesePayAction = buildCheesePaymentAction(
+          accountName,
+          cheeseAmount || cheesePricing.formattedForTx,
+          waxdaoAmount || waxdaoPricing.formattedForTx,
+          "farm",
+          formData.farmName
         );
+        
         const waxdaoFeeAction = buildWaxdaoFeeAction(
           accountName,
           "farms.waxdao",
-          waxdaoPricing.formattedForTx,
+          waxdaoAmount || waxdaoPricing.formattedForTx,
           "|create_farm|"
         );
-        const finaliseAction = buildFinaliseAction(accountName, prepayment.id);
         
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const actions: any[] = [
-          provideAction,      // 1. Contract sends WAXDAO to user
-          waxdaoFeeAction,    // 2. User pays WAXDAO to farms.waxdao
-          assertAction,       // 3. Assert point
-          createAction,       // 4. Create Farm
-          finaliseAction,     // 5. Transfer CHEESE to eosio.null (only if all above succeed)
+        actions = [
+          cheesePayAction,  // 1. User sends CHEESE, contract sends WAXDAO back + burns CHEESE (inline)
+          waxdaoFeeAction,  // 2. User pays WAXDAO to farms.waxdao
+          assertAction,     // 3. Assert point
+          createAction,     // 4. Create Farm
         ];
-        await session.transact({ actions });
       } else {
         // Standard WAX payment
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const actions: any[] = [assertAction, feeAction, createAction];
-        await session.transact({ actions });
+        const feeAction = buildFarmCreationFeeWaxAction(accountName);
+        actions = [assertAction, feeAction, createAction];
       }
+      
+      await session.transact({ actions });
       
       toast.success("Farm created successfully! You can now add stakable assets via the farm detail page.");
       
@@ -322,10 +272,7 @@ export function CreateFarm() {
         medium: "",
       });
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
-      setPaymentMethod("wax");
-      setHasPrepaid(false);
-      setWantsCheesePrepay(CHEESE_FEE_ENABLED);
-      setPrepayFarmName("");
+      setPaymentMethod(CHEESE_FEE_ENABLED ? "cheese" : "wax");
       
     } catch (error) {
       console.error("Failed to create farm:", error);
@@ -481,131 +428,6 @@ export function CreateFarm() {
         {/* Farm Creation Form - Only visible after confirmation */}
         {isUnlocked && (
         <form onSubmit={handleCreate} className="space-y-6">
-          
-          {/* CHEESE Prepayment Section */}
-          <div className={`p-4 rounded-lg border space-y-4 ${
-            hasPrepaid 
-              ? "border-green-500/50 bg-green-500/5" 
-              : wantsCheesePrepay 
-                ? "border-cheese/50 bg-cheese/5" 
-                : "border-border/50 bg-muted/30"
-          }`}>
-            <div className="flex items-start gap-3">
-              <RadioGroup
-                value={wantsCheesePrepay || hasPrepaid ? "cheese" : "wax"}
-                onValueChange={(val) => {
-                  if (!hasPrepaid) {
-                    setWantsCheesePrepay(val === "cheese");
-                  }
-                }}
-                className="mt-0.5"
-              >
-                <RadioGroupItem 
-                  value="cheese" 
-                  disabled={hasPrepaid || !CHEESE_FEE_ENABLED}
-                  className="border-cheese data-[state=checked]:bg-cheese data-[state=checked]:border-cheese"
-                />
-              </RadioGroup>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium">Prepay with CHEESE</span>
-                  <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
-                    Save {Math.round(CHEESE_DISCOUNT * 100)}%
-                  </Badge>
-                  {!CHEESE_FEE_ENABLED && (
-                    <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Pay creation fees with CHEESE tokens and receive a 20% discount
-                </p>
-                <p className="text-xs text-foreground/90 mt-1">
-                  <strong>Why prepay?</strong> Due to smart contract limitations, if selecting this option you must complete the prepayment before filling in the rest of the form.
-                </p>
-                <p className="text-xs text-foreground/90">
-                  Don't worry — if you decide not to create a farm after prepaying, your CHEESE is 100% refundable.
-                </p>
-              </div>
-            </div>
-            
-            {/* Prepayment form - shown when dot is selected and not yet prepaid */}
-            {wantsCheesePrepay && !hasPrepaid && CHEESE_FEE_ENABLED && (
-              <div className="space-y-4 pl-6 border-l-2 border-cheese/30 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="space-y-2">
-                  <Label htmlFor="prepayFarmName">Farm Name *</Label>
-                  <Input
-                    id="prepayFarmName"
-                    value={prepayFarmName}
-                    onChange={(e) => setPrepayFarmName(e.target.value.toLowerCase())}
-                    placeholder="e.g. myawesomefarm"
-                    maxLength={12}
-                    className="lowercase"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    12 characters max, lowercase a-z, numbers 1-5, and periods only
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm">Amount:</span>
-                  {cheesePricing.isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <>
-                      <span className="font-medium text-cheese">{cheesePricing.displayAmount}</span>
-                      <span className="text-xs text-muted-foreground">
-                        (~{Math.round(WAX_FEE_AMOUNT * (1 - CHEESE_DISCOUNT))} WAX equivalent)
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => cheesePricing.refetch()}
-                        className="h-6 px-2"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-                
-                <Button 
-                  type="button"
-                  onClick={handlePrepayment} 
-                  disabled={isPrepaying || !prepayFarmName.trim() || !cheesePricing.isAvailable}
-                  className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-                >
-                  {isPrepaying ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Prepaying...
-                    </>
-                  ) : (
-                    "Prepay CHEESE"
-                  )}
-                </Button>
-                
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-yellow-500">*</span> Prepaid CHEESE is 100% refundable 
-                  if your farm is not created after prepaying.
-                </p>
-              </div>
-            )}
-            
-            {/* Confirmation shown after successful prepayment */}
-            {hasPrepaid && (
-              <div className="pl-6 border-l-2 border-green-500/50 space-y-2 animate-in fade-in duration-200">
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span className="font-medium">Prepayment confirmed for "{prepayFarmName}"</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  <span className="text-yellow-500">*</span> Prepaid CHEESE is 100% refundable 
-                  if your farm is not created after prepaying.
-                </p>
-              </div>
-            )}
-          </div>
 
           {/* Farm Info Section */}
           <div className="space-y-4">
@@ -618,19 +440,12 @@ export function CreateFarm() {
                 placeholder="e.g. myawesomefarm"
                 value={formData.farmName}
                 onChange={(e) => setFormData({ ...formData, farmName: e.target.value.toLowerCase() })}
-                className={`lowercase ${hasPrepaid ? "opacity-60" : ""}`}
+                className="lowercase"
                 maxLength={12}
-                disabled={hasPrepaid}
               />
-              {hasPrepaid ? (
-                <p className="text-xs text-green-600">
-                  Farm name locked (used in prepayment)
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  12 characters max, lowercase a-z, numbers 1-5, and periods only
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                12 characters max, lowercase a-z, numbers 1-5, and periods only
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -889,35 +704,20 @@ export function CreateFarm() {
             )}
           </div>
 
-          {/* Payment Info - Only visible if NOT prepaid with CHEESE and NOT wanting CHEESE prepay */}
-          {!wantsCheesePrepay && !hasPrepaid && (
-            <FeePaymentSelector
-              waxFee={WAX_FEE_AMOUNT}
-              feeType="farm"
-              entityName={formData.farmName}
-              selectedMethod={paymentMethod}
-              onMethodChange={setPaymentMethod}
-              onCheeseAmountChange={handleCheeseAmountChange}
-              disabled={loading}
-              hideCheeseOption
-            />
-          )}
-          
-          {/* Alternative payment note */}
-          {!hasPrepaid && (
-            <p className="text-xs text-muted-foreground text-center">
-              {wantsCheesePrepay ? (
-                <>Alternatively, unselect the CHEESE option above to pay with <span className="font-medium">250 WAX</span> (20% more)</>
-              ) : (
-                <>Alternatively, select the CHEESE prepayment option above to <span className="font-medium text-green-500">save 20%</span></>
-              )}
-            </p>
-          )}
+          {/* Payment Selection */}
+          <FeePaymentSelector
+            waxFee={WAX_FEE_AMOUNT}
+            selectedMethod={paymentMethod}
+            onMethodChange={setPaymentMethod}
+            onCheeseAmountChange={handleCheeseAmountChange}
+            onWaxdaoAmountChange={handleWaxdaoAmountChange}
+            disabled={loading}
+          />
 
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={loading || !formData.farmName.trim() || (wantsCheesePrepay && !hasPrepaid)}
+            disabled={loading || !formData.farmName.trim()}
             className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
           >
             {loading ? (
@@ -925,10 +725,10 @@ export function CreateFarm() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Creating Farm...
               </>
-            ) : hasPrepaid ? (
+            ) : paymentMethod === "cheese" && CHEESE_FEE_ENABLED ? (
               <>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Farm (CHEESE Prepaid)
+                Create Farm ({cheesePricing.displayAmount} - Save {Math.round(CHEESE_DISCOUNT * 100)}%)
               </>
             ) : (
               <>

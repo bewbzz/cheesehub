@@ -10,7 +10,6 @@ import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
 import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
-  FeeType,
   WAX_FEE_AMOUNT,
   fetchContractWaxdaoBalance,
 } from "@/lib/cheeseFees";
@@ -18,23 +17,21 @@ import cheeseLogo from "@/assets/cheese-logo.png";
 
 interface FeePaymentSelectorProps {
   waxFee?: number;
-  feeType: FeeType;
-  entityName: string;
   selectedMethod: PaymentMethod;
   onMethodChange: (method: PaymentMethod) => void;
   onCheeseAmountChange: (amount: string) => void;
+  onWaxdaoAmountChange?: (amount: string) => void;
   disabled?: boolean;
-  /** Hide the CHEESE option (used when prepayment is handled separately) */
+  /** Hide the CHEESE option entirely */
   hideCheeseOption?: boolean;
 }
 
 export function FeePaymentSelector({
   waxFee = WAX_FEE_AMOUNT,
-  feeType,
-  entityName,
   selectedMethod,
   onMethodChange,
   onCheeseAmountChange,
+  onWaxdaoAmountChange,
   disabled = false,
   hideCheeseOption = false,
 }: FeePaymentSelectorProps) {
@@ -49,6 +46,13 @@ export function FeePaymentSelector({
       onCheeseAmountChange(cheesePricing.formattedForTx);
     }
   }, [cheesePricing.formattedForTx, cheesePricing.isAvailable, onCheeseAmountChange]);
+
+  // Update parent with WAXDAO amount when pricing changes
+  useEffect(() => {
+    if (waxdaoPricing.isAvailable && onWaxdaoAmountChange) {
+      onWaxdaoAmountChange(waxdaoPricing.formattedForTx);
+    }
+  }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, onWaxdaoAmountChange]);
 
   // Check pool balance when CHEESE is selected
   useEffect(() => {
@@ -83,7 +87,7 @@ export function FeePaymentSelector({
           <div className="flex items-center gap-2">
             <Coins className="h-5 w-5 text-cheese" />
             <h3 className="text-sm font-medium text-foreground">
-              {feeType === "dao" ? "DAO" : "Farm"} Creation Fee
+              Creation Fee
             </h3>
           </div>
           <Tooltip>
@@ -93,7 +97,7 @@ export function FeePaymentSelector({
               </Button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              <p>Pay with CHEESE at a 20% discount! You don't need WAX or WAXDAO in your wallet - the system provides it for you.</p>
+              <p>Pay with CHEESE at a 20% discount! The system handles the WAXDAO conversion automatically in a single transaction.</p>
             </TooltipContent>
           </Tooltip>
         </div>
@@ -161,7 +165,7 @@ export function FeePaymentSelector({
                 {/* Description when CHEESE is not enabled */}
                 {!CHEESE_FEE_ENABLED && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Pay creation fees with CHEESE tokens and receive a 20% discount
+                    Pay creation fees with CHEESE tokens and receive a 20% discount. Single transaction - no prepayment needed!
                   </p>
                 )}
                 

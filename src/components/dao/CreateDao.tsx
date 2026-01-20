@@ -47,8 +47,8 @@ export function CreateDao() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   
-  // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cheese");
+  // Payment state - null until user selects
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [waxdaoAmount, setWaxdaoAmount] = useState("");
   
@@ -156,6 +156,12 @@ export function CreateDao() {
     // Validate authors if proposer type is "Authors Only"
     if (formData.proposerType === 0 && authorsArray.length === 0) {
       toast.error("At least one author is required when using 'Authors Only' proposer type");
+      return;
+    }
+
+    // Validate payment method is selected
+    if (!paymentMethod) {
+      toast.error("Please select a payment method");
       return;
     }
 
@@ -276,7 +282,7 @@ export function CreateDao() {
         youtube: "",
         medium: "",
       });
-      setPaymentMethod("cheese");
+      setPaymentMethod(null);
       setShowSocials(false);
     } catch (error) {
       console.error("Failed to create DAO:", error);

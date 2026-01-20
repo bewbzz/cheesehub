@@ -54,9 +54,11 @@ export function FeePaymentSelector({
     }
   }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, selectedMethod, onWaxdaoAmountChange]);
 
-  // Check pool balance when CHEESE is selected
+  // Fetch fresh prices AND check pool balance when CHEESE is selected (real-time calculation)
   useEffect(() => {
     if (CHEESE_FEE_ENABLED && selectedMethod === "cheese") {
+      cheesePricing.refetch();
+      waxdaoPricing.refetch();
       checkPoolBalance();
     }
   }, [selectedMethod]);

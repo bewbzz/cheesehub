@@ -34,6 +34,7 @@ export const WAXDAO_TOKEN_PRECISION = 8;
 // For reference/display
 export const WAX_EQUIVALENT_FEE = 250; // 250 WAX equivalent
 export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
+export const CHEESE_SAFETY_BUFFER = 0.02; // 2% buffer for price drift
 
 // Legacy export for compatibility
 export const WAX_FEE_AMOUNT = WAX_EQUIVALENT_FEE;
@@ -171,10 +172,13 @@ export function calculateDiscountedCheeseAmount(
   // Base amount: waxAmount / price per CHEESE
   const baseAmount = waxAmount / cheeseWaxPrice;
   
-  // Apply 20% discount
+  // Apply 20% discount (user pays equivalent of 200 WAX instead of 250)
   const discountedAmount = baseAmount * (1 - CHEESE_DISCOUNT);
   
-  return discountedAmount;
+  // Add 2% safety buffer to prevent failures from price drift
+  const finalAmount = discountedAmount * (1 + CHEESE_SAFETY_BUFFER);
+  
+  return finalAmount;
 }
 
 /**

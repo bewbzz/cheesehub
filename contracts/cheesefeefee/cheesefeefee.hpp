@@ -34,9 +34,10 @@ static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
 static constexpr uint64_t CHEESE_WAX_POOL_ID = 1095;  // CHEESE/WAX pool
 static constexpr uint64_t WAXDAO_WAX_POOL_ID = 274;   // WAXDAO/WAX pool
 
-// Discount: 20% off = user gets 25% more WAXDAO for their CHEESE value
-static constexpr uint64_t DISCOUNT_NUMERATOR = 125;
-static constexpr uint64_t DISCOUNT_DENOMINATOR = 100;
+// 1:1 WAX value exchange: 200 WAX of CHEESE -> 200 WAX of WAXDAO
+// The "20% discount" is from reduced fee (200 WAX instead of 250 WAX), not exchange rate
+static constexpr double MIN_WAX_VALUE = 200.0;      // Minimum WAX value of CHEESE required
+static constexpr double WAX_VALUE_TOLERANCE = 0.05; // 5% tolerance for price fluctuations
 
 CONTRACT cheesefeefee : public contract {
 public:

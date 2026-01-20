@@ -126,7 +126,8 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
 
 /**
  * @brief Calculate WAXDAO amount from CHEESE amount using live Alcor prices
- * Formula: (CHEESE_value_in_WAX / WAXDAO_price_in_WAX) * 1.25 (20% discount = 25% bonus)
+ * Does a 1:1 WAX-value exchange: 200 WAX of CHEESE -> 200 WAX of WAXDAO
+ * The "20% discount" comes from reduced fee (200 WAX instead of 250 WAX), not exchange rate
  */
 asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     // Get prices from Alcor pools
@@ -142,11 +143,13 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     // CHEESE -> WAX value
     double wax_value = cheese_value * cheese_wax_price;
     
-    // WAX -> WAXDAO value
-    double waxdao_value = wax_value / waxdao_wax_price;
+    // SECURITY: Validate user sent at least 200 WAX worth of CHEESE (with tolerance)
+    double min_required = MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE);
+    check(wax_value >= min_required, 
+        "Insufficient CHEESE. Need at least 200 WAX worth.");
     
-    // Apply 20% discount (multiply by 1.25 - user gets 25% more WAXDAO)
-    waxdao_value = waxdao_value * DISCOUNT_NUMERATOR / DISCOUNT_DENOMINATOR;
+    // 1:1 WAX-value exchange: WAX -> WAXDAO (no bonus!)
+    double waxdao_value = wax_value / waxdao_wax_price;
     
     // Convert back to asset (8 decimals)
     int64_t waxdao_amount = (int64_t)(waxdao_value * 100000000.0);

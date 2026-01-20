@@ -25,7 +25,7 @@ export const WAX_TOKENS: TokenConfig[] = [
   { symbol: 'LSWAX', contract: 'token.fusion', precision: 8, displayName: 'LSWAX' },
   { symbol: 'BRWL', contract: 'brawlertokns', precision: 4, displayName: 'BRWL' },
   { symbol: 'CROWN', contract: 'crownedtokns', precision: 4, displayName: 'CROWN' },
-  { symbol: 'MARTIA', contract: 'martiainvad1', precision: 4, displayName: 'MARTIA' },
+  { symbol: 'MARTIA', contract: 'martia', precision: 4, displayName: 'MARTIA' },
   { symbol: 'WUFFI', contract: 'wuffi', precision: 8, displayName: 'WUFFI' },
   { symbol: 'WUF', contract: 'wuftoken1111', precision: 8, displayName: 'WUF' },
   { symbol: 'KEK', contract: 'waxpepetoken', precision: 4, displayName: 'KEK' },

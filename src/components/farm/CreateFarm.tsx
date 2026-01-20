@@ -228,7 +228,6 @@ export function CreateFarm() {
         const cheesePayAction = buildCheesePaymentAction(
           accountName,
           cheeseAmount || cheesePricing.formattedForTx,
-          waxdaoAmount || waxdaoPricing.formattedForTx,
           "farm",
           formData.farmName
         );

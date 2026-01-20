@@ -225,7 +225,6 @@ export function CreateDao() {
         const cheesePayAction = buildCheesePaymentAction(
           accountName,
           cheeseAmount || cheesePricing.formattedForTx,
-          waxdaoAmount || waxdaoPricing.formattedForTx,
           "dao",
           formData.daoName
         );

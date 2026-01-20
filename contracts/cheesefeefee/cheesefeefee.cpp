@@ -1,13 +1,16 @@
 #include "cheesefeefee.hpp"
+#include <cmath>
 
 /**
  * @brief Handles incoming CHEESE transfers - Single Atomic Transaction Flow
  * 
  * When CHEESE is received:
- * 1. Parse memo to get fee type, entity name, and required WAXDAO amount
- * 2. Verify creation action exists in the same transaction (bundled)
- * 3. Send WAXDAO to user via inline action (immediate)
- * 4. Burn CHEESE to eosio.null via inline action (immediate)
+ * 1. Parse memo to get fee type and entity name
+ * 2. Query Alcor pools for CHEESE/WAX and WAXDAO/WAX prices
+ * 3. Calculate WAXDAO amount based on CHEESE value with 20% discount
+ * 4. Verify creation action exists in the same transaction (bundled)
+ * 5. Send calculated WAXDAO to user via inline action
+ * 6. Burn CHEESE to eosio.null via inline action
  * 
  * If any step fails, entire transaction reverts atomically - no WAXDAO lost.
  */
@@ -22,24 +25,25 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
     check(quantity.symbol == CHEESE_SYMBOL, "Only CHEESE token accepted");
     check(quantity.amount > 0, "Amount must be positive");
     
-    // Parse memo: "daofee|entityname|250.00000000 WAXDAO"
-    auto [fee_type, entity_name, waxdao_amount] = parse_memo_v2(memo);
+    // Parse simplified memo: "daofee|entityname"
+    auto [fee_type, entity_name] = parse_memo(memo);
     
     check(fee_type == "daofee" || fee_type == "farmfee", 
-        "Invalid fee type. Use 'daofee|name|waxdao' or 'farmfee|name|waxdao'");
+        "Invalid fee type. Use 'daofee|name' or 'farmfee|name'");
     check(entity_name.value != 0, "Entity name cannot be empty");
-    check(waxdao_amount.symbol == WAXDAO_SYMBOL, "WAXDAO amount required in memo");
-    check(waxdao_amount.amount > 0, "WAXDAO amount must be positive");
     
     // Extract "dao" or "farm" for action checking
     string type_short = (fee_type == "daofee") ? "dao" : "farm";
     
     // SECURITY: Verify the creation action exists in this transaction
-    // This ensures provide + burn only happen when bundled with actual creation
     check(has_creation_action(type_short, entity_name, from),
         "Must be bundled with createdao/createfarm action");
     
-    // 1. Send WAXDAO to user (inline - executes immediately within this transaction)
+    // SECURITY: Calculate WAXDAO from Alcor on-chain prices (not from memo!)
+    asset waxdao_amount = calculate_waxdao_amount(quantity);
+    check(waxdao_amount.amount > 0, "Calculated WAXDAO amount is zero - check pool prices");
+    
+    // 1. Send calculated WAXDAO to user (inline - executes immediately)
     action(
         permission_level{get_self(), "active"_n},
         WAXDAO_CONTRACT,
@@ -77,64 +81,77 @@ void cheesefeefee::withdraw(name token_contract, name to, asset quantity) {
 }
 
 /**
- * @brief Parse memo in extended format "feetype|entityname|waxdao_amount"
+ * @brief Parse memo in simplified format "feetype|entityname"
  */
-tuple<string, name, asset> cheesefeefee::parse_memo_v2(const string& memo) {
-    size_t first_delim = memo.find('|');
-    size_t second_delim = memo.find('|', first_delim + 1);
+tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
+    size_t delim = memo.find('|');
     
-    check(first_delim != string::npos && second_delim != string::npos,
-        "Invalid memo format. Use: feetype|entityname|waxdao_amount");
+    check(delim != string::npos,
+        "Invalid memo format. Use: feetype|entityname");
     
-    string fee_type = memo.substr(0, first_delim);
-    string entity_str = memo.substr(first_delim + 1, second_delim - first_delim - 1);
-    string waxdao_str = memo.substr(second_delim + 1);
+    string fee_type = memo.substr(0, delim);
+    string entity_str = memo.substr(delim + 1);
     
     // Convert to lowercase
     for (auto& c : fee_type) c = tolower(c);
     for (auto& c : entity_str) c = tolower(c);
     
-    // Trim whitespace from waxdao_str
-    size_t start = waxdao_str.find_first_not_of(" \t\n\r");
-    size_t end = waxdao_str.find_last_not_of(" \t\n\r");
+    // Trim whitespace from entity_str
+    size_t start = entity_str.find_first_not_of(" \t\n\r");
+    size_t end = entity_str.find_last_not_of(" \t\n\r");
     if (start != string::npos && end != string::npos) {
-        waxdao_str = waxdao_str.substr(start, end - start + 1);
+        entity_str = entity_str.substr(start, end - start + 1);
     }
     
-    // Parse WAXDAO amount
-    asset waxdao_amount = asset_from_string(waxdao_str);
-    
-    return make_tuple(fee_type, name(entity_str), waxdao_amount);
+    return make_tuple(fee_type, name(entity_str));
 }
 
 /**
- * @brief Convert asset string to asset object
- * Format: "250.00000000 WAXDAO"
+ * @brief Get token price in WAX from Alcor pool using sqrtPriceX64
  */
-asset cheesefeefee::asset_from_string(const string& str) {
-    size_t space_pos = str.find(' ');
-    check(space_pos != string::npos, "Invalid asset format. Expected: '250.00000000 WAXDAO'");
+double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
+    alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
+    auto pool = pools.find(pool_id);
+    check(pool != pools.end(), "Alcor pool not found");
+    check(pool->active, "Alcor pool is not active");
     
-    string amount_str = str.substr(0, space_pos);
-    string symbol_str = str.substr(space_pos + 1);
+    // Convert sqrtPriceX64 to price
+    // Price = (sqrtPriceX64 / 2^64)^2
+    uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
+    double normalized = (double)sqrtPrice / (double)(1ULL << 64);
+    double price = normalized * normalized;
     
-    // Find decimal point to determine precision
-    size_t dot_pos = amount_str.find('.');
-    uint8_t precision = 0;
-    if (dot_pos != string::npos) {
-        precision = amount_str.size() - dot_pos - 1;
-    }
+    return price;
+}
+
+/**
+ * @brief Calculate WAXDAO amount from CHEESE amount using live Alcor prices
+ * Formula: (CHEESE_value_in_WAX / WAXDAO_price_in_WAX) * 1.25 (20% discount = 25% bonus)
+ */
+asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
+    // Get prices from Alcor pools
+    double cheese_wax_price = get_price_from_pool(CHEESE_WAX_POOL_ID);
+    double waxdao_wax_price = get_price_from_pool(WAXDAO_WAX_POOL_ID);
     
-    // Remove decimal point and convert to int64
-    string int_str = amount_str;
-    if (dot_pos != string::npos) {
-        int_str = amount_str.substr(0, dot_pos) + amount_str.substr(dot_pos + 1);
-    }
+    check(cheese_wax_price > 0, "Invalid CHEESE price from Alcor");
+    check(waxdao_wax_price > 0, "Invalid WAXDAO price from Alcor");
     
-    int64_t amount = stoll(int_str);
-    symbol sym = symbol(symbol_str, precision);
+    // Convert CHEESE amount to double (8 decimals)
+    double cheese_value = (double)cheese_amount.amount / 100000000.0;
     
-    return asset(amount, sym);
+    // CHEESE -> WAX value
+    double wax_value = cheese_value * cheese_wax_price;
+    
+    // WAX -> WAXDAO value
+    double waxdao_value = wax_value / waxdao_wax_price;
+    
+    // Apply 20% discount (multiply by 1.25 - user gets 25% more WAXDAO)
+    waxdao_value = waxdao_value * DISCOUNT_NUMERATOR / DISCOUNT_DENOMINATOR;
+    
+    // Convert back to asset (8 decimals)
+    int64_t waxdao_amount = (int64_t)(waxdao_value * 100000000.0);
+    
+    return asset(waxdao_amount, WAXDAO_SYMBOL);
 }
 
 /**
@@ -154,7 +171,6 @@ bool cheesefeefee::has_creation_action(const string& fee_type, name entity_name,
     for (const auto& act : trx.actions) {
         if (act.account == expected_contract && act.name == expected_action) {
             // The action exists - we trust the bundled transaction is valid
-            // Additional validation could unpack action data if needed
             return true;
         }
     }

@@ -2,8 +2,8 @@
 
 #include <eosio/eosio.hpp>
 #include <eosio/asset.hpp>
-#include <eosio/singleton.hpp>
 #include <eosio/system.hpp>
+#include <eosio/transaction.hpp>
 
 using namespace eosio;
 using namespace std;
@@ -12,13 +12,12 @@ using namespace std;
  * @title cheesefeefee
  * @dev Smart contract for CHEESE token fee payments for DAO and Farm creation
  * 
- * Flow:
- * 1. User sends CHEESE to this contract with memo "daofee|entityname" or "farmfee|entityname"
- * 2. Contract records prepayment, CHEESE is held in contract balance
- * 3. User calls provide bundled with createdao/createfarm action
- * 4. Contract verifies creation action exists, sends dynamically-priced WAXDAO to user
- * 5. User receives WAXDAO and uses it to pay the creation fee in the same transaction
- * 6. At the end of the transaction, finalise transfers CHEESE to eosio.null
+ * SIMPLIFIED SINGLE-TRANSACTION FLOW:
+ * 1. User sends CHEESE to this contract with memo "daofee|entityname|250.00000000 WAXDAO"
+ * 2. Contract immediately (inline) sends WAXDAO back to user
+ * 3. Contract immediately (inline) burns CHEESE to eosio.null
+ * 4. User's bundled transaction uses the WAXDAO to pay creation fee
+ * 5. If any step fails, entire transaction reverts atomically
  */
 
 // Constants
@@ -35,66 +34,15 @@ public:
     using contract::contract;
 
     /**
-     * @brief Table to store prepayments
-     * @param id - Unique identifier
-     * @param user - User who made the prepayment
-     * @param fee_type - "dao" or "farm"
-     * @param entity_name - Name of the DAO or Farm being created
-     * @param cheese_paid - Amount of CHEESE paid
-     * @param paid_at - Block time when payment was made
-     * @param used - Whether this prepayment has been consumed
-     */
-    TABLE prepayment {
-        uint64_t id;
-        name user;
-        string fee_type;
-        name entity_name;
-        asset cheese_paid;
-        time_point_sec paid_at;
-        bool used;
-
-        uint64_t primary_key() const { return id; }
-        uint128_t by_user_entity() const { 
-            return (uint128_t(user.value) << 64) | entity_name.value; 
-        }
-    };
-
-    typedef eosio::multi_index<"prepayments"_n, prepayment,
-        indexed_by<"byuserentity"_n, const_mem_fun<prepayment, uint128_t, &prepayment::by_user_entity>>
-    > prepayments_table;
-
-    /**
      * @brief Called when user sends CHEESE to this contract
+     * Immediately sends WAXDAO back and burns CHEESE in a single atomic transaction
      * @param from - Sender
      * @param to - Receiver (this contract)
      * @param quantity - Amount of CHEESE
-     * @param memo - Format: "daofee|entityname" or "farmfee|entityname"
+     * @param memo - Format: "daofee|entityname|250.00000000 WAXDAO" or "farmfee|entityname|250.00000000 WAXDAO"
      */
     [[eosio::on_notify("cheeseburger::transfer")]]
     void on_cheese_transfer(name from, name to, asset quantity, string memo);
-
-    /**
-     * @brief Provides WAXDAO to user - must be bundled with creation action
-     * @param user - User requesting WAXDAO
-     * @param fee_type - "dao" or "farm"
-     * @param entity_name - Name of the entity being created
-     * @param waxdao_amount - Amount of WAXDAO to send (calculated by frontend)
-     */
-    ACTION provide(name user, string fee_type, name entity_name, asset waxdao_amount);
-
-    /**
-     * @brief Finalises the transaction by transferring CHEESE to eosio.null
-     * Called at the END of the bundled transaction after successful creation
-     * @param user - User who made the prepayment
-     * @param prepayment_id - ID of the prepayment to finalise
-     */
-    ACTION finalise(name user, uint64_t prepayment_id);
-
-    /**
-     * @brief Admin action to refund unused prepayments
-     * @param prepayment_id - ID of the prepayment to refund
-     */
-    ACTION refund(uint64_t prepayment_id);
 
     /**
      * @brief Admin action to withdraw any token from the contract
@@ -105,9 +53,19 @@ public:
     ACTION withdraw(name token_contract, name to, asset quantity);
 
 private:
-    // Helper to parse memo format "feetype|entityname"
-    pair<string, name> parse_memo(const string& memo);
+    /**
+     * @brief Parse memo in extended format "feetype|entityname|waxdao_amount"
+     * @return tuple of (fee_type, entity_name, waxdao_amount)
+     */
+    tuple<string, name, asset> parse_memo_v2(const string& memo);
     
-    // Helper to check if a specific action exists in the current transaction
+    /**
+     * @brief Convert asset string (e.g., "250.00000000 WAXDAO") to asset
+     */
+    asset asset_from_string(const string& str);
+    
+    /**
+     * @brief Check if a specific action exists in the current transaction
+     */
     bool has_creation_action(const string& fee_type, name entity_name, name user);
 };

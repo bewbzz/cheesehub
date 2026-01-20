@@ -1,11 +1,15 @@
 /**
- * CHEESE Fee Payment System
+ * CHEESE Fee Payment System - Simplified Single-Transaction Flow
  * 
  * Enables users to pay DAO and Farm creation fees with CHEESE token
  * at a 20% discount instead of WAX/WAXDAO.
  * 
- * Feature is disabled by default. Set CHEESE_FEE_ENABLED = true after
- * deploying the cheesefeefee smart contract.
+ * NEW FLOW (Single Transaction):
+ * 1. User sends CHEESE to cheesefeefee with memo containing WAXDAO amount
+ * 2. Contract immediately sends WAXDAO back to user (inline)
+ * 3. Contract immediately burns CHEESE to eosio.null (inline)
+ * 4. User's bundled transaction pays WAXDAO to WaxDAO and creates farm/dao
+ * 5. If any step fails, entire transaction reverts atomically
  */
 
 import { fetchTableRows } from "./waxRpcFallback";
@@ -40,16 +44,6 @@ export const WAX_FEE_AMOUNT = WAX_EQUIVALENT_FEE;
 export type FeeType = "dao" | "farm";
 export type PaymentMethod = "wax" | "cheese";
 
-export interface Prepayment {
-  id: number;
-  user: string;
-  fee_type: string;
-  entity_name: string;
-  cheese_paid: string;
-  paid_at: string;
-  used: boolean;
-}
-
 export interface ContractBalance {
   waxdao: number;
   cheese: number;
@@ -83,83 +77,29 @@ export async function fetchContractWaxdaoBalance(): Promise<number> {
   }
 }
 
-/**
- * Fetch user's prepayment for a specific entity
- * Returns the full prepayment including ID for the finalise action
- */
-export async function fetchUserPrepayment(
-  user: string,
-  feeType: FeeType,
-  entityName: string
-): Promise<Prepayment | null> {
-  try {
-    const response = await fetchTableRows<Prepayment>({
-      code: CHEESE_FEE_CONTRACT,
-      scope: CHEESE_FEE_CONTRACT,
-      table: "prepayments",
-      limit: 100,
-    });
-
-    // Find matching prepayment (unused for prepay check, or used for finalise)
-    const prepayment = response.rows.find(
-      (p) =>
-        p.user === user &&
-        p.fee_type === feeType &&
-        p.entity_name === entityName
-    );
-
-    return prepayment || null;
-  } catch (error) {
-    console.error("Failed to fetch user prepayment:", error);
-    return null;
-  }
-}
-
-/**
- * Fetch user's unused prepayment (for checking if prepay is needed)
- */
-export async function fetchUnusedPrepayment(
-  user: string,
-  feeType: FeeType,
-  entityName: string
-): Promise<Prepayment | null> {
-  try {
-    const response = await fetchTableRows<Prepayment>({
-      code: CHEESE_FEE_CONTRACT,
-      scope: CHEESE_FEE_CONTRACT,
-      table: "prepayments",
-      limit: 100,
-    });
-
-    const prepayment = response.rows.find(
-      (p) =>
-        p.user === user &&
-        p.fee_type === feeType &&
-        p.entity_name === entityName &&
-        !p.used
-    );
-
-    return prepayment || null;
-  } catch (error) {
-    console.error("Failed to fetch user prepayment:", error);
-    return null;
-  }
-}
-
 // ============================================================================
 // Action Builders
 // ============================================================================
 
 /**
- * Build action to send CHEESE as prepayment
+ * Build CHEESE transfer action with embedded WAXDAO amount
+ * This is the FIRST action in the bundled transaction
+ * 
+ * @param user - User sending CHEESE
+ * @param cheeseAmount - Formatted CHEESE amount (e.g., "41840.50000000 CHEESE")
+ * @param waxdaoAmount - Formatted WAXDAO amount (e.g., "250.00000000 WAXDAO")
+ * @param feeType - "dao" or "farm"
+ * @param entityName - Name of the entity being created
  */
-export function buildCheesePrepayAction(
+export function buildCheesePaymentAction(
   user: string,
   cheeseAmount: string,
+  waxdaoAmount: string,
   feeType: FeeType,
   entityName: string
 ) {
-  const memo = `${feeType}fee|${entityName}`;
+  // New memo format: "daofee|entityname|waxdao_amount"
+  const memo = `${feeType}fee|${entityName}|${waxdaoAmount}`;
   
   return {
     account: CHEESE_TOKEN_CONTRACT,
@@ -175,49 +115,8 @@ export function buildCheesePrepayAction(
 }
 
 /**
- * Build action to request WAXDAO from the contract
- * This must be bundled with the creation action
- */
-export function buildProvideAction(
-  user: string,
-  feeType: FeeType,
-  entityName: string,
-  waxdaoAmount: string
-) {
-  return {
-    account: CHEESE_FEE_CONTRACT,
-    name: "provide",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      fee_type: feeType,
-      entity_name: entityName,
-      waxdao_amount: waxdaoAmount,
-    },
-  };
-}
-
-/**
- * Build action to finalise - transfer CHEESE to eosio.null
- * This must be called at the END of the bundled transaction
- */
-export function buildFinaliseAction(
-  user: string,
-  prepaymentId: number
-) {
-  return {
-    account: CHEESE_FEE_CONTRACT,
-    name: "finalise",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      prepayment_id: prepaymentId,
-    },
-  };
-}
-
-/**
  * Build action to pay WAXDAO fee to WaxDAO contracts
+ * This is the SECOND action - user pays WAXDAO received from inline action
  */
 export function buildWaxdaoFeeAction(
   sender: string,

@@ -120,16 +120,16 @@ export function FeePaymentSelector({
                   : showCheeseGlow
                   ? "border-cheese/40 bg-cheese/5 shadow-[0_0_12px_rgba(255,200,50,0.25)] hover:shadow-[0_0_16px_rgba(255,200,50,0.35)]"
                   : "border-border/50 hover:bg-muted/30"
-              } ${!cheesePricing.isAvailable ? "opacity-50" : ""}`}
-              onClick={() => cheesePricing.isAvailable && !disabled && onMethodChange("cheese")}
+              } ${!CHEESE_FEE_ENABLED ? "opacity-50 pointer-events-none" : ""}`}
+              onClick={() => CHEESE_FEE_ENABLED && !disabled && onMethodChange("cheese")}
             >
               <RadioGroupItem
                 value="cheese"
                 id="payment-cheese"
-                disabled={!cheesePricing.isAvailable || disabled}
+                disabled={!CHEESE_FEE_ENABLED || disabled}
                 className="mt-1"
               />
-              <Label htmlFor="payment-cheese" className={`flex-1 ${cheesePricing.isAvailable ? "cursor-pointer" : "cursor-not-allowed"}`}>
+              <Label htmlFor="payment-cheese" className={`flex-1 ${CHEESE_FEE_ENABLED ? "cursor-pointer" : "cursor-not-allowed"}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <img src={cheeseLogo} alt="CHEESE" className="w-5 h-5" />

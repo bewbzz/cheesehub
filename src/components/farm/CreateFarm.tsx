@@ -90,7 +90,7 @@ export function CreateFarm() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   
   // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(CHEESE_FEE_ENABLED ? "cheese" : "wax");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cheese");
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [waxdaoAmount, setWaxdaoAmount] = useState("");
   
@@ -272,7 +272,7 @@ export function CreateFarm() {
         medium: "",
       });
       setRewardTokens([{ contract: "eosio.token", symbol: "WAX", precision: 8 }]);
-      setPaymentMethod(CHEESE_FEE_ENABLED ? "cheese" : "wax");
+      setPaymentMethod("cheese");
       
     } catch (error) {
       console.error("Failed to create farm:", error);

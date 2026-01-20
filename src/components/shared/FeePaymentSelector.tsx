@@ -100,7 +100,7 @@ export function FeePaymentSelector({
               </Button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
-              <p>Pay with CHEESE at a 20% discount! The system handles the WAXDAO conversion automatically in a single transaction.</p>
+              <p>Pay with CHEESE and save 20% on creation fees!</p>
             </TooltipContent>
           </Tooltip>
         </div>

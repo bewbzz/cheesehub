@@ -121,7 +121,6 @@ export function FeePaymentSelector({
                   ? "border-cheese/40 bg-cheese/5 shadow-[0_0_12px_rgba(255,200,50,0.25)] hover:shadow-[0_0_16px_rgba(255,200,50,0.35)]"
                   : "border-border/50 hover:bg-muted/30"
               } ${!CHEESE_FEE_ENABLED ? "opacity-50 pointer-events-none" : ""}`}
-              onClick={() => CHEESE_FEE_ENABLED && !disabled && onMethodChange("cheese")}
             >
               <RadioGroupItem
                 value="cheese"
@@ -211,7 +210,6 @@ export function FeePaymentSelector({
                 ? "border-blue-500/50 bg-blue-500/10"
                 : "border-border/50 hover:bg-muted/30"
             }`}
-            onClick={() => !disabled && onMethodChange("wax")}
           >
             <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
             <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">

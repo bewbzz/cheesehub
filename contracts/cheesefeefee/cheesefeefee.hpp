@@ -23,11 +23,20 @@ using namespace std;
 // Constants
 static constexpr name CHEESE_CONTRACT = "cheeseburger"_n;
 static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 8);
-static constexpr name WAXDAO_CONTRACT = "mdcryptonfts"_n;
+static constexpr name WAXDAO_CONTRACT = "token.waxdao"_n;
 static constexpr symbol WAXDAO_SYMBOL = symbol("WAXDAO", 8);
 static constexpr name DAO_CONTRACT = "dao.waxdao"_n;
 static constexpr name FARM_CONTRACT = "farms.waxdao"_n;
 static constexpr name NULL_ACCOUNT = "eosio.null"_n;
+
+// Alcor DEX integration for on-chain price validation
+static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
+static constexpr uint64_t CHEESE_WAX_POOL_ID = 1095;  // CHEESE/WAX pool
+static constexpr uint64_t WAXDAO_WAX_POOL_ID = 274;   // WAXDAO/WAX pool
+
+// Discount: 20% off = user gets 25% more WAXDAO for their CHEESE value
+static constexpr uint64_t DISCOUNT_NUMERATOR = 125;
+static constexpr uint64_t DISCOUNT_DENOMINATOR = 100;
 
 CONTRACT cheesefeefee : public contract {
 public:
@@ -52,17 +61,39 @@ public:
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
 
+    // Alcor pool table struct (read from swap.alcor)
+    struct alcor_pool {
+        uint64_t id;
+        bool active;
+        struct {
+            uint128_t sqrtPriceX64;
+            int32_t tick;
+        } currSlot;
+        
+        uint64_t primary_key() const { return id; }
+    };
+    typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
+
 private:
     /**
-     * @brief Parse memo in extended format "feetype|entityname|waxdao_amount"
-     * @return tuple of (fee_type, entity_name, waxdao_amount)
+     * @brief Parse memo in simplified format "feetype|entityname"
+     * @return tuple of (fee_type, entity_name)
      */
-    tuple<string, name, asset> parse_memo_v2(const string& memo);
+    tuple<string, name> parse_memo(const string& memo);
     
     /**
-     * @brief Convert asset string (e.g., "250.00000000 WAXDAO") to asset
+     * @brief Get token price in WAX from Alcor pool
+     * @param pool_id - The Alcor pool ID
+     * @return Price as a double
      */
-    asset asset_from_string(const string& str);
+    double get_price_from_pool(uint64_t pool_id);
+    
+    /**
+     * @brief Calculate WAXDAO amount from CHEESE amount using live Alcor prices
+     * @param cheese_amount - Amount of CHEESE received
+     * @return Calculated WAXDAO amount with 20% discount applied
+     */
+    asset calculate_waxdao_amount(asset cheese_amount);
     
     /**
      * @brief Check if a specific action exists in the current transaction

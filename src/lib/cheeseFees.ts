@@ -27,7 +27,7 @@ export const CHEESE_TOKEN_CONTRACT = "cheeseburger";
 export const CHEESE_TOKEN_SYMBOL = "CHEESE";
 export const CHEESE_TOKEN_PRECISION = 8;
 
-export const WAXDAO_TOKEN_CONTRACT = "mdcryptonfts";
+export const WAXDAO_TOKEN_CONTRACT = "token.waxdao";
 export const WAXDAO_TOKEN_SYMBOL = "WAXDAO";
 export const WAXDAO_TOKEN_PRECISION = 8;
 
@@ -83,24 +83,22 @@ export async function fetchContractWaxdaoBalance(): Promise<number> {
 // ============================================================================
 
 /**
- * Build CHEESE transfer action with embedded WAXDAO amount
+ * Build CHEESE transfer action - contract calculates WAXDAO via Alcor prices
  * This is the FIRST action in the bundled transaction
  * 
  * @param user - User sending CHEESE
  * @param cheeseAmount - Formatted CHEESE amount (e.g., "41840.50000000 CHEESE")
- * @param waxdaoAmount - Formatted WAXDAO amount (e.g., "250.00000000 WAXDAO")
  * @param feeType - "dao" or "farm"
  * @param entityName - Name of the entity being created
  */
 export function buildCheesePaymentAction(
   user: string,
   cheeseAmount: string,
-  waxdaoAmount: string,
   feeType: FeeType,
   entityName: string
 ) {
-  // New memo format: "daofee|entityname|waxdao_amount"
-  const memo = `${feeType}fee|${entityName}|${waxdaoAmount}`;
+  // Simplified memo - contract calculates WAXDAO from Alcor prices
+  const memo = `${feeType}fee|${entityName}`;
   
   return {
     account: CHEESE_TOKEN_CONTRACT,

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAlcorTokenPrices } from "./useAlcorTokenPrices";
 
 // WAXDAO token configuration
-const WAXDAO_CONTRACT = "mdcryptonfts";
+const WAXDAO_CONTRACT = "token.waxdao";
 const WAXDAO_SYMBOL = "WAXDAO";
 const WAXDAO_PRECISION = 8;
 

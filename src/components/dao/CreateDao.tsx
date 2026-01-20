@@ -48,7 +48,7 @@ export function CreateDao() {
   const [showSocials, setShowSocials] = useState(false);
   
   // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(CHEESE_FEE_ENABLED ? "cheese" : "wax");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cheese");
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [waxdaoAmount, setWaxdaoAmount] = useState("");
   
@@ -277,7 +277,7 @@ export function CreateDao() {
         youtube: "",
         medium: "",
       });
-      setPaymentMethod(CHEESE_FEE_ENABLED ? "cheese" : "wax");
+      setPaymentMethod("cheese");
       setShowSocials(false);
     } catch (error) {
       console.error("Failed to create DAO:", error);

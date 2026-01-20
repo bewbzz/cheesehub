@@ -17,7 +17,7 @@ import { fetchTableRows } from "./waxRpcFallback";
 // ============================================================================
 // FEATURE FLAG - Set to true when contract is deployed and funded
 // ============================================================================
-export const CHEESE_FEE_ENABLED = false;
+export const CHEESE_FEE_ENABLED = true;
 
 // ============================================================================
 // Contract Configuration

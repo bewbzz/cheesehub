@@ -109,7 +109,25 @@ export function buildEditPropCostAction(
   };
 }
 
-
+// Build action for fixing minimum weight and minimum votes (creator only)
+export function buildFixWgtNVotesAction(
+  user: string,
+  daoName: string,
+  minWeight: number,
+  minVotes: number
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "fixwgtnvotes",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      minimum_weight: minWeight,
+      minimum_votes: minVotes,
+    },
+  };
+}
 
 export const DAO_TYPES: Record<number, string> = {
   1: "Custodial NFT Farm",        // Requires gov_farm_name (waxdaofarmer)

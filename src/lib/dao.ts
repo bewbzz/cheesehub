@@ -91,8 +91,26 @@ export function buildRecountProposalAction(user: string, daoName: string, propos
   };
 }
 
+// Build action for editing proposal cost (creator only)
+export function buildEditPropCostAction(
+  user: string, 
+  daoName: string, 
+  proposalCost: string  // Full formatted string like "50.0000 CHEESE"
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "editpropcost",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      proposal_cost: proposalCost,
+    },
+  };
+}
 
-// DAO types from the contract
+
+
 export const DAO_TYPES: Record<number, string> = {
   1: "Custodial NFT Farm",        // Requires gov_farm_name (waxdaofarmer)
   2: "Custodial Token Pool",      // Requires gov_farm_name (waxdaofarmer)

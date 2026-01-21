@@ -175,9 +175,9 @@ export function FeePaymentSelector({
                             <span className="text-green-600">Contract ready</span>
                           </>
                         ) : (
-                          <>
+                        <>
                             <AlertCircle className="h-3 w-3 text-amber-500" />
-                            <span className="text-amber-600">Pool low - please try WAX payment</span>
+                            <span className="text-amber-600">Pool low - WAX payment available below</span>
                           </>
                         )
                       ) : null}
@@ -205,28 +205,23 @@ export function FeePaymentSelector({
             </div>
           )}
 
-          {/* WAX Option */}
-          <div
-            className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-              selectedMethod === "wax"
-                ? "border-blue-500/50 bg-blue-500/10"
-                : "border-border/50 hover:bg-muted/30"
-            }`}
-          >
-            <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
-            <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{waxFee} WAX</span>
-              </div>
-            </Label>
-          </div>
+          {/* WAX Option - Only shown when CHEESE pool is insufficient */}
+          {selectedMethod === "cheese" && poolBalance !== null && !poolHasEnoughWaxdao && !isCheckingPool && (
+            <div
+              className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer border-border/50 hover:bg-muted/30`}
+            >
+              <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
+              <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{waxFee} WAX</span>
+                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-500/30">
+                    Fallback option
+                  </Badge>
+                </div>
+              </Label>
+            </div>
+          )}
         </RadioGroup>
-
-        {!hideCheeseOption && CHEESE_FEE_ENABLED && !cheesePricing.isAvailable && !cheesePricing.isLoading && (
-          <p className="text-xs text-amber-600">
-            CHEESE price unavailable. Please use WAX payment.
-          </p>
-        )}
       </div>
     </TooltipProvider>
   );

@@ -14,6 +14,7 @@ import {
   fetchContractWaxdaoBalance,
 } from "@/lib/cheeseFees";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import { CheeseSwapDialog } from "@/components/swap/CheeseSwapDialog";
 
 interface FeePaymentSelectorProps {
   waxFee?: number;
@@ -39,6 +40,7 @@ export function FeePaymentSelector({
   const waxdaoPricing = useWaxdaoFeePricing();
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
 
   // Update parent with CHEESE amount when pricing changes and CHEESE is selected
   useEffect(() => {
@@ -94,6 +96,14 @@ export function FeePaymentSelector({
             <h3 className="text-sm font-medium text-foreground">
               Creation Fee
             </h3>
+            <span className="text-cheese/50">|</span>
+            <button
+              type="button"
+              onClick={() => setSwapOpen(true)}
+              className="text-sm text-cheese hover:text-cheese/80 hover:underline font-medium"
+            >
+              Buy CHEESE
+            </button>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -223,6 +233,12 @@ export function FeePaymentSelector({
           )}
         </RadioGroup>
       </div>
+
+      <CheeseSwapDialog 
+        open={swapOpen} 
+        onOpenChange={setSwapOpen}
+        inputToken="WAX"
+      />
     </TooltipProvider>
   );
 }

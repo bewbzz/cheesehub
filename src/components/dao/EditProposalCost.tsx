@@ -14,7 +14,7 @@ interface EditProposalCostProps {
   dao: DaoInfo;
   open: boolean;
   onClose: () => void;
-  onCostUpdated: () => void;
+  onCostUpdated: (newCost: string) => void;
 }
 
 export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProposalCostProps) {
@@ -68,7 +68,7 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
         description: `New proposal cost: ${formattedCost}`,
       });
 
-      onCostUpdated();
+      onCostUpdated(formattedCost);
       onClose();
     } catch (error) {
       console.error("Failed to update proposal cost:", error);

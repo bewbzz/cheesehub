@@ -371,6 +371,24 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
     }
   };
 
+  // Handler for proposal cost update - optimistic update then refetch
+  const handlePropCostUpdated = (newCost: string) => {
+    // Immediately update the local state with the new cost
+    setDao(prev => ({ ...prev, proposal_cost: newCost }));
+    
+    // Also do a background refresh after delay to ensure consistency
+    setTimeout(async () => {
+      try {
+        const updatedDao = await fetchDaoDetails(dao.dao_name);
+        if (updatedDao) {
+          setDao(updatedDao);
+        }
+      } catch (error) {
+        console.error("Failed to refresh DAO data:", error);
+      }
+    }, 3000);
+  };
+
   const menuItems: MenuItem[] = [
     { id: "info", label: "DAO Info", icon: <Shield className="h-4 w-4" /> },
     ...(showStakingTab ? [{ id: "stake" as Section, label: "Stake", icon: <Wallet className="h-4 w-4" /> }] : []),
@@ -963,7 +981,7 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
           dao={dao}
           open={showEditPropCost}
           onClose={() => setShowEditPropCost(false)}
-          onCostUpdated={handleProfileUpdated}
+          onCostUpdated={handlePropCostUpdated}
         />
       )}
     </Dialog>

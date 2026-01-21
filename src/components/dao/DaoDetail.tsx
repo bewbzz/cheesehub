@@ -11,6 +11,8 @@ import { TreasuryDeposit } from "./TreasuryDeposit";
 import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
 import { EditDaoProfile } from "./EditDaoProfile";
 import { EditProposalCost } from "./EditProposalCost";
+import { EditMinWeight } from "./EditMinWeight";
+import { EditMinVotes } from "./EditMinVotes";
 import { useWax } from "@/context/WaxContext";
 import { saveVote, getVotesForDao } from "@/lib/voteStorage";
 import { 
@@ -89,6 +91,8 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   const [isMember, setIsMember] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showEditPropCost, setShowEditPropCost] = useState(false);
+  const [showEditMinWeight, setShowEditMinWeight] = useState(false);
+  const [showEditMinVotes, setShowEditMinVotes] = useState(false);
   
   // IPFS gateway fallback indices
   const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
@@ -384,6 +388,36 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
           setDao(updatedDao);
         }
       } catch (error) {
+      console.error("Failed to refresh DAO data:", error);
+      }
+    }, 3000);
+  };
+
+  // Handler for minimum weight update - optimistic update then refetch
+  const handleMinWeightUpdated = (newWeight: number) => {
+    setDao(prev => ({ ...prev, minimum_weight: newWeight }));
+    setTimeout(async () => {
+      try {
+        const updatedDao = await fetchDaoDetails(dao.dao_name);
+        if (updatedDao) {
+          setDao(updatedDao);
+        }
+      } catch (error) {
+        console.error("Failed to refresh DAO data:", error);
+      }
+    }, 3000);
+  };
+
+  // Handler for minimum votes update - optimistic update then refetch
+  const handleMinVotesUpdated = (newVotes: number) => {
+    setDao(prev => ({ ...prev, minimum_votes: newVotes }));
+    setTimeout(async () => {
+      try {
+        const updatedDao = await fetchDaoDetails(dao.dao_name);
+        if (updatedDao) {
+          setDao(updatedDao);
+        }
+      } catch (error) {
         console.error("Failed to refresh DAO data:", error);
       }
     }, 3000);
@@ -565,9 +599,40 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
                           <span className="font-medium">{tokenDisplay} ({dao.token_contract})</span>
                         </div>
                       )}
-                      <div className="flex justify-between p-2 bg-background/50 rounded">
+                      {/* Show Minimum Weight only for Token Holders proposer type */}
+                      {dao.proposer_type === 2 && (
+                        <div className="flex justify-between items-center p-2 bg-background/50 rounded">
+                          <span className="text-muted-foreground">Minimum Weight:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{(dao.minimum_weight ?? 0).toLocaleString()}</span>
+                            {canEditProfile && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 px-2 text-cheese hover:text-cheese hover:bg-cheese/10"
+                                onClick={() => setShowEditMinWeight(true)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center p-2 bg-background/50 rounded">
                         <span className="text-muted-foreground">Min votes required:</span>
-                        <span className="font-medium">{(dao.minimum_votes ?? 0).toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{(dao.minimum_votes ?? 0).toLocaleString()}</span>
+                          {canEditProfile && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 px-2 text-cheese hover:text-cheese hover:bg-cheese/10"
+                              onClick={() => setShowEditMinVotes(true)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       {dao.authors && dao.authors.length > 0 && (
                         <div className="flex justify-between p-2 bg-background/50 rounded col-span-full">
@@ -982,6 +1047,26 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
           open={showEditPropCost}
           onClose={() => setShowEditPropCost(false)}
           onCostUpdated={handlePropCostUpdated}
+        />
+      )}
+
+      {/* Edit Minimum Weight Dialog */}
+      {showEditMinWeight && (
+        <EditMinWeight
+          dao={dao}
+          open={showEditMinWeight}
+          onClose={() => setShowEditMinWeight(false)}
+          onUpdated={handleMinWeightUpdated}
+        />
+      )}
+
+      {/* Edit Minimum Votes Dialog */}
+      {showEditMinVotes && (
+        <EditMinVotes
+          dao={dao}
+          open={showEditMinVotes}
+          onClose={() => setShowEditMinVotes(false)}
+          onUpdated={handleMinVotesUpdated}
         />
       )}
     </Dialog>

@@ -53,12 +53,6 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
     out: 'cheeseburger_CHEESE'
   });
 
-  // Lock tokens to WAX → CHEESE for Buy CHEESE flow
-  const lockTokens = JSON.stringify({
-    in: 'eosio.token_WAX',
-    out: 'cheeseburger_CHEESE'
-  });
-
   useEffect(() => {
     if (!open) return;
     
@@ -274,7 +268,6 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
               ref={swapRef}
               wallet={walletInfo}
               default={defaultTokens}
-              lock={lockTokens}
             />
           </div>
         </DialogContent>

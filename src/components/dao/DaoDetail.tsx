@@ -10,6 +10,7 @@ import { DaoStaking } from "./DaoStaking";
 import { TreasuryDeposit } from "./TreasuryDeposit";
 import { TreasuryNFTDeposit } from "./TreasuryNFTDeposit";
 import { EditDaoProfile } from "./EditDaoProfile";
+import { EditProposalCost } from "./EditProposalCost";
 import { useWax } from "@/context/WaxContext";
 import { saveVote, getVotesForDao } from "@/lib/voteStorage";
 import { 
@@ -87,6 +88,7 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
   const [treasuryLoading, setTreasuryLoading] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showEditPropCost, setShowEditPropCost] = useState(false);
   
   // IPFS gateway fallback indices
   const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
@@ -513,6 +515,17 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
                       <Coins className="h-4 w-4 mx-auto text-cheese mb-1" />
                       <p className="text-lg font-bold truncate text-sm">{dao.proposal_cost ?? "0"}</p>
                       <p className="text-xs text-muted-foreground">Proposal Cost</p>
+                      {accountName && dao.creator === accountName && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 h-6 text-xs text-cheese hover:text-cheese/80"
+                          onClick={() => setShowEditPropCost(true)}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -941,6 +954,16 @@ export function DaoDetail({ dao: initialDao, open, onClose }: DaoDetailProps) {
           open={showEditProfile}
           onClose={() => setShowEditProfile(false)}
           onProfileUpdated={handleProfileUpdated}
+        />
+      )}
+
+      {/* Edit Proposal Cost Dialog */}
+      {showEditPropCost && (
+        <EditProposalCost
+          dao={dao}
+          open={showEditPropCost}
+          onClose={() => setShowEditPropCost(false)}
+          onCostUpdated={handleProfileUpdated}
         />
       )}
     </Dialog>

@@ -22,7 +22,7 @@ using namespace std;
 
 // Constants
 static constexpr name CHEESE_CONTRACT = "cheeseburger"_n;
-static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 8);
+static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 4);
 static constexpr name WAXDAO_CONTRACT = "token.waxdao"_n;
 static constexpr symbol WAXDAO_SYMBOL = symbol("WAXDAO", 8);
 static constexpr name DAO_CONTRACT = "dao.waxdao"_n;

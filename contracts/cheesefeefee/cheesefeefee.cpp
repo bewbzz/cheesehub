@@ -137,8 +137,8 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     check(cheese_wax_price > 0, "Invalid CHEESE price from Alcor");
     check(waxdao_wax_price > 0, "Invalid WAXDAO price from Alcor");
     
-    // Convert CHEESE amount to double (8 decimals)
-    double cheese_value = (double)cheese_amount.amount / 100000000.0;
+    // Convert CHEESE amount to double (4 decimals)
+    double cheese_value = (double)cheese_amount.amount / 10000.0;
     
     // CHEESE -> WAX value
     double wax_value = cheese_value * cheese_wax_price;

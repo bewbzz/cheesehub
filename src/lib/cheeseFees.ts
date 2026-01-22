@@ -25,7 +25,7 @@ export const CHEESE_FEE_ENABLED = true;
 export const CHEESE_FEE_CONTRACT = "cheesefeefee";
 export const CHEESE_TOKEN_CONTRACT = "cheeseburger";
 export const CHEESE_TOKEN_SYMBOL = "CHEESE";
-export const CHEESE_TOKEN_PRECISION = 8;
+export const CHEESE_TOKEN_PRECISION = 4;
 
 export const WAXDAO_TOKEN_CONTRACT = "token.waxdao";
 export const WAXDAO_TOKEN_SYMBOL = "WAXDAO";

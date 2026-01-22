@@ -140,7 +140,7 @@ const Index = () => {
                 </div>
                 <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the DAO.WAXDAO smart contract and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
+                  Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
                 </p>
                 <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                   <Link to="/dao">
@@ -197,7 +197,7 @@ const Index = () => {
                 </div>
                 <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span></h2>
                 <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the FARMS.WAXDAO smart contract and acting as an alternate Front-End CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
+                  Powered by the FARMS.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
                 </p>
                 <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                   <Link to="/farm">

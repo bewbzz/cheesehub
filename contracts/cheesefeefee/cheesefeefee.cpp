@@ -6,8 +6,8 @@
  * 
  * When CHEESE is received:
  * 1. Parse memo to get fee type and entity name
- * 2. Query Alcor pools for CHEESE/WAX and WAXDAO/WAX prices
- * 3. Calculate WAXDAO amount based on CHEESE value with 20% discount
+ * 2. Query Alcor Pool 1252 (CHEESE/WAX) for value validation
+ * 3. Query Alcor Pool 8017 (CHEESE/WAXDAO) for direct conversion at market rate
  * 4. Verify creation action exists in the same transaction (bundled)
  * 5. Send calculated WAXDAO to user via inline action
  * 6. Burn CHEESE to eosio.null via inline action

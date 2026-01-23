@@ -792,7 +792,7 @@ export function CreateDao() {
                   <Label htmlFor="tokenContract">Token Contract *</Label>
                   <Input
                     id="tokenContract"
-                    placeholder="e.g., eosio.token"
+                    placeholder="e.g., cheeseburger"
                     value={formData.tokenContract}
                     onChange={(e) => setFormData({ ...formData, tokenContract: e.target.value })}
                   />

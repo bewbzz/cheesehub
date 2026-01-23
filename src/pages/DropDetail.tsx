@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw, User } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -75,8 +75,6 @@ const DropDetail = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authLoadError, setAuthLoadError] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: drop, isLoading } = useQuery({
@@ -105,28 +103,15 @@ const DropDetail = () => {
   }, [drop?.image]);
 
   // Fetch auth requirements when drop is loaded and auth is required
-  const loadAuthRequirements = useCallback(async () => {
-    if (drop?.authRequired && drop.dropId) {
-      setAuthLoading(true);
-      setAuthLoadError(false);
-      try {
+  useEffect(() => {
+    async function loadAuthRequirements() {
+      if (drop?.authRequired && drop.dropId) {
         const reqs = await fetchDropAuthRequirements(drop.dropId);
         setAuthRequirements(reqs);
-        if (reqs.length === 0) {
-          console.warn('[Auth] No requirements found for auth-required drop');
-        }
-      } catch (err) {
-        console.error('[Auth] Failed to load requirements:', err);
-        setAuthLoadError(true);
-      } finally {
-        setAuthLoading(false);
       }
     }
-  }, [drop?.authRequired, drop?.dropId]);
-
-  useEffect(() => {
     loadAuthRequirements();
-  }, [loadAuthRequirements]);
+  }, [drop?.authRequired, drop?.dropId]);
 
   // Check user eligibility
   const eligibility = useDropEligibility(
@@ -342,84 +327,15 @@ const DropDetail = () => {
                   </h3>
                 </div>
                 
-                {authLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading eligibility requirements...
-                  </div>
-                ) : authRequirements.length > 0 ? (
-                  <div className="space-y-3 mb-4">
-                    {/* Show logic operator if multiple requirements */}
-                    {authRequirements.length > 1 && (
-                      <p className="text-xs text-muted-foreground">
-                        {authRequirements[0]?.logicOperator === 'or' 
-                          ? 'Meet ANY of the following requirements:' 
-                          : 'Meet ALL of the following requirements:'}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {authRequirements.map((req, i) => {
-                        let href: string;
-                        let label: string;
-                        let icon: React.ReactNode = <ExternalLink className="h-3 w-3" />;
-                        
-                        if (req.type === 'account' && req.authorizedAccount) {
-                          // Account whitelist - link to waxblock account
-                          href = `https://waxblock.io/account/${req.authorizedAccount}`;
-                          label = `Account: ${req.authorizedAccount}`;
-                          icon = <User className="h-3 w-3" />;
-                        } else if (req.type === 'template' && req.templateId) {
-                          href = `https://wax.atomichub.io/explorer/template/wax-mainnet/_/${req.templateId}`;
-                          label = `Template #${req.templateId}`;
-                        } else if (req.type === 'schema' && req.schemaName) {
-                          href = `https://atomichub.io/explorer/schema/wax-mainnet/${req.collectionName}/${req.schemaName}`;
-                          label = `${req.collectionName}:${req.schemaName}`;
-                        } else {
-                          href = `https://atomichub.io/explorer/collection/wax-mainnet/${req.collectionName}`;
-                          label = req.collectionName || 'Unknown';
-                        }
-                        
-                        return (
-                          <a
-                            key={i}
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50 text-sm font-medium text-primary hover:bg-muted hover:underline transition-colors"
-                          >
-                            {label}
-                            {icon}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : authLoadError || (drop?.authRequired && authRequirements.length === 0 && !authLoading) ? (
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm text-muted-foreground">
-                      Unable to load eligibility requirements
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={loadAuthRequirements}
-                        className="h-7 text-xs"
-                      >
-                        <RotateCw className="h-3 w-3 mr-1.5" />
-                        Retry
-                      </Button>
-                      <a
-                        href={`https://nfthive.io/drop/${drop?.dropId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1.5 text-xs rounded-md bg-muted hover:bg-muted/80 transition-colors"
-                      >
-                        Check on NFTHive
-                        <ExternalLink className="ml-1.5 h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
+                {eligibility.requirementsSummary.length > 0 ? (
+                  <ul className="space-y-2 mb-4">
+                    {eligibility.requirementsSummary.map((req, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-amber-500 mt-0.5">•</span>
+                        {req}
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <p className="text-sm text-muted-foreground mb-4">
                     This drop requires holding specific NFTs to claim.

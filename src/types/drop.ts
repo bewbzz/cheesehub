@@ -2,12 +2,10 @@ export type DropSource = 'nfthive' | 'neftyblocks' | 'atomichub' | 'sale';
 
 // Auth requirement types for restricted drops
 export interface DropAuthRequirement {
-  type: 'collection' | 'schema' | 'template' | 'account';
-  collectionName?: string;
+  type: 'collection' | 'schema' | 'template';
+  collectionName: string;
   schemaName?: string;
   templateId?: number;
-  authorizedAccount?: string;
-  logicOperator?: 'and' | 'or';
 }
 
 export interface NFTDrop {

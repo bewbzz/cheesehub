@@ -69,15 +69,12 @@ export function useDropsLoader(): DropsLoaderState {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const enrichmentAbortRef = useRef<AbortController | null>(null);
   const initialCacheRef = useRef<NFTDrop[] | null>(null);
-  const enrichmentStartedForRef = useRef<string | null>(null);
-  const enrichedDropsCountRef = useRef<number>(0);
 
   // Load from cache on mount
   useEffect(() => {
     initialCacheRef.current = loadCachedDrops();
     if (initialCacheRef.current) {
       setEnrichedDrops(initialCacheRef.current);
-      enrichedDropsCountRef.current = initialCacheRef.current.length;
     }
   }, []);
 
@@ -91,34 +88,24 @@ export function useDropsLoader(): DropsLoaderState {
   });
 
   // Separate enrichment effect - runs independently of React Query's abort signal
-  // IMPORTANT: No cleanup abort - we want enrichment to complete even on re-renders
   useEffect(() => {
     if (!rawDrops?.length) return;
 
-    // Create a stable key for the current raw drops set
-    const dropsKey = rawDrops.map(d => d.id).sort().join(',');
-    
-    // Skip if we've already started enrichment for this exact set
-    if (enrichmentStartedForRef.current === dropsKey) {
-      return;
-    }
-
     // If we have cached enriched drops with images, skip re-enrichment
     const hasEnrichedCache = initialCacheRef.current?.some(d => d.image && d.image !== '/placeholder.svg');
-    if (hasEnrichedCache && enrichedDropsCountRef.current > 0) {
+    if (hasEnrichedCache && enrichedDrops.length > 0) {
       // Only re-enrich if the raw drop count changed significantly
-      const countDiff = Math.abs(rawDrops.length - enrichedDropsCountRef.current);
+      const countDiff = Math.abs(rawDrops.length - enrichedDrops.length);
       if (countDiff < 5) {
         return;
       }
     }
 
-    // Cancel any previous enrichment for DIFFERENT data
+    // Cancel any previous enrichment
     if (enrichmentAbortRef.current) {
       enrichmentAbortRef.current.abort();
     }
     enrichmentAbortRef.current = new AbortController();
-    enrichmentStartedForRef.current = dropsKey;
 
     console.log('[DropsLoader] Starting template enrichment for', rawDrops.length, 'drops');
 
@@ -129,7 +116,6 @@ export function useDropsLoader(): DropsLoaderState {
       (progress, partialDrops) => {
         setEnrichmentProgress(progress);
         setEnrichedDrops(partialDrops);
-        enrichedDropsCountRef.current = partialDrops.length;
         
         // Save to cache as we go
         if (progress.loaded === progress.total && progress.total > 0) {
@@ -143,16 +129,18 @@ export function useDropsLoader(): DropsLoaderState {
       }
     });
 
-    // NO CLEANUP - we don't want to abort on re-renders, only when dropsKey changes
+    return () => {
+      if (enrichmentAbortRef.current) {
+        enrichmentAbortRef.current.abort();
+      }
+    };
   }, [rawDrops]);
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     clearDropsCache();
     initialCacheRef.current = null;
-    enrichmentStartedForRef.current = null; // Reset so enrichment can restart
     setEnrichedDrops([]);
-    enrichedDropsCountRef.current = 0;
     setEnrichmentProgress({ loaded: 0, total: 0 });
     
     // Cancel any ongoing enrichment

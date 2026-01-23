@@ -153,7 +153,7 @@ const Drops = () => {
       <DropsHero stats={cheeseStats} isLoading={isLoadingStats} />
 
       <main className="container pb-20">
-        <Tabs defaultValue="cheese" className="w-full">
+        <Tabs defaultValue="browse" className="w-full">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <TabsList className="grid w-full max-w-lg grid-cols-4">
               <TabsTrigger value="browse" className="flex items-center gap-2">

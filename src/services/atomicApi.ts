@@ -209,32 +209,32 @@ function parseListingPrice(listingPrice: string): { price: number; currency: str
 }
 
 // Fetch all prices for a specific drop from dropprices table
-// The dropprices table uses 'nfthivedrops' as scope, with drop_id as secondary index
+// The dropprices table uses 'nfthivedrops' as scope
 async function fetchDropPrices(dropId: string | number): Promise<DropPrice[]> {
   try {
     const numericDropId = typeof dropId === 'string' ? parseInt(dropId) : dropId;
     
-    // Query dropprices table with contract scope, filtering by drop_id via secondary index
+    // Query dropprices table - fetch rows and filter by drop_id
+    // We'll try fetching with lower_bound on primary key first, then filter
     const response = await fetch('https://wax.eosusa.io/v1/chain/get_table_rows', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         json: true,
         code: 'nfthivedrops',
-        scope: 'nfthivedrops',  // Contract name as scope
+        scope: 'nfthivedrops',
         table: 'dropprices',
-        index_position: 2,       // Secondary index on drop_id
-        key_type: 'i64',
-        lower_bound: numericDropId.toString(),
-        upper_bound: numericDropId.toString(),
-        limit: 20,
+        limit: 1000, // Fetch more rows to find our drop's prices
       }),
     });
     
     const data = await response.json();
-    const dropPrices: OnChainDropPrice[] = data.rows || [];
+    const allPrices: OnChainDropPrice[] = data.rows || [];
     
-    console.log(`[NFTHive] Drop ${numericDropId} prices (${dropPrices.length} options):`, dropPrices);
+    // Filter to only prices for this specific drop
+    const dropPrices = allPrices.filter(row => row.drop_id === numericDropId);
+    
+    console.log(`[NFTHive] Drop ${numericDropId} prices: found ${dropPrices.length} of ${allPrices.length} total`, dropPrices);
     
     if (!dropPrices.length) return [];
     

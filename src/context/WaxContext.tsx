@@ -24,7 +24,14 @@ interface WaxContextType {
     memo: string
   ) => Promise<string | null>;
   transferNFTs: (to: string, assetIds: string[], memo: string) => Promise<string | null>;
-  claimDrop: (dropId: string, quantity: number, totalPrice: number) => Promise<string | null>;
+  claimDrop: (
+    dropId: string, 
+    quantity: number, 
+    listingPrice: string,
+    tokenContract: string,
+    tokenSymbol: string,
+    precision: number
+  ) => Promise<string | null>;
   claimFreeDrop: (dropId: string, quantity: number) => Promise<string | null>;
   joinDao: (daoName: string) => Promise<string | null>;
   leaveDao: (daoName: string) => Promise<string | null>;
@@ -305,7 +312,10 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   const claimDrop = async (
     dropId: string,
     quantity: number,
-    totalPrice: number
+    listingPrice: string,
+    tokenContract: string,
+    tokenSymbol: string,
+    precision: number
   ): Promise<string | null> => {
     if (!session) {
       toast({
@@ -316,12 +326,14 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    const priceQuantity = `${totalPrice.toFixed(CHEESE_CONFIG.tokenPrecision)} ${CHEESE_CONFIG.tokenSymbol}`;
+    // Calculate total price (listingPrice is per unit, e.g., "100.0000 CHEESE")
+    const priceAmount = parseFloat(listingPrice.split(' ')[0]) * quantity;
+    const priceQuantity = `${priceAmount.toFixed(precision)} ${tokenSymbol}`;
 
     try {
       const actions = [
         {
-          account: CHEESE_CONFIG.tokenContract,
+          account: tokenContract,
           name: 'transfer',
           authorization: [session.permissionLevel],
           data: {
@@ -342,7 +354,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
             intended_delphi_median: 0,
             referrer: '',
             country: '',
-            currency: `${CHEESE_CONFIG.tokenPrecision},${CHEESE_CONFIG.tokenSymbol}`,
+            currency: `${precision},${tokenSymbol}`,
           },
         },
       ];

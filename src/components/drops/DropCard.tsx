@@ -274,7 +274,16 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
           className="bg-primary text-primary-foreground hover:bg-primary/90"
           onClick={(e) => {
             e.preventDefault();
-            addToCart(drop);
+            // Use primary price from prices array or fallback to drop.price
+            const primaryPrice = drop.prices?.[0];
+            const selectedPrice = {
+              price: primaryPrice?.price ?? drop.price,
+              currency: primaryPrice?.currency ?? drop.currency ?? 'WAX',
+              tokenContract: primaryPrice?.tokenContract ?? drop.tokenContract ?? 'eosio.token',
+              precision: primaryPrice?.precision ?? 8,
+              listingPrice: primaryPrice?.listingPrice ?? drop.listingPrice ?? `${drop.price} WAX`,
+            };
+            addToCart(drop, selectedPrice);
           }}
           disabled={drop.remaining === 0}
         >

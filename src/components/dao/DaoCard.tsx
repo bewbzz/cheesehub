@@ -139,7 +139,7 @@ export function DaoCard({ dao }: DaoCardProps) {
           {/* View Button */}
           <Button
             onClick={() => setShowDetail(true)}
-            className="w-full bg-cheese/10 text-cheese hover:bg-cheese/20 border border-cheese/20"
+            className="w-full bg-[hsl(30_100%_50%)] text-black border-[hsl(30_100%_50%)] hover:bg-background hover:text-foreground hover:border-border"
             variant="outline"
           >
             <ExternalLink className="h-4 w-4 mr-2" />

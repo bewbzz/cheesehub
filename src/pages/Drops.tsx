@@ -54,7 +54,8 @@ const Drops = () => {
 
   // Filtered and sorted drops for browse tab
   const filteredDrops = useMemo(() => {
-    let result = displayDrops;
+    // Filter out auth-required drops - too complex to handle
+    let result = displayDrops.filter(drop => !drop.authRequired);
 
     // Filter active drops (not sold out, not ended)
     if (showActiveOnly) {

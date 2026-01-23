@@ -358,7 +358,7 @@ export async function enrichDropTemplates(
     try {
       const results = await Promise.allSettled(
         batch.map(async ([key, { templateId, collectionName }]) => {
-          const data = await fetchTemplateById(templateId, collectionName);
+          const data = await fetchTemplateById(templateId, collectionName, signal);
           return { key, data };
         })
       );
@@ -776,14 +776,19 @@ export async function fetchUserCollections(account: string): Promise<string[]> {
 // Fetch template by ID for preview
 export async function fetchTemplateById(
   templateId: string,
-  collectionName?: string
+  collectionName?: string,
+  signal?: AbortSignal
 ): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number } | null> {
   try {
     const path = collectionName 
       ? `${ATOMIC_API.paths.templates}/${collectionName}/${templateId}`
       : `${ATOMIC_API.paths.templates}/${templateId}`;
 
-    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const response = await fetchWithFallback(
+      ATOMIC_API.baseUrls, 
+      path, 
+      signal ? { signal } : undefined
+    );
     const json = await response.json();
 
     if (!json.success || !json.data) {
@@ -800,7 +805,10 @@ export async function fetchTemplateById(
       issuedSupply: parseInt(template.issued_supply) || 0,
     };
   } catch (error) {
-    console.error('Error fetching template:', error);
+    // Don't log abort errors
+    if ((error as Error).name !== 'AbortError') {
+      console.error('Error fetching template:', error);
+    }
     return null;
   }
 }

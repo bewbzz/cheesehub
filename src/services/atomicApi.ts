@@ -199,33 +199,51 @@ function parseListingPrice(listingPrice: string): { price: number; currency: str
   return { price: 0, currency: 'WAX' };
 }
 
-// Fetch drops directly from on-chain nfthivedrops contract
+// Fetch drops directly from on-chain nfthivedrops contract with pagination
 async function fetchOnChainNFTHiveDrops(collection?: string): Promise<NFTDrop[]> {
   try {
     const { fetchTableRows } = await import('@/lib/waxRpcFallback');
 
-    const result = await fetchTableRows<OnChainNFTHiveDrop>({
-      code: 'nfthivedrops',
-      scope: 'nfthivedrops',
-      table: 'drops',
-      limit: 1000,
-    });
+    let allDrops: OnChainNFTHiveDrop[] = [];
+    let hasMore = true;
+    let upperBound: string | undefined = undefined;
+    const MAX_ITERATIONS = 10; // Safety limit (10,000 drops max)
+    let iterations = 0;
 
-    let drops = result.rows;
+    // Fetch all drops with pagination (newest first using reverse)
+    while (hasMore && iterations < MAX_ITERATIONS) {
+      const result = await fetchTableRows<OnChainNFTHiveDrop>({
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'drops',
+        limit: 1000,
+        reverse: true,
+        ...(upperBound ? { upper_bound: upperBound } : {}),
+      });
+
+      allDrops.push(...result.rows);
+      hasMore = result.more || false;
+
+      if (result.rows.length > 0) {
+        // For reverse pagination, use the smallest drop_id minus 1 as upper_bound
+        const lastDropId = result.rows[result.rows.length - 1].drop_id;
+        upperBound = String(lastDropId - 1);
+      } else {
+        hasMore = false;
+      }
+
+      iterations++;
+    }
+
+    let drops = allDrops;
 
     // Filter by collection if specified
     if (collection) {
       drops = drops.filter(d => d.collection_name === collection);
     }
 
-    // Filter out hidden drops and apply time-based filtering
-    const now = Math.floor(Date.now() / 1000);
-    drops = drops.filter(d => {
-      if (d.is_hidden) return false;
-      // Show drops that haven't ended (end_time 0 means no end)
-      if (d.end_time > 0 && d.end_time < now) return false;
-      return true;
-    });
+    // Only filter hidden drops - let UI handle time-based filtering
+    drops = drops.filter(d => !d.is_hidden);
 
     // Enrich drops with template metadata from AtomicAssets
     const enrichedDrops = await Promise.all(

@@ -189,9 +189,11 @@ interface OnChainNFTHiveDrop {
 
 // On-chain dropprices table row type
 interface OnChainDropPrice {
+  id: number;
   drop_id: number;
   listing_price: string;
   token_contract: string;
+  token_symbol: string;
 }
 
 // Parse price string like "4.00 USD" or "5.90000000 LIMBO" into number and currency
@@ -207,22 +209,37 @@ function parseListingPrice(listingPrice: string): { price: number; currency: str
 }
 
 // Fetch all prices for a specific drop from dropprices table
+// Returns additional price options beyond the primary price in listing_price
 async function fetchDropPrices(dropId: string | number): Promise<DropPrice[]> {
   try {
-    const { fetchTableRows } = await import('@/lib/waxRpcFallback');
     const numericDropId = typeof dropId === 'string' ? parseInt(dropId) : dropId;
     
-    // Fetch prices scoped by drop_id
-    const result = await fetchTableRows<OnChainDropPrice>({
-      code: 'nfthivedrops',
-      scope: numericDropId.toString(),
-      table: 'dropprices',
-      limit: 20, // Most drops won't have more than a few price options
+    // Use secondary index to efficiently query by drop_id
+    // The dropprices table uses drop_id as a secondary index
+    const response = await fetch('https://wax.eosusa.io/v1/chain/get_table_rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        json: true,
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'dropprices',
+        index_position: 2,
+        key_type: 'i64',
+        lower_bound: numericDropId.toString(),
+        upper_bound: numericDropId.toString(),
+        limit: 20,
+      }),
     });
     
-    if (!result.rows.length) return [];
+    const data = await response.json();
+    const dropPrices: OnChainDropPrice[] = data.rows || [];
     
-    return result.rows.map((row): DropPrice => {
+    console.log(`[NFTHive] Drop ${numericDropId} has ${dropPrices.length} price options from dropprices table:`, dropPrices);
+    
+    if (!dropPrices.length) return [];
+    
+    return dropPrices.map((row): DropPrice => {
       const { price, currency } = parseListingPrice(row.listing_price);
       return {
         price,
@@ -564,15 +581,20 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
       // Convert to base NFTDrop format
       const baseDrop = rawDropToNFTDrop(onChainDrop);
       
-      // Add prices array if we found any
-      if (prices.length > 0) {
-        baseDrop.prices = prices;
-        // Update primary price to first price option
-        baseDrop.price = prices[0].price;
-        baseDrop.currency = prices[0].currency;
-        baseDrop.tokenContract = prices[0].tokenContract;
-        baseDrop.listingPrice = prices[0].listingPrice;
-      }
+      // Build prices array: start with primary price from listing_price field
+      const primaryPrice: DropPrice = {
+        price: baseDrop.price,
+        currency: baseDrop.currency || 'WAX',
+        tokenContract: undefined, // Primary price contract not stored separately
+        listingPrice: onChainDrop.listing_price,
+      };
+      
+      // Combine primary price with any additional prices from dropprices table
+      // Filter out duplicates (same currency)
+      const additionalPrices = prices.filter(p => p.currency !== primaryPrice.currency);
+      baseDrop.prices = [primaryPrice, ...additionalPrices];
+      
+      console.log(`[NFTHive] Drop ${nfthiveDropId} total prices:`, baseDrop.prices);
       
       // Fetch template metadata for images/name
       if (baseDrop.templateId && baseDrop.collectionName) {

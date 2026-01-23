@@ -60,20 +60,35 @@ export function useDropEligibility(
       // Fetch user's NFT holdings directly from on-chain
       const ownedAssets = await fetchUserAssets(accountName);
 
-      // Check each requirement
+      // Check each requirement - determine logic operator (default AND)
       const matchingIds: string[] = [];
-      let allRequirementsMet = true;
+      const logicOperator = authRequirements[0]?.logicOperator || 'and';
+      let requirementResults: boolean[] = [];
 
       for (const req of authRequirements) {
-        const matching = findMatchingAssets(ownedAssets, req);
-        if (matching.length > 0) {
-          matchingIds.push(...matching.map(a => a.asset_id));
+        let requirementMet = false;
+        
+        if (req.type === 'account') {
+          // Account whitelist - check if user is the authorized account
+          requirementMet = accountName === req.authorizedAccount;
         } else {
-          allRequirementsMet = false;
+          // NFT-based requirement
+          const matching = findMatchingAssets(ownedAssets, req);
+          if (matching.length > 0) {
+            matchingIds.push(...matching.map(a => a.asset_id));
+            requirementMet = true;
+          }
         }
+        
+        requirementResults.push(requirementMet);
       }
 
-      setIsEligible(allRequirementsMet);
+      // Determine overall eligibility based on logic operator
+      const isEligibleResult = logicOperator === 'or' 
+        ? requirementResults.some(r => r) 
+        : requirementResults.every(r => r);
+
+      setIsEligible(isEligibleResult);
       setMatchingAssetIds([...new Set(matchingIds)]);
       setRequirementsSummary(buildRequirementsSummary(authRequirements));
     } catch (err) {
@@ -149,6 +164,11 @@ function findMatchingAssets(
   assets: OwnedAsset[],
   requirement: DropAuthRequirement
 ): OwnedAsset[] {
+  // Account type doesn't have matching assets
+  if (requirement.type === 'account') {
+    return [];
+  }
+  
   return assets.filter(asset => {
     // Must match collection
     if (asset.collection_name !== requirement.collectionName) {
@@ -174,6 +194,9 @@ function findMatchingAssets(
  */
 function buildRequirementsSummary(requirements: DropAuthRequirement[]): string[] {
   return requirements.map(req => {
+    if (req.type === 'account') {
+      return `Whitelisted account: ${req.authorizedAccount}`;
+    }
     if (req.templateId) {
       return `Template #${req.templateId} from ${req.collectionName}`;
     }
@@ -244,15 +267,27 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
     console.log(`[Auth] Found ${result.rows.length} auth requirements for drop ${dropId}`, result.rows);
 
     return result.rows.map(row => {
-      const type: 'collection' | 'schema' | 'template' = 
-        row.filter_type === 2 ? 'template' : 
-        row.filter_type === 1 ? 'schema' : 'collection';
+      // Determine type based on filter_type and authorized_account
+      let type: 'collection' | 'schema' | 'template' | 'account';
+      
+      if (row.authorized_account && row.authorized_account !== '') {
+        // Account whitelist - authorized_account is populated
+        type = 'account';
+      } else if (row.filter_type === 2) {
+        type = 'template';
+      } else if (row.filter_type === 1) {
+        type = 'schema';
+      } else {
+        type = 'collection';
+      }
 
       return {
         type,
-        collectionName: row.collection_name,
+        collectionName: row.collection_name || undefined,
         schemaName: row.schema_name || undefined,
         templateId: row.template_id || undefined,
+        authorizedAccount: row.authorized_account || undefined,
+        logicOperator: row.logic_operator === 1 ? 'or' : 'and',
       };
     });
   } catch (error) {

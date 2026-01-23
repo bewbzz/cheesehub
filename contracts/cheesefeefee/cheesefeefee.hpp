@@ -63,13 +63,34 @@ public:
     ACTION withdraw(name token_contract, name to, asset quantity);
 
     // Alcor pool table struct (read from swap.alcor)
+    // Must match the exact structure from swap.alcor contract
     struct alcor_pool {
         uint64_t id;
         bool active;
-        struct {
+        
+        // Token info with symbol (contains precision)
+        struct extended_symbol {
+            eosio::symbol sym;
+            name contract;
+        };
+        extended_symbol tokenA;
+        extended_symbol tokenB;
+        
+        // Fee and liquidity fields (must be present even if unused)
+        uint32_t fee;
+        int32_t tickSpacing;
+        uint128_t maxLiquidityPerTick;
+        
+        struct slot0 {
             uint128_t sqrtPriceX64;
             int32_t tick;
         } currSlot;
+        
+        uint64_t feeGrowthGlobalAX64;
+        uint64_t feeGrowthGlobalBX64;
+        uint64_t protocolFeeA;
+        uint64_t protocolFeeB;
+        uint128_t liquidity;
         
         uint64_t primary_key() const { return id; }
     };

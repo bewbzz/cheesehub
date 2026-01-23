@@ -108,6 +108,12 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
 
 /**
  * @brief Get token price in WAX from Alcor pool using sqrtPriceX64
+ * Returns price of tokenA in terms of tokenB, adjusted for decimal precision
+ * 
+ * Formula: price = (sqrtPriceX64 / 2^64)^2 * 10^(precisionA - precisionB)
+ * 
+ * For CHEESE/WAX pool (1095): CHEESE is tokenA (4 decimals), WAX is tokenB (8 decimals)
+ * For WAXDAO/WAX pool (274): WAXDAO is tokenA (8 decimals), WAX is tokenB (8 decimals)
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
@@ -115,13 +121,22 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     check(pool != pools.end(), "Alcor pool not found");
     check(pool->active, "Alcor pool is not active");
     
-    // Convert sqrtPriceX64 to price
-    // Price = (sqrtPriceX64 / 2^64)^2
+    // Get token precisions from pool
+    uint8_t precisionA = pool->tokenA.sym.precision();
+    uint8_t precisionB = pool->tokenB.sym.precision();
+    
+    // Convert sqrtPriceX64 to raw price
+    // Raw price = (sqrtPriceX64 / 2^64)^2
     uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
     double normalized = (double)sqrtPrice / (double)(1ULL << 64);
-    double price = normalized * normalized;
+    double raw_price = normalized * normalized;
     
-    return price;
+    // Apply decimal precision adjustment
+    // Adjusted price = raw_price * 10^(precisionA - precisionB)
+    int precision_diff = (int)precisionA - (int)precisionB;
+    double adjusted_price = raw_price * pow(10.0, precision_diff);
+    
+    return adjusted_price;
 }
 
 /**

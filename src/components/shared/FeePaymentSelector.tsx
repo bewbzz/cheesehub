@@ -37,8 +37,7 @@ export function FeePaymentSelector({
   hideCheeseOption = false,
 }: FeePaymentSelectorProps) {
   const cheesePricing = useCheeseFeePricing(waxFee);
-  // Calculate WAXDAO based on CHEESE amount (matches contract calculation)
-  const waxdaoPricing = useWaxdaoFeePricing(cheesePricing.cheeseAmount);
+  const waxdaoPricing = useWaxdaoFeePricing();
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
@@ -52,10 +51,10 @@ export function FeePaymentSelector({
 
   // Update parent with WAXDAO amount when pricing changes and CHEESE is selected
   useEffect(() => {
-    if (waxdaoPricing.isAvailable && waxdaoPricing.waxdaoAmount > 0 && onWaxdaoAmountChange && selectedMethod === "cheese") {
+    if (waxdaoPricing.isAvailable && onWaxdaoAmountChange && selectedMethod === "cheese") {
       onWaxdaoAmountChange(waxdaoPricing.formattedForTx);
     }
-  }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, waxdaoPricing.waxdaoAmount, selectedMethod, onWaxdaoAmountChange]);
+  }, [waxdaoPricing.formattedForTx, waxdaoPricing.isAvailable, selectedMethod, onWaxdaoAmountChange]);
 
   // Fetch fresh prices AND check pool balance when CHEESE is selected (real-time calculation)
   useEffect(() => {

@@ -37,7 +37,7 @@ static constexpr uint64_t CHEESE_WAXDAO_POOL_ID = 8017; // CHEESE/WAXDAO pool (f
 // 1:1 WAX value exchange: 200 WAX of CHEESE -> 200 WAX of WAXDAO
 // The "20% discount" is from reduced fee (200 WAX instead of 250 WAX), not exchange rate
 static constexpr double MIN_WAX_VALUE = 200.0;      // Minimum WAX value of CHEESE required
-static constexpr double WAX_VALUE_TOLERANCE = 0.02; // 2% tolerance for price fluctuations
+static constexpr double WAX_VALUE_TOLERANCE = 0.025; // 2.5% tolerance for price fluctuations
 
 CONTRACT cheesefeefee : public contract {
 public:

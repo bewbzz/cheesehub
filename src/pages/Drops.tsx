@@ -24,9 +24,22 @@ const DROPS_PER_PAGE = 50;
 
 const Drops = () => {
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState("newest");
-  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      return sessionStorage.getItem('cheesehub_drops_search') || "";
+    } catch { return ""; }
+  });
+  const [sortOption, setSortOption] = useState(() => {
+    try {
+      return sessionStorage.getItem('cheesehub_drops_sort') || "newest";
+    } catch { return "newest"; }
+  });
+  const [showActiveOnly, setShowActiveOnly] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('cheesehub_drops_active');
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
+  });
   const [currentPage, setCurrentPage] = useState(() => {
     try {
       const stored = sessionStorage.getItem('cheesehub_drops_page');
@@ -34,6 +47,19 @@ const Drops = () => {
       return isNaN(page) || page < 1 ? 1 : page;
     } catch { return 1; }
   });
+
+  // Persist filter state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('cheesehub_drops_search', searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    sessionStorage.setItem('cheesehub_drops_sort', sortOption);
+  }, [sortOption]);
+
+  useEffect(() => {
+    sessionStorage.setItem('cheesehub_drops_active', String(showActiveOnly));
+  }, [showActiveOnly]);
 
   // Fast loader - just fetches raw drops, no template enrichment
   const { drops, isLoading, isRefreshing, error, refresh } = useDropsLoader();
@@ -127,8 +153,13 @@ const Drops = () => {
   // Enrich CHEESE drops separately
   const { enrichedDrops: enrichedCheeseDrops, isEnriching: isEnrichingCheese } = useEnrichDrops(cheeseDrops);
 
-  // Reset page when filters change
+  // Reset page only when filters change (not on mount)
+  const isInitialMount = useMemo(() => ({ current: true }), []);
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setCurrentPage(1);
     sessionStorage.setItem('cheesehub_drops_page', '1');
   }, [searchQuery, sortOption, showActiveOnly]);

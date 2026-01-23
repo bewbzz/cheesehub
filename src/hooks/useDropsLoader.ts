@@ -73,6 +73,8 @@ export function useDropsLoader(): DropsLoaderState {
   const [enrichmentProgress, setEnrichmentProgress] = useState({ loaded: 0, total: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const enrichmentAbortRef = useRef<AbortController | null>(null);
+  const lastRawDropCountRef = useRef<number>(0);
+  const isEnrichingRef = useRef<boolean>(false);
 
   // Fast query - just gets raw drop data from chain (no template fetching)
   const { data: rawDrops, isLoading, error, refetch } = useQuery({
@@ -89,6 +91,9 @@ export function useDropsLoader(): DropsLoaderState {
   useEffect(() => {
     if (!rawDrops?.length) return;
 
+    // Prevent re-running if data hasn't actually changed (same count means same data)
+    const dropsCountChanged = rawDrops.length !== lastRawDropCountRef.current;
+    
     // If we have cached enriched drops with images, skip re-enrichment
     const hasEnrichedCache = initialCache?.some(d => d.image && d.image !== '/placeholder.svg');
     if (hasEnrichedCache && enrichedDrops.length > 0) {
@@ -99,7 +104,15 @@ export function useDropsLoader(): DropsLoaderState {
       }
     }
 
-    // Cancel any previous enrichment
+    // If enrichment is already running and data hasn't changed, don't restart
+    if (isEnrichingRef.current && !dropsCountChanged) {
+      return;
+    }
+
+    // Update count tracker
+    lastRawDropCountRef.current = rawDrops.length;
+
+    // Cancel any previous enrichment only if we're starting fresh
     if (enrichmentAbortRef.current) {
       enrichmentAbortRef.current.abort();
     }
@@ -107,6 +120,7 @@ export function useDropsLoader(): DropsLoaderState {
     const signal = enrichmentAbortRef.current.signal;
 
     console.log('[DropsLoader] Starting two-phase enrichment for', rawDrops.length, 'drops');
+    isEnrichingRef.current = true;
 
     // Split drops into priority (visible) and remaining (background)
     const priorityDrops = rawDrops.slice(0, PRIORITY_COUNT);
@@ -114,7 +128,6 @@ export function useDropsLoader(): DropsLoaderState {
 
     // Track enriched results
     let enrichedPriority: NFTDrop[] = [];
-    let enrichedRemaining: NFTDrop[] = remainingDrops; // Start with raw data
 
     const runEnrichment = async () => {
       try {
@@ -143,7 +156,6 @@ export function useDropsLoader(): DropsLoaderState {
             remainingDrops,
             signal,
             (progress, partialDrops) => {
-              enrichedRemaining = partialDrops;
               // Merge with already-enriched priority drops
               const allDrops = [...enrichedPriority, ...partialDrops];
               setEnrichedDrops(allDrops);
@@ -168,15 +180,15 @@ export function useDropsLoader(): DropsLoaderState {
         if (err?.name !== 'AbortError') {
           console.error('[DropsLoader] Enrichment failed:', err);
         }
+      } finally {
+        isEnrichingRef.current = false;
       }
     };
 
     runEnrichment();
 
     return () => {
-      if (enrichmentAbortRef.current) {
-        enrichmentAbortRef.current.abort();
-      }
+      // Only abort on unmount, not on re-render
     };
   }, [rawDrops]);
 

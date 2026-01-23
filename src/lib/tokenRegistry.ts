@@ -34,6 +34,7 @@ export const WAX_TOKENS: TokenConfig[] = [
   { symbol: 'BUZZ', contract: 'buzzingarden', precision: 4, displayName: 'BUZZ' },
   { symbol: 'LEEF', contract: 'leefmaincorp', precision: 4, displayName: 'LEEF' },
   { symbol: 'WAXDAO', contract: 'token.waxdao', precision: 8, displayName: 'WAXDAO' },
+  { symbol: 'RUGG', contract: 'rareruggapes', precision: 4, displayName: 'RUGG' },
   // Wrapped tokens via eth.token bridge
   { symbol: 'WAXWBTC', contract: 'eth.token', precision: 8, displayName: 'WAXWBTC' },
   { symbol: 'WAXWETH', contract: 'eth.token', precision: 8, displayName: 'WAXWETH' },

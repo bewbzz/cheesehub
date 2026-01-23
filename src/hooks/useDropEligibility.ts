@@ -25,62 +25,121 @@ interface NFTHiveAuthRequirement {
   logic_operator?: number;
 }
 
-// Try NFTHive's indexed REST API first (most reliable)
+// NFTHive API endpoint patterns to try
+const NFTHIVE_API_PATTERNS = [
+  (id: string) => `https://nfthive.io/api/drop/${id}`,
+  (id: string) => `https://wax-api.hivebp.io/api/drop/${id}`,
+  (id: string) => `https://wax-api.hivebp.io/nfthivedrops/drops/${id}`,
+  (id: string) => `https://wax-api.hivebp.io/api/v1/drops/${id}`,
+  (id: string) => `https://wax-api.hivebp.io/api/drops/${id}`,
+];
+
+// Hyperion endpoints for history queries
+const HYPERION_ENDPOINTS = [
+  'https://wax.eosusa.io',
+  'https://api.wax.alohaeos.com',
+  'https://wax.eosphere.io',
+  'https://wax.blokcrafters.io',
+  'https://hyperion.wax.eosrio.io',
+];
+
+function parseAuthRequirements(auths: NFTHiveAuthRequirement[]): DropAuthRequirement[] {
+  return auths.map((req) => ({
+    type: req.authorized_account && req.authorized_account !== ''
+      ? 'account'
+      : req.filter_type === 2
+      ? 'template'
+      : req.filter_type === 1
+      ? 'schema'
+      : 'collection',
+    collectionName: req.collection_name,
+    schemaName: req.schema_name,
+    templateId: req.template_id,
+    authorizedAccount: req.authorized_account,
+    logicOperator: req.logic_operator === 1 ? 'or' : 'and',
+  } as DropAuthRequirement));
+}
+
+// Strategy 1: Try multiple NFTHive API endpoint patterns
 async function fetchAuthFromNFTHiveAPI(dropId: string): Promise<DropAuthRequirement[]> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
-    const response = await fetch(
-      `https://wax-api.hivebp.io/api/drops/${dropId}`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      console.warn(`[Auth] NFTHive API returned ${response.status}`);
-      return [];
+  for (const pattern of NFTHIVE_API_PATTERNS) {
+    const url = pattern(dropId);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      
+      // Try different response structures
+      const auths = data.auth_requirements || data.auths || data.eligibility || data.requirements;
+      if (auths && Array.isArray(auths) && auths.length > 0) {
+        console.log(`[Auth] Found ${auths.length} requirements from ${url}`);
+        return parseAuthRequirements(auths);
+      }
+    } catch (error) {
+      // Try next pattern
     }
-    
-    const data = await response.json();
-    console.log(`[Auth] NFTHive API response for drop ${dropId}:`, data);
-    
-    // Parse auth_requirements from API response if available
-    if (data.auth_requirements && Array.isArray(data.auth_requirements)) {
-      console.log(`[Auth] Found ${data.auth_requirements.length} requirements from NFTHive API`);
-      return data.auth_requirements.map((req: NFTHiveAuthRequirement) => ({
-        type: req.authorized_account ? 'account' 
-            : req.filter_type === 2 ? 'template' 
-            : req.filter_type === 1 ? 'schema'
-            : 'collection',
-        collectionName: req.collection_name,
-        schemaName: req.schema_name,
-        templateId: req.template_id,
-        authorizedAccount: req.authorized_account,
-        logicOperator: req.logic_operator === 1 ? 'or' : 'and',
-      } as DropAuthRequirement));
-    }
-    
-    // Some API responses have 'auths' instead
-    if (data.auths && Array.isArray(data.auths)) {
-      console.log(`[Auth] Found ${data.auths.length} requirements from NFTHive API (auths field)`);
-      return data.auths.map((req: NFTHiveAuthRequirement) => ({
-        type: req.authorized_account ? 'account' 
-            : req.filter_type === 2 ? 'template' 
-            : req.filter_type === 1 ? 'schema'
-            : 'collection',
-        collectionName: req.collection_name,
-        schemaName: req.schema_name,
-        templateId: req.template_id,
-        authorizedAccount: req.authorized_account,
-        logicOperator: req.logic_operator === 1 ? 'or' : 'and',
-      } as DropAuthRequirement));
-    }
-    
-    console.log('[Auth] NFTHive API response had no auth_requirements or auths field');
-  } catch (error) {
-    console.warn('[Auth] NFTHive API failed:', error);
   }
+  console.warn('[Auth] All NFTHive API patterns failed');
+  return [];
+}
+
+// Strategy 2: Query Hyperion history for setauth actions
+async function fetchAuthFromHyperion(dropId: string): Promise<DropAuthRequirement[]> {
+  const numericDropId = parseInt(dropId, 10);
+  
+  for (const endpoint of HYPERION_ENDPOINTS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      // Query for setauth actions on this drop - use drop_id filter in URL when supported
+      const url = `${endpoint}/v2/history/get_actions?account=nfthivedrops&filter=nfthivedrops:setauth&limit=200`;
+      console.log(`[Auth] Trying Hyperion ${endpoint}...`);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      
+      if (data.actions && Array.isArray(data.actions)) {
+        // Filter to actions for this specific drop_id
+        const matchingActions = data.actions.filter((action: { act?: { data?: { drop_id?: number } } }) => 
+          action.act?.data?.drop_id === numericDropId
+        );
+        
+        if (matchingActions.length > 0) {
+          console.log(`[Auth] Found ${matchingActions.length} setauth actions from Hyperion ${endpoint}`);
+          return matchingActions.map((action: { act: { data: NFTHiveAuthRequirement } }) => {
+            const d = action.act.data;
+            return {
+              type: d.authorized_account && d.authorized_account !== ''
+                ? 'account'
+                : d.filter_type === 2
+                ? 'template'
+                : d.filter_type === 1
+                ? 'schema'
+                : 'collection',
+              collectionName: d.collection_name,
+              schemaName: d.schema_name,
+              templateId: d.template_id,
+              authorizedAccount: d.authorized_account,
+              logicOperator: d.logic_operator === 1 ? 'or' : 'and',
+            } as DropAuthRequirement;
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`[Auth] Hyperion ${endpoint} failed:`, error);
+    }
+  }
+  console.warn('[Auth] All Hyperion endpoints failed');
   return [];
 }
 
@@ -286,16 +345,22 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
     return [];
   }
 
-  // Strategy 1: Try NFTHive's indexed REST API first (most reliable)
-  console.log(`[Auth] Trying NFTHive API for drop ${dropId}...`);
+  // Strategy 1: Try NFTHive's REST API patterns first
+  console.log(`[Auth] Trying NFTHive API patterns for drop ${dropId}...`);
   const apiResult = await fetchAuthFromNFTHiveAPI(dropId);
   if (apiResult.length > 0) {
-    console.log(`[Auth] Got ${apiResult.length} requirements from NFTHive API`);
     return apiResult;
   }
 
-  // Strategy 2: Try on-chain with secondary index (drop_id)
-  console.log(`[Auth] NFTHive API returned no results, trying on-chain RPC...`);
+  // Strategy 2: Try Hyperion history API for setauth actions
+  console.log(`[Auth] Trying Hyperion history for drop ${dropId}...`);
+  const hyperionResult = await fetchAuthFromHyperion(dropId);
+  if (hyperionResult.length > 0) {
+    return hyperionResult;
+  }
+
+  // Strategy 3: Try on-chain with secondary index (drop_id)
+  console.log(`[Auth] Trying on-chain RPC for drop ${dropId}...`);
   const { fetchTableRows } = await import('@/lib/waxRpcFallback');
   
   try {
@@ -347,7 +412,7 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
     console.warn('[Auth] Secondary index query failed:', error);
   }
 
-  // Strategy 3: Try fetching a range and filter client-side (last resort)
+  // Strategy 4: Try fetching a range and filter client-side (last resort)
   console.log(`[Auth] Secondary index failed, trying range query...`);
   try {
     const result = await fetchTableRows<{

@@ -83,7 +83,9 @@ export function useDropsLoader(): DropsLoaderState {
     placeholderData: () => initialCache || undefined,
   });
 
-  // Separate enrichment effect - runs independently of React Query's abort signal
+  // Two-phase enrichment: prioritize visible drops first, then background load the rest
+  const PRIORITY_COUNT = 24; // First 2-3 screens worth of drops
+
   useEffect(() => {
     if (!rawDrops?.length) return;
 
@@ -102,28 +104,74 @@ export function useDropsLoader(): DropsLoaderState {
       enrichmentAbortRef.current.abort();
     }
     enrichmentAbortRef.current = new AbortController();
+    const signal = enrichmentAbortRef.current.signal;
 
-    console.log('[DropsLoader] Starting template enrichment for', rawDrops.length, 'drops');
+    console.log('[DropsLoader] Starting two-phase enrichment for', rawDrops.length, 'drops');
 
-    // Start enrichment - this runs in the background
-    enrichDropTemplates(
-      rawDrops,
-      enrichmentAbortRef.current.signal,
-      (progress, partialDrops) => {
-        setEnrichmentProgress(progress);
-        setEnrichedDrops(partialDrops);
-        
-        // Save to cache as we go
-        if (progress.loaded === progress.total && progress.total > 0) {
-          saveCacheDrops(partialDrops);
-          console.log('[DropsLoader] Enrichment complete, saved to cache');
+    // Split drops into priority (visible) and remaining (background)
+    const priorityDrops = rawDrops.slice(0, PRIORITY_COUNT);
+    const remainingDrops = rawDrops.slice(PRIORITY_COUNT);
+
+    // Track enriched results
+    let enrichedPriority: NFTDrop[] = [];
+    let enrichedRemaining: NFTDrop[] = remainingDrops; // Start with raw data
+
+    const runEnrichment = async () => {
+      try {
+        // Phase 1: Prioritize first screen of drops (fast)
+        console.log('[DropsLoader] Phase 1: Enriching', priorityDrops.length, 'priority drops');
+        await enrichDropTemplates(
+          priorityDrops,
+          signal,
+          (progress, partialDrops) => {
+            enrichedPriority = partialDrops;
+            // Show enriched priority + raw remaining immediately
+            setEnrichedDrops([...partialDrops, ...remainingDrops]);
+            setEnrichmentProgress({ 
+              loaded: progress.loaded, 
+              total: rawDrops.length 
+            });
+          }
+        );
+
+        if (signal.aborted) return;
+
+        // Phase 2: Enrich remaining drops in background
+        if (remainingDrops.length > 0) {
+          console.log('[DropsLoader] Phase 2: Enriching', remainingDrops.length, 'remaining drops');
+          await enrichDropTemplates(
+            remainingDrops,
+            signal,
+            (progress, partialDrops) => {
+              enrichedRemaining = partialDrops;
+              // Merge with already-enriched priority drops
+              const allDrops = [...enrichedPriority, ...partialDrops];
+              setEnrichedDrops(allDrops);
+              setEnrichmentProgress({ 
+                loaded: PRIORITY_COUNT + progress.loaded, 
+                total: rawDrops.length 
+              });
+
+              // Save to cache when fully complete
+              if (progress.loaded === progress.total && progress.total > 0) {
+                saveCacheDrops(allDrops);
+                console.log('[DropsLoader] Enrichment complete, saved to cache');
+              }
+            }
+          );
+        } else {
+          // No remaining drops, save priority drops to cache
+          saveCacheDrops(enrichedPriority);
+          console.log('[DropsLoader] Enrichment complete (priority only), saved to cache');
+        }
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.error('[DropsLoader] Enrichment failed:', err);
         }
       }
-    ).catch(err => {
-      if (err?.name !== 'AbortError') {
-        console.error('[DropsLoader] Enrichment failed:', err);
-      }
-    });
+    };
+
+    runEnrichment();
 
     return () => {
       if (enrichmentAbortRef.current) {

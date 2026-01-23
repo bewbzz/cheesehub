@@ -8,6 +8,7 @@ import { DropsPagination } from "@/components/drops/DropsPagination";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCheeseDropStats } from "@/services/atomicApi";
 import { useDropsLoader } from "@/hooks/useDropsLoader";
+import { useEnrichDrops, usePrefetchDrops } from "@/hooks/useEnrichDrops";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { NFTDrop } from "@/types/drop";
-import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
+import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X, Loader2 } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 import { useMemo, useState, useEffect } from "react";
 
@@ -34,8 +35,8 @@ const Drops = () => {
     } catch { return 1; }
   });
 
-  // Optimized drops loader with caching, batching, and progress
-  const { drops, isLoading, isRefreshing, error, progress, refresh } = useDropsLoader();
+  // Fast loader - just fetches raw drops, no template enrichment
+  const { drops, isLoading, isRefreshing, error, refresh } = useDropsLoader();
 
   // Fetch CHEESE drop stats from on-chain (includes historical)
   const { data: cheeseStats, isLoading: isLoadingStats } = useQuery({
@@ -104,10 +105,27 @@ const Drops = () => {
   const totalPages = Math.max(1, Math.ceil(filteredDrops.length / DROPS_PER_PAGE));
   const validPage = Math.min(Math.max(1, currentPage), totalPages);
   
+  // Get current page's raw drops
   const paginatedDrops = useMemo(() => {
     const start = (validPage - 1) * DROPS_PER_PAGE;
     return filteredDrops.slice(start, start + DROPS_PER_PAGE);
   }, [filteredDrops, validPage]);
+
+  // Get next page's drops for prefetching
+  const nextPageDrops = useMemo(() => {
+    if (validPage >= totalPages) return [];
+    const start = validPage * DROPS_PER_PAGE;
+    return filteredDrops.slice(start, start + DROPS_PER_PAGE);
+  }, [filteredDrops, validPage, totalPages]);
+
+  // Enrich only the current page's drops (50 max) - FAST!
+  const { enrichedDrops, isEnriching, progress } = useEnrichDrops(paginatedDrops);
+
+  // Prefetch next page in background (low priority)
+  usePrefetchDrops(nextPageDrops, !isEnriching && validPage < totalPages);
+
+  // Enrich CHEESE drops separately
+  const { enrichedDrops: enrichedCheeseDrops, isEnriching: isEnrichingCheese } = useEnrichDrops(cheeseDrops);
 
   // Reset page when filters change
   useEffect(() => {
@@ -115,7 +133,7 @@ const Drops = () => {
     sessionStorage.setItem('cheesehub_drops_page', '1');
   }, [searchQuery, sortOption, showActiveOnly]);
 
-  // Persist page
+  // Persist page and scroll to top
   const handlePageChange = (page: number) => {
     const newPage = Math.min(Math.max(1, page), totalPages);
     setCurrentPage(newPage);
@@ -210,9 +228,17 @@ const Drops = () => {
                   <span className="text-sm text-muted-foreground">{filteredDrops.length} drops</span>
                 </div>
               </div>
+
+              {/* Page enrichment progress */}
+              {isEnriching && progress.total > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading images... {progress.loaded}/{progress.total}</span>
+                </div>
+              )}
             </div>
 
-            {isLoading && progress.total === 0 ? (
+            {isLoading ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">
@@ -239,12 +265,13 @@ const Drops = () => {
               </div>
             ) : (
               <>
-                <SimpleDropGrid drops={paginatedDrops} />
+                <SimpleDropGrid drops={enrichedDrops} />
                 <DropsPagination
                   currentPage={validPage}
                   totalPages={totalPages}
                   totalDrops={filteredDrops.length}
                   onPageChange={handlePageChange}
+                  isLoading={isEnriching}
                 />
               </>
             )}
@@ -258,9 +285,15 @@ const Drops = () => {
             <div className="mb-8">
               <h2 className="font-display text-3xl font-bold text-foreground">$CHEESE Drops</h2>
               <p className="text-muted-foreground mt-2">Drops purchasable with $CHEESE token</p>
+              {isEnrichingCheese && enrichedCheeseDrops.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading images...</span>
+                </div>
+              )}
             </div>
 
-            {isLoading ? (
+            {isLoading && cheeseDrops.length === 0 ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">
@@ -275,7 +308,7 @@ const Drops = () => {
                 <p className="text-lg text-muted-foreground">No active $CHEESE drops found.</p>
               </div>
             ) : (
-              <SimpleDropGrid drops={cheeseDrops} />
+              <SimpleDropGrid drops={enrichedCheeseDrops} />
             )}
           </TabsContent>
 

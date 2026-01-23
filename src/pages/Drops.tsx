@@ -38,8 +38,18 @@ const Drops = () => {
   const displayDrops: NFTDrop[] = drops || [];
 
   // Filter CHEESE drops from the already-fetched drops data (no extra API call)
+  // Also filter out sold out and ended drops to match browse tab behavior
   const cheeseDrops = useMemo(() => {
-    return displayDrops.filter(drop => drop.collectionName === CHEESE_CONFIG.collectionName);
+    const now = Date.now();
+    return displayDrops.filter(drop => {
+      // Must be CHEESE collection
+      if (drop.collectionName !== CHEESE_CONFIG.collectionName) return false;
+      
+      // Filter out sold out and ended drops (same logic as browse tab)
+      const isSoldOut = drop.remaining <= 0 && drop.totalSupply > 0;
+      const isEnded = drop.endDate ? new Date(drop.endDate).getTime() < now : false;
+      return !isSoldOut && !isEnded;
+    });
   }, [displayDrops]);
 
   // Filtered and sorted drops for browse tab

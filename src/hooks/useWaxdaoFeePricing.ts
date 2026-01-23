@@ -1,15 +1,15 @@
 import { useMemo } from "react";
 import { useAlcorTokenPrices } from "./useAlcorTokenPrices";
+import { CHEESE_TOKEN_CONTRACT, CHEESE_TOKEN_SYMBOL } from "@/lib/cheeseFees";
 
 // WAXDAO token configuration
 const WAXDAO_CONTRACT = "token.waxdao";
 const WAXDAO_SYMBOL = "WAXDAO";
 const WAXDAO_PRECISION = 8;
 
-// Fee configuration
-const WAX_FEE = 250; // Standard fee in WAX
-const WAXDAO_DISCOUNT = 0.20; // 20% discount when paying with WAXDAO
-const SAFETY_BUFFER = 0.005; // 0.5% buffer for price drift
+// Fee configuration - contract calculates based on CHEESE sent
+// No buffer needed here - contract handles its own buffer (2%)
+const WAXDAO_BUFFER = 0.02; // 2% buffer to match contract tolerance
 
 export interface WaxdaoFeePricing {
   /** Raw WAXDAO amount with buffer */
@@ -20,6 +20,8 @@ export interface WaxdaoFeePricing {
   displayAmount: string;
   /** Price of 1 WAXDAO in WAX */
   waxdaoWaxPrice: number;
+  /** Price of 1 CHEESE in WAXDAO (derived) */
+  cheeseWaxdaoPrice: number;
   /** Is price data loading */
   isLoading: boolean;
   /** Is price data available */
@@ -29,46 +31,59 @@ export interface WaxdaoFeePricing {
 }
 
 /**
- * Hook to calculate WAXDAO fee pricing using WaxDAO's formula
- * Uses Alcor exchange prices for real-time WAXDAO/WAX rate
+ * Hook to calculate WAXDAO amount that contract will return for given CHEESE
+ * Uses same calculation as contract: CHEESE amount × (CHEESE/WAX ÷ WAXDAO/WAX)
  * 
- * Formula: (250 WAX / WAXDAO_price) * 0.80 + 0.5% buffer
+ * This matches the contract's Pool 8017 direct conversion
  */
-export function useWaxdaoFeePricing(): WaxdaoFeePricing {
+export function useWaxdaoFeePricing(cheeseAmount?: number): WaxdaoFeePricing {
   const { data: prices, isLoading, refetch } = useAlcorTokenPrices();
 
   return useMemo(() => {
-    // Get WAXDAO price from Alcor
-    const priceKey = `${WAXDAO_CONTRACT}:${WAXDAO_SYMBOL}`;
-    const waxdaoWaxPrice = prices?.get(priceKey) ?? 0;
+    // Get both prices from Alcor
+    const cheeseKey = `${CHEESE_TOKEN_CONTRACT}:${CHEESE_TOKEN_SYMBOL}`;
+    const waxdaoKey = `${WAXDAO_CONTRACT}:${WAXDAO_SYMBOL}`;
+    
+    const cheeseWaxPrice = prices?.get(cheeseKey) ?? 0; // WAX per CHEESE
+    const waxdaoWaxPrice = prices?.get(waxdaoKey) ?? 0; // WAX per WAXDAO
 
-    if (waxdaoWaxPrice <= 0) {
+    if (cheeseWaxPrice <= 0 || waxdaoWaxPrice <= 0) {
       return {
         waxdaoAmount: 0,
         formattedForTx: "",
         displayAmount: "",
         waxdaoWaxPrice: 0,
+        cheeseWaxdaoPrice: 0,
         isLoading,
         isAvailable: false,
         refetch,
       };
     }
 
-    // WaxDAO formula: (250 WAX / price) * 0.80
-    const baseAmount = WAX_FEE / waxdaoWaxPrice;
-    const discountedAmount = baseAmount * (1 - WAXDAO_DISCOUNT);
+    // Calculate CHEESE/WAXDAO price (how many WAXDAO per 1 CHEESE)
+    // If 1 CHEESE = 1.47 WAX and 1 WAXDAO = 0.035 WAX
+    // Then 1 CHEESE = 1.47 / 0.035 = 42 WAXDAO
+    const cheeseWaxdaoPrice = cheeseWaxPrice / waxdaoWaxPrice;
     
-    // Add safety buffer to prevent failures from price drift
-    const finalAmount = discountedAmount * (1 + SAFETY_BUFFER);
+    // Calculate WAXDAO amount if cheeseAmount provided
+    // Otherwise just return the rates
+    let waxdaoAmount = 0;
+    if (cheeseAmount && cheeseAmount > 0) {
+      // Match contract calculation: cheese_value * waxdao_per_cheese
+      waxdaoAmount = cheeseAmount * cheeseWaxdaoPrice;
+      // Add buffer for slippage tolerance
+      waxdaoAmount = waxdaoAmount * (1 + WAXDAO_BUFFER);
+    }
 
     return {
-      waxdaoAmount: finalAmount,
-      formattedForTx: `${finalAmount.toFixed(WAXDAO_PRECISION)} WAXDAO`,
-      displayAmount: `${Math.ceil(finalAmount).toLocaleString()} WAXDAO`,
+      waxdaoAmount,
+      formattedForTx: waxdaoAmount > 0 ? `${waxdaoAmount.toFixed(WAXDAO_PRECISION)} WAXDAO` : "",
+      displayAmount: waxdaoAmount > 0 ? `${Math.ceil(waxdaoAmount).toLocaleString()} WAXDAO` : "",
       waxdaoWaxPrice,
+      cheeseWaxdaoPrice,
       isLoading,
       isAvailable: true,
       refetch,
     };
-  }, [prices, isLoading, refetch]);
+  }, [prices, cheeseAmount, isLoading, refetch]);
 }

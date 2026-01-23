@@ -94,9 +94,9 @@ export function CreateFarm() {
   const [cheeseAmount, setCheeseAmount] = useState("");
   const [waxdaoAmount, setWaxdaoAmount] = useState("");
   
-  // Pricing hooks
-  const waxdaoPricing = useWaxdaoFeePricing();
+  // Pricing hooks - order matters: cheesePricing first, then waxdaoPricing based on cheese amount
   const cheesePricing = useCheeseFeePricing(WAX_FEE_AMOUNT);
+  const waxdaoPricing = useWaxdaoFeePricing(cheesePricing.cheeseAmount);
   
   const handleCheeseAmountChange = useCallback((amount: string) => {
     setCheeseAmount(amount);

@@ -8,6 +8,14 @@ export interface DropAuthRequirement {
   templateId?: number;
 }
 
+// Price option for drops with multiple token prices
+export interface DropPrice {
+  price: number;
+  currency: string;
+  tokenContract?: string;
+  listingPrice: string; // Original format like "100.0000 CHEESE"
+}
+
 export interface NFTDrop {
   id: string;
   saleId?: string;
@@ -17,7 +25,8 @@ export interface NFTDrop {
   description: string;
   templateDescription?: string;
   image: string;
-  price: number;
+  price: number; // Primary price for backwards compatibility
+  prices?: DropPrice[]; // All available price options
   totalSupply: number;
   remaining: number;
   seller?: string;

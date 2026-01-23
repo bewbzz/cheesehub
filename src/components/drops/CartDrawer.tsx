@@ -6,15 +6,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useCart } from "@/context/CartContext";
+import { useCart, CartItem } from "@/context/CartContext";
 import { useWax } from "@/context/WaxContext";
 import { usePurchaseDrop } from "@/hooks/usePurchaseDrop";
 import { Separator } from "@/components/ui/separator";
+import { TokenLogo } from "@/components/TokenLogo";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function CartDrawer() {
-  const { items, removeFromCart, clearCart, totalPrice, isOpen, setIsOpen } = useCart();
-  const { isConnected, cheeseBalance, login, isLoading: isWalletLoading } = useWax();
+  const { items, removeFromCart, clearCart, isOpen, setIsOpen } = useCart();
+  const { isConnected, login, isLoading: isWalletLoading } = useWax();
   const { purchaseDrops, isPurchasing } = usePurchaseDrop();
 
   const handlePurchase = async () => {
@@ -25,7 +26,19 @@ export function CartDrawer() {
     await purchaseDrops(items);
   };
 
-  const insufficientBalance = isConnected && cheeseBalance < totalPrice;
+  // Group items by currency for display
+  const itemsByCurrency = items.reduce((acc, item) => {
+    const currency = item.selectedPrice.currency;
+    if (!acc[currency]) acc[currency] = [];
+    acc[currency].push(item);
+    return acc;
+  }, {} as Record<string, CartItem[]>);
+
+  const currencyTotals = Object.entries(itemsByCurrency).map(([currency, currencyItems]) => ({
+    currency,
+    total: currencyItems.reduce((sum, item) => sum + item.selectedPrice.price * item.quantity, 0),
+    tokenContract: currencyItems[0].selectedPrice.tokenContract,
+  }));
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -53,7 +66,7 @@ export function CartDrawer() {
               <div className="space-y-4">
                 {items.map((item) => (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${item.selectedPrice.currency}`}
                     className="flex gap-4 rounded-lg border border-border/50 bg-background/50 p-3"
                   >
                     <img
@@ -66,9 +79,13 @@ export function CartDrawer() {
                         {item.name}
                       </h4>
                       <div className="mt-1 flex items-center gap-1.5 text-sm">
-                        <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
+                        <TokenLogo 
+                          contract={item.selectedPrice.tokenContract} 
+                          symbol={item.selectedPrice.currency} 
+                          size="sm" 
+                        />
                         <span className="font-medium text-primary">
-                          {item.price.toLocaleString()}
+                          {item.selectedPrice.price.toLocaleString()} {item.selectedPrice.currency}
                         </span>
                         <span className="text-muted-foreground">× {item.quantity}</span>
                       </div>
@@ -89,41 +106,29 @@ export function CartDrawer() {
             <div className="space-y-4">
               <Separator className="bg-border/50" />
 
-              {isConnected && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Your Balance</span>
-                  <div className="flex items-center gap-1.5">
-                    <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
-                    <span className={`font-medium ${insufficientBalance ? 'text-destructive' : 'text-foreground'}`}>
-                      {cheeseBalance.toLocaleString()}
+              {/* Display totals per currency */}
+              <div className="space-y-2">
+                <span className="text-sm text-muted-foreground">Totals</span>
+                {currencyTotals.map(({ currency, total, tokenContract }) => (
+                  <div key={currency} className="flex items-center justify-between">
+                    <span className="font-display text-lg font-semibold text-foreground">
+                      {currency}
                     </span>
+                    <div className="flex items-center gap-1.5">
+                      <TokenLogo contract={tokenContract} symbol={currency} size="md" />
+                      <span className="font-display text-2xl font-bold text-primary">
+                        {total.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <span className="font-display text-lg font-semibold text-foreground">
-                  Total
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <img src={cheeseLogo} alt="CHEESE" className="h-6 w-6" />
-                  <span className="font-display text-2xl font-bold text-primary">
-                    {totalPrice.toLocaleString()}
-                  </span>
-                </div>
+                ))}
               </div>
-
-              {insufficientBalance && (
-                <p className="text-sm text-destructive text-center">
-                  Insufficient CHEESE balance
-                </p>
-              )}
 
               <div className="space-y-2">
                 <Button
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={handlePurchase}
-                  disabled={isPurchasing || isWalletLoading || insufficientBalance}
+                  disabled={isPurchasing || isWalletLoading}
                 >
                   {isPurchasing ? (
                     <>
@@ -132,8 +137,10 @@ export function CartDrawer() {
                     </>
                   ) : isConnected ? (
                     <>
-                      <img src={cheeseLogo} alt="CHEESE" className="mr-2 h-4 w-4" />
-                      Buy with CHEESE
+                      <Wallet className="mr-2 h-4 w-4" />
+                      {currencyTotals.length === 1 
+                        ? `Buy with ${currencyTotals[0].currency}` 
+                        : 'Complete Purchase'}
                     </>
                   ) : (
                     <>

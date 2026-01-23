@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { NFTDrop } from "@/types/drop";
+import { NFTDrop, SelectedPrice } from "@/types/drop";
 
-interface CartItem extends NFTDrop {
+export interface CartItem extends NFTDrop {
   quantity: number;
+  selectedPrice: SelectedPrice; // The chosen payment token/price
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (item: NFTDrop) => void;
+  addToCart: (item: NFTDrop, selectedPrice: SelectedPrice) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
   totalItems: number;
-  totalPrice: number;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
@@ -22,15 +22,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  const addToCart = (item: NFTDrop) => {
+  const addToCart = (item: NFTDrop, selectedPrice: SelectedPrice) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      // Create unique key combining drop ID and selected currency
+      const cartKey = `${item.id}-${selectedPrice.currency}`;
+      const existing = prev.find((i) => `${i.id}-${i.selectedPrice.currency}` === cartKey);
       if (existing) {
         return prev.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+          `${i.id}-${i.selectedPrice.currency}` === cartKey 
+            ? { ...i, quantity: i.quantity + 1 } 
+            : i
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, quantity: 1, selectedPrice }];
     });
     setIsOpen(true);
   };
@@ -44,7 +48,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  const totalPrice = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   return (
     <CartContext.Provider
@@ -54,7 +57,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         clearCart,
         totalItems,
-        totalPrice,
         isOpen,
         setIsOpen,
       }}

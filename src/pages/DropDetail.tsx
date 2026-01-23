@@ -14,7 +14,8 @@ import { useCart } from "@/context/CartContext";
 import { useWax } from "@/context/WaxContext";
 import { useDropEligibility, fetchDropAuthRequirements } from "@/hooks/useDropEligibility";
 import cheeseLogo from "@/assets/cheese-logo.png";
-import type { NFTDrop, DropAuthRequirement, DropPrice } from "@/types/drop";
+import type { NFTDrop, DropAuthRequirement, DropPrice, SelectedPrice } from "@/types/drop";
+import { getTokenConfig } from "@/lib/tokenRegistry";
 import { TokenLogo } from "@/components/TokenLogo";
 
 const CURRENCY_LOGOS: Record<string, string> = {
@@ -76,6 +77,7 @@ const DropDetail = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
+  const [selectedPriceIndex, setSelectedPriceIndex] = useState<number>(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: drop, isLoading } = useQuery({
@@ -235,12 +237,51 @@ const DropDetail = () => {
   // Determine if user can add to cart
   const canAddToCart = !isSoldOut && (!drop.authRequired || eligibility.isEligible);
 
+  // Helper to derive precision from listingPrice string (e.g., "100.0000 CHEESE" -> 4)
+  const getPrecisionFromListingPrice = (listingPrice: string): number => {
+    const parts = listingPrice.split(' ')[0];
+    const decimalParts = parts.split('.');
+    return decimalParts[1]?.length || 0;
+  };
+
+  // Helper to get token contract from registry or fallback
+  const getTokenContract = (symbol: string): string => {
+    const tokenConfig = getTokenConfig(symbol);
+    return tokenConfig?.contract || 'eosio.token';
+  };
+
+  // Build the selected price object for adding to cart
+  const buildSelectedPrice = (): SelectedPrice => {
+    if (drop.prices && drop.prices.length > 0) {
+      const priceOption = drop.prices[selectedPriceIndex];
+      const precision = priceOption.precision ?? getPrecisionFromListingPrice(priceOption.listingPrice);
+      const tokenContract = priceOption.tokenContract || getTokenContract(priceOption.currency);
+      return {
+        price: priceOption.price,
+        currency: priceOption.currency,
+        tokenContract,
+        precision,
+        listingPrice: priceOption.listingPrice,
+      };
+    }
+    // Fallback to drop.price for single-price drops
+    const currency = drop.currency || 'WAX';
+    const precision = drop.listingPrice ? getPrecisionFromListingPrice(drop.listingPrice) : 8;
+    return {
+      price: drop.price,
+      currency,
+      tokenContract: getTokenContract(currency),
+      precision,
+      listingPrice: drop.listingPrice || `${drop.price.toFixed(precision)} ${currency}`,
+    };
+  };
+
   const handleAddToCart = () => {
     if (!isConnected && drop.authRequired) {
       login();
       return;
     }
-    addToCart(drop);
+    addToCart(drop, buildSelectedPrice());
   };
 
   return (
@@ -403,14 +444,29 @@ const DropDetail = () => {
                     </span>
                   </div>
                 ) : drop.prices && drop.prices.length > 1 ? (
-                  // Multiple price options
+                  // Multiple price options - selectable
                   <div className="space-y-2">
                     {drop.prices.map((priceOption, index) => (
-                      <div 
+                      <button
                         key={index}
-                        className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3"
+                        type="button"
+                        onClick={() => setSelectedPriceIndex(index)}
+                        className={`w-full flex items-center justify-between rounded-lg px-4 py-3 transition-all border-2 ${
+                          selectedPriceIndex === index
+                            ? 'border-primary bg-primary/10'
+                            : 'border-transparent bg-muted/50 hover:bg-muted/80'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            selectedPriceIndex === index
+                              ? 'border-primary bg-primary'
+                              : 'border-muted-foreground'
+                          }`}>
+                            {selectedPriceIndex === index && (
+                              <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                            )}
+                          </div>
                           <TokenLogo 
                             contract={priceOption.tokenContract || ''} 
                             symbol={priceOption.currency} 
@@ -425,10 +481,10 @@ const DropDetail = () => {
                             Primary
                           </span>
                         )}
-                      </div>
+                      </button>
                     ))}
                     <p className="text-xs text-muted-foreground mt-2">
-                      Choose any price option when claiming. All options mint the same NFT.
+                      Select a payment token above, then add to cart.
                     </p>
                   </div>
                 ) : (

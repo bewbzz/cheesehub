@@ -1,36 +1,24 @@
 import { useState } from 'react';
 import { useWax } from '@/context/WaxContext';
-import { useCart } from '@/context/CartContext';
+import { useCart, CartItem } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { WAX_EXPLORER } from '@/lib/waxConfig';
-import type { NFTDrop } from '@/types/drop';
 
 export function usePurchaseDrop() {
-  const { isConnected, cheeseBalance, login, transferCheese, claimDrop, claimFreeDrop } = useWax();
+  const { isConnected, login, claimDrop, claimFreeDrop } = useWax();
   const { clearCart } = useCart();
   const { toast } = useToast();
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  const purchaseDrops = async (items: (NFTDrop & { quantity: number })[]) => {
+  const purchaseDrops = async (items: CartItem[]) => {
     if (!isConnected) {
       await login();
       return null;
     }
 
     // Separate free and paid drops
-    const freeDrops = items.filter(item => item.isFree || item.price === 0);
-    const paidDrops = items.filter(item => !item.isFree && item.price > 0);
-
-    const totalPrice = paidDrops.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-    if (totalPrice > 0 && cheeseBalance < totalPrice) {
-      toast({
-        title: 'Insufficient Balance',
-        description: `You need ${totalPrice.toLocaleString()} CHEESE but only have ${cheeseBalance.toLocaleString()}`,
-        variant: 'destructive',
-      });
-      return null;
-    }
+    const freeDrops = items.filter(item => item.isFree || item.selectedPrice.price === 0);
+    const paidDrops = items.filter(item => !item.isFree && item.selectedPrice.price > 0);
 
     setIsPurchasing(true);
 
@@ -48,14 +36,20 @@ export function usePurchaseDrop() {
         }
       }
 
-      // Process paid drops
+      // Process paid drops - use the selected price for each item
       for (const item of paidDrops) {
         if (item.dropSource === 'nfthive' && item.dropId) {
-          txId = await claimDrop(item.dropId, item.quantity, item.price * item.quantity);
+          const { selectedPrice } = item;
+          txId = await claimDrop(
+            item.dropId,
+            item.quantity,
+            selectedPrice.listingPrice,
+            selectedPrice.tokenContract,
+            selectedPrice.currency,
+            selectedPrice.precision
+          );
         } else {
-          const itemIds = `${item.saleId || item.id}:${item.quantity}`;
-          const memo = `purchase:${itemIds}`;
-          txId = await transferCheese(item.price * item.quantity, memo);
+          throw new Error(`Unsupported drop source for: ${item.name}`);
         }
 
         if (!txId) {

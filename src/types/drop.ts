@@ -14,6 +14,16 @@ export interface DropPrice {
   currency: string;
   tokenContract?: string;
   listingPrice: string; // Original format like "100.0000 CHEESE"
+  precision?: number; // Token precision (derived from listingPrice decimals)
+}
+
+// Selected price for cart items
+export interface SelectedPrice {
+  price: number;
+  currency: string;
+  tokenContract: string;
+  precision: number;
+  listingPrice: string;
 }
 
 export interface NFTDrop {

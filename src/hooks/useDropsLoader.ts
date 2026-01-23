@@ -62,21 +62,17 @@ export interface DropsLoaderState {
   refresh: () => Promise<void>;
 }
 
+// Load cache synchronously to avoid state updates during render
+const getInitialCache = () => loadCachedDrops();
+
 export function useDropsLoader(): DropsLoaderState {
   const queryClient = useQueryClient();
-  const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>([]);
+  // Initialize with cached data synchronously to avoid hook order issues
+  const [initialCache] = useState<NFTDrop[] | null>(getInitialCache);
+  const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>(() => initialCache || []);
   const [enrichmentProgress, setEnrichmentProgress] = useState({ loaded: 0, total: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const enrichmentAbortRef = useRef<AbortController | null>(null);
-  const initialCacheRef = useRef<NFTDrop[] | null>(null);
-
-  // Load from cache on mount
-  useEffect(() => {
-    initialCacheRef.current = loadCachedDrops();
-    if (initialCacheRef.current) {
-      setEnrichedDrops(initialCacheRef.current);
-    }
-  }, []);
 
   // Fast query - just gets raw drop data from chain (no template fetching)
   const { data: rawDrops, isLoading, error, refetch } = useQuery({
@@ -84,7 +80,7 @@ export function useDropsLoader(): DropsLoaderState {
     queryFn: () => fetchRawDrops(),
     staleTime: 1000 * 60 * 2, // 2 minutes
     refetchInterval: 1000 * 60 * 5, // 5 minutes
-    placeholderData: () => initialCacheRef.current || undefined,
+    placeholderData: () => initialCache || undefined,
   });
 
   // Separate enrichment effect - runs independently of React Query's abort signal
@@ -92,7 +88,7 @@ export function useDropsLoader(): DropsLoaderState {
     if (!rawDrops?.length) return;
 
     // If we have cached enriched drops with images, skip re-enrichment
-    const hasEnrichedCache = initialCacheRef.current?.some(d => d.image && d.image !== '/placeholder.svg');
+    const hasEnrichedCache = initialCache?.some(d => d.image && d.image !== '/placeholder.svg');
     if (hasEnrichedCache && enrichedDrops.length > 0) {
       // Only re-enrich if the raw drop count changed significantly
       const countDiff = Math.abs(rawDrops.length - enrichedDrops.length);
@@ -139,7 +135,7 @@ export function useDropsLoader(): DropsLoaderState {
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     clearDropsCache();
-    initialCacheRef.current = null;
+    // Cache will be refreshed on next load
     setEnrichedDrops([]);
     setEnrichmentProgress({ loaded: 0, total: 0 });
     
@@ -156,11 +152,11 @@ export function useDropsLoader(): DropsLoaderState {
   // Return enriched drops if available, otherwise raw drops, otherwise cached
   const displayDrops = enrichedDrops.length > 0 
     ? enrichedDrops 
-    : rawDrops || initialCacheRef.current || [];
+    : rawDrops || initialCache || [];
 
   return {
     drops: displayDrops,
-    isLoading: isLoading && !initialCacheRef.current && enrichedDrops.length === 0,
+    isLoading: isLoading && !initialCache && enrichedDrops.length === 0,
     isRefreshing,
     error: error as Error | null,
     progress: enrichmentProgress,

@@ -249,68 +249,101 @@ async function fetchOnChainNFTHiveDrops(collection?: string): Promise<NFTDrop[]>
     
     console.log(`[NFTHive] After filtering hidden: ${drops.length} drops`);
 
-    // Enrich drops with template metadata from AtomicAssets
-    const enrichedDrops = await Promise.all(
-      drops.map(async (drop): Promise<NFTDrop | null> => {
-        const templateId = drop.assets_to_mint?.[0]?.template_id;
-        const { price, currency } = parseListingPrice(drop.listing_price);
-
-        // Parse display_data JSON
-        let displayData: { name?: string; description?: string } = {};
-        try {
-          if (drop.display_data) {
-            displayData = JSON.parse(drop.display_data);
-          }
-        } catch (e) {
-          // Invalid JSON, ignore
+    // Collect unique template IDs to fetch in batches
+    const templateRequests: Map<string, { templateId: number; collectionName: string }> = new Map();
+    for (const drop of drops) {
+      const templateId = drop.assets_to_mint?.[0]?.template_id;
+      if (templateId) {
+        const key = `${drop.collection_name}:${templateId}`;
+        if (!templateRequests.has(key)) {
+          templateRequests.set(key, { templateId, collectionName: drop.collection_name });
         }
+      }
+    }
 
-        let name = displayData.name || `Drop #${drop.drop_id}`;
-        let description = displayData.description || 'A unique NFT drop';
-        let image = '/placeholder.svg';
-        let attributes: { trait: string; value: string }[] = [{ trait: 'Rarity', value: 'Common' }];
+    // Fetch templates in batches of 10 to avoid overwhelming the API
+    const templateCache: Map<string, { image?: string; name?: string }> = new Map();
+    const templateEntries = Array.from(templateRequests.entries());
+    const BATCH_SIZE = 10;
+    
+    for (let i = 0; i < templateEntries.length; i += BATCH_SIZE) {
+      const batch = templateEntries.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async ([key, { templateId, collectionName }]) => {
+          const data = await fetchTemplateById(String(templateId), collectionName);
+          return { key, data };
+        })
+      );
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.data) {
+          templateCache.set(result.value.key, {
+            image: result.value.data.image,
+            name: result.value.data.name,
+          });
+        }
+      }
+    }
 
-        // Fetch template data for image and additional metadata
-        if (templateId) {
-          try {
-            const templateData = await fetchTemplateById(String(templateId), drop.collection_name);
-            if (templateData) {
-              image = templateData.image || image;
-              if (templateData.name && !displayData.name) {
-                name = templateData.name;
-              }
-            }
-          } catch (e) {
-            console.warn('Could not fetch template for drop:', drop.drop_id, e);
+    console.log(`[NFTHive] Fetched ${templateCache.size} templates for ${drops.length} drops`);
+
+    // Build enriched drops using cached template data
+    const enrichedDrops = drops.map((drop): NFTDrop | null => {
+      const templateId = drop.assets_to_mint?.[0]?.template_id;
+      const { price, currency } = parseListingPrice(drop.listing_price);
+
+      // Parse display_data JSON
+      let displayData: { name?: string; description?: string } = {};
+      try {
+        if (drop.display_data) {
+          displayData = JSON.parse(drop.display_data);
+        }
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+
+      let name = displayData.name || `Drop #${drop.drop_id}`;
+      let description = displayData.description || 'A unique NFT drop';
+      let image = '/placeholder.svg';
+      const attributes: { trait: string; value: string }[] = [{ trait: 'Rarity', value: 'Common' }];
+
+      // Use cached template data
+      if (templateId) {
+        const key = `${drop.collection_name}:${templateId}`;
+        const cached = templateCache.get(key);
+        if (cached) {
+          image = cached.image || image;
+          if (cached.name && !displayData.name) {
+            name = cached.name;
           }
         }
+      }
 
-        const maxClaimable = drop.max_claimable || 0;
-        const remaining = Math.max(0, maxClaimable - drop.current_claimed);
+      const maxClaimable = drop.max_claimable || 0;
+      const remaining = Math.max(0, maxClaimable - drop.current_claimed);
 
-        return {
-          id: `nfthive-${drop.drop_id}`,
-          dropId: String(drop.drop_id),
-          templateId: templateId ? String(templateId) : undefined,
-          collectionName: drop.collection_name,
-          name,
-          description,
-          image,
-          price,
-          totalSupply: maxClaimable,
-          remaining,
-          attributes,
-          endDate: drop.end_time > 0 ? new Date(drop.end_time * 1000).toISOString() : undefined,
-          dropSource: 'nfthive',
-          settlementSymbol: drop.settlement_symbol,
-          listingPrice: drop.listing_price,
-          currency,
-          authRequired: drop.auth_required === 1,
-          isFree: price === 0,
-          accountLimit: drop.account_limit || undefined,
-        };
-      })
-    );
+      return {
+        id: `nfthive-${drop.drop_id}`,
+        dropId: String(drop.drop_id),
+        templateId: templateId ? String(templateId) : undefined,
+        collectionName: drop.collection_name,
+        name,
+        description,
+        image,
+        price,
+        totalSupply: maxClaimable,
+        remaining,
+        attributes,
+        endDate: drop.end_time > 0 ? new Date(drop.end_time * 1000).toISOString() : undefined,
+        dropSource: 'nfthive',
+        settlementSymbol: drop.settlement_symbol,
+        listingPrice: drop.listing_price,
+        currency,
+        authRequired: drop.auth_required === 1,
+        isFree: price === 0,
+        accountLimit: drop.account_limit || undefined,
+      };
+    });
 
     return enrichedDrops.filter((d): d is NFTDrop => d !== null);
   } catch (error) {

@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -28,13 +28,27 @@ const IPFS_GATEWAYS = [
   'https://dweb.link/ipfs/',
 ];
 
+const IMAGE_LOAD_TIMEOUT = 10000; // 10 seconds for detail page
+
 function extractIpfsHash(url: string): string | null {
+  if (!url) return null;
+  // Handle ipfs:// protocol
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '').split('/')[0];
+  }
+  // Handle /ipfs/ paths - capture hash and any path after it
+  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/);
+  if (ipfsMatch) return ipfsMatch[1];
+  // Handle bare CID (Qm... or bafy...)
+  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
+    return url;
+  }
+  // Original patterns for URLs
   const patterns = [
-    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+)/,
-    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+)/,
-    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+)/,
-    /dweb\.link\/ipfs\/([a-zA-Z0-9]+)/,
-    /\/ipfs\/([a-zA-Z0-9]+)/,
+    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
+    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
+    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
+    /dweb\.link\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
   ];
   for (const pattern of patterns) {
     const match = url.match(pattern);
@@ -56,9 +70,12 @@ const DropDetail = () => {
   const { addToCart } = useCart();
   const { isConnected, accountName, login } = useWax();
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: drop, isLoading } = useQuery({
     queryKey: ['drop', id],
@@ -73,6 +90,17 @@ const DropDetail = () => {
     },
     enabled: !!id,
   });
+
+  // Reset image state when drop changes
+  useEffect(() => {
+    if (drop?.image) {
+      setImageError(false);
+      setImageLoaded(false);
+      setCurrentImageUrl(drop.image);
+      setGatewayIndex(0);
+      setRetryCount(0);
+    }
+  }, [drop?.image]);
 
   // Fetch auth requirements when drop is loaded and auth is required
   useEffect(() => {
@@ -96,6 +124,30 @@ const DropDetail = () => {
   // Initialize currentImageUrl when drop loads
   const imageUrl = currentImageUrl ?? drop?.image;
 
+  // Timeout fallback - if image doesn't load in time, try next gateway
+  useEffect(() => {
+    if (imageError || imageLoaded || !imageUrl) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      if (!imageLoaded && !imageError) {
+        handleImageError();
+      }
+    }, IMAGE_LOAD_TIMEOUT);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [imageUrl, imageLoaded, imageError]);
+
   const handleImageError = useCallback(() => {
     if (!imageUrl) return;
     const hash = extractIpfsHash(imageUrl);
@@ -103,10 +155,37 @@ const DropDetail = () => {
       const nextIndex = gatewayIndex + 1;
       setGatewayIndex(nextIndex);
       setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
+      setImageLoaded(false);
     } else {
       setImageError(true);
     }
   }, [imageUrl, gatewayIndex]);
+
+  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    // Check for blank/transparent images that "loaded" but have no content
+    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+      handleImageError();
+    } else {
+      setImageLoaded(true);
+    }
+  }, [handleImageError]);
+
+  const handleRetry = useCallback(() => {
+    if (!drop?.image) return;
+    setImageError(false);
+    setImageLoaded(false);
+    setGatewayIndex(0);
+    setRetryCount(prev => prev + 1);
+    setCurrentImageUrl(drop.image);
+  }, [drop?.image]);
+
+  // Add cache-busting param on retry
+  const displayImageUrl = imageUrl 
+    ? (retryCount > 0 
+        ? `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}retry=${retryCount}` 
+        : imageUrl)
+    : undefined;
 
   if (isLoading) {
     return (
@@ -177,16 +256,35 @@ const DropDetail = () => {
         <div className="grid gap-10 lg:grid-cols-2">
           <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 flex items-center justify-center min-h-[400px]">
             {imageError ? (
-              <div className="flex h-full w-full items-center justify-center bg-muted/50">
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted/50 py-12">
                 <ImageOff className="h-16 w-16 text-muted-foreground/50" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCw className="mr-2 h-4 w-4" />
+                  Retry Loading Image
+                </Button>
               </div>
             ) : (
-              <img
-                src={imageUrl}
-                alt={drop.name}
-                className="max-w-full max-h-[600px] w-auto h-auto object-contain"
-                onError={handleImageError}
-              />
+              <>
+                {!imageLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
+                    <div className="h-12 w-12 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+                  </div>
+                )}
+                <img
+                  src={displayImageUrl}
+                  alt={drop.name}
+                  className={`max-w-full max-h-[600px] w-auto h-auto object-contain transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  onError={handleImageError}
+                  onLoad={handleImageLoad}
+                />
+              </>
             )}
             
             {/* Auth required badge */}

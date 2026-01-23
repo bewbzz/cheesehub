@@ -191,7 +191,12 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
   const { fetchTableRows } = await import('@/lib/waxRpcFallback');
 
   try {
-    const result = await fetchTableRows<{
+    // The nfthivedrops auths table uses drop_id as the primary key
+    // We need to query by drop_id directly without secondary index
+    const numericDropId = parseInt(dropId, 10);
+    
+    // First try with secondary index (some contracts have it)
+    let result = await fetchTableRows<{
       drop_id: number;
       authorized_account: string;
       logic_operator: number;
@@ -209,6 +214,33 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
       upper_bound: dropId,
       limit: 100,
     });
+
+    // If no results, try fetching all auths and filter client-side
+    // This is a fallback for when secondary index isn't available
+    if (result.rows.length === 0) {
+      const allAuths = await fetchTableRows<{
+        drop_id: number;
+        authorized_account: string;
+        logic_operator: number;
+        filter_type: number;
+        collection_name: string;
+        schema_name: string;
+        template_id: number;
+      }>({
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'auths',
+        limit: 1000,
+      });
+
+      // Filter to matching drop_id
+      result = {
+        rows: allAuths.rows.filter(row => row.drop_id === numericDropId),
+        more: false,
+      };
+    }
+
+    console.log(`[Auth] Found ${result.rows.length} auth requirements for drop ${dropId}`, result.rows);
 
     return result.rows.map(row => {
       const type: 'collection' | 'schema' | 'template' = 

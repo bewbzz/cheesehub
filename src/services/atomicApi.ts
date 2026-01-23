@@ -1,6 +1,6 @@
 import { ATOMIC_API, CHEESE_CONFIG, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
-import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop } from '@/types/drop';
+import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop, DropPrice } from '@/types/drop';
 
 // Use reliable IPFS gateways with fallbacks
 const IPFS_GATEWAYS = [
@@ -187,6 +187,13 @@ interface OnChainNFTHiveDrop {
   display_data: string;
 }
 
+// On-chain dropprices table row type
+interface OnChainDropPrice {
+  drop_id: number;
+  listing_price: string;
+  token_contract: string;
+}
+
 // Parse price string like "4.00 USD" or "5.90000000 LIMBO" into number and currency
 function parseListingPrice(listingPrice: string): { price: number; currency: string } {
   const parts = listingPrice.trim().split(' ');
@@ -197,6 +204,37 @@ function parseListingPrice(listingPrice: string): { price: number; currency: str
     };
   }
   return { price: 0, currency: 'WAX' };
+}
+
+// Fetch all prices for a specific drop from dropprices table
+async function fetchDropPrices(dropId: string | number): Promise<DropPrice[]> {
+  try {
+    const { fetchTableRows } = await import('@/lib/waxRpcFallback');
+    const numericDropId = typeof dropId === 'string' ? parseInt(dropId) : dropId;
+    
+    // Fetch prices scoped by drop_id
+    const result = await fetchTableRows<OnChainDropPrice>({
+      code: 'nfthivedrops',
+      scope: numericDropId.toString(),
+      table: 'dropprices',
+      limit: 20, // Most drops won't have more than a few price options
+    });
+    
+    if (!result.rows.length) return [];
+    
+    return result.rows.map((row): DropPrice => {
+      const { price, currency } = parseListingPrice(row.listing_price);
+      return {
+        price,
+        currency,
+        tokenContract: row.token_contract || undefined,
+        listingPrice: row.listing_price,
+      };
+    });
+  } catch (error) {
+    console.warn('[NFTHive] Failed to fetch drop prices:', error);
+    return [];
+  }
 }
 
 // Convert raw on-chain drop to NFTDrop with placeholder image
@@ -506,21 +544,35 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
       // Fetch from on-chain table instead of NFTHive API (which only returns active drops)
       const { fetchTableRows } = await import('@/lib/waxRpcFallback');
       
-      const result = await fetchTableRows<OnChainNFTHiveDrop>({
-        code: 'nfthivedrops',
-        scope: 'nfthivedrops',
-        table: 'drops',
-        lower_bound: nfthiveDropId,
-        upper_bound: nfthiveDropId,
-        limit: 1,
-      });
+      // Fetch drop data and prices in parallel
+      const [dropResult, prices] = await Promise.all([
+        fetchTableRows<OnChainNFTHiveDrop>({
+          code: 'nfthivedrops',
+          scope: 'nfthivedrops',
+          table: 'drops',
+          lower_bound: nfthiveDropId,
+          upper_bound: nfthiveDropId,
+          limit: 1,
+        }),
+        fetchDropPrices(nfthiveDropId),
+      ]);
       
-      if (!result.rows.length) return null;
+      if (!dropResult.rows.length) return null;
       
-      const onChainDrop = result.rows[0];
+      const onChainDrop = dropResult.rows[0];
       
       // Convert to base NFTDrop format
       const baseDrop = rawDropToNFTDrop(onChainDrop);
+      
+      // Add prices array if we found any
+      if (prices.length > 0) {
+        baseDrop.prices = prices;
+        // Update primary price to first price option
+        baseDrop.price = prices[0].price;
+        baseDrop.currency = prices[0].currency;
+        baseDrop.tokenContract = prices[0].tokenContract;
+        baseDrop.listingPrice = prices[0].listingPrice;
+      }
       
       // Fetch template metadata for images/name
       if (baseDrop.templateId && baseDrop.collectionName) {

@@ -14,7 +14,8 @@ import { useCart } from "@/context/CartContext";
 import { useWax } from "@/context/WaxContext";
 import { useDropEligibility, fetchDropAuthRequirements } from "@/hooks/useDropEligibility";
 import cheeseLogo from "@/assets/cheese-logo.png";
-import type { NFTDrop, DropAuthRequirement } from "@/types/drop";
+import type { NFTDrop, DropAuthRequirement, DropPrice } from "@/types/drop";
+import { TokenLogo } from "@/components/TokenLogo";
 
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
@@ -389,29 +390,63 @@ const DropDetail = () => {
             )}
 
             <div className="mt-8 rounded-xl border border-border/50 bg-card/50 p-6">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Price</span>
-                <div className="flex items-center gap-2">
-                  {isFreeAuthDrop ? (
+              {/* Price Section */}
+              <div className="space-y-3">
+                <span className="text-muted-foreground">
+                  {drop.prices && drop.prices.length > 1 ? 'Price Options' : 'Price'}
+                </span>
+                
+                {isFreeAuthDrop ? (
+                  <div className="flex items-center gap-2">
                     <span className="font-display text-3xl font-bold text-green-500">
                       FREE
                     </span>
-                  ) : (
-                    <>
-                      {(() => {
-                        const { logo, symbol } = getCurrencyDisplay(drop);
-                        return logo ? (
-                          <img src={logo} alt={symbol} className="h-8 w-8" />
-                        ) : (
-                          <Coins className="h-7 w-7 text-muted-foreground" />
-                        );
-                      })()}
-                      <span className="font-display text-3xl font-bold text-primary">
-                        {drop.price.toLocaleString()} {getCurrencyDisplay(drop).symbol}
-                      </span>
-                    </>
-                  )}
-                </div>
+                  </div>
+                ) : drop.prices && drop.prices.length > 1 ? (
+                  // Multiple price options
+                  <div className="space-y-2">
+                    {drop.prices.map((priceOption, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <TokenLogo 
+                            contract={priceOption.tokenContract || ''} 
+                            symbol={priceOption.currency} 
+                            size="md" 
+                          />
+                          <span className="font-display text-xl font-bold text-foreground">
+                            {priceOption.price.toLocaleString()} {priceOption.currency}
+                          </span>
+                        </div>
+                        {index === 0 && (
+                          <span className="text-xs rounded-full bg-primary/10 text-primary px-2 py-0.5">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Choose any price option when claiming. All options mint the same NFT.
+                    </p>
+                  </div>
+                ) : (
+                  // Single price
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const { logo, symbol } = getCurrencyDisplay(drop);
+                      return logo ? (
+                        <img src={logo} alt={symbol} className="h-8 w-8" />
+                      ) : (
+                        <Coins className="h-7 w-7 text-muted-foreground" />
+                      );
+                    })()}
+                    <span className="font-display text-3xl font-bold text-primary">
+                      {drop.price.toLocaleString()} {getCurrencyDisplay(drop).symbol}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 space-y-2">

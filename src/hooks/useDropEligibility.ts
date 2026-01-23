@@ -196,6 +196,7 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
     const numericDropId = parseInt(dropId, 10);
     
     // First try with secondary index (some contracts have it)
+    // Use longer timeout (15s) for this query as RPC can be slow
     let result = await fetchTableRows<{
       drop_id: number;
       authorized_account: string;
@@ -213,7 +214,7 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
       lower_bound: dropId,
       upper_bound: dropId,
       limit: 100,
-    });
+    }, 15000);
 
     // If no results, try fetching all auths and filter client-side
     // This is a fallback for when secondary index isn't available
@@ -231,7 +232,7 @@ export async function fetchDropAuthRequirements(dropId: string): Promise<DropAut
         scope: 'nfthivedrops',
         table: 'auths',
         limit: 1000,
-      });
+      }, 15000);
 
       // Filter to matching drop_id
       result = {

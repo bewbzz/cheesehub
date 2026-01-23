@@ -75,6 +75,8 @@ const DropDetail = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authLoadError, setAuthLoadError] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: drop, isLoading } = useQuery({
@@ -103,15 +105,28 @@ const DropDetail = () => {
   }, [drop?.image]);
 
   // Fetch auth requirements when drop is loaded and auth is required
-  useEffect(() => {
-    async function loadAuthRequirements() {
-      if (drop?.authRequired && drop.dropId) {
+  const loadAuthRequirements = useCallback(async () => {
+    if (drop?.authRequired && drop.dropId) {
+      setAuthLoading(true);
+      setAuthLoadError(false);
+      try {
         const reqs = await fetchDropAuthRequirements(drop.dropId);
         setAuthRequirements(reqs);
+        if (reqs.length === 0) {
+          console.warn('[Auth] No requirements found for auth-required drop');
+        }
+      } catch (err) {
+        console.error('[Auth] Failed to load requirements:', err);
+        setAuthLoadError(true);
+      } finally {
+        setAuthLoading(false);
       }
     }
-    loadAuthRequirements();
   }, [drop?.authRequired, drop?.dropId]);
+
+  useEffect(() => {
+    loadAuthRequirements();
+  }, [loadAuthRequirements]);
 
   // Check user eligibility
   const eligibility = useDropEligibility(
@@ -327,7 +342,12 @@ const DropDetail = () => {
                   </h3>
                 </div>
                 
-                {authRequirements.length > 0 ? (
+                {authLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading eligibility requirements...
+                  </div>
+                ) : authRequirements.length > 0 ? (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {authRequirements.map((req, i) => {
                       let href: string;
@@ -357,6 +377,21 @@ const DropDetail = () => {
                         </a>
                       );
                     })}
+                  </div>
+                ) : authLoadError ? (
+                  <div className="flex items-center gap-3 mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      Failed to load requirements
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadAuthRequirements}
+                      className="h-7 text-xs"
+                    >
+                      <RotateCw className="h-3 w-3 mr-1.5" />
+                      Retry
+                    </Button>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground mb-4">

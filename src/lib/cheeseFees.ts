@@ -34,7 +34,7 @@ export const WAXDAO_TOKEN_PRECISION = 8;
 // For reference/display
 export const WAX_EQUIVALENT_FEE = 250; // 250 WAX equivalent
 export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
-export const CHEESE_SAFETY_BUFFER = 0.025; // 2.5% buffer for price drift
+export const CHEESE_SAFETY_BUFFER = 0.02; // 2% buffer for price drift
 
 // Legacy export for compatibility
 export const WAX_FEE_AMOUNT = WAX_EQUIVALENT_FEE;

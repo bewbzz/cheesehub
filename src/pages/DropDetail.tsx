@@ -327,15 +327,37 @@ const DropDetail = () => {
                   </h3>
                 </div>
                 
-                {eligibility.requirementsSummary.length > 0 ? (
-                  <ul className="space-y-2 mb-4">
-                    {eligibility.requirementsSummary.map((req, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-amber-500 mt-0.5">•</span>
-                        {req}
-                      </li>
-                    ))}
-                  </ul>
+                {authRequirements.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {authRequirements.map((req, i) => {
+                      let href: string;
+                      let label: string;
+                      
+                      if (req.type === 'template' && req.templateId) {
+                        href = `https://wax.atomichub.io/explorer/template/wax-mainnet/_/${req.templateId}`;
+                        label = `Template #${req.templateId}`;
+                      } else if (req.type === 'schema' && req.schemaName) {
+                        href = `https://atomichub.io/explorer/schema/wax-mainnet/${req.collectionName}/${req.schemaName}`;
+                        label = `${req.collectionName}:${req.schemaName}`;
+                      } else {
+                        href = `https://atomichub.io/explorer/collection/wax-mainnet/${req.collectionName}`;
+                        label = req.collectionName;
+                      }
+                      
+                      return (
+                        <a
+                          key={i}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50 text-sm font-medium text-primary hover:bg-muted hover:underline transition-colors"
+                        >
+                          {label}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground mb-4">
                     This drop requires holding specific NFTs to claim.

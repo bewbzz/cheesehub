@@ -13,7 +13,7 @@ using namespace std;
  * @dev Smart contract for CHEESE token fee payments for DAO and Farm creation
  * 
  * SIMPLIFIED SINGLE-TRANSACTION FLOW:
- * 1. User sends CHEESE to this contract with memo "daofee|entityname|250.00000000 WAXDAO"
+ * 1. User sends CHEESE to this contract with memo "daofee|entityname" or "farmfee|entityname"
  * 2. Contract immediately (inline) sends WAXDAO back to user
  * 3. Contract immediately (inline) burns CHEESE to eosio.null
  * 4. User's bundled transaction uses the WAXDAO to pay creation fee
@@ -31,8 +31,8 @@ static constexpr name NULL_ACCOUNT = "eosio.null"_n;
 
 // Alcor DEX integration for on-chain price validation
 static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
-static constexpr uint64_t CHEESE_WAX_POOL_ID = 1095;  // CHEESE/WAX pool
-static constexpr uint64_t WAXDAO_WAX_POOL_ID = 274;   // WAXDAO/WAX pool
+static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;  // CHEESE/WAX pool
+static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;  // WAX/WAXDAO pool
 
 // 1:1 WAX value exchange: 200 WAX of CHEESE -> 200 WAX of WAXDAO
 // The "20% discount" is from reduced fee (200 WAX instead of 250 WAX), not exchange rate
@@ -49,7 +49,7 @@ public:
      * @param from - Sender
      * @param to - Receiver (this contract)
      * @param quantity - Amount of CHEESE
-     * @param memo - Format: "daofee|entityname|250.00000000 WAXDAO" or "farmfee|entityname|250.00000000 WAXDAO"
+     * @param memo - Format: "daofee|entityname" or "farmfee|entityname"
      */
     [[eosio::on_notify("cheeseburger::transfer")]]
     void on_cheese_transfer(name from, name to, asset quantity, string memo);

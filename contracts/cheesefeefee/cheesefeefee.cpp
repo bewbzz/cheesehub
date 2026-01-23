@@ -112,8 +112,8 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
  * 
  * Formula: price = (sqrtPriceX64 / 2^64)^2 * 10^(precisionA - precisionB)
  * 
- * For CHEESE/WAX pool (1095): CHEESE is tokenA (4 decimals), WAX is tokenB (8 decimals)
- * For WAXDAO/WAX pool (274): WAXDAO is tokenA (8 decimals), WAX is tokenB (8 decimals)
+ * For CHEESE/WAX pool (1252): Verify tokenA/tokenB ordering on-chain
+ * For WAX/WAXDAO pool (1236): Verify tokenA/tokenB ordering on-chain
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);

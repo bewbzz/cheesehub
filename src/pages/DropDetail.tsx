@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -348,35 +348,51 @@ const DropDetail = () => {
                     Loading eligibility requirements...
                   </div>
                 ) : authRequirements.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {authRequirements.map((req, i) => {
-                      let href: string;
-                      let label: string;
-                      
-                      if (req.type === 'template' && req.templateId) {
-                        href = `https://wax.atomichub.io/explorer/template/wax-mainnet/_/${req.templateId}`;
-                        label = `Template #${req.templateId}`;
-                      } else if (req.type === 'schema' && req.schemaName) {
-                        href = `https://atomichub.io/explorer/schema/wax-mainnet/${req.collectionName}/${req.schemaName}`;
-                        label = `${req.collectionName}:${req.schemaName}`;
-                      } else {
-                        href = `https://atomichub.io/explorer/collection/wax-mainnet/${req.collectionName}`;
-                        label = req.collectionName;
-                      }
-                      
-                      return (
-                        <a
-                          key={i}
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50 text-sm font-medium text-primary hover:bg-muted hover:underline transition-colors"
-                        >
-                          {label}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      );
-                    })}
+                  <div className="space-y-3 mb-4">
+                    {/* Show logic operator if multiple requirements */}
+                    {authRequirements.length > 1 && (
+                      <p className="text-xs text-muted-foreground">
+                        {authRequirements[0]?.logicOperator === 'or' 
+                          ? 'Meet ANY of the following requirements:' 
+                          : 'Meet ALL of the following requirements:'}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {authRequirements.map((req, i) => {
+                        let href: string;
+                        let label: string;
+                        let icon: React.ReactNode = <ExternalLink className="h-3 w-3" />;
+                        
+                        if (req.type === 'account' && req.authorizedAccount) {
+                          // Account whitelist - link to waxblock account
+                          href = `https://waxblock.io/account/${req.authorizedAccount}`;
+                          label = `Account: ${req.authorizedAccount}`;
+                          icon = <User className="h-3 w-3" />;
+                        } else if (req.type === 'template' && req.templateId) {
+                          href = `https://wax.atomichub.io/explorer/template/wax-mainnet/_/${req.templateId}`;
+                          label = `Template #${req.templateId}`;
+                        } else if (req.type === 'schema' && req.schemaName) {
+                          href = `https://atomichub.io/explorer/schema/wax-mainnet/${req.collectionName}/${req.schemaName}`;
+                          label = `${req.collectionName}:${req.schemaName}`;
+                        } else {
+                          href = `https://atomichub.io/explorer/collection/wax-mainnet/${req.collectionName}`;
+                          label = req.collectionName || 'Unknown';
+                        }
+                        
+                        return (
+                          <a
+                            key={i}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-muted/50 border border-border/50 text-sm font-medium text-primary hover:bg-muted hover:underline transition-colors"
+                          >
+                            {label}
+                            {icon}
+                          </a>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : authLoadError ? (
                   <div className="flex items-center gap-3 mb-4">

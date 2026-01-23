@@ -32,9 +32,16 @@ export function useDropEligibility(
   const [error, setError] = useState<string | null>(null);
 
   const checkEligibility = useCallback(async () => {
-    // Skip if not auth required or no requirements
-    if (!authRequired || !authRequirements || authRequirements.length === 0) {
+    // If not auth required, always eligible
+    if (!authRequired) {
       setIsEligible(true);
+      setRequirementsSummary([]);
+      return;
+    }
+
+    // If auth required but requirements not yet loaded, assume not eligible (still loading)
+    if (!authRequirements || authRequirements.length === 0) {
+      setIsEligible(false);
       setRequirementsSummary([]);
       return;
     }

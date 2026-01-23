@@ -394,20 +394,31 @@ const DropDetail = () => {
                       })}
                     </div>
                   </div>
-                ) : authLoadError ? (
-                  <div className="flex items-center gap-3 mb-4">
+                ) : authLoadError || (drop?.authRequired && authRequirements.length === 0 && !authLoading) ? (
+                  <div className="space-y-2 mb-4">
                     <p className="text-sm text-muted-foreground">
-                      Failed to load requirements
+                      Unable to load eligibility requirements
                     </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={loadAuthRequirements}
-                      className="h-7 text-xs"
-                    >
-                      <RotateCw className="h-3 w-3 mr-1.5" />
-                      Retry
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={loadAuthRequirements}
+                        className="h-7 text-xs"
+                      >
+                        <RotateCw className="h-3 w-3 mr-1.5" />
+                        Retry
+                      </Button>
+                      <a
+                        href={`https://nfthive.io/drop/${drop?.dropId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-1.5 text-xs rounded-md bg-muted hover:bg-muted/80 transition-colors"
+                      >
+                        Check on NFTHive
+                        <ExternalLink className="ml-1.5 h-3 w-3" />
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground mb-4">

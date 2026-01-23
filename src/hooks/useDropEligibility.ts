@@ -16,6 +16,74 @@ interface OwnedAsset {
   template_id: number;
 }
 
+interface NFTHiveAuthRequirement {
+  filter_type: number;
+  collection_name?: string;
+  schema_name?: string;
+  template_id?: number;
+  authorized_account?: string;
+  logic_operator?: number;
+}
+
+// Try NFTHive's indexed REST API first (most reliable)
+async function fetchAuthFromNFTHiveAPI(dropId: string): Promise<DropAuthRequirement[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(
+      `https://wax-api.hivebp.io/api/drops/${dropId}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.warn(`[Auth] NFTHive API returned ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    console.log(`[Auth] NFTHive API response for drop ${dropId}:`, data);
+    
+    // Parse auth_requirements from API response if available
+    if (data.auth_requirements && Array.isArray(data.auth_requirements)) {
+      console.log(`[Auth] Found ${data.auth_requirements.length} requirements from NFTHive API`);
+      return data.auth_requirements.map((req: NFTHiveAuthRequirement) => ({
+        type: req.authorized_account ? 'account' 
+            : req.filter_type === 2 ? 'template' 
+            : req.filter_type === 1 ? 'schema'
+            : 'collection',
+        collectionName: req.collection_name,
+        schemaName: req.schema_name,
+        templateId: req.template_id,
+        authorizedAccount: req.authorized_account,
+        logicOperator: req.logic_operator === 1 ? 'or' : 'and',
+      } as DropAuthRequirement));
+    }
+    
+    // Some API responses have 'auths' instead
+    if (data.auths && Array.isArray(data.auths)) {
+      console.log(`[Auth] Found ${data.auths.length} requirements from NFTHive API (auths field)`);
+      return data.auths.map((req: NFTHiveAuthRequirement) => ({
+        type: req.authorized_account ? 'account' 
+            : req.filter_type === 2 ? 'template' 
+            : req.filter_type === 1 ? 'schema'
+            : 'collection',
+        collectionName: req.collection_name,
+        schemaName: req.schema_name,
+        templateId: req.template_id,
+        authorizedAccount: req.authorized_account,
+        logicOperator: req.logic_operator === 1 ? 'or' : 'and',
+      } as DropAuthRequirement));
+    }
+    
+    console.log('[Auth] NFTHive API response had no auth_requirements or auths field');
+  } catch (error) {
+    console.warn('[Auth] NFTHive API failed:', error);
+  }
+  return [];
+}
+
 /**
  * Hook to check if user is eligible for an auth-required drop
  */
@@ -209,89 +277,128 @@ function buildRequirementsSummary(requirements: DropAuthRequirement[]): string[]
 
 /**
  * Fetch auth requirements for a specific drop from nfthivedrops contract
+ * Uses NFTHive REST API first (most reliable), then falls back to on-chain RPC
  */
 export async function fetchDropAuthRequirements(dropId: string): Promise<DropAuthRequirement[]> {
-  const { fetchTableRows } = await import('@/lib/waxRpcFallback');
+  const numericDropId = parseInt(dropId, 10);
+  if (isNaN(numericDropId)) {
+    console.error('[Auth] Invalid dropId:', dropId);
+    return [];
+  }
 
+  // Strategy 1: Try NFTHive's indexed REST API first (most reliable)
+  console.log(`[Auth] Trying NFTHive API for drop ${dropId}...`);
+  const apiResult = await fetchAuthFromNFTHiveAPI(dropId);
+  if (apiResult.length > 0) {
+    console.log(`[Auth] Got ${apiResult.length} requirements from NFTHive API`);
+    return apiResult;
+  }
+
+  // Strategy 2: Try on-chain with secondary index (drop_id)
+  console.log(`[Auth] NFTHive API returned no results, trying on-chain RPC...`);
+  const { fetchTableRows } = await import('@/lib/waxRpcFallback');
+  
   try {
-    // The nfthivedrops auths table uses drop_id as the primary key
-    // We need to query by drop_id directly without secondary index
-    const numericDropId = parseInt(dropId, 10);
-    
-    // First try with secondary index (some contracts have it)
-    // Use longer timeout (15s) for this query as RPC can be slow
-    let result = await fetchTableRows<{
+    const result = await fetchTableRows<{
       drop_id: number;
-      authorized_account: string;
-      logic_operator: number;
-      filter_type: number; // 0=collection, 1=schema, 2=template
+      filter_type: number;
       collection_name: string;
       schema_name: string;
       template_id: number;
+      authorized_account: string;
+      logic_operator: number;
     }>({
       code: 'nfthivedrops',
       scope: 'nfthivedrops',
       table: 'auths',
       index_position: 2,
       key_type: 'i64',
-      lower_bound: dropId,
-      upper_bound: dropId,
+      lower_bound: String(numericDropId),
+      upper_bound: String(numericDropId),
       limit: 100,
-    }, 15000);
+    }, 20000);  // 20 second timeout
 
-    // If no results, try fetching all auths and filter client-side
-    // This is a fallback for when secondary index isn't available
-    if (result.rows.length === 0) {
-      const allAuths = await fetchTableRows<{
-        drop_id: number;
-        authorized_account: string;
-        logic_operator: number;
-        filter_type: number;
-        collection_name: string;
-        schema_name: string;
-        template_id: number;
-      }>({
-        code: 'nfthivedrops',
-        scope: 'nfthivedrops',
-        table: 'auths',
-        limit: 1000,
-      }, 15000);
+    if (result.rows && result.rows.length > 0) {
+      console.log(`[Auth] On-chain secondary index returned ${result.rows.length} rows`);
+      return result.rows.map(row => {
+        let type: 'collection' | 'schema' | 'template' | 'account';
+        
+        if (row.authorized_account && row.authorized_account !== '') {
+          type = 'account';
+        } else if (row.filter_type === 2) {
+          type = 'template';
+        } else if (row.filter_type === 1) {
+          type = 'schema';
+        } else {
+          type = 'collection';
+        }
 
-      // Filter to matching drop_id
-      result = {
-        rows: allAuths.rows.filter(row => row.drop_id === numericDropId),
-        more: false,
-      };
+        return {
+          type,
+          collectionName: row.collection_name || undefined,
+          schemaName: row.schema_name || undefined,
+          templateId: row.template_id || undefined,
+          authorizedAccount: row.authorized_account || undefined,
+          logicOperator: row.logic_operator === 1 ? 'or' : 'and',
+        };
+      });
     }
-
-    console.log(`[Auth] Found ${result.rows.length} auth requirements for drop ${dropId}`, result.rows);
-
-    return result.rows.map(row => {
-      // Determine type based on filter_type and authorized_account
-      let type: 'collection' | 'schema' | 'template' | 'account';
-      
-      if (row.authorized_account && row.authorized_account !== '') {
-        // Account whitelist - authorized_account is populated
-        type = 'account';
-      } else if (row.filter_type === 2) {
-        type = 'template';
-      } else if (row.filter_type === 1) {
-        type = 'schema';
-      } else {
-        type = 'collection';
-      }
-
-      return {
-        type,
-        collectionName: row.collection_name || undefined,
-        schemaName: row.schema_name || undefined,
-        templateId: row.template_id || undefined,
-        authorizedAccount: row.authorized_account || undefined,
-        logicOperator: row.logic_operator === 1 ? 'or' : 'and',
-      };
-    });
   } catch (error) {
-    console.error('Error fetching drop auth requirements:', error);
-    return [];
+    console.warn('[Auth] Secondary index query failed:', error);
   }
+
+  // Strategy 3: Try fetching a range and filter client-side (last resort)
+  console.log(`[Auth] Secondary index failed, trying range query...`);
+  try {
+    const result = await fetchTableRows<{
+      drop_id: number;
+      filter_type: number;
+      collection_name: string;
+      schema_name: string;
+      template_id: number;
+      authorized_account: string;
+      logic_operator: number;
+    }>({
+      code: 'nfthivedrops',
+      scope: 'nfthivedrops',
+      table: 'auths',
+      limit: 500,
+    }, 25000);  // 25 second timeout for larger fetch
+
+    if (result.rows && result.rows.length > 0) {
+      // Filter client-side to exact drop_id
+      const matchingRows = result.rows.filter(row => row.drop_id === numericDropId);
+      console.log(`[Auth] Range query found ${matchingRows.length} matching rows out of ${result.rows.length} total`);
+      
+      if (matchingRows.length > 0) {
+        return matchingRows.map(row => {
+          let type: 'collection' | 'schema' | 'template' | 'account';
+          
+          if (row.authorized_account && row.authorized_account !== '') {
+            type = 'account';
+          } else if (row.filter_type === 2) {
+            type = 'template';
+          } else if (row.filter_type === 1) {
+            type = 'schema';
+          } else {
+            type = 'collection';
+          }
+
+          return {
+            type,
+            collectionName: row.collection_name || undefined,
+            schemaName: row.schema_name || undefined,
+            templateId: row.template_id || undefined,
+            authorizedAccount: row.authorized_account || undefined,
+            logicOperator: row.logic_operator === 1 ? 'or' : 'and',
+          };
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('[Auth] Range query also failed:', error);
+  }
+
+  console.warn(`[Auth] All strategies failed for drop ${dropId}`);
+  return [];
 }

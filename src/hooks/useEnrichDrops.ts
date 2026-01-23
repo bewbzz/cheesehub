@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NFTDrop } from '@/types/drop';
 import { enrichDropTemplates } from '@/services/atomicApi';
 
@@ -15,21 +15,23 @@ export function useEnrichDrops(drops: NFTDrop[]): {
   isEnriching: boolean;
   progress: { loaded: number; total: number };
 } {
-  const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>([]);
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [progress, setProgress] = useState({ loaded: 0, total: 0 });
+  // Use lazy state initialization to avoid React queue errors
+  const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>(() => []);
+  const [isEnriching, setIsEnriching] = useState(() => false);
+  const [progress, setProgress] = useState(() => ({ loaded: 0, total: 0 }));
   const abortRef = useRef<AbortController | null>(null);
   const isEnrichingRef = useRef(false);
   const lastDropsKeyRef = useRef('');
 
   // Create a stable key from drop IDs to detect when the drops actually change
   const dropsKey = useMemo(() => {
-    if (!drops.length) return '';
+    if (!drops || !drops.length) return '';
     return drops.map(d => d.id).sort().join(',');
   }, [drops]);
 
   // Memoize drops with cache applied
   const dropsWithCache = useMemo(() => {
+    if (!drops || !drops.length) return [];
     return drops.map(drop => {
       const cached = enrichedDropsCache.get(drop.id);
       if (cached && cached.image && cached.image !== '/placeholder.svg') {
@@ -51,7 +53,7 @@ export function useEnrichDrops(drops: NFTDrop[]): {
 
   useEffect(() => {
     // If no drops, clear state
-    if (!drops.length) {
+    if (!drops || !drops.length) {
       setEnrichedDrops([]);
       setIsEnriching(false);
       setProgress({ loaded: 0, total: 0 });
@@ -129,7 +131,7 @@ export function useEnrichDrops(drops: NFTDrop[]): {
 
     // Don't abort on cleanup - let enrichment complete
     // Only abort when dropsKey changes (handled above)
-  }, [dropsKey, dropsNeedingEnrichment.length]); // Minimal dependencies
+  }, [dropsKey, dropsNeedingEnrichment.length, drops, dropsWithCache]);
 
   // Always return something - cache-applied drops or original
   const result = enrichedDrops.length > 0 ? enrichedDrops : dropsWithCache;
@@ -149,10 +151,12 @@ export function usePrefetchDrops(drops: NFTDrop[], enabled: boolean): void {
   const abortRef = useRef<AbortController | null>(null);
 
   const dropsKey = useMemo(() => {
+    if (!drops || !drops.length) return '';
     return drops.map(d => d.id).sort().join(',');
   }, [drops]);
 
   const toPrefetch = useMemo(() => {
+    if (!drops || !drops.length) return [];
     return drops.filter(d => {
       // Skip if already in cache
       if (enrichedDropsCache.has(d.id)) return false;
@@ -196,7 +200,7 @@ export function usePrefetchDrops(drops: NFTDrop[], enabled: boolean): void {
         abortRef.current.abort();
       }
     };
-  }, [dropsKey, enabled, toPrefetch.length]);
+  }, [dropsKey, enabled, toPrefetch]);
 }
 
 /**

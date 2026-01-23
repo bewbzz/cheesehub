@@ -59,12 +59,14 @@ function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: strin
 
 interface DropCardProps {
   drop: NFTDrop;
+  isImageCached?: boolean;
+  onImageLoaded?: (dropId: string) => void;
 }
 
-export function DropCard({ drop }: DropCardProps) {
+export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) {
   const { addToCart } = useCart();
   const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(isImageCached ?? false);
   const [currentImageUrl, setCurrentImageUrl] = useState(drop.image);
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
@@ -81,8 +83,9 @@ export function DropCard({ drop }: DropCardProps) {
   }, [drop.image]);
 
   // Timeout fallback - if image doesn't load in time, try next gateway
+  // Skip timeout if already cached
   useEffect(() => {
-    if (imageError || imageLoaded) {
+    if (imageError || imageLoaded || isImageCached) {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -102,7 +105,7 @@ export function DropCard({ drop }: DropCardProps) {
         timeoutRef.current = null;
       }
     };
-  }, [currentImageUrl, imageLoaded, imageError]);
+  }, [currentImageUrl, imageLoaded, imageError, isImageCached]);
 
   const handleImageError = useCallback(() => {
     const hash = extractIpfsHash(currentImageUrl);
@@ -123,8 +126,9 @@ export function DropCard({ drop }: DropCardProps) {
       handleImageError();
     } else {
       setImageLoaded(true);
+      onImageLoaded?.(drop.id);
     }
-  }, [handleImageError]);
+  }, [handleImageError, drop.id, onImageLoaded]);
 
   const handleRetry = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

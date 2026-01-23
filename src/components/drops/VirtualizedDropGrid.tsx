@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { DropCard } from './DropCard';
 import type { NFTDrop } from '@/types/drop';
@@ -22,6 +22,13 @@ const GAP = 24; // gap-6 = 24px
 
 export function VirtualizedDropGrid({ drops, isLoading, progress }: VirtualizedDropGridProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  
+  // Track loaded images to prevent re-loading on scroll back
+  const loadedImagesRef = useRef<Set<string>>(new Set());
+  
+  const handleImageLoaded = useCallback((dropId: string) => {
+    loadedImagesRef.current.add(dropId);
+  }, []);
 
   // Detect columns based on window width
   const columnCount = useMemo(() => {
@@ -97,7 +104,12 @@ export function VirtualizedDropGrid({ drops, isLoading, progress }: VirtualizedD
               }}
             >
               {rowDrops.map((drop) => (
-                <DropCard key={drop.id} drop={drop} />
+                <DropCard 
+                  key={drop.id} 
+                  drop={drop}
+                  isImageCached={loadedImagesRef.current.has(drop.id)}
+                  onImageLoaded={handleImageLoaded}
+                />
               ))}
             </div>
           );
@@ -109,10 +121,22 @@ export function VirtualizedDropGrid({ drops, isLoading, progress }: VirtualizedD
 
 // Simple non-virtualized grid for smaller lists (< 20 items)
 export function SimpleDropGrid({ drops }: { drops: NFTDrop[] }) {
+  // Track loaded images for consistency
+  const loadedImagesRef = useRef<Set<string>>(new Set());
+  
+  const handleImageLoaded = useCallback((dropId: string) => {
+    loadedImagesRef.current.add(dropId);
+  }, []);
+
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {drops.map((drop) => (
-        <DropCard key={drop.id} drop={drop} />
+        <DropCard 
+          key={drop.id} 
+          drop={drop}
+          isImageCached={loadedImagesRef.current.has(drop.id)}
+          onImageLoaded={handleImageLoaded}
+        />
       ))}
     </div>
   );

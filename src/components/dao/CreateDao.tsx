@@ -806,12 +806,12 @@ export function CreateDao() {
                   <Label htmlFor="tokenSymbol">Token Symbol *</Label>
                   <Input
                     id="tokenSymbol"
-                    placeholder="e.g., 8,CHEESE"
+                    placeholder="e.g., 4,CHEESE"
                     value={formData.tokenSymbol}
                     onChange={(e) => setFormData({ ...formData, tokenSymbol: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Format: precision,SYMBOL (e.g., 8,CHEESE)
+                    Format: precision,SYMBOL (e.g., 4,CHEESE)
                   </p>
                 </div>
               </div>

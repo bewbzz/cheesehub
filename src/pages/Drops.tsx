@@ -3,10 +3,11 @@ import { DropsHero } from "@/components/drops/DropsHero";
 import { CartDrawer } from "@/components/drops/CartDrawer";
 import { CreateDrop } from "@/components/drops/CreateDrop";
 import { MyDrops } from "@/components/drops/MyDrops";
-import { VirtualizedDropGrid, SimpleDropGrid } from "@/components/drops/VirtualizedDropGrid";
+import { SimpleDropGrid } from "@/components/drops/VirtualizedDropGrid";
+import { DropsPagination } from "@/components/drops/DropsPagination";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchCheeseDropStats } from "@/services/atomicApi";
-import { useDropsLoader } from "@/hooks/useDropsLoader";
+import { fetchCheeseDropStats, fetchRawDrops } from "@/services/atomicApi";
+import { usePagedDropsLoader, DROPS_PER_PAGE } from "@/hooks/usePagedDropsLoader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { NFTDrop } from "@/types/drop";
-import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X } from "lucide-react";
+import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X, Loader2 } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
 import { useMemo, useState } from "react";
 
@@ -24,8 +25,13 @@ const Drops = () => {
   const [sortOption, setSortOption] = useState("newest");
   const [showActiveOnly, setShowActiveOnly] = useState(true);
 
-  // Optimized drops loader with caching, batching, and progress
-  const { drops, isLoading, isRefreshing, error, progress, refresh } = useDropsLoader();
+  // Fetch raw drops for filtering
+  const { data: rawDrops = [], isLoading: isLoadingRaw } = useQuery({
+    queryKey: ['drops-raw'],
+    queryFn: () => fetchRawDrops(),
+    staleTime: 1000 * 60 * 2,
+    refetchInterval: 1000 * 60 * 5,
+  });
 
   // Fetch CHEESE drop stats from on-chain (includes historical)
   const { data: cheeseStats, isLoading: isLoadingStats } = useQuery({
@@ -35,13 +41,11 @@ const Drops = () => {
     refetchInterval: 1000 * 60 * 5,
   });
 
-  const displayDrops: NFTDrop[] = drops || [];
-
   // Filter CHEESE drops from the already-fetched drops data (no extra API call)
   // Also filter out sold out and ended drops to match browse tab behavior
   const cheeseDrops = useMemo(() => {
     const now = Date.now();
-    return displayDrops.filter(drop => {
+    return rawDrops.filter(drop => {
       // Must be CHEESE collection
       if (drop.collectionName !== CHEESE_CONFIG.collectionName) return false;
       
@@ -50,12 +54,12 @@ const Drops = () => {
       const isEnded = drop.endDate ? new Date(drop.endDate).getTime() < now : false;
       return !isSoldOut && !isEnded;
     });
-  }, [displayDrops]);
+  }, [rawDrops]);
 
   // Filtered and sorted drops for browse tab
   const filteredDrops = useMemo(() => {
     // Filter out auth-required drops - too complex to handle
-    let result = displayDrops.filter(drop => !drop.authRequired);
+    let result = rawDrops.filter(drop => !drop.authRequired);
 
     // Filter active drops (not sold out, not ended)
     if (showActiveOnly) {
@@ -96,7 +100,21 @@ const Drops = () => {
     }
 
     return result;
-  }, [displayDrops, searchQuery, sortOption, showActiveOnly]);
+  }, [rawDrops, searchQuery, sortOption, showActiveOnly]);
+
+  // Paged drops loader with enrichment and prefetching
+  const {
+    pageDrops,
+    currentPage,
+    totalPages,
+    totalDrops,
+    isLoading,
+    isEnrichingPage,
+    isRefreshing,
+    error,
+    setPage,
+    refresh,
+  } = usePagedDropsLoader(filteredDrops, [searchQuery, sortOption, showActiveOnly]);
 
   const handleRefresh = async () => {
     await Promise.all([
@@ -200,7 +218,7 @@ const Drops = () => {
               </div>
             </div>
 
-          {isLoading && progress.total === 0 ? (
+          {isLoading || isLoadingRaw ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">
@@ -214,26 +232,11 @@ const Drops = () => {
                   </div>
                 ))}
               </div>
-            ) : isLoading && progress.total > 0 ? (
-              <div className="py-12">
-                <div className="max-w-md mx-auto space-y-4">
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <span>Loading drops... {progress.loaded} of {progress.total} templates</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${Math.round((progress.loaded / progress.total) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
             ) : error ? (
               <div className="text-center py-12">
                 <p className="text-lg text-muted-foreground">Failed to load drops. Please try again later.</p>
               </div>
-            ) : filteredDrops.length === 0 ? (
+            ) : totalDrops === 0 ? (
               <div className="text-center py-12">
                 <p className="text-lg text-muted-foreground">
                   {searchQuery ? `No drops found matching "${searchQuery}"` : "No active drops found."}
@@ -249,10 +252,23 @@ const Drops = () => {
                   </Button>
                 )}
               </div>
-            ) : filteredDrops.length > 20 ? (
-              <VirtualizedDropGrid drops={filteredDrops} />
             ) : (
-              <SimpleDropGrid drops={filteredDrops} />
+              <>
+                {isEnrichingPage && (
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground mb-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Loading images...</span>
+                  </div>
+                )}
+                <SimpleDropGrid drops={pageDrops} />
+                <DropsPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalDrops={totalDrops}
+                  onPageChange={setPage}
+                  isLoading={isEnrichingPage}
+                />
+              </>
             )}
           </TabsContent>
 
@@ -268,7 +284,7 @@ const Drops = () => {
               <p className="text-muted-foreground mt-2">Drops purchasable with $CHEESE token</p>
             </div>
 
-            {isLoading ? (
+            {isLoadingRaw ? (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-4 rounded-xl border border-border/50 bg-card/50 p-4">

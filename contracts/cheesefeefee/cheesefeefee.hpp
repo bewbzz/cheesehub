@@ -31,8 +31,8 @@ static constexpr name NULL_ACCOUNT = "eosio.null"_n;
 
 // Alcor DEX integration for on-chain price validation
 static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
-static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;  // CHEESE/WAX pool
-static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;  // WAX/WAXDAO pool
+static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;    // CHEESE/WAX pool (for validation)
+static constexpr uint64_t CHEESE_WAXDAO_POOL_ID = 8017; // CHEESE/WAXDAO pool (for conversion)
 
 // 1:1 WAX value exchange: 200 WAX of CHEESE -> 200 WAX of WAXDAO
 // The "20% discount" is from reduced fee (200 WAX instead of 250 WAX), not exchange rate

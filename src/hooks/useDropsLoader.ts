@@ -69,6 +69,7 @@ export function useDropsLoader(): DropsLoaderState {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const enrichmentAbortRef = useRef<AbortController | null>(null);
   const initialCacheRef = useRef<NFTDrop[] | null>(null);
+  const enrichmentStartedForRef = useRef<string | null>(null);
 
   // Load from cache on mount
   useEffect(() => {
@@ -91,6 +92,14 @@ export function useDropsLoader(): DropsLoaderState {
   useEffect(() => {
     if (!rawDrops?.length) return;
 
+    // Create a stable key for the current raw drops set
+    const dropsKey = rawDrops.map(d => d.id).sort().join(',');
+    
+    // Skip if we've already started enrichment for this exact set
+    if (enrichmentStartedForRef.current === dropsKey) {
+      return;
+    }
+
     // If we have cached enriched drops with images, skip re-enrichment
     const hasEnrichedCache = initialCacheRef.current?.some(d => d.image && d.image !== '/placeholder.svg');
     if (hasEnrichedCache && enrichedDrops.length > 0) {
@@ -106,6 +115,7 @@ export function useDropsLoader(): DropsLoaderState {
       enrichmentAbortRef.current.abort();
     }
     enrichmentAbortRef.current = new AbortController();
+    enrichmentStartedForRef.current = dropsKey;
 
     console.log('[DropsLoader] Starting template enrichment for', rawDrops.length, 'drops');
 

@@ -8,27 +8,55 @@ export async function fetchWithFallback(
 ): Promise<Response> {
   let lastError: Error | null = null;
 
+  // If external signal is already aborted, abort immediately
+  if (options?.signal?.aborted) {
+    const abortError = new Error('Request aborted');
+    abortError.name = 'AbortError';
+    throw abortError;
+  }
+
   for (const baseUrl of endpoints) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const response = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        return response;
+      // Combine external abort with our timeout abort
+      const externalSignal = options?.signal;
+      let externalAbortHandler: (() => void) | undefined;
+      if (externalSignal) {
+        externalAbortHandler = () => controller.abort();
+        externalSignal.addEventListener('abort', externalAbortHandler);
       }
-      
-      // If response is not ok, try next endpoint
-      console.warn(`Endpoint ${baseUrl} returned ${response.status}, trying next...`);
+
+      try {
+        const response = await fetch(`${baseUrl}${path}`, {
+          ...options,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          return response;
+        }
+        
+        // If response is not ok, try next endpoint
+        console.warn(`Endpoint ${baseUrl} returned ${response.status}, trying next...`);
+      } finally {
+        // Clean up the external abort listener
+        if (externalSignal && externalAbortHandler) {
+          externalSignal.removeEventListener('abort', externalAbortHandler);
+        }
+      }
     } catch (error) {
       lastError = error as Error;
-      console.warn(`Endpoint ${baseUrl} failed:`, (error as Error).message);
+      // Don't log abort errors as warnings
+      if ((error as Error).name !== 'AbortError') {
+        console.warn(`Endpoint ${baseUrl} failed:`, (error as Error).message);
+      } else {
+        // Re-throw abort errors immediately
+        throw error;
+      }
     }
   }
 

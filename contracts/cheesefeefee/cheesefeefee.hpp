@@ -112,8 +112,9 @@ private:
     
     /**
      * @brief Calculate WAXDAO amount from CHEESE amount using live Alcor prices
+     * Uses Pool 1252 to validate minimum WAX value, Pool 8017 for direct conversion
      * @param cheese_amount - Amount of CHEESE received
-     * @return Calculated WAXDAO amount with 20% discount applied
+     * @return WAXDAO amount at current market rate from Pool 8017
      */
     asset calculate_waxdao_amount(asset cheese_amount);
     

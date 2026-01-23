@@ -496,94 +496,45 @@ export async function fetchSaleById(saleId: string): Promise<NFTDrop | null> {
 }
 
 // Fetch a single drop by ID (supports nfthive-{dropId} format)
+// Uses on-chain data to support both active and ended drops
 export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
   try {
-    // Handle NFT Hive drops
+    // Handle NFT Hive drops - fetch directly from blockchain for reliability
     if (dropId.startsWith('nfthive-')) {
       const nfthiveDropId = dropId.replace('nfthive-', '');
-      const url = `${NFTHIVE_CONFIG.apiUrl}/api/drops`;
-
-      const response = await fetch(url);
-      const drops = await response.json() as NFTHiveDrop[];
-
-      const drop = drops.find(d => String(d.dropId) === nfthiveDropId);
-      if (!drop) return null;
-
-      const getData = (immutableData: Array<{ key: string; value: [string, string] }>, key: string): string => {
-        const item = immutableData.find(d => d.key === key);
-        return item?.value?.[1] || '';
-      };
-
-      const template = drop.templatesToMint?.[0];
-      const immutableData = template?.immutableData || [];
-
-      const name = drop.displayData?.name || getData(immutableData, 'name') || template?.name || `Drop #${drop.dropId}`;
-      const displayDescription = drop.displayData?.description || '';
-      const immutableDescription = getData(immutableData, 'description') || '';
-      const description = displayDescription || immutableDescription || 'A unique NFT drop from the Cheese collection';
-      const templateDescription = displayDescription && immutableDescription ? immutableDescription : undefined;
-      const img = getData(immutableData, 'img') || getData(immutableData, 'image');
-
-      const excludeKeys = ['name', 'img', 'video', 'description', 'image'];
-      const attributes = immutableData
-        .filter(item => !excludeKeys.includes(item.key.toLowerCase()))
-        .map(item => ({ trait: item.key, value: item.value?.[1] || '' }))
-        .slice(0, 6);
-
-      const maxClaimable = drop.maxClaimable || 0;
       
-      // Get numClaimed with fallbacks for accurate sold out status
-      let numClaimed = drop.numClaimed;
+      // Fetch from on-chain table instead of NFTHive API (which only returns active drops)
+      const { fetchTableRows } = await import('@/lib/waxRpcFallback');
       
-      // Fallback 1: Use template stats.numMinted from NFTHive response
-      if (numClaimed === null || numClaimed === undefined) {
-        const templateStats = (template as any)?.stats;
-        if (templateStats?.numMinted !== undefined) {
-          numClaimed = templateStats.numMinted;
+      const result = await fetchTableRows<OnChainNFTHiveDrop>({
+        code: 'nfthivedrops',
+        scope: 'nfthivedrops',
+        table: 'drops',
+        lower_bound: nfthiveDropId,
+        upper_bound: nfthiveDropId,
+        limit: 1,
+      });
+      
+      if (!result.rows.length) return null;
+      
+      const onChainDrop = result.rows[0];
+      
+      // Convert to base NFTDrop format
+      const baseDrop = rawDropToNFTDrop(onChainDrop);
+      
+      // Fetch template metadata for images/name
+      if (baseDrop.templateId && baseDrop.collectionName) {
+        const templateData = await fetchTemplateById(baseDrop.templateId, baseDrop.collectionName);
+        if (templateData) {
+          return {
+            ...baseDrop,
+            image: templateData.image || baseDrop.image,
+            name: templateData.name || baseDrop.name,
+          };
         }
       }
       
-      // Fallback 2: Fetch issuedSupply from AtomicAssets API
-      if ((numClaimed === null || numClaimed === undefined) && template?.templateId) {
-        try {
-          const templateData = await fetchTemplateById(
-            String(template.templateId),
-            drop.collection?.collectionName
-          );
-          if (templateData) {
-            numClaimed = templateData.issuedSupply;
-          }
-        } catch (e) {
-          console.warn('Could not fetch template supply:', e);
-        }
-      }
-      
-      const claimCount = numClaimed || 0;
-
-      // Check if drop is auth-required
-      const isAuthRequired = (drop as any).authRequired === true || (drop as any).auth_required === 1;
-
-      return {
-        id: `nfthive-${drop.dropId}`,
-        dropId: String(drop.dropId),
-        templateId: template?.templateId ? String(template.templateId) : undefined,
-        collectionName: drop.collection?.collectionName || 'unknown',
-        name,
-        description,
-        templateDescription,
-        image: getImageUrl(img),
-        price: drop.price,
-        totalSupply: maxClaimable,
-        remaining: Math.max(0, maxClaimable - claimCount),
-        attributes: attributes.length > 0 ? attributes : [{ trait: 'Rarity', value: 'Common' }],
-        endDate: drop.endTime > 0 ? new Date(drop.endTime * 1000).toISOString() : undefined,
-        dropSource: 'nfthive',
-        settlementSymbol: `4,${drop.currency}`,
-        listingPrice: `${drop.price.toFixed(4)} ${drop.currency}`,
-        currency: drop.currency,
-        authRequired: isAuthRequired,
-        isFree: drop.price === 0,
-      };
+      return baseDrop;
     }
 
     // Try fetching as a sale

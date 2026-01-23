@@ -73,9 +73,6 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
 
-  // Check if this drop is still waiting for template enrichment
-  const isAwaitingEnrichment = !drop.image || drop.image === '/placeholder.svg';
-
   // Reset state when drop image changes
   useEffect(() => {
     setImageError(false);
@@ -155,14 +152,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
     <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover-cheese-glow">
       <Link to={`/drops/${drop.id}`}>
         <div className="relative aspect-square overflow-hidden bg-muted/50">
-          {isAwaitingEnrichment ? (
-            // Skeleton placeholder while waiting for template enrichment
-            <div className="flex h-full w-full flex-col items-center justify-center gap-3 animate-pulse">
-              <div className="h-16 w-16 rounded-lg bg-muted-foreground/20" />
-              <div className="h-3 w-24 rounded bg-muted-foreground/20" />
-              <div className="h-2 w-16 rounded bg-muted-foreground/10" />
-            </div>
-          ) : imageError ? (
+          {imageError ? (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2">
               <ImageOff className="h-12 w-12 text-muted-foreground/50" />
               <Button

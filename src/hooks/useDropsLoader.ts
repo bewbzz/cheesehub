@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NFTDrop } from '@/types/drop';
 import { fetchNFTHiveDrops } from '@/services/atomicApi';
 
-const DROPS_CACHE_KEY = 'cheesehub_drops_cache';
+const DROPS_CACHE_KEY = 'cheesehub_drops_cache_v2'; // Bumped version to invalidate old cache
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CacheData {

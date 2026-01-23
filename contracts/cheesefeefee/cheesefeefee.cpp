@@ -112,8 +112,8 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
  * 
  * Formula: price = (sqrtPriceX64 / 2^64)^2 * 10^(precisionA - precisionB)
  * 
- * For CHEESE/WAX pool (1252): Verify tokenA/tokenB ordering on-chain
- * For WAX/WAXDAO pool (1236): Verify tokenA/tokenB ordering on-chain
+ * Pool 1252: CHEESE(tokenA, 4 dec) / WAX(tokenB, 8 dec) - returns CHEESE per WAX
+ * Pool 1236: WAX(tokenA, 8 dec) / WAXDAO(tokenB, 8 dec) - returns WAX per WAXDAO
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
@@ -145,26 +145,33 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
  * The "20% discount" comes from reduced fee (200 WAX instead of 250 WAX), not exchange rate
  */
 asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
-    // Get prices from Alcor pools
-    double cheese_wax_price = get_price_from_pool(CHEESE_WAX_POOL_ID);
-    double waxdao_wax_price = get_price_from_pool(WAXDAO_WAX_POOL_ID);
+    // Get raw prices from Alcor pools
+    double cheese_wax_raw = get_price_from_pool(CHEESE_WAX_POOL_ID);
+    double wax_waxdao_raw = get_price_from_pool(WAXDAO_WAX_POOL_ID);
     
-    check(cheese_wax_price > 0, "Invalid CHEESE price from Alcor");
-    check(waxdao_wax_price > 0, "Invalid WAXDAO price from Alcor");
+    check(cheese_wax_raw > 0, "Invalid CHEESE price from Alcor");
+    check(wax_waxdao_raw > 0, "Invalid WAXDAO price from Alcor");
+    
+    // Pool 1252 returns CHEESE per WAX (how many CHEESE for 1 WAX)
+    // We need WAX per CHEESE, so INVERT
+    double wax_per_cheese = 1.0 / cheese_wax_raw;
+    
+    // Pool 1236 returns WAX per WAXDAO (how many WAX for 1 WAXDAO) - correct as-is
+    double wax_per_waxdao = wax_waxdao_raw;
     
     // Convert CHEESE amount to double (4 decimals)
     double cheese_value = (double)cheese_amount.amount / 10000.0;
     
-    // CHEESE -> WAX value
-    double wax_value = cheese_value * cheese_wax_price;
+    // CHEESE -> WAX value (e.g., 136 CHEESE * 1.47 WAX/CHEESE = 200 WAX)
+    double wax_value = cheese_value * wax_per_cheese;
     
     // SECURITY: Validate user sent at least 200 WAX worth of CHEESE (with tolerance)
     double min_required = MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE);
     check(wax_value >= min_required, 
         "Insufficient CHEESE. Need at least 200 WAX worth.");
     
-    // 1:1 WAX-value exchange: WAX -> WAXDAO (no bonus!)
-    double waxdao_value = wax_value / waxdao_wax_price;
+    // WAX -> WAXDAO (e.g., 200 WAX / 0.035 WAX/WAXDAO = ~5714 WAXDAO)
+    double waxdao_value = wax_value / wax_per_waxdao;
     
     // Convert back to asset (8 decimals)
     int64_t waxdao_amount = (int64_t)(waxdao_value * 100000000.0);

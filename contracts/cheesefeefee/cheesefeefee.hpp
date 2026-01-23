@@ -70,8 +70,8 @@ public:
         
         // Token info with symbol (contains precision)
         struct extended_symbol {
-            eosio::symbol sym;
-            name contract;
+            name contract;        // Contract comes FIRST (matches EOSIO standard)
+            eosio::symbol sym;    // Symbol comes SECOND
         };
         extended_symbol tokenA;
         extended_symbol tokenB;

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NFTDrop } from '@/types/drop';
-import { fetchNFTHiveDrops } from '@/services/atomicApi';
+import { fetchRawDrops, enrichDropTemplates } from '@/services/atomicApi';
 
-const DROPS_CACHE_KEY = 'cheesehub_drops_cache_v2'; // Bumped version to invalidate old cache
+const DROPS_CACHE_KEY = 'cheesehub_drops_cache_v3'; // Bumped version for new structure
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CacheData {
@@ -53,18 +53,6 @@ export function clearDropsCache() {
   }
 }
 
-// Fast fetch using NFTHive API (primary path - returns enriched data in single request)
-async function fetchDropsFast(): Promise<NFTDrop[]> {
-  const drops = await fetchNFTHiveDrops();
-  
-  if (drops && drops.length > 0) {
-    saveCacheDrops(drops);
-    return drops;
-  }
-  
-  throw new Error('No drops returned from NFTHive API');
-}
-
 export interface DropsLoaderState {
   drops: NFTDrop[];
   isLoading: boolean;
@@ -76,40 +64,106 @@ export interface DropsLoaderState {
 
 export function useDropsLoader(): DropsLoaderState {
   const queryClient = useQueryClient();
-  const [progress, setProgress] = useState({ loaded: 0, total: 0 });
+  const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>([]);
+  const [enrichmentProgress, setEnrichmentProgress] = useState({ loaded: 0, total: 0 });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const enrichmentAbortRef = useRef<AbortController | null>(null);
   const initialCacheRef = useRef<NFTDrop[] | null>(null);
 
   // Load from cache on mount
   useEffect(() => {
     initialCacheRef.current = loadCachedDrops();
+    if (initialCacheRef.current) {
+      setEnrichedDrops(initialCacheRef.current);
+    }
   }, []);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['drops-optimized'],
-    queryFn: async () => {
-      const drops = await fetchDropsFast();
-      return drops;
-    },
+  // Fast query - just gets raw drop data from chain (no template fetching)
+  const { data: rawDrops, isLoading, error, refetch } = useQuery({
+    queryKey: ['drops-raw'],
+    queryFn: () => fetchRawDrops(),
     staleTime: 1000 * 60 * 2, // 2 minutes
     refetchInterval: 1000 * 60 * 5, // 5 minutes
     placeholderData: () => initialCacheRef.current || undefined,
   });
 
+  // Separate enrichment effect - runs independently of React Query's abort signal
+  useEffect(() => {
+    if (!rawDrops?.length) return;
+
+    // If we have cached enriched drops with images, skip re-enrichment
+    const hasEnrichedCache = initialCacheRef.current?.some(d => d.image && d.image !== '/placeholder.svg');
+    if (hasEnrichedCache && enrichedDrops.length > 0) {
+      // Only re-enrich if the raw drop count changed significantly
+      const countDiff = Math.abs(rawDrops.length - enrichedDrops.length);
+      if (countDiff < 5) {
+        return;
+      }
+    }
+
+    // Cancel any previous enrichment
+    if (enrichmentAbortRef.current) {
+      enrichmentAbortRef.current.abort();
+    }
+    enrichmentAbortRef.current = new AbortController();
+
+    console.log('[DropsLoader] Starting template enrichment for', rawDrops.length, 'drops');
+
+    // Start enrichment - this runs in the background
+    enrichDropTemplates(
+      rawDrops,
+      enrichmentAbortRef.current.signal,
+      (progress, partialDrops) => {
+        setEnrichmentProgress(progress);
+        setEnrichedDrops(partialDrops);
+        
+        // Save to cache as we go
+        if (progress.loaded === progress.total && progress.total > 0) {
+          saveCacheDrops(partialDrops);
+          console.log('[DropsLoader] Enrichment complete, saved to cache');
+        }
+      }
+    ).catch(err => {
+      if (err?.name !== 'AbortError') {
+        console.error('[DropsLoader] Enrichment failed:', err);
+      }
+    });
+
+    return () => {
+      if (enrichmentAbortRef.current) {
+        enrichmentAbortRef.current.abort();
+      }
+    };
+  }, [rawDrops]);
+
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     clearDropsCache();
-    await queryClient.invalidateQueries({ queryKey: ['drops-optimized'] });
+    initialCacheRef.current = null;
+    setEnrichedDrops([]);
+    setEnrichmentProgress({ loaded: 0, total: 0 });
+    
+    // Cancel any ongoing enrichment
+    if (enrichmentAbortRef.current) {
+      enrichmentAbortRef.current.abort();
+    }
+    
+    await queryClient.invalidateQueries({ queryKey: ['drops-raw'] });
     await refetch();
     setIsRefreshing(false);
   }, [queryClient, refetch]);
 
+  // Return enriched drops if available, otherwise raw drops, otherwise cached
+  const displayDrops = enrichedDrops.length > 0 
+    ? enrichedDrops 
+    : rawDrops || initialCacheRef.current || [];
+
   return {
-    drops: data || initialCacheRef.current || [],
-    isLoading: isLoading && !initialCacheRef.current,
+    drops: displayDrops,
+    isLoading: isLoading && !initialCacheRef.current && enrichedDrops.length === 0,
     isRefreshing,
     error: error as Error | null,
-    progress,
+    progress: enrichmentProgress,
     refresh,
   };
 }

@@ -112,8 +112,8 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
  * 
  * Formula: price = (sqrtPriceX64 / 2^64)^2 * 10^(precisionA - precisionB)
  * 
- * Pool 1252: CHEESE(tokenA, 4 dec) / WAX(tokenB, 8 dec) - returns CHEESE per WAX
- * Pool 1236: WAX(tokenA, 8 dec) / WAXDAO(tokenB, 8 dec) - returns WAX per WAXDAO
+ * Pool 1252: CHEESE(tokenA, 4 dec) / WAX(tokenB, 8 dec) - returns WAX per CHEESE
+ * Pool 1236: WAX(tokenA, 8 dec) / WAXDAO(tokenB, 8 dec) - returns WAXDAO per WAX
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
@@ -152,12 +152,12 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     check(cheese_wax_raw > 0, "Invalid CHEESE price from Alcor");
     check(wax_waxdao_raw > 0, "Invalid WAXDAO price from Alcor");
     
-    // Pool 1252 returns CHEESE per WAX (how many CHEESE for 1 WAX)
-    // We need WAX per CHEESE, so INVERT
-    double wax_per_cheese = 1.0 / cheese_wax_raw;
+    // Pool 1252 returns WAX per CHEESE (e.g., 1.47 WAX for 1 CHEESE)
+    // Use directly - NO inversion needed
+    double wax_per_cheese = cheese_wax_raw;
     
-    // Pool 1236 returns WAX per WAXDAO (how many WAX for 1 WAXDAO) - correct as-is
-    double wax_per_waxdao = wax_waxdao_raw;
+    // Pool 1236 returns WAXDAO per WAX (e.g., 28.57 WAXDAO for 1 WAX)
+    double waxdao_per_wax = wax_waxdao_raw;
     
     // Convert CHEESE amount to double (4 decimals)
     double cheese_value = (double)cheese_amount.amount / 10000.0;
@@ -170,8 +170,8 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     check(wax_value >= min_required, 
         "Insufficient CHEESE. Need at least 200 WAX worth.");
     
-    // WAX -> WAXDAO (e.g., 200 WAX / 0.035 WAX/WAXDAO = ~5714 WAXDAO)
-    double waxdao_value = wax_value / wax_per_waxdao;
+    // WAX -> WAXDAO: MULTIPLY by waxdao_per_wax (e.g., 200 WAX * 28.57 = ~5714 WAXDAO)
+    double waxdao_value = wax_value * waxdao_per_wax;
     
     // Convert back to asset (8 decimals)
     int64_t waxdao_amount = (int64_t)(waxdao_value * 100000000.0);

@@ -6,6 +6,23 @@ import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlaye
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import {
   Music2,
@@ -22,6 +39,9 @@ import {
   RefreshCw,
   List,
   Disc3,
+  Plus,
+  ListMusic,
+  Trash2,
 } from 'lucide-react';
 
 const IPFS_GATEWAYS = [
@@ -101,8 +121,29 @@ export function CheeseAmpPlayer() {
     error: null,
   });
   const [showPlaylist, setShowPlaylist] = useState(true);
+  const [viewMode, setViewMode] = useState<'library' | 'playlists'>('library');
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
 
   const audioPlayer = getAudioPlayer();
+
+  const handleCreatePlaylist = () => {
+    if (newPlaylistName.trim()) {
+      playlist.createPlaylist(newPlaylistName.trim());
+      setNewPlaylistName('');
+      setShowCreatePlaylist(false);
+    }
+  };
+
+  const handleViewPlaylist = (playlistId: string) => {
+    playlist.selectPlaylist(playlistId);
+    setViewMode('library'); // Switch back to show tracks
+  };
+
+  const handleBackToLibrary = () => {
+    playlist.selectPlaylist('library');
+    setViewMode('library');
+  };
 
   // Subscribe to playback state updates
   useEffect(() => {
@@ -389,68 +430,225 @@ export function CheeseAmpPlayer() {
           </div>
         </div>
 
-        {/* Right: Playlist */}
+        {/* Right: Playlist/Library Panel */}
         {showPlaylist && (
           <div className="flex-1 min-w-0 border-l border-border/50 pl-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-cheese">Library</h4>
-              <span className="text-xs text-muted-foreground">
-                {playlist.currentPlaylistTracks.length} tracks
-              </span>
+            {/* Tab Bar */}
+            <div className="flex items-center gap-1 mb-3">
+              <Button
+                variant={viewMode === 'library' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleBackToLibrary}
+              >
+                {playlist.currentPlaylistId === 'library' ? 'Library' : playlist.playlists.find(p => p.id === playlist.currentPlaylistId)?.name || 'Library'}
+              </Button>
+              <Button
+                variant={viewMode === 'playlists' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setViewMode('playlists')}
+              >
+                <ListMusic className="h-3 w-3 mr-1" />
+                Playlists
+              </Button>
             </div>
-            <ScrollArea className="h-[460px]">
-              <div className="space-y-1 pr-2">
-                {playlist.currentPlaylistTracks.map((track, index) => {
-                  const isCurrentTrack = currentTrack?.asset_id === track.asset_id;
-                  return (
-                    <button
-                      key={track.asset_id}
-                      onClick={() => handlePlayTrack(track)}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors",
-                        isCurrentTrack
-                          ? "bg-cheese/20 text-cheese"
-                          : "hover:bg-muted/50"
-                      )}
-                    >
-                      <div className="w-10 h-10 rounded overflow-hidden bg-muted/30 shrink-0">
-                        <CoverArt
-                          src={track.coverArt}
-                          alt={track.name}
-                          isPlaying={isCurrentTrack && playbackState.isPlaying}
-                        />
+
+            {viewMode === 'playlists' ? (
+              /* Playlists View */
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground">
+                    {playlist.playlists.length} playlist{playlist.playlists.length !== 1 ? 's' : ''}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-cheese hover:text-cheese"
+                    onClick={() => setShowCreatePlaylist(true)}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Create
+                  </Button>
+                </div>
+                <ScrollArea className="h-[460px]">
+                  <div className="space-y-1 pr-2">
+                    {playlist.playlists.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        <ListMusic className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No playlists yet</p>
+                        <p className="text-xs mt-1">Create one to organize your tracks</p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn(
-                          "text-sm truncate font-medium",
-                          isCurrentTrack && "text-cheese"
-                        )}>
-                          {track.title || track.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {track.artist || track.collection}
-                        </p>
-                      </div>
-                      {track.copies > 1 && (
-                        <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full shrink-0">
-                          x{track.copies}
-                        </span>
-                      )}
-                      {isCurrentTrack && playbackState.isPlaying && (
-                        <div className="flex gap-0.5 items-end h-4">
-                          <span className="w-0.5 h-2 bg-cheese animate-pulse" style={{ animationDelay: '0ms' }} />
-                          <span className="w-0.5 h-3 bg-cheese animate-pulse" style={{ animationDelay: '150ms' }} />
-                          <span className="w-0.5 h-4 bg-cheese animate-pulse" style={{ animationDelay: '300ms' }} />
-                          <span className="w-0.5 h-2 bg-cheese animate-pulse" style={{ animationDelay: '450ms' }} />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
+                    ) : (
+                      playlist.playlists.map((p) => (
+                        <ContextMenu key={p.id}>
+                          <ContextMenuTrigger asChild>
+                            <button
+                              onClick={() => handleViewPlaylist(p.id)}
+                              className={cn(
+                                "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors hover:bg-muted/50",
+                                playlist.currentPlaylistId === p.id && "bg-cheese/20"
+                              )}
+                            >
+                              <div className="w-10 h-10 rounded bg-muted/30 flex items-center justify-center shrink-0">
+                                <ListMusic className="h-5 w-5 text-cheese/70" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm truncate font-medium">{p.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {p.trackIds.length} track{p.trackIds.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </button>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem
+                              onClick={() => handleViewPlaylist(p.id)}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              View Playlist
+                            </ContextMenuItem>
+                            <ContextMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => playlist.deletePlaylist(p.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Playlist
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
-            </ScrollArea>
+            ) : (
+              /* Library/Tracks View */
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-muted-foreground">
+                    {playlist.currentPlaylistTracks.length} track{playlist.currentPlaylistTracks.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <ScrollArea className="h-[460px]">
+                  <div className="space-y-1 pr-2">
+                    {playlist.currentPlaylistTracks.map((track) => {
+                      const isCurrentTrack = currentTrack?.asset_id === track.asset_id;
+                      const isInLibrary = playlist.currentPlaylistId === 'library';
+                      return (
+                        <ContextMenu key={track.asset_id}>
+                          <ContextMenuTrigger asChild>
+                            <button
+                              onClick={() => handlePlayTrack(track)}
+                              className={cn(
+                                "w-full flex items-center gap-3 p-2 rounded-md text-left transition-colors",
+                                isCurrentTrack
+                                  ? "bg-cheese/20 text-cheese"
+                                  : "hover:bg-muted/50"
+                              )}
+                            >
+                              <div className="w-10 h-10 rounded overflow-hidden bg-muted/30 shrink-0">
+                                <CoverArt
+                                  src={track.coverArt}
+                                  alt={track.name}
+                                  isPlaying={isCurrentTrack && playbackState.isPlaying}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  "text-sm truncate font-medium",
+                                  isCurrentTrack && "text-cheese"
+                                )}>
+                                  {track.title || track.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {track.artist || track.collection}
+                                </p>
+                              </div>
+                              {track.copies > 1 && (
+                                <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full shrink-0">
+                                  x{track.copies}
+                                </span>
+                              )}
+                              {isCurrentTrack && playbackState.isPlaying && (
+                                <div className="flex gap-0.5 items-end h-4">
+                                  <span className="w-0.5 h-2 bg-cheese animate-pulse" style={{ animationDelay: '0ms' }} />
+                                  <span className="w-0.5 h-3 bg-cheese animate-pulse" style={{ animationDelay: '150ms' }} />
+                                  <span className="w-0.5 h-4 bg-cheese animate-pulse" style={{ animationDelay: '300ms' }} />
+                                  <span className="w-0.5 h-2 bg-cheese animate-pulse" style={{ animationDelay: '450ms' }} />
+                                </div>
+                              )}
+                            </button>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem onClick={() => handlePlayTrack(track)}>
+                              <Play className="h-4 w-4 mr-2" />
+                              Play
+                            </ContextMenuItem>
+                            {isInLibrary && playlist.playlists.length > 0 && (
+                              <ContextMenuSub>
+                                <ContextMenuSubTrigger>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add to Playlist
+                                </ContextMenuSubTrigger>
+                                <ContextMenuSubContent>
+                                  {playlist.playlists.map(p => (
+                                    <ContextMenuItem
+                                      key={p.id}
+                                      onClick={() => playlist.addToPlaylist(p.id, track.asset_id)}
+                                    >
+                                      {p.name}
+                                    </ContextMenuItem>
+                                  ))}
+                                </ContextMenuSubContent>
+                              </ContextMenuSub>
+                            )}
+                            {!isInLibrary && (
+                              <ContextMenuItem
+                                onClick={() => playlist.removeFromPlaylist(playlist.currentPlaylistId!, track.asset_id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove from Playlist
+                              </ContextMenuItem>
+                            )}
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Create Playlist Dialog */}
+        <Dialog open={showCreatePlaylist} onOpenChange={setShowCreatePlaylist}>
+          <DialogContent className="sm:max-w-[320px]">
+            <DialogHeader>
+              <DialogTitle>Create Playlist</DialogTitle>
+            </DialogHeader>
+            <Input
+              placeholder="Playlist name"
+              value={newPlaylistName}
+              onChange={(e) => setNewPlaylistName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreatePlaylist()}
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowCreatePlaylist(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreatePlaylist}
+                disabled={!newPlaylistName.trim()}
+                className="bg-cheese hover:bg-cheese/90"
+              >
+                Create
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -72,6 +72,26 @@ const IPFS_GATEWAYS = [
 const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// In-memory session cache - persists across component mounts (dialog open/close)
+// This makes reopening from minimize instant without refetching
+const sessionCache = new Map<string, { nfts: MusicNFT[]; timestamp: number }>();
+const SESSION_CACHE_TTL = 10 * 60 * 1000; // 10 minutes for in-memory cache
+
+function getSessionCachedNFTs(owner: string): MusicNFT[] | null {
+  const cached = sessionCache.get(owner);
+  if (cached && Date.now() - cached.timestamp < SESSION_CACHE_TTL) {
+    return cached.nfts;
+  }
+  if (cached) {
+    sessionCache.delete(owner);
+  }
+  return null;
+}
+
+function setSessionCachedNFTs(owner: string, nfts: MusicNFT[]): void {
+  sessionCache.set(owner, { nfts, timestamp: Date.now() });
+}
+
 function extractIpfsHash(url: string | undefined): string | null {
   if (!url) return null;
   
@@ -366,7 +386,10 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
 
 export function useMusicNFTs() {
   const { accountName } = useWax();
-  const [nfts, setNfts] = useState<MusicNFT[]>([]);
+  // Initialize with session cache for instant reopening from minimize
+  const [nfts, setNfts] = useState<MusicNFT[]>(() => 
+    accountName ? (getSessionCachedNFTs(accountName) || []) : []
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
@@ -377,20 +400,33 @@ export function useMusicNFTs() {
     
     fetchingRef.current = true;
     abortRef.current = false;
-    setIsLoading(true);
     setError(null);
 
     try {
-      // Check cache first
+      // Check session cache first (in-memory, survives component remounts)
       if (!skipCache) {
-        const cached = getCachedMusicNFTs(accountName);
-        if (cached) {
-          console.log(`[useMusicNFTs] Using cached data: ${cached.nfts.length} music NFTs`);
-          setNfts(cached.nfts);
-          setIsLoading(false);
+        const sessionCached = getSessionCachedNFTs(accountName);
+        if (sessionCached) {
+          console.log(`[useMusicNFTs] Using session cache: ${sessionCached.length} music NFTs`);
+          setNfts(sessionCached);
           fetchingRef.current = false;
           return;
         }
+        
+        // Fallback to localStorage cache
+        const cached = getCachedMusicNFTs(accountName);
+        if (cached) {
+          console.log(`[useMusicNFTs] Using localStorage cache: ${cached.nfts.length} music NFTs`);
+          setNfts(cached.nfts);
+          setSessionCachedNFTs(accountName, cached.nfts);
+          fetchingRef.current = false;
+          return;
+        }
+      }
+      
+      // Only show loading if we don't have any cached data
+      if (nfts.length === 0) {
+        setIsLoading(true);
       }
 
       // Phase 1: Parallel fetch - on-chain assets and first API pages
@@ -495,6 +531,8 @@ export function useMusicNFTs() {
       }
 
       console.log(`[useMusicNFTs] Found ${allMusicNfts.length} music NFTs`);
+      // Update both session and localStorage caches
+      setSessionCachedNFTs(accountName, allMusicNfts);
       setCachedMusicNFTs(
         accountName,
         allMusicNfts,
@@ -511,6 +549,11 @@ export function useMusicNFTs() {
 
   useEffect(() => {
     if (accountName) {
+      // Try to load from session cache immediately on account change
+      const sessionCached = getSessionCachedNFTs(accountName);
+      if (sessionCached) {
+        setNfts(sessionCached);
+      }
       fetchMusicNFTs();
     } else {
       setNfts([]);
@@ -524,8 +567,12 @@ export function useMusicNFTs() {
   }, []);
 
   const refetch = useCallback(() => {
+    // Clear session cache on explicit refresh
+    if (accountName) {
+      sessionCache.delete(accountName);
+    }
     fetchMusicNFTs(true);
-  }, [fetchMusicNFTs]);
+  }, [accountName, fetchMusicNFTs]);
 
   const stackedNfts = useMemo(() => {
     return stackMusicNFTs(nfts);

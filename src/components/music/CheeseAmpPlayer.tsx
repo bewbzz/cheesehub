@@ -23,6 +23,12 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
   Music2,
@@ -555,12 +561,21 @@ export function CheeseAmpPlayer() {
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={cn(
-                                  "text-sm truncate font-medium",
-                                  isCurrentTrack && "text-cheese"
-                                )}>
-                                  {track.title || track.name}
-                                </p>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <p className={cn(
+                                        "text-sm truncate font-medium",
+                                        isCurrentTrack && "text-cheese"
+                                      )}>
+                                        {track.title || track.name}
+                                      </p>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[300px]">
+                                      <p>{track.title || track.name}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {track.artist || track.collection}
                                 </p>

@@ -236,7 +236,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       onOpenChange(isOpen);
     }}>
       <DialogContent 
-        className="sm:max-w-[1150px] max-h-[90vh] overflow-hidden"
+        className="sm:max-w-[1000px] max-h-[90vh] overflow-hidden"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >

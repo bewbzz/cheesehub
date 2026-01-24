@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useWax } from '@/context/WaxContext';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { ATOMIC_API } from '@/lib/waxConfig';
+import { waxRpcCall } from '@/lib/waxRpcFallback';
 
 export interface MusicNFT {
   asset_id: string;
@@ -78,7 +81,7 @@ function getMediaUrl(field: string | undefined): string {
   return field;
 }
 
-function isMusicNFT(data: Record<string, any>): boolean {
+function isMusicNFT(data: Record<string, unknown>): boolean {
   // Check for audio field (primary indicator - cXc.world standard)
   if (data.audio) return true;
   // Check for clip field (preview audio)
@@ -118,17 +121,229 @@ function setCachedMusicNFTs(owner: string, nfts: MusicNFT[], assetIds: string[])
   }
 }
 
+interface OnChainAsset {
+  asset_id: string;
+  collection_name: string;
+  schema_name: string;
+  template_id: number;
+}
+
+// Fetch asset data directly from blockchain
+async function getOwnedAssets(owner: string): Promise<Map<string, OnChainAsset>> {
+  const ownedAssets = new Map<string, OnChainAsset>();
+  
+  try {
+    const firstBatch = await waxRpcCall<{
+      rows: Array<{ asset_id: string; collection_name: string; schema_name: string; template_id: number }>;
+      more: boolean;
+      next_key: string;
+    }>('/v1/chain/get_table_rows', {
+      json: true,
+      code: 'atomicassets',
+      scope: owner,
+      table: 'assets',
+      limit: 1000,
+    });
+    
+    if (firstBatch.rows) {
+      for (const asset of firstBatch.rows) {
+        ownedAssets.set(String(asset.asset_id), {
+          asset_id: String(asset.asset_id),
+          collection_name: asset.collection_name,
+          schema_name: asset.schema_name,
+          template_id: asset.template_id,
+        });
+      }
+    }
+    
+    let more = firstBatch.more;
+    let lowerBound = firstBatch.next_key || '';
+    
+    while (more) {
+      const data = await waxRpcCall<{
+        rows: Array<{ asset_id: string; collection_name: string; schema_name: string; template_id: number }>;
+        more: boolean;
+        next_key: string;
+      }>('/v1/chain/get_table_rows', {
+        json: true,
+        code: 'atomicassets',
+        scope: owner,
+        table: 'assets',
+        limit: 1000,
+        lower_bound: lowerBound,
+      });
+      
+      if (data.rows) {
+        for (const asset of data.rows) {
+          ownedAssets.set(String(asset.asset_id), {
+            asset_id: String(asset.asset_id),
+            collection_name: asset.collection_name,
+            schema_name: asset.schema_name,
+            template_id: asset.template_id,
+          });
+        }
+      }
+      
+      more = data.more;
+      lowerBound = data.next_key || '';
+    }
+  } catch (error) {
+    console.error('[useMusicNFTs] Error fetching owned assets from blockchain:', error);
+  }
+  
+  return ownedAssets;
+}
+
+// Fetch metadata for specific asset IDs in parallel batches
+async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
+  if (assetIds.length === 0) return [];
+  
+  const batchSize = 50;
+  const batches: string[][] = [];
+  
+  for (let i = 0; i < assetIds.length; i += batchSize) {
+    batches.push(assetIds.slice(i, i + batchSize));
+  }
+  
+  const parallelLimit = 3;
+  const results: MusicNFT[] = [];
+  
+  for (let i = 0; i < batches.length; i += parallelLimit) {
+    const parallelBatches = batches.slice(i, i + parallelLimit);
+    
+    const batchResults = await Promise.all(
+      parallelBatches.map(async (batch) => {
+        const idsParam = batch.join(',');
+        
+        try {
+          const cacheBuster = `&_ts=${Date.now()}`;
+          const path = `${ATOMIC_API.paths.assets}?ids=${idsParam}${cacheBuster}`;
+          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+          const json = await response.json();
+          
+          if (json.success && json.data) {
+            const musicNfts: MusicNFT[] = [];
+            
+            for (const asset of json.data) {
+              const immutableData = asset.immutable_data || {};
+              const mutableData = asset.mutable_data || {};
+              const templateData = asset.template?.immutable_data || {};
+              const allData = { ...templateData, ...immutableData, ...mutableData };
+              
+              if (isMusicNFT(allData)) {
+                musicNfts.push({
+                  asset_id: asset.asset_id,
+                  name: asset.name || allData.name || 'Untitled Track',
+                  title: allData.title as string | undefined,
+                  artist: allData.artist as string | undefined,
+                  album: allData.album as string | undefined,
+                  genre: allData.genre as string | undefined,
+                  audioUrl: getMediaUrl((allData.audio || allData.clip) as string | undefined),
+                  clipUrl: allData.clip ? getMediaUrl(allData.clip as string) : undefined,
+                  videoUrl: allData.video ? getMediaUrl(allData.video as string) : undefined,
+                  coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
+                  backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
+                  duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
+                  collection: asset.collection?.collection_name || '',
+                  schema: asset.schema?.schema_name || '',
+                  template_id: asset.template?.template_id || '',
+                  mint: asset.template_mint || '',
+                });
+              }
+            }
+            
+            return musicNfts;
+          }
+        } catch (error) {
+          console.error('[useMusicNFTs] Error fetching asset metadata for batch:', error);
+        }
+        return [];
+      })
+    );
+    
+    results.push(...batchResults.flat());
+  }
+  
+  return results;
+}
+
+// Fetch a single page of API metadata and filter for music NFTs
+async function fetchApiPage(owner: string, page: number, limit: number): Promise<{
+  musicNfts: MusicNFT[];
+  hasMore: boolean;
+}> {
+  const params = new URLSearchParams({
+    owner,
+    limit: String(limit),
+    page: String(page),
+    order: 'desc',
+    sort: 'asset_id',
+  });
+
+  const cacheBuster = `&_ts=${Date.now()}`;
+  const path = `${ATOMIC_API.paths.assets}?${params.toString()}${cacheBuster}`;
+  
+  try {
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const json = await response.json();
+
+    if (!json.success || !json.data) {
+      return { musicNfts: [], hasMore: false };
+    }
+
+    const musicNfts: MusicNFT[] = [];
+    
+    for (const asset of json.data) {
+      const immutableData = asset.immutable_data || {};
+      const mutableData = asset.mutable_data || {};
+      const templateData = asset.template?.immutable_data || {};
+      const allData = { ...templateData, ...immutableData, ...mutableData };
+      
+      if (isMusicNFT(allData)) {
+        musicNfts.push({
+          asset_id: asset.asset_id,
+          name: asset.name || allData.name || 'Untitled Track',
+          title: allData.title as string | undefined,
+          artist: allData.artist as string | undefined,
+          album: allData.album as string | undefined,
+          genre: allData.genre as string | undefined,
+          audioUrl: getMediaUrl((allData.audio || allData.clip) as string | undefined),
+          clipUrl: allData.clip ? getMediaUrl(allData.clip as string) : undefined,
+          videoUrl: allData.video ? getMediaUrl(allData.video as string) : undefined,
+          coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
+          backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
+          duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
+          collection: asset.collection?.collection_name || '',
+          schema: asset.schema?.schema_name || '',
+          template_id: asset.template?.template_id || '',
+          mint: asset.template_mint || '',
+        });
+      }
+    }
+
+    return {
+      musicNfts,
+      hasMore: json.data.length >= limit,
+    };
+  } catch (err) {
+    console.error('[useMusicNFTs] Error fetching page', page, err);
+    return { musicNfts: [], hasMore: false };
+  }
+}
+
 export function useMusicNFTs() {
   const { accountName } = useWax();
   const [nfts, setNfts] = useState<MusicNFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchingRef = useRef(false);
+  const abortRef = useRef(false);
 
   const fetchMusicNFTs = useCallback(async (skipCache = false) => {
     if (!accountName || fetchingRef.current) return;
     
     fetchingRef.current = true;
+    abortRef.current = false;
     setIsLoading(true);
     setError(null);
 
@@ -137,6 +352,7 @@ export function useMusicNFTs() {
       if (!skipCache) {
         const cached = getCachedMusicNFTs(accountName);
         if (cached) {
+          console.log(`[useMusicNFTs] Using cached data: ${cached.nfts.length} music NFTs`);
           setNfts(cached.nfts);
           setIsLoading(false);
           fetchingRef.current = false;
@@ -144,76 +360,115 @@ export function useMusicNFTs() {
         }
       }
 
-      // Fetch from AtomicAssets API
+      // Phase 1: Parallel fetch - on-chain assets and first API pages
+      const [ownedAssetsMap, firstPages] = await Promise.all([
+        getOwnedAssets(accountName),
+        Promise.all([
+          fetchApiPage(accountName, 1, 100),
+          fetchApiPage(accountName, 2, 100),
+          fetchApiPage(accountName, 3, 100),
+          fetchApiPage(accountName, 4, 100),
+          fetchApiPage(accountName, 5, 100),
+        ]),
+      ]);
+
+      if (abortRef.current) return;
+
+      const ownedAssetIds = new Set(ownedAssetsMap.keys());
+      console.log(`[useMusicNFTs] On-chain found ${ownedAssetIds.size} total assets for ${accountName}`);
+
+      if (ownedAssetIds.size === 0) {
+        setNfts([]);
+        setIsLoading(false);
+        setCachedMusicNFTs(accountName, [], []);
+        fetchingRef.current = false;
+        return;
+      }
+
+      // Collect music NFTs from first pages (filter by on-chain ownership)
+      const fetchedAssetIds = new Set<string>();
       const allMusicNfts: MusicNFT[] = [];
-      let page = 1;
-      const limit = 100;
-      let hasMore = true;
 
-      while (hasMore) {
-        const response = await fetch(
-          `https://wax.api.atomicassets.io/atomicassets/v1/assets?owner=${accountName}&page=${page}&limit=${limit}&order=desc&sort=asset_id`
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch NFTs');
-        }
-
-        const data = await response.json();
-        const assets = data.data || [];
-
-        if (assets.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        // Filter for music NFTs
-        for (const asset of assets) {
-          const immutableData = asset.immutable_data || {};
-          const mutableData = asset.mutable_data || {};
-          const templateData = asset.template?.immutable_data || {};
-          
-          // Merge all data sources
-          const allData = { ...templateData, ...immutableData, ...mutableData };
-
-          if (isMusicNFT(allData)) {
-            const musicNft: MusicNFT = {
-              asset_id: asset.asset_id,
-              name: asset.name || allData.name || 'Untitled Track',
-              title: allData.title,
-              artist: allData.artist,
-              album: allData.album,
-              genre: allData.genre,
-              audioUrl: getMediaUrl(allData.audio || allData.clip),
-              clipUrl: allData.clip ? getMediaUrl(allData.clip) : undefined,
-              videoUrl: allData.video ? getMediaUrl(allData.video) : undefined,
-              coverArt: getMediaUrl(allData.img || allData.image),
-              backCover: allData.backimg ? getMediaUrl(allData.backimg) : undefined,
-              duration: allData.duration ? parseInt(allData.duration) : undefined,
-              collection: asset.collection?.collection_name || '',
-              schema: asset.schema?.schema_name || '',
-              template_id: asset.template?.template_id || '',
-              mint: asset.template_mint || '',
-            };
-            allMusicNfts.push(musicNft);
+      for (const pageResult of firstPages) {
+        for (const nft of pageResult.musicNfts) {
+          if (ownedAssetIds.has(nft.asset_id) && !fetchedAssetIds.has(nft.asset_id)) {
+            fetchedAssetIds.add(nft.asset_id);
+            allMusicNfts.push(nft);
           }
-        }
-
-        if (assets.length < limit) {
-          hasMore = false;
-        } else {
-          page++;
         }
       }
 
-      setNfts(allMusicNfts);
+      // Progressive update
+      if (allMusicNfts.length > 0) {
+        allMusicNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
+        setNfts([...allMusicNfts]);
+      }
+
+      if (abortRef.current) return;
+
+      // Phase 2: Continue fetching remaining pages if needed
+      const lastPageHadMore = firstPages[firstPages.length - 1].hasMore;
+      if (lastPageHadMore) {
+        let page = 6;
+        const maxPage = 50;
+        
+        while (page <= maxPage) {
+          const pagePromises = [];
+          for (let i = 0; i < 5 && page + i <= maxPage; i++) {
+            pagePromises.push(fetchApiPage(accountName, page + i, 100));
+          }
+          
+          const results = await Promise.all(pagePromises);
+          
+          if (abortRef.current) return;
+          
+          let foundAny = false;
+          for (const result of results) {
+            for (const nft of result.musicNfts) {
+              if (ownedAssetIds.has(nft.asset_id) && !fetchedAssetIds.has(nft.asset_id)) {
+                fetchedAssetIds.add(nft.asset_id);
+                allMusicNfts.push(nft);
+                foundAny = true;
+              }
+            }
+            if (!result.hasMore) break;
+          }
+          
+          if (foundAny) {
+            allMusicNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
+            setNfts([...allMusicNfts]);
+          }
+          
+          if (results.every(r => !r.hasMore || r.musicNfts.length === 0)) break;
+          
+          page += 5;
+        }
+      }
+
+      if (abortRef.current) return;
+
+      // Phase 3: For any assets we haven't checked yet, fetch by ID to find more music NFTs
+      const uncheckedAssetIds = Array.from(ownedAssetIds).filter(id => !fetchedAssetIds.has(id));
+      
+      if (uncheckedAssetIds.length > 0 && uncheckedAssetIds.length <= 500) {
+        console.log(`[useMusicNFTs] Checking ${uncheckedAssetIds.length} unchecked assets for music NFTs`);
+        const additionalMusicNfts = await fetchAssetMetadata(uncheckedAssetIds);
+        
+        if (additionalMusicNfts.length > 0) {
+          allMusicNfts.push(...additionalMusicNfts);
+          allMusicNfts.sort((a, b) => Number(b.asset_id) - Number(a.asset_id));
+          setNfts([...allMusicNfts]);
+        }
+      }
+
+      console.log(`[useMusicNFTs] Found ${allMusicNfts.length} music NFTs`);
       setCachedMusicNFTs(
         accountName,
         allMusicNfts,
         allMusicNfts.map(n => n.asset_id)
       );
     } catch (err) {
-      console.error('Failed to fetch music NFTs:', err);
+      console.error('[useMusicNFTs] Failed to fetch music NFTs:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch music NFTs');
     } finally {
       setIsLoading(false);
@@ -228,6 +483,12 @@ export function useMusicNFTs() {
       setNfts([]);
     }
   }, [accountName, fetchMusicNFTs]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current = true;
+    };
+  }, []);
 
   const refetch = useCallback(() => {
     fetchMusicNFTs(true);

@@ -442,13 +442,22 @@ export function CheeseAmpPlayer() {
             {/* Tab Bar */}
             <div className="flex items-center gap-1 mb-3">
               <Button
-                variant={viewMode === 'library' ? 'secondary' : 'ghost'}
+                variant={playlist.currentPlaylistId === 'library' && viewMode === 'library' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 text-xs"
                 onClick={handleBackToLibrary}
               >
-                {playlist.currentPlaylistId === 'library' ? 'Library' : playlist.playlists.find(p => p.id === playlist.currentPlaylistId)?.name || 'Library'}
+                Library
               </Button>
+              {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-xs"
+                >
+                  {playlist.playlists.find(p => p.id === playlist.currentPlaylistId)?.name}
+                </Button>
+              )}
               <Button
                 variant={viewMode === 'playlists' ? 'secondary' : 'ghost'}
                 size="sm"

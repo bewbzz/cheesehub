@@ -20,12 +20,16 @@ import {
 import cheeseLogo from "@/assets/cheese-logo.png";
 import { WalletTransferDialog } from "./WalletTransferDialog";
 import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
+import { useCheeseAmpAutoAdvance } from "@/hooks/useCheeseAmpAutoAdvance";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
+
+  // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
+  useCheeseAmpAutoAdvance(accountName);
 
   // Listen for custom event to open wallet
   useEffect(() => {

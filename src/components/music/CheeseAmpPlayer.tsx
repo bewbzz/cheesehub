@@ -157,16 +157,8 @@ export function CheeseAmpPlayer() {
     return unsubscribe;
   }, [audioPlayer]);
 
-  // Handle track end
-  useEffect(() => {
-    const unsubscribe = audioPlayer.onTrackEnd(() => {
-      const nextTrack = playlist.playNext();
-      if (nextTrack) {
-        audioPlayer.play(nextTrack).catch(console.error);
-      }
-    });
-    return unsubscribe;
-  }, [audioPlayer, playlist]);
+  // Note: Track end handling is managed by useCheeseAmpAutoAdvance hook in WalletConnect
+  // This ensures auto-advance works even when the dialog is minimized
 
   const handlePlayTrack = useCallback(async (track: StackedMusicNFT) => {
     playlist.playTrack(track);

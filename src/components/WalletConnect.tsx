@@ -83,7 +83,11 @@ export function WalletConnect() {
         </DropdownMenuContent>
       </DropdownMenu>
       <WalletTransferDialog open={walletOpen} onOpenChange={setWalletOpen} />
-      <CheeseAmpDialog open={cheeseAmpOpen} onOpenChange={setCheeseAmpOpen} />
+      <CheeseAmpDialog 
+        open={cheeseAmpOpen} 
+        onOpenChange={setCheeseAmpOpen} 
+        onMinimize={() => setCheeseAmpOpen(false)} 
+      />
     </>
     );
   }

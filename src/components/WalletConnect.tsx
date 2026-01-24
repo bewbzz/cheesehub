@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { Wallet, LogOut, ChevronDown, Send } from "lucide-react";
+import { Wallet, LogOut, ChevronDown, Send, Music2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,11 +19,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import { WalletTransferDialog } from "./WalletTransferDialog";
+import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
 
   // Listen for custom event to open wallet
   useEffect(() => {
@@ -69,6 +71,10 @@ export function WalletConnect() {
             <Send className="mr-2 h-4 w-4" />
             Wallet
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCheeseAmpOpen(true)} className="cursor-pointer">
+            <Music2 className="mr-2 h-4 w-4" />
+            <span><span className="text-cheese">CHEESE</span>Amp</span>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />
@@ -77,6 +83,7 @@ export function WalletConnect() {
         </DropdownMenuContent>
       </DropdownMenu>
       <WalletTransferDialog open={walletOpen} onOpenChange={setWalletOpen} />
+      <CheeseAmpDialog open={cheeseAmpOpen} onOpenChange={setCheeseAmpOpen} />
     </>
     );
   }

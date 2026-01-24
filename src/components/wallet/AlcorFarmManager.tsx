@@ -642,37 +642,49 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       : "bg-muted/30"
                   )}
                 >
-                  <CardContent className="p-4">
-                    {/* Main row - Position info */}
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Pair & Metadata */}
-                      <div className="w-[160px] shrink-0">
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-2">
-                            <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
-                            <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">
-                              {position.tokenA.symbol}/{position.tokenB.symbol}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              Pool #{position.positionId}
-                              {position.usdValue > 0 && (
-                                <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
-                              )}
-                            </div>
-                          </div>
+                    <CardContent className="p-4">
+                    {/* Header row - raised to top */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex -space-x-2">
+                        <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
+                        <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">
+                          {position.tokenA.symbol}/{position.tokenB.symbol}
                         </div>
-                        {/* Stake amounts below header */}
-                        <div className="font-mono text-xs mt-1.5 space-y-0.5 text-muted-foreground">
+                        <div className="text-[10px] text-muted-foreground">
+                          Pool #{position.positionId}
+                          {position.usdValue > 0 && (
+                            <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Data rows - stake amounts aligned with incentive data */}
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Stake amounts column */}
+                      <div className="w-[140px] shrink-0">
+                        <div className="text-xs text-muted-foreground mb-1">Stake</div>
+                        <div 
+                          className="font-mono text-xs space-y-0.5 text-muted-foreground"
+                          style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            height: position.incentives.length > 2 
+                              ? `${position.incentives.length * 1.25}rem` 
+                              : 'auto',
+                            justifyContent: position.incentives.length > 2 ? 'space-evenly' : 'flex-start'
+                          }}
+                        >
                           <div>{position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}</div>
                           <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
                         </div>
                       </div>
 
                       {/* APR - stacked */}
-                      <div className="w-[70px] shrink-0 text-center">
+                      <div className="w-[60px] shrink-0 text-center">
                         <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
                           <Percent className="h-3 w-3" />
                           APR
@@ -698,7 +710,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       </div>
 
                       {/* Daily earn - stacked */}
-                      <div className="w-[130px] shrink-0 text-center">
+                      <div className="w-[120px] shrink-0 text-center">
                         <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
                           <TrendingUp className="h-3 w-3" />
                           Daily
@@ -716,7 +728,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       </div>
 
                       {/* Remaining Time - stacked */}
-                      <div className="w-[80px] shrink-0 text-center">
+                      <div className="w-[70px] shrink-0 text-center">
                         <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mb-1">
                           <Clock className="h-3 w-3" />
                           Remaining

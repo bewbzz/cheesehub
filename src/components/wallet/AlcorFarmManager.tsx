@@ -763,7 +763,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                             const key = getIncentiveKey(incentive);
                             const liveReward = liveRewards.get(key) || incentive.pendingReward;
                             return (
-                              <div key={key} className="font-mono text-sm text-cheese font-medium">
+                              <div key={key} className="font-mono text-xs text-cheese">
                                 {liveReward.toFixed(Math.min(4, incentive.rewardToken.precision))} {incentive.rewardToken.symbol}
                               </div>
                             );

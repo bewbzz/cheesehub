@@ -157,6 +157,21 @@ export function CheeseAmpPlayer() {
     return unsubscribe;
   }, [audioPlayer]);
 
+  // Sync with currently playing track when player is reopened
+  useEffect(() => {
+    const currentlyPlayingTrack = audioPlayer.getCurrentTrack();
+    if (currentlyPlayingTrack && stackedNfts.length > 0) {
+      // Find the matching track in stackedNfts and sync playlist state
+      const matchingTrack = stackedNfts.find(
+        t => t.template_id === currentlyPlayingTrack.template_id
+      );
+      if (matchingTrack && playlist.currentTrack?.template_id !== matchingTrack.template_id) {
+        // Sync the playlist state without triggering a new play
+        playlist.playTrack(matchingTrack);
+      }
+    }
+  }, [audioPlayer, stackedNfts, playlist]);
+
   // Note: Track end handling is managed by useCheeseAmpAutoAdvance hook in WalletConnect
   // This ensures auto-advance works even when the dialog is minimized
 

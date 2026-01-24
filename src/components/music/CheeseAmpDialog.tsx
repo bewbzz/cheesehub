@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CheeseAmpPlayer } from './CheeseAmpPlayer';
+import { getAudioPlayer } from '@/lib/musicPlayer';
 import { Music2 } from 'lucide-react';
 
 interface CheeseAmpDialogProps {
@@ -14,8 +15,16 @@ interface CheeseAmpDialogProps {
 }
 
 export function CheeseAmpDialog({ open, onOpenChange }: CheeseAmpDialogProps) {
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // Stop playback when dialog closes
+      getAudioPlayer().stop();
+    }
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="sm:max-w-[700px] max-h-[90vh] overflow-hidden"
         onInteractOutside={(e) => e.preventDefault()}

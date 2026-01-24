@@ -208,6 +208,30 @@ const Index = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* CHEESEAmp CTA - Full Width */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🎧</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4">
+                <span className="text-cheese">CHEESE</span>
+                <span className="text-foreground">Amp</span>
+              </h2>
+              <p className="text-muted-foreground max-w-lg mx-auto mb-6">
+                A simple, clean NFT music player that populates a list automatically with your music NFTS. Play videos, create playlists, shuffle tracks and enjoy your musical blockchain assets like never before. Minimizes to the background and keeps playing while you work or browse the web
+              </p>
+              <Button 
+                size="lg" 
+                className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-cheese-amp'))}
+              >
+                Open CHEESEAmp
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </section>
     </Layout>

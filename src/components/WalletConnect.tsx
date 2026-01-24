@@ -44,6 +44,19 @@ export function WalletConnect() {
     return () => window.removeEventListener('open-cheese-wallet', handleOpenWallet);
   }, [isConnected]);
 
+  // Listen for custom event to open CHEESEAmp
+  useEffect(() => {
+    const handleOpenCheeseAmp = () => {
+      if (isConnected) {
+        setCheeseAmpOpen(true);
+      } else {
+        setOpen(true);
+      }
+    };
+    window.addEventListener('open-cheese-amp', handleOpenCheeseAmp);
+    return () => window.removeEventListener('open-cheese-amp', handleOpenCheeseAmp);
+  }, [isConnected]);
+
   const handleLogin = async () => {
     // Close our dialog FIRST before triggering WharfKit login
     // This prevents the Radix dialog from interfering with WharfKit's modal

@@ -73,14 +73,16 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
   const [retryCount, setRetryCount] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
-
   // Reset state when drop image changes
   useEffect(() => {
-    // If image is still a placeholder after enrichment, show error immediately
     const isPlaceholder = !drop.image || drop.image === '/placeholder.svg' || drop.image.includes('placeholder');
+    
     if (isPlaceholder) {
-      setImageError(true);
+      // Mark as failed for retry, but show the placeholder image instead of error state
       markDropAsFailed(drop.id);
+      setCurrentImageUrl('/placeholder.svg');
+      setImageLoaded(true);
+      setImageError(false);
       return;
     }
     

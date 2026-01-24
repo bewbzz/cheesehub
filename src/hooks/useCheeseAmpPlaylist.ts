@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { MusicNFT } from '@/hooks/useMusicNFTs';
+import type { StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import type { RepeatMode } from '@/lib/musicPlayer';
 
 interface SavedPlaylist {
@@ -53,7 +53,7 @@ function saveState(accountName: string, state: CheeseAmpState): void {
   }
 }
 
-export function useCheeseAmpPlaylist(accountName: string | null, allTracks: MusicNFT[]) {
+export function useCheeseAmpPlaylist(accountName: string | null, allTracks: StackedMusicNFT[]) {
   const [state, setState] = useState<CheeseAmpState>(() => 
     accountName ? loadState(accountName) : {
       currentPlaylistId: DEFAULT_PLAYLIST_ID,
@@ -91,7 +91,7 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Musi
     if (!playlist) return allTracks;
     return playlist.trackIds
       .map(id => allTracks.find(t => t.asset_id === id))
-      .filter((t): t is MusicNFT => t !== undefined);
+      .filter((t): t is StackedMusicNFT => t !== undefined);
   }, [state.currentPlaylistId, state.playlists, allTracks]);
 
   // Generate shuffle order when tracks or shuffle mode changes
@@ -117,7 +117,7 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Musi
     return currentPlaylistTracks[actualIndex] || null;
   }, [currentIndex, currentPlaylistTracks, state.shuffle, shuffleOrder]);
 
-  const playTrack = useCallback((track: MusicNFT) => {
+  const playTrack = useCallback((track: StackedMusicNFT) => {
     const index = currentPlaylistTracks.findIndex(t => t.asset_id === track.asset_id);
     if (index !== -1) {
       // If shuffle is on, find the position in shuffle order

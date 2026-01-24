@@ -230,6 +230,29 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     return expired;
   }, [groupedPositions]);
 
+  // Calculate total rewards by token symbol for the "Claim All" tooltip
+  const totalRewardsByToken = useMemo(() => {
+    const totals = new Map<string, { symbol: string; precision: number; total: number }>();
+    
+    farmsList.forEach(farm => {
+      const key = getIncentiveKey(farm);
+      const liveReward = liveRewards.get(key) || farm.pendingReward;
+      const existing = totals.get(farm.rewardToken.symbol);
+      
+      if (existing) {
+        existing.total += liveReward;
+      } else {
+        totals.set(farm.rewardToken.symbol, {
+          symbol: farm.rewardToken.symbol,
+          precision: farm.rewardToken.precision,
+          total: liveReward
+        });
+      }
+    });
+    
+    return Array.from(totals.values()).sort((a, b) => b.total - a.total);
+  }, [farmsList, liveRewards]);
+
   // Create unique key for each incentive
   const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
@@ -601,21 +624,41 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
           >
             <RefreshCw className={cn("h-4 w-4 transition-transform", isRefreshing && "animate-spin")} />
           </Button>
-          <Button
-            size="sm"
-            onClick={handleClaimAll}
-            disabled={isTransacting}
-            className="bg-cheese hover:bg-cheese-dark text-primary-foreground"
-          >
-            {isTransacting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Coins className="h-4 w-4 mr-1" />
-                Claim All
-              </>
-            )}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={handleClaimAll}
+                  disabled={isTransacting}
+                  className="bg-cheese hover:bg-cheese-dark text-primary-foreground"
+                >
+                  {isTransacting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Coins className="h-4 w-4 mr-1" />
+                      Claim All
+                    </>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">Total Claimable</p>
+                <div className="font-mono text-sm space-y-0.5">
+                  {totalRewardsByToken.length > 0 ? (
+                    totalRewardsByToken.map(({ symbol, precision, total }) => (
+                      <div key={symbol} className="text-cheese">
+                        {total.toFixed(Math.min(4, precision))} {symbol}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-muted-foreground">No rewards</div>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 

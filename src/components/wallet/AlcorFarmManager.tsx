@@ -668,7 +668,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                       <div className="w-[140px] shrink-0">
                         <div className="text-xs text-muted-foreground mb-1">Stake</div>
                         <div 
-                          className="font-mono text-xs space-y-0.5 text-muted-foreground"
+                          className="font-mono text-xs space-y-0.5 text-foreground"
                           style={{ 
                             display: 'flex', 
                             flexDirection: 'column',

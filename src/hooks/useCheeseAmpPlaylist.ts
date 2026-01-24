@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import type { RepeatMode } from '@/lib/musicPlayer';
+import { getAudioPlayer } from '@/lib/musicPlayer';
 
 interface SavedPlaylist {
   id: string;
@@ -74,6 +75,22 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
       setState(loadState(accountName));
     }
   }, [accountName]);
+
+  // Sync with audio player's current track on mount/reopen
+  // This ensures the UI reflects the currently playing track when dialog reopens
+  useEffect(() => {
+    if (allTracks.length === 0) return;
+    
+    const audioPlayer = getAudioPlayer();
+    const playingTrack = audioPlayer.getCurrentTrack();
+    
+    if (playingTrack) {
+      const index = allTracks.findIndex(t => t.asset_id === playingTrack.asset_id);
+      if (index !== -1 && currentIndex !== index) {
+        setCurrentIndex(index);
+      }
+    }
+  }, [allTracks]); // Only run when tracks load, not on currentIndex changes
 
   // Save state when it changes
   useEffect(() => {

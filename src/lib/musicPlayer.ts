@@ -189,8 +189,9 @@ class CheeseAmpAudio {
   }
 
   seek(time: number): void {
-    if (this.audio.duration) {
-      this.audio.currentTime = Math.max(0, Math.min(time, this.audio.duration));
+    if (this.audio.readyState >= 1) {
+      const duration = this.audio.duration || 0;
+      this.audio.currentTime = Math.max(0, Math.min(time, duration || time));
       this.notifyCallbacks();
     }
   }

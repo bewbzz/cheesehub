@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWax } from '@/context/WaxContext';
-import { useMusicNFTs, type MusicNFT } from '@/hooks/useMusicNFTs';
+import { useMusicNFTs, type StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import { useCheeseAmpPlaylist } from '@/hooks/useCheeseAmpPlaylist';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
 import { Button } from '@/components/ui/button';
@@ -89,8 +89,8 @@ function CoverArt({ src, alt, isPlaying }: CoverArtProps) {
 
 export function CheeseAmpPlayer() {
   const { accountName } = useWax();
-  const { nfts, isLoading: isLoadingNfts, refetch } = useMusicNFTs();
-  const playlist = useCheeseAmpPlaylist(accountName, nfts);
+  const { nfts, stackedNfts, isLoading: isLoadingNfts, refetch } = useMusicNFTs();
+  const playlist = useCheeseAmpPlaylist(accountName, stackedNfts);
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     currentTime: 0,
@@ -121,7 +121,7 @@ export function CheeseAmpPlayer() {
     return unsubscribe;
   }, [audioPlayer, playlist]);
 
-  const handlePlayTrack = useCallback(async (track: MusicNFT) => {
+  const handlePlayTrack = useCallback(async (track: StackedMusicNFT) => {
     playlist.playTrack(track);
     try {
       await audioPlayer.play(track);
@@ -190,7 +190,7 @@ export function CheeseAmpPlayer() {
     );
   }
 
-  if (nfts.length === 0) {
+  if (stackedNfts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Music2 className="h-12 w-12 text-muted-foreground mb-3" />
@@ -229,7 +229,8 @@ export function CheeseAmpPlayer() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {nfts.length} track{nfts.length !== 1 ? 's' : ''}
+            {stackedNfts.length} track{stackedNfts.length !== 1 ? 's' : ''}
+            {nfts.length !== stackedNfts.length && ` (${nfts.length} total)`}
           </span>
           <Button
             variant="ghost"
@@ -430,6 +431,11 @@ export function CheeseAmpPlayer() {
                           {track.artist || track.collection}
                         </p>
                       </div>
+                      {track.copies > 1 && (
+                        <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full shrink-0">
+                          x{track.copies}
+                        </span>
+                      )}
                       {isCurrentTrack && playbackState.isPlaying && (
                         <div className="flex gap-0.5 items-end h-4">
                           <span className="w-0.5 h-2 bg-cheese animate-pulse" style={{ animationDelay: '0ms' }} />

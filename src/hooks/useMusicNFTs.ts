@@ -23,6 +23,39 @@ export interface MusicNFT {
   mint: string;
 }
 
+export interface StackedMusicNFT extends MusicNFT {
+  copies: number;
+  allAssetIds: string[];
+}
+
+function stackMusicNFTs(nfts: MusicNFT[]): StackedMusicNFT[] {
+  const templateMap = new Map<string, MusicNFT[]>();
+  
+  // Group by template_id (same template = same song)
+  for (const nft of nfts) {
+    const key = nft.template_id || nft.asset_id; // Fallback to asset_id if no template
+    const existing = templateMap.get(key) || [];
+    existing.push(nft);
+    templateMap.set(key, existing);
+  }
+  
+  // Convert to stacked NFTs (use first copy as the representative, sorted by lowest mint)
+  return Array.from(templateMap.values()).map(copies => {
+    // Sort by mint number to get the lowest mint as representative
+    copies.sort((a, b) => {
+      const mintA = parseInt(a.mint) || Infinity;
+      const mintB = parseInt(b.mint) || Infinity;
+      return mintA - mintB;
+    });
+    
+    return {
+      ...copies[0],
+      copies: copies.length,
+      allAssetIds: copies.map(c => c.asset_id),
+    };
+  });
+}
+
 interface CachedMusicData {
   nfts: MusicNFT[];
   timestamp: number;
@@ -494,6 +527,10 @@ export function useMusicNFTs() {
     fetchMusicNFTs(true);
   }, [fetchMusicNFTs]);
 
+  const stackedNfts = useMemo(() => {
+    return stackMusicNFTs(nfts);
+  }, [nfts]);
+
   const collections = useMemo(() => {
     const collectionMap = new Map<string, number>();
     nfts.forEach(nft => {
@@ -520,6 +557,7 @@ export function useMusicNFTs() {
 
   return {
     nfts,
+    stackedNfts,
     isLoading,
     error,
     refetch,

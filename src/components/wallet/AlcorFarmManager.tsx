@@ -230,6 +230,9 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     return expired;
   }, [groupedPositions]);
 
+  // Create unique key for each incentive
+  const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
+
   // Calculate total rewards by token symbol for the "Claim All" tooltip
   const totalRewardsByToken = useMemo(() => {
     const totals = new Map<string, { symbol: string; precision: number; total: number }>();
@@ -252,9 +255,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
     
     return Array.from(totals.values()).sort((a, b) => b.total - a.total);
   }, [farmsList, liveRewards]);
-
-  // Create unique key for each incentive
-  const getIncentiveKey = (farm: AlcorFarmPosition) => `${farm.positionId}-${farm.incentiveId}`;
 
   // Update live rewards every second
   useEffect(() => {

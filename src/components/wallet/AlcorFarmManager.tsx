@@ -707,20 +707,10 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
                     {/* Data rows - stake amounts aligned with incentive data */}
                     <div className="flex items-start justify-between gap-4">
-                      {/* Stake amounts column */}
+                      {/* Stake amounts column - always align with first 2 incentive rows */}
                       <div className="w-[140px] shrink-0">
                         <div className="text-xs text-muted-foreground mb-1">Stake</div>
-                        <div 
-                          className="font-mono text-xs space-y-0.5 text-foreground"
-                          style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            height: position.incentives.length > 2 
-                              ? `${position.incentives.length * 1.25}rem` 
-                              : 'auto',
-                            justifyContent: position.incentives.length > 2 ? 'space-evenly' : 'flex-start'
-                          }}
-                        >
+                        <div className="font-mono text-xs space-y-0.5 text-foreground">
                           <div>{position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}</div>
                           <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
                         </div>

@@ -456,15 +456,6 @@ export function CheeseAmpPlayer() {
               >
                 Library
               </Button>
-              {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-7 text-xs"
-                >
-                  {playlist.playlists.find(p => p.id === playlist.currentPlaylistId)?.name}
-                </Button>
-              )}
               <Button
                 variant={viewMode === 'playlists' ? 'secondary' : 'ghost'}
                 size="sm"
@@ -474,6 +465,15 @@ export function CheeseAmpPlayer() {
                 <ListMusic className="h-3 w-3 mr-1" />
                 Playlists
               </Button>
+              {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-xs"
+                >
+                  {playlist.playlists.find(p => p.id === playlist.currentPlaylistId)?.name}
+                </Button>
+              )}
             </div>
 
             {viewMode === 'playlists' ? (

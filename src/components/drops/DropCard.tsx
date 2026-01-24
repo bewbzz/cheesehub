@@ -76,12 +76,20 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
 
   // Reset state when drop image changes
   useEffect(() => {
+    // If image is still a placeholder after enrichment, show error immediately
+    const isPlaceholder = !drop.image || drop.image === '/placeholder.svg' || drop.image.includes('placeholder');
+    if (isPlaceholder) {
+      setImageError(true);
+      markDropAsFailed(drop.id);
+      return;
+    }
+    
     setImageError(false);
-    setImageLoaded(false);
+    setImageLoaded(isImageCached ?? false);
     setCurrentImageUrl(drop.image);
     setGatewayIndex(0);
     setRetryCount(0);
-  }, [drop.image]);
+  }, [drop.image, drop.id, isImageCached]);
 
   // Timeout fallback - if image doesn't load in time, try next gateway
   // Skip timeout if already cached

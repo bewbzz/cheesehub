@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import type { NFTDrop } from "@/types/drop";
 import { useCart } from "@/context/CartContext";
 import { Link } from "react-router-dom";
+import { markDropAsFailed } from "@/hooks/useEnrichDrops";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 const CURRENCY_LOGOS: Record<string, string> = {
@@ -116,8 +117,10 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
       setImageLoaded(false);
     } else {
       setImageError(true);
+      // Mark this drop as failed so refresh button can retry it
+      markDropAsFailed(drop.id);
     }
-  }, [currentImageUrl, gatewayIndex]);
+  }, [currentImageUrl, gatewayIndex, drop.id]);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;

@@ -8,7 +8,7 @@ import { DropsPagination } from "@/components/drops/DropsPagination";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCheeseDropStats } from "@/services/atomicApi";
 import { useDropsLoader } from "@/hooks/useDropsLoader";
-import { useEnrichDrops, usePrefetchDrops } from "@/hooks/useEnrichDrops";
+import { useEnrichDrops, usePrefetchDrops, retryFailedDrops } from "@/hooks/useEnrichDrops";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -173,6 +173,9 @@ const Drops = () => {
   };
 
   const handleRefresh = async () => {
+    // Retry any failed drops (those showing "Retry" button)
+    retryFailedDrops();
+    
     await Promise.all([
       refresh(),
       queryClient.invalidateQueries({ queryKey: ['cheese-drop-stats'] }),

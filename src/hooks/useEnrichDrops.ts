@@ -5,6 +5,33 @@ import { enrichDropTemplates } from '@/services/atomicApi';
 // Global cache of enriched drops to persist across hook instances
 const enrichedDropsCache = new Map<string, NFTDrop>();
 
+// Track drops that failed to load images (for retry functionality)
+const failedDropIds = new Set<string>();
+
+// Subscribers for retry events
+const retrySubscribers = new Set<() => void>();
+
+/**
+ * Mark a drop as failed (image didn't load)
+ */
+export function markDropAsFailed(dropId: string) {
+  failedDropIds.add(dropId);
+}
+
+/**
+ * Trigger a retry of all failed drops - clears them from cache and re-enriches
+ */
+export function retryFailedDrops() {
+  // Clear failed drops from cache so they get re-enriched
+  failedDropIds.forEach(id => {
+    enrichedDropsCache.delete(id);
+  });
+  failedDropIds.clear();
+  
+  // Notify all subscribers to re-enrich
+  retrySubscribers.forEach(fn => fn());
+}
+
 /**
  * Hook that enriches only the provided drops with template data (images, metadata).
  * Designed for page-level enrichment - only fetches templates for the drops passed in.
@@ -19,9 +46,17 @@ export function useEnrichDrops(drops: NFTDrop[]): {
   const [enrichedDrops, setEnrichedDrops] = useState<NFTDrop[]>(() => []);
   const [isEnriching, setIsEnriching] = useState(() => false);
   const [progress, setProgress] = useState(() => ({ loaded: 0, total: 0 }));
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const isEnrichingRef = useRef(false);
   const lastDropsKeyRef = useRef('');
+
+  // Subscribe to retry events
+  useEffect(() => {
+    const handleRetry = () => setRetryTrigger(t => t + 1);
+    retrySubscribers.add(handleRetry);
+    return () => { retrySubscribers.delete(handleRetry); };
+  }, []);
 
   // Create a stable key from drop IDs to detect when the drops actually change
   const dropsKey = useMemo(() => {
@@ -29,7 +64,7 @@ export function useEnrichDrops(drops: NFTDrop[]): {
     return drops.map(d => d.id).sort().join(',');
   }, [drops]);
 
-  // Memoize drops with cache applied
+  // Memoize drops with cache applied (include retryTrigger to force refresh)
   const dropsWithCache = useMemo(() => {
     if (!drops || !drops.length) return [];
     return drops.map(drop => {
@@ -39,7 +74,8 @@ export function useEnrichDrops(drops: NFTDrop[]): {
       }
       return drop;
     });
-  }, [drops]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drops, retryTrigger]);
 
   // Check if we actually need to enrich
   const dropsNeedingEnrichment = useMemo(() => {
@@ -68,9 +104,10 @@ export function useEnrichDrops(drops: NFTDrop[]): {
       return;
     }
 
-    // Only restart enrichment if the drops actually changed
-    const keyChanged = dropsKey !== lastDropsKeyRef.current;
-    lastDropsKeyRef.current = dropsKey;
+    // Create a key that includes retryTrigger to force re-enrichment
+    const fullKey = `${dropsKey}-${retryTrigger}`;
+    const keyChanged = fullKey !== lastDropsKeyRef.current;
+    lastDropsKeyRef.current = fullKey;
 
     // If already enriching the same set, don't restart
     if (isEnrichingRef.current && !keyChanged) {
@@ -131,7 +168,7 @@ export function useEnrichDrops(drops: NFTDrop[]): {
 
     // Don't abort on cleanup - let enrichment complete
     // Only abort when dropsKey changes (handled above)
-  }, [dropsKey, dropsNeedingEnrichment.length, drops, dropsWithCache]);
+  }, [dropsKey, dropsNeedingEnrichment.length, drops, dropsWithCache, retryTrigger]);
 
   // Always return something - cache-applied drops or original
   const result = enrichedDrops.length > 0 ? enrichedDrops : dropsWithCache;

@@ -646,27 +646,26 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                     {/* Main row - Position info */}
                     <div className="flex items-center justify-between gap-4">
                       {/* Pair & Metadata */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex -space-x-2">
-                          <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
-                          <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm">
-                            {position.tokenA.symbol}/{position.tokenB.symbol}
+                      <div className="w-[160px] shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="flex -space-x-2">
+                            <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
+                            <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            Pool #{position.positionId}
-                            {position.usdValue > 0 && (
-                              <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
-                            )}
+                          <div>
+                            <div className="font-medium text-sm">
+                              {position.tokenA.symbol}/{position.tokenB.symbol}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              Pool #{position.positionId}
+                              {position.usdValue > 0 && (
+                                <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Stake amounts - centered to align with incentive rows */}
-                      <div className="w-[100px] shrink-0 flex flex-col justify-center">
-                        <div className="font-mono text-xs space-y-0.5 text-muted-foreground text-center">
+                        {/* Stake amounts below header */}
+                        <div className="font-mono text-xs mt-1.5 space-y-0.5 text-muted-foreground">
                           <div>{position.tokenA.amount.toFixed(4)} {position.tokenA.symbol}</div>
                           <div>{position.tokenB.amount.toFixed(4)} {position.tokenB.symbol}</div>
                         </div>

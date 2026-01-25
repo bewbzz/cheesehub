@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@wharfkit/session';
-import { sessionKit, closeWharfkitModals, setLoginInProgress } from '@/lib/wharfKit';
+import { sessionKit, closeWharfkitModals, setLoginInProgress, clearStaleSession, isStaleSessionError } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
 
@@ -164,6 +164,26 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Handle stale/expired Cloud Wallet session - clear and prompt reconnect
+  const handleStaleSession = useCallback(async () => {
+    if (session) {
+      try {
+        await sessionKit.logout(session);
+      } catch (e) {
+        // Ignore logout errors for stale sessions
+      }
+    }
+    setSession(null);
+    setCheeseBalance(0);
+    await clearStaleSession();
+    
+    toast({
+      title: 'Session Expired',
+      description: 'Your Cloud Wallet session has expired. Please reconnect your wallet.',
+      variant: 'destructive',
+    });
+  }, [session, toast]);
+
   const transferCheese = async (amount: number, memo: string): Promise<string | null> => {
     if (!session) {
       toast({
@@ -202,6 +222,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Transfer failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Transaction Failed',
         description: error instanceof Error ? error.message : 'Failed to send CHEESE',
@@ -253,6 +280,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Transfer failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Transaction Failed',
         description: error instanceof Error ? error.message : 'Failed to send tokens',
@@ -298,6 +332,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('NFT transfer failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Transfer Failed',
         description: error instanceof Error ? error.message : 'Failed to send NFTs',
@@ -367,6 +408,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Claim drop failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Claim Failed',
         description: error instanceof Error ? error.message : 'Failed to claim drop',
@@ -420,6 +468,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Claim free drop failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Claim Failed',
         description: error instanceof Error ? error.message : 'Failed to claim free drop',
@@ -464,6 +519,12 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Join DAO failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
       
       const errorMsg = error instanceof Error ? error.message : String(error);
       
@@ -521,6 +582,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Leave DAO failed:', error);
       closeWharfkitModals();
+      
+      // Handle stale Cloud Wallet session
+      if (isStaleSessionError(error)) {
+        await handleStaleSession();
+        return null;
+      }
+      
       toast({
         title: 'Leave Failed',
         description: error instanceof Error ? error.message : 'Failed to leave DAO',

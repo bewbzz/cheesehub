@@ -111,9 +111,9 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
  * Returns price of tokenB per tokenA, adjusted for decimal precision
  * 
  * sqrtPriceX64 encodes sqrt(tokenB_raw / tokenA_raw) where raw includes decimals
- * To get human-readable price: raw_price * 10^(precisionB - precisionA)
+ * To get human-readable price: raw_price * 10^(precisionA - precisionB)
  * 
- * Pool 1252: CHEESE(A,4) / WAX(B,8)    - returns WAX per CHEESE (~1.43)
+ * Pool 1252: CHEESE(A,4) / WAX(B,8)    - returns WAX per CHEESE (~1.53)
  * Pool 8017: CHEESE(A,4) / WAXDAO(B,8) - returns WAXDAO per CHEESE (~42)
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
@@ -133,11 +133,12 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     double normalized = (double)sqrtPrice / (double)(1ULL << 64);
     double raw_price = normalized * normalized;
     
-    // CORRECTED: Apply decimal precision adjustment
-    // To convert raw ratio to human-readable: multiply by 10^(precisionB - precisionA)
-    // Pool 1252: CHEESE(4)/WAX(8) → 10^(8-4) = 10^4 = 10000
-    // Pool 8017: CHEESE(4)/WAXDAO(8) → 10^(8-4) = 10^4 = 10000
-    int precision_diff = (int)precisionB - (int)precisionA;
+    // Apply decimal precision adjustment
+    // raw_price = tokenB_raw / tokenA_raw (in smallest units)
+    // To convert to human-readable: multiply by 10^(precisionA - precisionB)
+    // Pool 1252: CHEESE(4)/WAX(8) → 10^(4-8) = 10^-4 → gives WAX per CHEESE
+    // Pool 8017: CHEESE(4)/WAXDAO(8) → 10^(4-8) = 10^-4 → gives WAXDAO per CHEESE
+    int precision_diff = (int)precisionA - (int)precisionB;
     double adjusted_price = raw_price * pow(10.0, precision_diff);
     
     return adjusted_price;

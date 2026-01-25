@@ -301,7 +301,7 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       {/* Virtualized NFT Grid */}
       <div
         ref={parentRef}
-        className="h-[240px] overflow-auto rounded-md border border-border"
+        className="h-[400px] overflow-auto rounded-md border border-border"
       >
         {isLoading && nfts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2">

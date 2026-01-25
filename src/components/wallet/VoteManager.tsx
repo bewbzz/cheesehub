@@ -350,7 +350,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
           </div>
 
           {/* Producers list */}
-          <ScrollArea className="h-[200px] border rounded-md">
+          <ScrollArea className="h-[360px] border rounded-md">
             <div className="divide-y divide-border">
               {filteredProducers.map((producer, index) => {
                 const isSelected = selectedProducers.includes(producer.owner);
@@ -429,7 +429,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
           </div>
 
           {/* Proxies list */}
-          <ScrollArea className="h-[180px] border rounded-md">
+          <ScrollArea className="h-[280px] border rounded-md">
             <div className="divide-y divide-border">
               {filteredProxies.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">

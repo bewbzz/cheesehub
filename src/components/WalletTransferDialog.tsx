@@ -282,7 +282,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               ) : tokens.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No tokens found</p>
               ) : (
-                <ScrollArea className="h-[260px]">
+                <ScrollArea className="h-[500px]">
                   <div className="space-y-2 pr-2">
                     {tokens.filter(t => !(t.symbol === 'WAX' && t.contract === 'eosio.token')).map((token) => (
                       <div 
@@ -713,7 +713,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
             <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
           </DialogHeader>
           
-          <div className="flex gap-4 min-h-[600px] max-h-[calc(90vh-80px)]">
+          <div className="flex gap-4 min-h-[700px] max-h-[calc(90vh-80px)]">
             {/* Left Sidebar Menu */}
             {renderDesktopSidebar()}
 

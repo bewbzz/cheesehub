@@ -63,13 +63,13 @@ public:
     ACTION withdraw(name token_contract, name to, asset quantity);
 
     // Alcor pool table struct - MUST MATCH EXACT ON-CHAIN LAYOUT
-    // Alcor uses extended_token with separate decimals field, NOT eosio::symbol!
+    // Use __attribute__((packed)) to prevent C++ padding that breaks EOSIO serialization alignment
     struct alcor_pool {
         uint64_t id;
         bool active;
         
         // Token info - Alcor stores decimals separately from symbol
-        struct extended_token {
+        struct __attribute__((packed)) extended_token {
             name contract;
             symbol_code symbol;   // Just symbol code (e.g., "CHEESE"), no precision
             uint8_t decimals;     // Precision stored in separate field
@@ -84,7 +84,7 @@ public:
         uint128_t maxLiquidityPerTick;
         
         // slot0 with all fields for correct alignment
-        struct slot0 {
+        struct __attribute__((packed)) slot0 {
             uint128_t sqrtPriceX64;
             int32_t tick;
             uint32_t lastObservationTimestamp;
@@ -99,7 +99,7 @@ public:
         uint128_t liquidity;
         
         uint64_t primary_key() const { return id; }
-    };
+    } __attribute__((packed));
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:

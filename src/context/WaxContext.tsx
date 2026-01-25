@@ -166,18 +166,21 @@ export function WaxProvider({ children }: { children: ReactNode }) {
 
   // Attempt to re-login and get a fresh session with working signing bridge
   const refreshSession = useCallback(async (): Promise<Session | null> => {
+    console.log('[Session Recovery] Starting session refresh...');
     try {
       // First, clear any stale session data
       if (session) {
+        console.log('[Session Recovery] Logging out stale session...');
         try {
           await sessionKit.logout(session);
         } catch (e) {
-          // Ignore logout errors
+          console.log('[Session Recovery] Logout error (ignored):', e);
         }
       }
       await clearStaleSession();
       setSession(null);
       
+      console.log('[Session Recovery] Triggering re-login...');
       // Show a toast to inform user we're reconnecting
       toast({
         title: 'Reconnecting Wallet',
@@ -187,8 +190,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       // Now trigger a fresh login - this will open Cloud Wallet popup
       setLoginInProgress(true);
       const response = await sessionKit.login();
+      console.log('[Session Recovery] Login successful, new session:', response.session.actor.toString());
       setSession(response.session);
-      console.log('Session refreshed successfully via re-login');
       
       toast({
         title: 'Wallet Reconnected',
@@ -197,7 +200,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       
       return response.session;
     } catch (error) {
-      console.error('Session refresh failed:', error);
+      console.error('[Session Recovery] Failed:', error);
       toast({
         title: 'Reconnection Failed',
         description: 'Please try connecting your wallet again.',
@@ -339,7 +342,10 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       closeWharfkitModals();
       
       // Handle stale Cloud Wallet session - try refresh and retry
-      if (isStaleSessionError(error)) {
+      const isStale = isStaleSessionError(error);
+      console.log('[Stale Session Check] Is stale session error:', isStale);
+      if (isStale) {
+        console.log('[Stale Session Check] Attempting session recovery...');
         const newSession = await handleStaleSession();
         if (newSession) {
           try {

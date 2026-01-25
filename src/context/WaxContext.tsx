@@ -164,8 +164,38 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Handle stale/expired Cloud Wallet session - clear and prompt reconnect
-  const handleStaleSession = useCallback(async () => {
+  // Attempt to silently refresh a stale Cloud Wallet session
+  const refreshSession = useCallback(async (): Promise<Session | null> => {
+    try {
+      // Try to re-login - Cloud Wallet's autoUrl makes this seamless
+      // if user is already authenticated in their browser
+      setLoginInProgress(true);
+      const response = await sessionKit.login();
+      setSession(response.session);
+      console.log('Session refreshed successfully');
+      return response.session;
+    } catch (error) {
+      console.error('Silent session refresh failed:', error);
+      return null;
+    } finally {
+      setLoginInProgress(false);
+    }
+  }, []);
+
+  // Handle stale/expired Cloud Wallet session - try refresh first, then logout
+  const handleStaleSession = useCallback(async (): Promise<Session | null> => {
+    // First, try to silently refresh the session
+    const newSession = await refreshSession();
+    
+    if (newSession) {
+      toast({
+        title: 'Session Refreshed',
+        description: 'Your wallet session has been renewed.',
+      });
+      return newSession;
+    }
+    
+    // Refresh failed - fall back to full logout
     if (session) {
       try {
         await sessionKit.logout(session);
@@ -179,10 +209,12 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     
     toast({
       title: 'Session Expired',
-      description: 'Your Cloud Wallet session has expired. Please reconnect your wallet.',
+      description: 'Please reconnect your wallet to continue.',
       variant: 'destructive',
     });
-  }, [session, toast]);
+    
+    return null;
+  }, [session, toast, refreshSession]);
 
   const transferCheese = async (amount: number, memo: string): Promise<string | null> => {
     if (!session) {
@@ -196,20 +228,23 @@ export function WaxProvider({ children }: { children: ReactNode }) {
 
     const quantity = `${amount.toFixed(CHEESE_CONFIG.tokenPrecision)} ${CHEESE_CONFIG.tokenSymbol}`;
 
-    try {
+    const executeTransfer = async (currentSession: Session) => {
       const action = {
         account: CHEESE_CONFIG.tokenContract,
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          from: session.actor.toString(),
+          from: currentSession.actor.toString(),
           to: CHEESE_CONFIG.paymentWallet,
           quantity,
           memo,
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeTransfer(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -223,9 +258,29 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       console.error('Transfer failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeTransfer(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            toast({
+              title: 'Transaction Successful',
+              description: `Sent ${quantity} to ${CHEESE_CONFIG.paymentWallet}`,
+            });
+            await refreshBalance();
+            return txId;
+          } catch (retryError) {
+            console.error('Retry transfer failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Transaction Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to send CHEESE',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       
@@ -259,31 +314,49 @@ export function WaxProvider({ children }: { children: ReactNode }) {
 
     const quantity = `${amount.toFixed(precision)} ${tokenSymbol}`;
 
-    try {
+    const executeTransfer = async (currentSession: Session) => {
       const action = {
         account: tokenContract,
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          from: session.actor.toString(),
+          from: currentSession.actor.toString(),
           to,
           quantity,
           memo,
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeTransfer(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
-
       await refreshBalance();
       return txId;
     } catch (error) {
       console.error('Transfer failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeTransfer(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            await refreshBalance();
+            return txId;
+          } catch (retryError) {
+            console.error('Retry transfer failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Transaction Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to send tokens',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       
@@ -312,30 +385,47 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    try {
+    const executeTransfer = async (currentSession: Session) => {
       const action = {
         account: 'atomicassets',
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          from: session.actor.toString(),
+          from: currentSession.actor.toString(),
           to,
           asset_ids: assetIds,
           memo,
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeTransfer(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
-
       return txId;
     } catch (error) {
       console.error('NFT transfer failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeTransfer(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            return txId;
+          } catch (retryError) {
+            console.error('Retry NFT transfer failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Transfer Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to send NFTs',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       
@@ -371,14 +461,14 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     const priceAmount = parseFloat(listingPrice.split(' ')[0]) * quantity;
     const priceQuantity = `${priceAmount.toFixed(precision)} ${tokenSymbol}`;
 
-    try {
+    const executeClaim = async (currentSession: Session) => {
       const actions = [
         {
           account: tokenContract,
           name: 'transfer',
-          authorization: [session.permissionLevel],
+          authorization: [currentSession.permissionLevel],
           data: {
-            from: session.actor.toString(),
+            from: currentSession.actor.toString(),
             to: NFTHIVE_CONFIG.dropContract,
             quantity: priceQuantity,
             memo: 'deposit',
@@ -387,9 +477,9 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         {
           account: NFTHIVE_CONFIG.dropContract,
           name: 'claimdrop',
-          authorization: [session.permissionLevel],
+          authorization: [currentSession.permissionLevel],
           data: {
-            claimer: session.actor.toString(),
+            claimer: currentSession.actor.toString(),
             drop_id: parseInt(dropId),
             amount: quantity,
             intended_delphi_median: 0,
@@ -399,19 +489,37 @@ export function WaxProvider({ children }: { children: ReactNode }) {
           },
         },
       ];
+      return await currentSession.transact({ actions });
+    };
 
-      const result = await session.transact({ actions });
+    try {
+      const result = await executeClaim(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
-
       await refreshBalance();
       return txId;
     } catch (error) {
       console.error('Claim drop failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeClaim(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            await refreshBalance();
+            return txId;
+          } catch (retryError) {
+            console.error('Retry claim drop failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Claim Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to claim drop',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       
@@ -440,13 +548,13 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    try {
+    const executeClaim = async (currentSession: Session) => {
       const action = {
         account: NFTHIVE_CONFIG.dropContract,
         name: 'claimdrop',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          claimer: session.actor.toString(),
+          claimer: currentSession.actor.toString(),
           drop_id: parseInt(dropId),
           amount: quantity,
           intended_delphi_median: 0,
@@ -455,8 +563,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
           currency: '0,NULL', // Free drops don't need currency
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeClaim(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -469,9 +580,28 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       console.error('Claim free drop failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeClaim(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            toast({
+              title: 'Claim Successful! 🧀',
+              description: 'Your free NFT has been claimed!',
+            });
+            return txId;
+          } catch (retryError) {
+            console.error('Retry claim free drop failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Claim Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to claim free drop',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       
@@ -496,18 +626,21 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    try {
+    const executeJoin = async (currentSession: Session) => {
       const action = {
         account: 'dao.waxdao',
         name: 'joindao',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          user: session.actor.toString(),
+          user: currentSession.actor.toString(),
           dao: daoName,
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeJoin(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -520,9 +653,29 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       console.error('Join DAO failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeJoin(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            toast({
+              title: 'Joined DAO',
+              description: `Successfully joined ${daoName}`,
+            });
+            return txId;
+          } catch (retryError) {
+            console.error('Retry join DAO failed:', retryError);
+            closeWharfkitModals();
+            const errorMsg = retryError instanceof Error ? retryError.message : String(retryError);
+            if (errorMsg.toLowerCase().includes('already') || errorMsg.toLowerCase().includes('member')) {
+              toast({ title: 'Already a Member', description: `You are already a member of ${daoName}` });
+              return 'already_member';
+            }
+            toast({ title: 'Join Failed', description: errorMsg, variant: 'destructive' });
+          }
+        }
         return null;
       }
       
@@ -559,18 +712,21 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    try {
+    const executeLeave = async (currentSession: Session) => {
       const action = {
         account: 'dao.waxdao',
         name: 'leavedao',
-        authorization: [session.permissionLevel],
+        authorization: [currentSession.permissionLevel],
         data: {
-          user: session.actor.toString(),
+          user: currentSession.actor.toString(),
           dao: daoName,
         },
       };
+      return await currentSession.transact({ actions: [action] });
+    };
 
-      const result = await session.transact({ actions: [action] });
+    try {
+      const result = await executeLeave(session);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -583,9 +739,28 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       console.error('Leave DAO failed:', error);
       closeWharfkitModals();
       
-      // Handle stale Cloud Wallet session
+      // Handle stale Cloud Wallet session - try refresh and retry
       if (isStaleSessionError(error)) {
-        await handleStaleSession();
+        const newSession = await handleStaleSession();
+        if (newSession) {
+          try {
+            const result = await executeLeave(newSession);
+            const txId = result.resolved?.transaction.id?.toString() || null;
+            toast({
+              title: 'Left DAO',
+              description: `Successfully left ${daoName}`,
+            });
+            return txId;
+          } catch (retryError) {
+            console.error('Retry leave DAO failed:', retryError);
+            closeWharfkitModals();
+            toast({
+              title: 'Leave Failed',
+              description: retryError instanceof Error ? retryError.message : 'Failed to leave DAO',
+              variant: 'destructive',
+            });
+          }
+        }
         return null;
       }
       

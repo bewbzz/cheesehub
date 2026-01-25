@@ -158,15 +158,20 @@ export function closeWharfkitModals() {
 // Utility to clear stale/corrupted session data from storage
 export async function clearStaleSession() {
   try {
-    // Clear WharfKit session storage keys
+    // Clear ALL WharfKit and Cloud Wallet session storage keys
     const localStorageKeys = Object.keys(localStorage).filter(
-      key => key.startsWith('wharfkit') || key.includes('wharf-session')
+      key => key.startsWith('wharfkit') || 
+             key.includes('wharf-session') ||
+             key.includes('cloudwallet') ||
+             key.includes('mycloudwallet')
     );
     localStorageKeys.forEach(key => localStorage.removeItem(key));
     
     // Clear session storage as well
     const sessionStorageKeys = Object.keys(sessionStorage).filter(
-      key => key.startsWith('wharfkit') || key.includes('wharf-session')
+      key => key.startsWith('wharfkit') || 
+             key.includes('wharf-session') ||
+             key.includes('cloudwallet')
     );
     sessionStorageKeys.forEach(key => sessionStorage.removeItem(key));
     

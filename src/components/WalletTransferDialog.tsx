@@ -235,16 +235,19 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
 
   // Shared content renderer
   const renderContent = () => (
-    <>
-      {/* Resources display - always visible */}
-      <WalletResources 
-        key={resourcesKey} 
-        onResourcesUpdate={handleResourcesUpdate} 
-        showTotalWaxBalance={activeSection === 'account'}
-        waxUsdPrice={waxUsdPrice}
-      />
+    <div className="flex flex-col h-full">
+      {/* Resources display - always visible, fixed height */}
+      <div className="shrink-0">
+        <WalletResources 
+          key={resourcesKey} 
+          onResourcesUpdate={handleResourcesUpdate} 
+          showTotalWaxBalance={activeSection === 'account'}
+          waxUsdPrice={waxUsdPrice}
+        />
+      </div>
 
-      <div className="mt-4">
+      {/* Content area - fills remaining space with overflow scroll */}
+      <div className="flex-1 mt-4 overflow-y-auto min-h-0">
         {/* Account Section */}
         {activeSection === 'account' && (
           <div className="space-y-4">
@@ -579,7 +582,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           />
         )}
       </div>
-    </>
+    </div>
   );
 
   // Mobile navigation tabs
@@ -713,12 +716,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
             <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
           </DialogHeader>
           
-          <div className="flex gap-4 min-h-[700px] max-h-[calc(90vh-80px)]">
+          <div className="flex gap-4 h-[700px]">
             {/* Left Sidebar Menu */}
             {renderDesktopSidebar()}
 
-            {/* Right Content Area */}
-            <div className="flex-1 overflow-y-auto pr-2 flex flex-col">
+            {/* Right Content Area - fixed height container */}
+            <div className="flex-1 overflow-hidden pr-2 flex flex-col">
               {renderContent()}
             </div>
           </div>

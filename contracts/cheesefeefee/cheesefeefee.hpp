@@ -79,12 +79,17 @@ public:
         
         // Fee and liquidity fields (must be present even if unused)
         uint32_t fee;
+        uint8_t feeProtocol;      // CRITICAL: This field was missing, causing alignment shift
         int32_t tickSpacing;
         uint128_t maxLiquidityPerTick;
         
+        // slot0 with all fields for correct alignment
         struct slot0 {
             uint128_t sqrtPriceX64;
             int32_t tick;
+            uint32_t lastObservationTimestamp;
+            uint16_t currentObservationNum;
+            uint16_t maxObservationNum;
         } currSlot;
         
         uint64_t feeGrowthGlobalAX64;

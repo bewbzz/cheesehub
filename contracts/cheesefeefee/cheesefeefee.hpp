@@ -62,19 +62,20 @@ public:
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
 
-    // Alcor pool table struct (read from swap.alcor)
-    // Must match the exact structure from swap.alcor contract
+    // Alcor pool table struct - MUST MATCH EXACT ON-CHAIN LAYOUT
+    // Alcor uses extended_token with separate decimals field, NOT eosio::symbol!
     struct alcor_pool {
         uint64_t id;
         bool active;
         
-        // Token info with symbol (contains precision)
-        struct extended_symbol {
-            name contract;        // Contract comes FIRST (matches EOSIO standard)
-            eosio::symbol sym;    // Symbol comes SECOND
+        // Token info - Alcor stores decimals separately from symbol
+        struct extended_token {
+            name contract;
+            symbol_code symbol;   // Just symbol code (e.g., "CHEESE"), no precision
+            uint8_t decimals;     // Precision stored in separate field
         };
-        extended_symbol tokenA;
-        extended_symbol tokenB;
+        extended_token tokenA;
+        extended_token tokenB;
         
         // Fee and liquidity fields (must be present even if unused)
         uint32_t fee;

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Session } from '@wharfkit/session';
-import { closeWharfkitModals, clearStaleSession, isStaleSessionError } from '@/lib/wharfKit';
+import { closeWharfkitModals, isUserCancellation } from '@/lib/wharfKit';
 import { useToast } from '@/hooks/use-toast';
 
 interface TransactionOptions {
@@ -15,13 +15,14 @@ interface TransactionResult {
   success: boolean;
   txId: string | null;
   error?: Error;
-  isStaleSession?: boolean;
 }
 
 /**
  * A hook that wraps WAX transactions with automatic modal cleanup.
  * This prevents stuck Anchor/WharfKit modals after transaction failures or cancellations.
- * Also detects and handles stale Cloud Wallet sessions.
+ * 
+ * IMPORTANT: Cloud Wallet handles its own signing flow (including re-auth popups).
+ * We should NOT aggressively close modals or clear session state - let the plugin work.
  * 
  * Usage:
  * const { executeTransaction } = useWaxTransaction(session);
@@ -66,33 +67,15 @@ export function useWaxTransaction(session: Session | null) {
     } catch (error) {
       console.error('Transaction failed:', error);
       
-      // Immediately clean up any stuck modals
-      closeWharfkitModals();
-      
-      // Check for stale Cloud Wallet session
-      if (isStaleSessionError(error)) {
-        await clearStaleSession();
-        
-        if (showErrorToast) {
-          toast({
-            title: 'Session Expired',
-            description: 'Your Cloud Wallet session has expired. Please reconnect your wallet.',
-            variant: 'destructive',
-          });
-        }
-        
-        return { 
-          success: false, 
-          txId: null, 
-          error: error instanceof Error ? error : new Error('Session expired'),
-          isStaleSession: true
-        };
+      // Only cleanup modals on explicit user cancellation
+      // Let Cloud Wallet handle its own signing flow otherwise
+      if (isUserCancellation(error)) {
+        closeWharfkitModals();
       }
       
       const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
       const isExpired = errorMessage.toLowerCase().includes('expired');
-      const isCancelled = errorMessage.toLowerCase().includes('cancel') || 
-                          errorMessage.toLowerCase().includes('rejected');
+      const isCancelled = isUserCancellation(error);
 
       if (showErrorToast) {
         toast({
@@ -105,10 +88,6 @@ export function useWaxTransaction(session: Session | null) {
       }
 
       return { success: false, txId: null, error: error instanceof Error ? error : new Error(errorMessage) };
-    } finally {
-      // Aggressive cleanup with small delay to catch any lingering modals
-      setTimeout(() => closeWharfkitModals(), 100);
-      setTimeout(() => closeWharfkitModals(), 500);
     }
   }, [session, toast]);
 
@@ -133,21 +112,10 @@ export function useWaxTransaction(session: Session | null) {
       return await session.transact({ actions });
     } catch (error) {
       console.error('Transaction failed:', error);
-      closeWharfkitModals();
       
-      // Check for stale Cloud Wallet session
-      if (isStaleSessionError(error)) {
-        await clearStaleSession();
-        
-        if (showErrorToast) {
-          toast({
-            title: 'Session Expired',
-            description: 'Your Cloud Wallet session has expired. Please reconnect your wallet.',
-            variant: 'destructive',
-          });
-        }
-        
-        throw error;
+      // Only cleanup modals on explicit user cancellation
+      if (isUserCancellation(error)) {
+        closeWharfkitModals();
       }
       
       if (showErrorToast) {
@@ -160,9 +128,6 @@ export function useWaxTransaction(session: Session | null) {
       }
       
       throw error;
-    } finally {
-      setTimeout(() => closeWharfkitModals(), 100);
-      setTimeout(() => closeWharfkitModals(), 500);
     }
   }, [session, toast]);
 

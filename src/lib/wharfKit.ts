@@ -155,6 +155,36 @@ export function closeWharfkitModals() {
   });
 }
 
+// Utility to clear stale/corrupted session data from storage
+export async function clearStaleSession() {
+  try {
+    // Clear WharfKit session storage keys
+    const localStorageKeys = Object.keys(localStorage).filter(
+      key => key.startsWith('wharfkit') || key.includes('wharf-session')
+    );
+    localStorageKeys.forEach(key => localStorage.removeItem(key));
+    
+    // Clear session storage as well
+    const sessionStorageKeys = Object.keys(sessionStorage).filter(
+      key => key.startsWith('wharfkit') || key.includes('wharf-session')
+    );
+    sessionStorageKeys.forEach(key => sessionStorage.removeItem(key));
+    
+    console.log('Cleared stale session data');
+  } catch (e) {
+    console.error('Failed to clear session:', e);
+  }
+}
+
+// Helper to check if an error indicates a stale/detached session
+export function isStaleSessionError(error: unknown): boolean {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return (
+    errorMessage.includes('transaction declares authority') &&
+    errorMessage.includes('does not have signatures')
+  );
+}
+
 // Function to ensure WharfKit modals are always on top with proper pointer events
 export function ensureModalOnTop() {
   const wharfkitEl = document.getElementById('wharfkit-web-ui');

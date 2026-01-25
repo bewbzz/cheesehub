@@ -122,25 +122,22 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     check(pool != pools.end(), "Alcor pool not found");
     check(pool->active, "Alcor pool is not active");
     
-    // Get token precisions from pool
-    uint8_t precisionA = pool->tokenA.sym.precision();
-    uint8_t precisionB = pool->tokenB.sym.precision();
+    // Read decimals from Alcor's separate decimals field (NOT from symbol)
+    uint8_t precisionA = pool->tokenA.decimals;
+    uint8_t precisionB = pool->tokenB.decimals;
     
-    // Convert sqrtPriceX64 to raw price
+    // Convert sqrtPriceX64 to price using 2^128 (Alcor's formula)
     // sqrtPriceX64 = sqrt(priceB_raw/priceA_raw) * 2^64
-    // raw_price = (sqrtPriceX64 / 2^64)^2 = priceB_raw / priceA_raw
-    // NOTE: (1ULL << 64) is undefined behavior in C++, use pre-computed constant
-    constexpr double TWO_POW_64 = 18446744073709551616.0;
+    // price = sqrtPriceX64^2 / 2^128
+    constexpr double TWO_POW_128 = 340282366920938463463374607431768211456.0;
     
     uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
-    double normalized = (double)sqrtPrice / TWO_POW_64;
-    double raw_price = normalized * normalized;
+    double sqrtPriceDouble = (double)sqrtPrice;
+    double raw_price = (sqrtPriceDouble * sqrtPriceDouble) / TWO_POW_128;
     
     // Apply decimal precision adjustment
     // raw_price = tokenB_raw / tokenA_raw (in smallest units)
     // To convert to human-readable: multiply by 10^(precisionA - precisionB)
-    // Pool 1252: CHEESE(4)/WAX(8) → 10^(4-8) = 10^-4 → gives WAX per CHEESE
-    // Pool 8017: CHEESE(4)/WAXDAO(8) → 10^(4-8) = 10^-4 → gives WAXDAO per CHEESE
     int precision_diff = (int)precisionA - (int)precisionB;
     double adjusted_price = raw_price * pow(10.0, precision_diff);
     

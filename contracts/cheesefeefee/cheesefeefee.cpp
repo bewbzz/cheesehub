@@ -129,8 +129,11 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     // Convert sqrtPriceX64 to raw price
     // sqrtPriceX64 = sqrt(priceB_raw/priceA_raw) * 2^64
     // raw_price = (sqrtPriceX64 / 2^64)^2 = priceB_raw / priceA_raw
+    // NOTE: (1ULL << 64) is undefined behavior in C++, use pre-computed constant
+    constexpr double TWO_POW_64 = 18446744073709551616.0;
+    
     uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
-    double normalized = (double)sqrtPrice / (double)(1ULL << 64);
+    double normalized = (double)sqrtPrice / TWO_POW_64;
     double raw_price = normalized * normalized;
     
     // Apply decimal precision adjustment

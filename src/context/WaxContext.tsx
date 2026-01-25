@@ -164,57 +164,57 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Attempt to silently refresh a stale Cloud Wallet session
+  // Attempt to re-login and get a fresh session with working signing bridge
   const refreshSession = useCallback(async (): Promise<Session | null> => {
     try {
-      // Try to re-login - Cloud Wallet's autoUrl makes this seamless
-      // if user is already authenticated in their browser
+      // First, clear any stale session data
+      if (session) {
+        try {
+          await sessionKit.logout(session);
+        } catch (e) {
+          // Ignore logout errors
+        }
+      }
+      await clearStaleSession();
+      setSession(null);
+      
+      // Show a toast to inform user we're reconnecting
+      toast({
+        title: 'Reconnecting Wallet',
+        description: 'Please approve the wallet connection...',
+      });
+      
+      // Now trigger a fresh login - this will open Cloud Wallet popup
       setLoginInProgress(true);
       const response = await sessionKit.login();
       setSession(response.session);
-      console.log('Session refreshed successfully');
+      console.log('Session refreshed successfully via re-login');
+      
+      toast({
+        title: 'Wallet Reconnected',
+        description: 'Your session has been renewed. Retrying transaction...',
+      });
+      
       return response.session;
     } catch (error) {
-      console.error('Silent session refresh failed:', error);
+      console.error('Session refresh failed:', error);
+      toast({
+        title: 'Reconnection Failed',
+        description: 'Please try connecting your wallet again.',
+        variant: 'destructive',
+      });
       return null;
     } finally {
       setLoginInProgress(false);
     }
-  }, []);
+  }, [session, toast]);
 
-  // Handle stale/expired Cloud Wallet session - try refresh first, then logout
+  // Handle stale/expired Cloud Wallet session - prompt for re-login
   const handleStaleSession = useCallback(async (): Promise<Session | null> => {
-    // First, try to silently refresh the session
+    // Cloud Wallet sessions can't be silently refreshed - must re-login
     const newSession = await refreshSession();
-    
-    if (newSession) {
-      toast({
-        title: 'Session Refreshed',
-        description: 'Your wallet session has been renewed.',
-      });
-      return newSession;
-    }
-    
-    // Refresh failed - fall back to full logout
-    if (session) {
-      try {
-        await sessionKit.logout(session);
-      } catch (e) {
-        // Ignore logout errors for stale sessions
-      }
-    }
-    setSession(null);
-    setCheeseBalance(0);
-    await clearStaleSession();
-    
-    toast({
-      title: 'Session Expired',
-      description: 'Please reconnect your wallet to continue.',
-      variant: 'destructive',
-    });
-    
-    return null;
-  }, [session, toast, refreshSession]);
+    return newSession;
+  }, [refreshSession]);
 
   const transferCheese = async (amount: number, memo: string): Promise<string | null> => {
     if (!session) {

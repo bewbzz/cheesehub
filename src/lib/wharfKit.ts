@@ -25,7 +25,12 @@ export const sessionKit = new SessionKit(
     ui: webRenderer,
     walletPlugins: [
       new WalletPluginAnchor(),
-      new WalletPluginCloudWallet(),
+      new WalletPluginCloudWallet({
+        supportedChains: [WAX_CHAIN_ID],
+        url: 'https://www.mycloudwallet.com',
+        autoUrl: 'https://idm-api.mycloudwallet.com/v1/accounts/auto-accept',
+        loginTimeout: 300000,
+      }),
     ],
   },
   {

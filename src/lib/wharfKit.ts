@@ -155,38 +155,32 @@ export function closeWharfkitModals() {
   });
 }
 
-// Utility to clear stale/corrupted session data from storage
+// Utility to clear session data on explicit logout only
+// IMPORTANT: Do NOT clear Cloud Wallet plugin keys - the plugin needs them for signing
 export async function clearStaleSession() {
   try {
-    // Clear ALL WharfKit and Cloud Wallet session storage keys
+    // Only clear WharfKit session keys, NOT wallet plugin-specific keys
+    // Cloud Wallet needs its storage to maintain the signing bridge
     const localStorageKeys = Object.keys(localStorage).filter(
-      key => key.startsWith('wharfkit') || 
-             key.includes('wharf-session') ||
-             key.includes('cloudwallet') ||
-             key.includes('mycloudwallet')
+      key => key.startsWith('wharfkit-session')
     );
     localStorageKeys.forEach(key => localStorage.removeItem(key));
     
-    // Clear session storage as well
-    const sessionStorageKeys = Object.keys(sessionStorage).filter(
-      key => key.startsWith('wharfkit') || 
-             key.includes('wharf-session') ||
-             key.includes('cloudwallet')
-    );
-    sessionStorageKeys.forEach(key => sessionStorage.removeItem(key));
-    
-    console.log('Cleared stale session data');
+    console.log('Cleared WharfKit session keys (preserving wallet plugin state)');
   } catch (e) {
     console.error('Failed to clear session:', e);
   }
 }
 
-// Helper to check if an error indicates a stale/detached session
-export function isStaleSessionError(error: unknown): boolean {
+// Helper to check if an error indicates explicit user cancellation
+export function isUserCancellation(error: unknown): boolean {
   const errorMessage = error instanceof Error ? error.message : String(error);
+  const msg = errorMessage.toLowerCase();
   return (
-    errorMessage.includes('transaction declares authority') &&
-    errorMessage.includes('does not have signatures')
+    msg.includes('cancel') ||
+    msg.includes('rejected') ||
+    msg.includes('user closed') ||
+    msg.includes('user denied')
   );
 }
 

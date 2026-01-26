@@ -100,6 +100,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       try {
         const restored = await sessionKit.restore();
         if (restored) {
+          // For Cloud Wallet sessions, don't auto-restore - keys may be stale
+          // Cloud Wallet requires a fresh login each time to get valid keys
+          const isCloudWallet = restored.walletPlugin?.id === 'cloudwallet';
+          if (isCloudWallet) {
+            console.log('Cloud Wallet session found but not restoring - requires fresh login');
+            // Clear the stale session
+            await sessionKit.logout(restored);
+            return;
+          }
           setSession(restored);
         }
       } catch (error) {

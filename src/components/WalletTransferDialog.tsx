@@ -25,7 +25,8 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWax } from '@/context/WaxContext';
-import { getWaxApi } from '@/lib/waxJsDirect';
+import { ensureCloudWalletReady } from '@/lib/waxJsDirect';
+import { toast } from 'sonner';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';
@@ -197,8 +198,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
     const sendMemo = memo;
     const quantity = `${sendAmount.toFixed(tokenPrecision)} ${tokenSymbol}`;
 
-    // For Cloud Wallet: Call api.transact() IMMEDIATELY as the first async operation
-    // This preserves the user gesture chain so the signing popup isn't blocked
+    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
     if (isUsingCloudWallet) {
       const action = {
         account: tokenContract,
@@ -212,18 +212,18 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         },
       };
 
-      // CRITICAL: Start transaction BEFORE any state updates
-      const waxApi = getWaxApi();
-      const txPromise = waxApi.transact(
-        { actions: [action] },
-        { blocksBehind: 3, expireSeconds: 120 }
-      );
-
-      // Now safe to update UI
       setIsSending(true);
 
       try {
-        const result = await txPromise;
+        // Ensure signing bridge is active (calls login() internally)
+        const wax = await ensureCloudWalletReady();
+        
+        // Now transact with active bridge
+        const result = await wax.api.transact(
+          { actions: [action] },
+          { blocksBehind: 3, expireSeconds: 120 }
+        );
+        
         const txResult = result as { transaction_id?: string; processed?: { id?: string } };
         const txId = txResult.transaction_id || txResult.processed?.id || '';
         
@@ -233,6 +233,10 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         }
       } catch (error) {
         console.error('[WalletTransferDialog] Cloud Wallet send error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Transaction failed';
+        if (!errorMessage.toLowerCase().includes('cancel')) {
+          toast.error('Transaction Failed', { description: errorMessage });
+        }
       } finally {
         setIsSending(false);
       }

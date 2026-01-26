@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { DaoInfo, buildEditPropCostAction } from "@/lib/dao";
 import { parseListingPrice, getTokenConfig } from "@/lib/tokenRegistry";
 import { useWax } from "@/context/WaxContext";
-import { getWaxApi } from "@/lib/waxJsDirect";
+import { ensureCloudWalletReady } from "@/lib/waxJsDirect";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Coins } from "lucide-react";
 
@@ -58,18 +58,20 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
     const formattedCost = `${parsedAmount.toFixed(precision)} ${tokenSymbol}`;
     const action = buildEditPropCostAction(accountName, dao.dao_name, formattedCost);
 
-    // For Cloud Wallet: Call api.transact() directly as first async operation
+    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
     if (isUsingCloudWallet) {
-      const waxApi = getWaxApi();
-      const txPromise = waxApi.transact(
-        { actions: [action] },
-        { blocksBehind: 3, expireSeconds: 120 }
-      );
-
       setIsSubmitting(true);
 
       try {
-        await txPromise;
+        // Ensure signing bridge is active (calls login() internally)
+        const wax = await ensureCloudWalletReady();
+        
+        // Now transact with active bridge
+        await wax.api.transact(
+          { actions: [action] },
+          { blocksBehind: 3, expireSeconds: 120 }
+        );
+        
         toast({
           title: "Proposal Cost Updated",
           description: `New proposal cost: ${formattedCost}`,
@@ -78,11 +80,14 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
         onClose();
       } catch (error) {
         console.error("Failed to update proposal cost:", error);
-        toast({
-          title: "Update Failed",
-          description: error instanceof Error ? error.message : "Failed to update proposal cost",
-          variant: "destructive",
-        });
+        const errorMessage = error instanceof Error ? error.message : "Failed to update proposal cost";
+        if (!errorMessage.toLowerCase().includes('cancel')) {
+          toast({
+            title: "Update Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
       } finally {
         setIsSubmitting(false);
       }

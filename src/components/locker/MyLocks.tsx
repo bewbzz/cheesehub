@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
-import { ensureCloudWalletReady } from "@/lib/waxJsDirect";
+import { cloudWalletTransact } from "@/lib/waxJsDirect";
 import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
 import { WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,14 +58,8 @@ export function MyLocks() {
       setClaiming(lock.ID);
       
       try {
-        // Ensure signing bridge is active (calls login() internally)
-        const wax = await ensureCloudWalletReady();
-        
-        // Now transact with active bridge
-        await wax.api.transact(
-          { actions: [action] },
-          { blocksBehind: 3, expireSeconds: 120 }
-        );
+        // Use manual broadcast pattern with signature verification
+        await cloudWalletTransact([action]);
         
         toast({
           title: "Success!",

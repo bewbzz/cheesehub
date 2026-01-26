@@ -16,7 +16,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Check, X, Loader2, Search, Image, Send, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
-import { ensureCloudWalletReady } from '@/lib/waxJsDirect';
+import { cloudWalletTransact } from '@/lib/waxJsDirect';
 import { toast } from 'sonner';
 
 interface NFTSendManagerProps {
@@ -151,17 +151,9 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       setIsSending(true);
 
       try {
-        // Ensure signing bridge is active (calls login() internally)
-        const wax = await ensureCloudWalletReady();
-        
-        // Now transact with active bridge
-        const result = await wax.api.transact(
-          { actions: [action] },
-          { blocksBehind: 3, expireSeconds: 120 }
-        );
-        
-        const txResult = result as { transaction_id?: string; processed?: { id?: string } };
-        const txId = txResult.transaction_id || txResult.processed?.id || null;
+        // Use manual broadcast pattern with signature verification
+        const result = await cloudWalletTransact([action]);
+        const txId = result.transaction_id || null;
 
         onTransactionSuccess(
           'NFTs Sent Successfully!',

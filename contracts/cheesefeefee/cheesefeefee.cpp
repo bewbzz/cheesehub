@@ -107,81 +107,71 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
 }
 
 /**
- * @brief Get token price from Alcor pool using sqrtPriceX64
- * Returns price of tokenB per tokenA, adjusted for decimal precision
+ * @brief Get token price from Alcor pool using reserves (cheesepowerz approach)
+ * Returns price of "other token per CHEESE" using simple reserves ratio
  * 
- * sqrtPriceX64 encodes sqrt(tokenB_raw / tokenA_raw) where raw includes decimals
- * To get human-readable price: raw_price * 10^(precisionB - precisionA)
- * 
- * Pool 1252: CHEESE(A,4) / WAX(B,8)    - returns WAX per CHEESE (~1.43)
- * Pool 8017: CHEESE(A,4) / WAXDAO(B,8) - returns WAXDAO per CHEESE (~42)
+ * Pool 1252: CHEESE/WAX - returns WAX per CHEESE (~1.6)
+ * Pool 8017: CHEESE/WAXDAO - returns WAXDAO per CHEESE
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
-    auto pool = pools.find(pool_id);
-    check(pool != pools.end(), "Alcor pool not found");
-    check(pool->active, "Alcor pool is not active");
+    auto pool_itr = pools.find(pool_id);
+    check(pool_itr != pools.end(), "Alcor swap pool not found");
+    check(pool_itr->active, "Alcor pool is not active");
     
-    // Get precision from the asset's symbol (extended_asset.quantity.symbol)
-    uint8_t precisionA = pool->tokenA.quantity.symbol.precision();
-    uint8_t precisionB = pool->tokenB.quantity.symbol.precision();
+    // Get reserves and precisions from extended_asset
+    double reserveA = static_cast<double>(pool_itr->tokenA.quantity.amount);
+    double reserveB = static_cast<double>(pool_itr->tokenB.quantity.amount);
+    uint8_t precisionA = pool_itr->tokenA.quantity.symbol.precision();
+    uint8_t precisionB = pool_itr->tokenB.quantity.symbol.precision();
     
-    // Convert sqrtPriceX64 to raw price
-    // sqrtPriceX64 = sqrt(priceB_raw/priceA_raw) * 2^64
-    // raw_price = (sqrtPriceX64 / 2^64)^2 = priceB_raw / priceA_raw
-    uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
-    double normalized = (double)sqrtPrice / (double)(1ULL << 64);
-    double raw_price = normalized * normalized;
+    // Normalize reserves by precision
+    reserveA /= pow(10.0, precisionA);
+    reserveB /= pow(10.0, precisionB);
     
-    // CORRECTED: Apply decimal precision adjustment
-    // To convert raw ratio to human-readable: multiply by 10^(precisionB - precisionA)
-    // Pool 1252: CHEESE(4)/WAX(8) → 10^(8-4) = 10^4 = 10000
-    // Pool 8017: CHEESE(4)/WAXDAO(8) → 10^(8-4) = 10^4 = 10000
-    int precision_diff = (int)precisionB - (int)precisionA;
-    double adjusted_price = raw_price * pow(10.0, precision_diff);
+    // Determine which is CHEESE and return "other token per CHEESE"
+    symbol_code symbolA = pool_itr->tokenA.quantity.symbol.code();
     
-    return adjusted_price;
+    if (symbolA == symbol_code("CHEESE")) {
+        // CHEESE is tokenA, return tokenB per CHEESE
+        return reserveB / reserveA;
+    } else {
+        // CHEESE is tokenB, return tokenA per CHEESE
+        return reserveA / reserveB;
+    }
 }
 
 /**
- * @brief Calculate WAXDAO amount from CHEESE amount using live Alcor prices
- * Uses Pool 8017 for direct CHEESE→WAXDAO conversion
- * Uses Pool 1252 only to validate minimum WAX value requirement
+ * @brief Calculate WAXDAO amount from CHEESE using reserves-based pricing
+ * Pool 1252: Validates minimum 200 WAX value
+ * Pool 8017: Converts CHEESE to WAXDAO at market rate
  */
 asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
-    // Get prices from Alcor pools
-    double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID);       // Pool 1252
-    double waxdao_per_cheese = get_price_from_pool(CHEESE_WAXDAO_POOL_ID); // Pool 8017
-    
+    // Get WAX per CHEESE from Pool 1252
+    double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID);
     check(wax_per_cheese > 0, "Invalid CHEESE/WAX price from Alcor");
-    check(waxdao_per_cheese > 0, "Invalid CHEESE/WAXDAO price from Alcor");
-    
-    // SANITY CHECK: Prices should be in reasonable range
-    check(wax_per_cheese >= 0.001 && wax_per_cheese <= 1000.0,
-        "WAX/CHEESE price out of bounds - check pool");
-    check(waxdao_per_cheese >= 0.1 && waxdao_per_cheese <= 10000.0,
-        "WAXDAO/CHEESE price out of bounds - check pool");
     
     // Convert CHEESE amount to double (4 decimals)
-    double cheese_value = (double)cheese_amount.amount / 10000.0;
+    double cheese_units = static_cast<double>(cheese_amount.amount) / 10000.0;
+    double wax_value = cheese_units * wax_per_cheese;
     
-    // SECURITY: Validate user sent at least 200 WAX worth of CHEESE
-    double wax_value = cheese_value * wax_per_cheese;
+    // Validate minimum 200 WAX value (with 2.5% tolerance)
     double min_required = MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE);
     check(wax_value >= min_required, 
-        "Insufficient CHEESE. Need at least 200 WAX worth.");
+        "Need at least 200 WAX worth of CHEESE. Sent: " + 
+        to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
     
-    // DIRECT CONVERSION using Pool 8017: CHEESE → WAXDAO
-    double waxdao_value = cheese_value * waxdao_per_cheese;
+    // Get WAXDAO per CHEESE from Pool 8017
+    double waxdao_per_cheese = get_price_from_pool(CHEESE_WAXDAO_POOL_ID);
+    check(waxdao_per_cheese > 0, "Invalid CHEESE/WAXDAO price from Alcor");
     
-    // OVERFLOW PROTECTION: Max reasonable WAXDAO is 100 million
-    check(waxdao_value <= 100000000.0, 
-        "WAXDAO calculation too large - check pool prices");
+    // Calculate WAXDAO amount
+    double waxdao_amount = cheese_units * waxdao_per_cheese;
+    int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
     
-    // Convert to asset (8 decimals for WAXDAO)
-    int64_t waxdao_amount = (int64_t)(waxdao_value * 100000000.0);
+    check(waxdao_units > 0, "Calculated WAXDAO amount too small");
     
-    return asset(waxdao_amount, WAXDAO_SYMBOL);
+    return asset(waxdao_units, WAXDAO_SYMBOL);
 }
 
 /**

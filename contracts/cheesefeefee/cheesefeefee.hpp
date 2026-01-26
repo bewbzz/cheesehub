@@ -62,40 +62,20 @@ public:
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
 
-    // Alcor pool table struct - MUST match on-chain structure exactly
-    // Uses __attribute__((packed)) to prevent compiler padding
+    // Alcor AMM Swap pools table - matches working cheesepowerz contract
+    // Simple reserves-based pricing, no V3 sqrtPriceX64 complexity
     struct [[eosio::table]] alcor_pool {
         uint64_t id;
         bool active;
-        
-        // tokenA and tokenB are extended_asset (NOT extended_symbol!)
-        // extended_asset = { asset quantity, name contract }
-        eosio::extended_asset tokenA;
-        eosio::extended_asset tokenB;
-        
-        // Fee configuration
+        extended_asset tokenA;  // First token with reserves
+        extended_asset tokenB;  // Second token with reserves
         uint32_t fee;
-        uint8_t feeProtocol;      // <-- THIS WAS MISSING! 1-byte field
+        uint32_t feeProtocol;   // MUST be uint32_t (not uint8_t)
         int32_t tickSpacing;
         uint128_t maxLiquidityPerTick;
         
-        // Current slot with ALL fields
-        struct slot0 {
-            uint128_t sqrtPriceX64;
-            int32_t tick;
-            uint32_t lastObservationTimestamp;   // <-- WAS MISSING
-            uint32_t currentObservationNum;       // <-- WAS MISSING
-            uint32_t maxObservationNum;           // <-- WAS MISSING
-        } currSlot;
-        
-        uint64_t feeGrowthGlobalAX64;
-        uint64_t feeGrowthGlobalBX64;
-        eosio::extended_asset protocolFeeA;  // These are extended_asset too
-        eosio::extended_asset protocolFeeB;
-        uint128_t liquidity;
-        
         uint64_t primary_key() const { return id; }
-    } __attribute__((packed));
+    };
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:

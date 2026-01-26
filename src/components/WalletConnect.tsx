@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { Wallet, LogOut, ChevronDown, Send, Music2 } from "lucide-react";
+import { Wallet, LogOut, ChevronDown, Send, Music2, Cloud, Anchor } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
 import { useCheeseAmpAutoAdvance } from "@/hooks/useCheeseAmpAutoAdvance";
 
 export function WalletConnect() {
-  const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
+  const { session, isConnected, isLoading, accountName, cheeseBalance, loginCloudWallet, loginAnchor, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
@@ -44,6 +44,17 @@ export function WalletConnect() {
     return () => window.removeEventListener('open-cheese-wallet', handleOpenWallet);
   }, [isConnected]);
 
+  // Listen for custom event to open wallet connect dialog (from context.login())
+  useEffect(() => {
+    const handleOpenConnect = () => {
+      if (!isConnected) {
+        setOpen(true);
+      }
+    };
+    window.addEventListener('open-wallet-connect', handleOpenConnect);
+    return () => window.removeEventListener('open-wallet-connect', handleOpenConnect);
+  }, [isConnected]);
+
   // Listen for custom event to open CHEESEAmp
   useEffect(() => {
     const handleOpenCheeseAmp = () => {
@@ -57,15 +68,16 @@ export function WalletConnect() {
     return () => window.removeEventListener('open-cheese-amp', handleOpenCheeseAmp);
   }, [isConnected]);
 
-  const handleLogin = async () => {
-    // Close our dialog FIRST before triggering WharfKit login
-    // This prevents the Radix dialog from interfering with WharfKit's modal
-    setOpen(false);
-    
-    // Small delay to ensure our dialog is fully unmounted
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    await login();
+  // Direct Cloud Wallet login - closes dialog and opens popup immediately
+  const handleCloudWalletLogin = async () => {
+    setOpen(false); // Close dialog first to preserve user gesture
+    await loginCloudWallet();
+  };
+
+  // Anchor Wallet login - closes dialog and opens WharfKit modal
+  const handleAnchorLogin = async () => {
+    setOpen(false); // Close dialog first to preserve user gesture
+    await loginAnchor();
   };
 
   if (isConnected && accountName) {
@@ -121,20 +133,29 @@ export function WalletConnect() {
         <DialogHeader>
           <DialogTitle className="text-center text-xl">Connect Your Wallet</DialogTitle>
           <DialogDescription className="text-center">
-            Connect to Cheese DAO Tools
+            Choose your wallet to connect to CHEESEHub
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-3 py-4">
           <Button
-            onClick={handleLogin}
+            onClick={handleCloudWalletLogin}
             disabled={isLoading}
-            className="h-14 bg-cheese hover:bg-cheese-dark text-primary-foreground"
+            className="h-14 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            <Wallet className="mr-2 h-5 w-5" />
-            {isLoading ? "Connecting..." : "Connect Wallet"}
+            <Cloud className="mr-2 h-5 w-5" />
+            {isLoading ? "Connecting..." : "WAX Cloud Wallet"}
           </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Supports WAX Cloud Wallet and Anchor
+          <Button
+            onClick={handleAnchorLogin}
+            disabled={isLoading}
+            variant="outline"
+            className="h-14 border-accent/50 hover:bg-accent/10 hover:border-accent"
+          >
+            <Anchor className="mr-2 h-5 w-5 text-accent" />
+            {isLoading ? "Connecting..." : "Anchor Wallet"}
+          </Button>
+          <p className="text-center text-xs text-muted-foreground mt-2">
+            Cloud Wallet is recommended for new users
           </p>
         </div>
       </DialogContent>

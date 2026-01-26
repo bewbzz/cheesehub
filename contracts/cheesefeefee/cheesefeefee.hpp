@@ -62,38 +62,40 @@ public:
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
 
-    // Alcor pool table struct (read from swap.alcor)
-    // Must match the exact structure from swap.alcor contract
-    struct alcor_pool {
+    // Alcor pool table struct - MUST match on-chain structure exactly
+    // Uses __attribute__((packed)) to prevent compiler padding
+    struct [[eosio::table]] alcor_pool {
         uint64_t id;
         bool active;
         
-        // Token info with symbol (contains precision)
-        struct extended_symbol {
-            name contract;        // Contract comes FIRST (matches EOSIO standard)
-            eosio::symbol sym;    // Symbol comes SECOND
-        };
-        extended_symbol tokenA;
-        extended_symbol tokenB;
+        // tokenA and tokenB are extended_asset (NOT extended_symbol!)
+        // extended_asset = { asset quantity, name contract }
+        eosio::extended_asset tokenA;
+        eosio::extended_asset tokenB;
         
-        // Fee and liquidity fields (must be present even if unused)
+        // Fee configuration
         uint32_t fee;
+        uint8_t feeProtocol;      // <-- THIS WAS MISSING! 1-byte field
         int32_t tickSpacing;
         uint128_t maxLiquidityPerTick;
         
+        // Current slot with ALL fields
         struct slot0 {
             uint128_t sqrtPriceX64;
             int32_t tick;
+            uint32_t lastObservationTimestamp;   // <-- WAS MISSING
+            uint32_t currentObservationNum;       // <-- WAS MISSING
+            uint32_t maxObservationNum;           // <-- WAS MISSING
         } currSlot;
         
         uint64_t feeGrowthGlobalAX64;
         uint64_t feeGrowthGlobalBX64;
-        uint64_t protocolFeeA;
-        uint64_t protocolFeeB;
+        eosio::extended_asset protocolFeeA;  // These are extended_asset too
+        eosio::extended_asset protocolFeeB;
         uint128_t liquidity;
         
         uint64_t primary_key() const { return id; }
-    };
+    } __attribute__((packed));
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:

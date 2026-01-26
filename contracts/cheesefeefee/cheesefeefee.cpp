@@ -122,9 +122,9 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     check(pool != pools.end(), "Alcor pool not found");
     check(pool->active, "Alcor pool is not active");
     
-    // Get token precisions from pool
-    uint8_t precisionA = pool->tokenA.sym.precision();
-    uint8_t precisionB = pool->tokenB.sym.precision();
+    // Get precision from the asset's symbol (extended_asset.quantity.symbol)
+    uint8_t precisionA = pool->tokenA.quantity.symbol.precision();
+    uint8_t precisionB = pool->tokenB.quantity.symbol.precision();
     
     // Convert sqrtPriceX64 to raw price
     // sqrtPriceX64 = sqrt(priceB_raw/priceA_raw) * 2^64

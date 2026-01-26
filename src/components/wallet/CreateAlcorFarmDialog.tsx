@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Plus, Trash2, AlertTriangle, Info, Search, ChevronDown, Check } from 'lucide-react';
 import { useWax } from '@/context/WaxContext';
 import { toast } from 'sonner';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { TokenLogo } from '@/components/TokenLogo';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -193,7 +193,7 @@ export function CreateAlcorFarmDialog({
         nextIncentiveId
       );
 
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       onTransactionSuccess?.(

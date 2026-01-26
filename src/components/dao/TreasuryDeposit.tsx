@@ -7,7 +7,7 @@ import { useWax } from "@/context/WaxContext";
 import { buildDepositToTreasuryAction, buildTokenDepositAction, fetchUserTokenBalance } from "@/lib/dao";
 import { TokenLogo } from "@/components/TokenLogo";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, ArrowDownToLine, Wallet } from "lucide-react";
 
 interface TreasuryDepositProps {
@@ -138,7 +138,7 @@ export function TreasuryDeposit({ daoName, onSuccess }: TreasuryDepositProps) {
         activeToken.contract
       ));
 
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       toast.success(`Successfully deposited ${formattedAmount} to treasury!`);
       setAmount("");
       await loadUserBalance();

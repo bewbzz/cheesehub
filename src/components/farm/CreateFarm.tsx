@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, Plus, Wallet, Trash2, Info, Sprout, AlertTriangle, ExternalLink, Play, ChevronDown, Globe, Youtube, BookOpen } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -257,7 +257,7 @@ export function CreateFarm() {
         actions = [assertAction, feeAction, createAction];
       }
       
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       
       toast.success("Farm created successfully! You can now add stakable assets via the farm detail page.");
       

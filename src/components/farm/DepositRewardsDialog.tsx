@@ -13,7 +13,7 @@ import { Plus, Loader2, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { useWax } from "@/context/WaxContext";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import type { FarmInfo } from "@/lib/farm";
 
 interface DepositRewardsDialogProps {
@@ -74,7 +74,7 @@ export function DepositRewardsDialog({ farm, onSuccess }: DepositRewardsDialogPr
         return;
       }
 
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       toast.success(`Successfully deposited ${depositedTokens.join(", ")} to ${farm.farm_name}`);
       setOpen(false);
       setAmounts({});

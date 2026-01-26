@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, Plus, Loader2, Trash2, ExternalLink } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import {
   FarmInfo,
   RewardPool,
@@ -154,7 +154,7 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
           throw new Error("Invalid farm type");
       }
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       toast.success("Stakable asset added successfully!");
       resetForm();
       refetch();

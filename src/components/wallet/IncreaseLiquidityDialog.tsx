@@ -15,7 +15,7 @@ import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { buildIncreaseLiquidityAction, AlcorFarmPosition } from '@/lib/alcorFarms';
 import { TokenLogo } from '@/components/TokenLogo';
 import { toast } from 'sonner';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface IncreaseLiquidityDialogProps {
@@ -166,7 +166,7 @@ export function IncreaseLiquidityDialog({
         quantityB
       );
 
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       // Refetch token balances after successful transaction

@@ -15,7 +15,7 @@ import { useUserNFTs, UserNFT } from "@/hooks/useUserNFTs";
 import { useDebounce } from "@/hooks/useDebounce";
 import { buildNFTDepositAction, buildDepositNFTToTreasuryAction } from "@/lib/dao";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, ArrowDownToLine, Wallet, Check, Search, RefreshCw, Image, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -146,7 +146,7 @@ export function TreasuryNFTDeposit({ daoName, onSuccess }: TreasuryNFTDepositPro
         assetIds
       );
 
-      await session.transact({ actions: [nftDepositAction, transferAction] });
+      await session.transact({ actions: [nftDepositAction, transferAction] }, { transactPlugins: getTransactPlugins(session) });
       toast.success(`Successfully deposited ${selectedNFTs.size} NFT(s) to treasury!`);
       setSelectedNFTs(new Set());
       refetch();

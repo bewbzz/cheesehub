@@ -1,4 +1,4 @@
-import { SessionKit, ChainDefinition } from '@wharfkit/session';
+import { SessionKit, ChainDefinition, Session } from '@wharfkit/session';
 import { WebRenderer } from '@wharfkit/web-renderer';
 import { WalletPluginAnchor } from '@wharfkit/wallet-plugin-anchor';
 import { WalletPluginCloudWallet } from '@wharfkit/wallet-plugin-cloudwallet';
@@ -8,7 +8,7 @@ import { TransactPluginResourceProvider } from '@wharfkit/transact-plugin-resour
 const webRenderer = new WebRenderer();
 
 // WAX mainnet chain ID for Greymass Fuel endpoint
-const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4';
+export const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4';
 
 // Define WAX mainnet with a more reliable primary RPC endpoint
 const waxChain = ChainDefinition.from({
@@ -16,20 +16,29 @@ const waxChain = ChainDefinition.from({
   url: 'https://wax.eosusa.io',
 });
 
-// Create SessionKit with both wallet plugins and Greymass Fuel resource provider
-// The resource provider automatically cosigns transactions when users are out of CPU/NET
-export const sessionKit = new SessionKit(
-  {
-    appName: 'CHEESEHub',
-    chains: [waxChain],
-    ui: webRenderer,
-    walletPlugins: [
-      new WalletPluginAnchor(),
-      new WalletPluginCloudWallet(),
-    ],
-  },
-  {
-    transactPlugins: [
+// Create SessionKit WITHOUT Fuel resource provider by default
+// Fuel only works with Anchor wallet - Cloud Wallet doesn't support the co-signing flow
+export const sessionKit = new SessionKit({
+  appName: 'CHEESEHub',
+  chains: [waxChain],
+  ui: webRenderer,
+  walletPlugins: [
+    new WalletPluginAnchor(),
+    new WalletPluginCloudWallet(),
+  ],
+});
+
+// Helper to check if session is from Anchor wallet (supports Fuel co-signing)
+export function isAnchorSession(session: Session): boolean {
+  const walletId = session.walletPlugin?.id || '';
+  return walletId.toLowerCase().includes('anchor');
+}
+
+// Get transact options with Fuel plugin for Anchor-only sessions
+// Cloud Wallet doesn't support Fuel's partial signature flow
+export function getTransactPlugins(session: Session) {
+  if (isAnchorSession(session)) {
+    return [
       new TransactPluginResourceProvider({
         endpoints: {
           [WAX_CHAIN_ID]: 'https://wax.greymass.com',
@@ -37,9 +46,11 @@ export const sessionKit = new SessionKit(
         // Don't allow paid Fuel - only use free resource sponsorship
         allowFees: false,
       }),
-    ],
+    ];
   }
-);
+  // Return empty array for Cloud Wallet - no Fuel support
+  return [];
+}
 
 // Track if a login is in progress to avoid removing modal during login
 let isLoginInProgress = false;

@@ -100,15 +100,6 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       try {
         const restored = await sessionKit.restore();
         if (restored) {
-          // For Cloud Wallet sessions, don't auto-restore - keys may be stale
-          // Cloud Wallet requires a fresh login each time to get valid keys
-          const isCloudWallet = restored.walletPlugin?.id === 'cloudwallet';
-          if (isCloudWallet) {
-            console.log('Cloud Wallet session found but not restoring - requires fresh login');
-            // Clear the stale session
-            await sessionKit.logout(restored);
-            return;
-          }
           setSession(restored);
         }
       } catch (error) {
@@ -198,11 +189,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -258,11 +245,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -308,11 +291,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       return txId;
@@ -380,11 +359,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       ];
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions }, transactOptions);
+      const result = await session.transact({ actions });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -433,11 +408,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -481,11 +452,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -542,11 +509,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Skip resource provider for Cloud Wallet to avoid popup blocking
-      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
-      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
-
-      const result = await session.transact({ actions: [action] }, transactOptions);
+      const result = await session.transact({ actions: [action] });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({

@@ -16,6 +16,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Check, X, Loader2, Search, Image, Send, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
+import { ensureCloudWalletReady } from '@/lib/waxJsDirect';
 import { toast } from 'sonner';
 
 interface NFTSendManagerProps {
@@ -30,7 +31,7 @@ function isValidWaxAccount(account: string): boolean {
 }
 
 export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
-  const { accountName, transferNFTs } = useWax();
+  const { accountName, transferNFTs, isUsingCloudWallet } = useWax();
   const { nfts, isLoading, loadingProgress, refetch, collections } = useUserNFTs(accountName);
 
   const [recipient, setRecipient] = useState('');
@@ -127,17 +128,85 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
   }, [filteredNFTs]);
 
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || !accountName) return;
 
+    const assetIds = Array.from(selectedNFTs);
+    const sendRecipient = recipient;
+    const sendMemo = memo;
+
+    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
+    if (isUsingCloudWallet) {
+      const action = {
+        account: 'atomicassets',
+        name: 'transfer',
+        authorization: [{ actor: accountName, permission: 'active' }],
+        data: {
+          from: accountName,
+          to: sendRecipient,
+          asset_ids: assetIds,
+          memo: sendMemo,
+        },
+      };
+
+      setIsSending(true);
+
+      try {
+        // Ensure signing bridge is active (calls login() internally)
+        const wax = await ensureCloudWalletReady();
+        
+        // Now transact with active bridge
+        const result = await wax.api.transact(
+          { actions: [action] },
+          { blocksBehind: 3, expireSeconds: 120 }
+        );
+        
+        const txResult = result as { transaction_id?: string; processed?: { id?: string } };
+        const txId = txResult.transaction_id || txResult.processed?.id || null;
+
+        onTransactionSuccess(
+          'NFTs Sent Successfully!',
+          `Sent ${assetIds.length} NFT(s) to ${sendRecipient}`,
+          txId
+        );
+        setRecipient('');
+        setMemo('');
+        setSelectedNFTs(new Set());
+        refetch();
+      } catch (error) {
+        console.error('NFT transfer failed:', error);
+        closeWharfkitModals();
+        
+        const errorMessage = error instanceof Error ? error.message : 'Transfer failed';
+        if (!errorMessage.toLowerCase().includes('cancel')) {
+          const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
+                             errorMessage.toLowerCase().includes('billed') ||
+                             errorMessage.toLowerCase().includes('net usage') ||
+                             errorMessage.toLowerCase().includes('deadline exceeded');
+
+          if (isCpuError) {
+            toast.error('Transaction failed - insufficient resources', {
+              description: 'Enable Greymass Fuel in Anchor settings, or use the CHEESEUp page to rent CPU.',
+              duration: 8000,
+            });
+          } else {
+            toast.error('NFT transfer failed', { description: errorMessage });
+          }
+        }
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
+
+    // For Anchor: Use existing WharfKit flow via context
     setIsSending(true);
     try {
-      const assetIds = Array.from(selectedNFTs);
-      const txId = await transferNFTs(recipient, assetIds, memo);
+      const txId = await transferNFTs(sendRecipient, assetIds, sendMemo);
 
       if (txId) {
         onTransactionSuccess(
           'NFTs Sent Successfully!',
-          `Sent ${assetIds.length} NFT(s) to ${recipient}`,
+          `Sent ${assetIds.length} NFT(s) to ${sendRecipient}`,
           txId
         );
         setRecipient('');
@@ -169,7 +238,6 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       }
     } finally {
       setIsSending(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

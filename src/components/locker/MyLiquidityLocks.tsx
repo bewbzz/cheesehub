@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
-import { getWaxApi } from "@/lib/waxJsDirect";
+import { ensureCloudWalletReady } from "@/lib/waxJsDirect";
 import { 
   fetchUserLiquidityLocks, 
   LiquidityLock,
@@ -70,29 +70,34 @@ export function MyLiquidityLocks() {
       },
     };
 
-    // For Cloud Wallet: Call api.transact() directly as first async operation
+    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
     if (isUsingCloudWallet) {
-      const waxApi = getWaxApi();
-      const txPromise = waxApi.transact(
-        { actions: [action] },
-        { blocksBehind: 3, expireSeconds: 120 }
-      );
-
       setClaiming(lock.ID);
       
       try {
-        await txPromise;
+        // Ensure signing bridge is active (calls login() internally)
+        const wax = await ensureCloudWalletReady();
+        
+        // Now transact with active bridge
+        await wax.api.transact(
+          { actions: [action] },
+          { blocksBehind: 3, expireSeconds: 120 }
+        );
+        
         toast({
           title: "Success!",
           description: "LP tokens claimed successfully",
         });
         await loadLocks();
       } catch (error: any) {
-        toast({
-          title: "Claim Failed",
-          description: error.message || "Failed to claim LP tokens",
-          variant: "destructive",
-        });
+        const errorMessage = error?.message || "Failed to claim LP tokens";
+        if (!errorMessage.toLowerCase().includes('cancel')) {
+          toast({
+            title: "Claim Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
       } finally {
         setClaiming(null);
       }

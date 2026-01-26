@@ -60,10 +60,31 @@ export function getCloudWalletAccount(): string | null {
 }
 
 /**
+ * Ensure Cloud Wallet signing bridge is active by calling login().
+ * For non-allowlisted dApps, the signing bridge must be refreshed before each transaction.
+ * This will show a brief confirmation popup before the actual signing popup.
+ * 
+ * Returns the WaxJS instance for chaining with transact().
+ */
+export async function ensureCloudWalletReady(): Promise<waxjs.WaxJS> {
+  const wax = getWaxJS();
+  
+  // Always call login() to ensure the signing bridge is fresh
+  // For Cloud Wallet users, this may show a brief "confirm" popup
+  console.log('[WaxJS Direct] Refreshing signing bridge...');
+  await wax.login();
+  console.log('[WaxJS Direct] Signing bridge active for:', wax.userAccount);
+  
+  return wax;
+}
+
+/**
  * Get the WaxJS api object for DIRECT transaction calls.
  * IMPORTANT: For Cloud Wallet popups to work, api.transact() MUST be 
  * called as the IMMEDIATE first async operation after a user click.
  * Any intermediate function calls or state updates break the gesture chain.
+ * 
+ * @deprecated Use ensureCloudWalletReady() instead for reliable signing
  */
 export function getWaxApi(): typeof waxjs.WaxJS.prototype.api {
   const wax = getWaxJS();

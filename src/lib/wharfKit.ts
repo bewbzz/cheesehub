@@ -28,7 +28,8 @@ export const sessionKit = new SessionKit(
       new WalletPluginCloudWallet({
         supportedChains: [WAX_CHAIN_ID],
         url: 'https://www.mycloudwallet.com',
-        autoUrl: 'https://idm-api.mycloudwallet.com/v1/accounts/auto-accept',
+        // REMOVED autoUrl - forces popup signing flow which is more reliable
+        // autoUrl can fail silently if contracts aren't whitelisted for auto-accept
         loginTimeout: 300000,
       }),
     ],

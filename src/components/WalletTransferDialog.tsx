@@ -187,8 +187,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const handleSend = async () => {
     if (!canSend || !selectedToken) return;
 
+    console.log('[WalletTransferDialog] Starting send transaction...');
+    console.log('[WalletTransferDialog] Token:', selectedToken.symbol, 'Amount:', parsedAmount, 'To:', recipient);
+    
     setIsSending(true);
     try {
+      console.log('[WalletTransferDialog] Calling transferToken...');
       const txId = await transferToken(
         selectedToken.contract,
         selectedToken.symbol,
@@ -197,11 +201,14 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
         parsedAmount,
         memo
       );
+      console.log('[WalletTransferDialog] transferToken result:', txId);
       if (txId) {
         const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
         showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
         setTimeout(() => refetch(), 2000);
       }
+    } catch (error) {
+      console.error('[WalletTransferDialog] Send error:', error);
     } finally {
       setIsSending(false);
       // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI

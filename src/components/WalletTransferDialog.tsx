@@ -179,19 +179,35 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const handleSend = async () => {
     if (!canSend || !selectedToken) return;
 
+    // Store transaction params before closing dialog
+    const txParams = {
+      contract: selectedToken.contract,
+      symbol: selectedToken.symbol,
+      precision: selectedToken.precision,
+      to: recipient,
+      amount: parsedAmount,
+      memo: memo,
+    };
+
+    // CRITICAL: Close the dialog FIRST to free the browser's gesture context for Cloud Wallet popup
+    onOpenChange(false);
+    
+    // Small delay to allow Radix cleanup before WharfKit popup
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     setIsSending(true);
     try {
       const txId = await transferToken(
-        selectedToken.contract,
-        selectedToken.symbol,
-        selectedToken.precision,
-        recipient,
-        parsedAmount,
-        memo
+        txParams.contract,
+        txParams.symbol,
+        txParams.precision,
+        txParams.to,
+        txParams.amount,
+        txParams.memo
       );
       if (txId) {
-        const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
-        showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
+        const quantity = `${txParams.amount.toFixed(txParams.precision)} ${txParams.symbol}`;
+        showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${txParams.to}`, txId);
         // Delayed refetch to allow indexer to update
         setTimeout(() => refetch(), 2000);
       }

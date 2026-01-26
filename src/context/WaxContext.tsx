@@ -189,7 +189,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -245,7 +249,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -291,7 +299,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       return txId;
@@ -359,7 +371,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       ];
 
-      const result = await session.transact({ actions });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -408,7 +424,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -452,7 +472,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -509,7 +533,11 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      // Skip resource provider for Cloud Wallet to avoid popup blocking
+      const isCloudWallet = session.walletPlugin?.id === 'cloudwallet';
+      const transactOptions = isCloudWallet ? { transactPlugins: [] } : {};
+
+      const result = await session.transact({ actions: [action] }, transactOptions);
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({

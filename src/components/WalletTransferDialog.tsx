@@ -204,7 +204,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       }
     } finally {
       setIsSending(false);
-      closeWharfkitModals();
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

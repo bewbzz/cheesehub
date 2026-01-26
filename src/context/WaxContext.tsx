@@ -100,25 +100,9 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       try {
         const restored = await sessionKit.restore();
         if (restored) {
-          // Check if this is a Cloud Wallet (.wam) account
-          const actorName = restored.actor?.toString() || '';
-          const isCloudWallet = actorName.endsWith('.wam');
-          
-          if (isCloudWallet) {
-            // Cloud Wallet sessions can't be reliably restored after page refresh
-            // because the iframe signing bridge is not persistent.
-            // Don't set the session - user will need to reconnect via click.
-            console.log('Cloud Wallet session found but not restoring - requires fresh login for signing');
-            // Clear the stored session to avoid confusion
-            try {
-              await sessionKit.logout(restored);
-            } catch (e) {
-              // Ignore logout errors
-            }
-          } else {
-            // Anchor and other wallets can be restored safely
-            setSession(restored);
-          }
+          // Trust the wallet plugin to manage its own signing UI
+          // Both Anchor and Cloud Wallet can be restored - the plugin handles signing
+          setSession(restored);
         }
       } catch (error) {
         console.error('Failed to restore session:', error);

@@ -211,12 +211,10 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
       onSuccess();
     } catch (error) {
       console.error("Failed to create proposal:", error);
-      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Failed to create proposal");
     } finally {
       setLoading(false);
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 

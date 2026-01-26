@@ -100,10 +100,22 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       try {
         const restored = await sessionKit.restore();
         if (restored) {
-          // Trust the wallet plugin to manage signing - both Anchor and Cloud Wallet
-          // can restore sessions. Cloud Wallet will open popup for signing when needed.
-          // With autoUrl removed from plugin config, signing always uses popup flow.
-          console.log('Session restored for:', restored.actor.toString());
+          const actorName = restored.actor.toString();
+          
+          // Cloud Wallet sessions (.wam) don't properly restore the signing bridge
+          // Force a fresh login to ensure transaction signing works
+          if (actorName.endsWith('.wam')) {
+            console.log('Cloud Wallet session detected - clearing for fresh login');
+            await sessionKit.logout(restored);
+            // Clear all WharfKit-related localStorage to ensure clean state
+            Object.keys(localStorage)
+              .filter(key => key.includes('wharfkit') || key.includes('cloudwallet'))
+              .forEach(key => localStorage.removeItem(key));
+            return; // Don't set session - user will need to reconnect
+          }
+          
+          // Anchor sessions can be restored normally
+          console.log('Session restored for:', actorName);
           setSession(restored);
         }
       } catch (error) {
@@ -156,6 +168,16 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     if (session) {
       try {
         await sessionKit.logout(session);
+        
+        // Clear ALL WharfKit and wallet storage to prevent stale state
+        Object.keys(localStorage)
+          .filter(key => 
+            key.includes('wharfkit') || 
+            key.includes('cloudwallet') ||
+            key.includes('anchor-link')
+          )
+          .forEach(key => localStorage.removeItem(key));
+        
         setSession(null);
         setCheeseBalance(0);
         toast({

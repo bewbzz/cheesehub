@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWax } from '@/context/WaxContext';
-import { ensureCloudWalletReady } from '@/lib/waxJsDirect';
+import { cloudWalletTransact } from '@/lib/waxJsDirect';
 import { toast } from 'sonner';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
@@ -215,17 +215,9 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       setIsSending(true);
 
       try {
-        // Ensure signing bridge is active (calls login() internally)
-        const wax = await ensureCloudWalletReady();
-        
-        // Now transact with active bridge
-        const result = await wax.api.transact(
-          { actions: [action] },
-          { blocksBehind: 3, expireSeconds: 120 }
-        );
-        
-        const txResult = result as { transaction_id?: string; processed?: { id?: string } };
-        const txId = txResult.transaction_id || txResult.processed?.id || '';
+        // Use manual broadcast pattern with signature verification
+        const result = await cloudWalletTransact([action]);
+        const txId = result.transaction_id;
         
         if (txId) {
           showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${sendRecipient}`, txId);

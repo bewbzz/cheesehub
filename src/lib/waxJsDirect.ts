@@ -79,12 +79,74 @@ export async function ensureCloudWalletReady(): Promise<waxjs.WaxJS> {
 }
 
 /**
- * Get the WaxJS api object for DIRECT transaction calls.
- * IMPORTANT: For Cloud Wallet popups to work, api.transact() MUST be 
- * called as the IMMEDIATE first async operation after a user click.
- * Any intermediate function calls or state updates break the gesture chain.
+ * Execute a Cloud Wallet transaction with manual signature verification.
+ * This prevents the race condition where transactions are broadcast before
+ * the Cloud Wallet popup returns signatures.
  * 
- * @deprecated Use ensureCloudWalletReady() instead for reliable signing
+ * Flow:
+ * 1. Call transact() with broadcast: false, sign: true to capture signatures
+ * 2. Verify signatures were actually received from the popup
+ * 3. Manually push the signed transaction using rpc.push_transaction()
+ */
+export async function cloudWalletTransact(
+  actions: Array<{
+    account: string;
+    name: string;
+    authorization: Array<{ actor: string; permission: string }>;
+    data: Record<string, unknown>;
+  }>
+): Promise<{ transaction_id: string }> {
+  const wax = getWaxJS();
+  
+  // Ensure user is logged in (also refreshes signing bridge)
+  if (!wax.userAccount) {
+    console.log('[WaxJS Direct] Not logged in, triggering login...');
+    await wax.login();
+  }
+  
+  console.log('[WaxJS Direct] Signing transaction (broadcast: false)...');
+  
+  // Step 1: Sign but DON'T broadcast - wait for popup signatures
+  const signedTx = await wax.api.transact(
+    { actions },
+    {
+      blocksBehind: 3,
+      expireSeconds: 120,
+      broadcast: false, // Don't broadcast yet - wait for signatures!
+      sign: true,
+    }
+  );
+  
+  // Type assertion for the signed transaction result
+  const txResult = signedTx as { 
+    signatures: string[]; 
+    serializedTransaction: Uint8Array;
+  };
+  
+  // Step 2: Verify signatures exist
+  if (!txResult.signatures || txResult.signatures.length === 0) {
+    throw new Error('No signatures received from Cloud Wallet. Transaction was not signed.');
+  }
+  
+  console.log('[WaxJS Direct] Signatures received:', txResult.signatures.length);
+  console.log('[WaxJS Direct] Pushing signed transaction to network...');
+  
+  // Step 3: Manually push the signed transaction
+  const pushResult = await wax.rpc.push_transaction(txResult) as { 
+    transaction_id?: string; 
+    processed?: { id?: string } 
+  };
+  
+  console.log('[WaxJS Direct] Transaction pushed successfully:', pushResult);
+  
+  return { 
+    transaction_id: pushResult.transaction_id || pushResult.processed?.id || '' 
+  };
+}
+
+/**
+ * Get the WaxJS api object for DIRECT transaction calls.
+ * @deprecated Use cloudWalletTransact() for reliable signing with manual broadcast
  */
 export function getWaxApi(): typeof waxjs.WaxJS.prototype.api {
   const wax = getWaxJS();

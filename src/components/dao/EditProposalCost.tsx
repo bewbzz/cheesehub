@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { DaoInfo, buildEditPropCostAction } from "@/lib/dao";
 import { parseListingPrice, getTokenConfig } from "@/lib/tokenRegistry";
 import { useWax } from "@/context/WaxContext";
-import { ensureCloudWalletReady } from "@/lib/waxJsDirect";
+import { cloudWalletTransact } from "@/lib/waxJsDirect";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Coins } from "lucide-react";
 
@@ -63,14 +63,8 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
       setIsSubmitting(true);
 
       try {
-        // Ensure signing bridge is active (calls login() internally)
-        const wax = await ensureCloudWalletReady();
-        
-        // Now transact with active bridge
-        await wax.api.transact(
-          { actions: [action] },
-          { blocksBehind: 3, expireSeconds: 120 }
-        );
+        // Use manual broadcast pattern with signature verification
+        await cloudWalletTransact([action]);
         
         toast({
           title: "Proposal Cost Updated",

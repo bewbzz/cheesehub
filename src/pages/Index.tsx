@@ -63,9 +63,10 @@ const Index = () => {
           <h2 className="text-2xl md:text-3xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Tools</span></h2>
         </div>
 
-        {/* Grid of tools - CHEESEUp full width on top */}
-        <div className="grid gap-6">
-          {/* CHEESEUp CTA - Full Width */}
+        {/* Grid of tools - 4x2 layout */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Row 1: CHEESEUp + CHEESEFaucet */}
+          {/* CHEESEUp CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -84,130 +85,148 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 2: CHEESEFaucet + CHEESEWallet */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* CHEESEFaucet CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">🧀</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Faucet</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the CHEESEFAUCET and CHEESECHEESE smart contracts, Hosted on GitHub users stake their $CHEESE to claim mine $CHEESE at a high APR
-                </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <a href="https://cheeseonwax.github.io/tools/cheesefaucet.html" target="_blank" rel="noopener noreferrer">
-                    Go to CHEESEFaucet
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
+          {/* CHEESEFaucet CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🧀</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Faucet</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the CHEESEFAUCET and CHEESECHEESE smart contracts, Hosted on GitHub users stake their $CHEESE to claim mine $CHEESE at a high APR
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <a href="https://cheeseonwax.github.io/tools/cheesefaucet.html" target="_blank" rel="noopener noreferrer">
+                  Go to CHEESEFaucet
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
 
-            {/* CHEESEWallet CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
+          {/* Row 2: CHEESEDao + CHEESEFarm */}
+          {/* CHEESE DAO CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🏛️</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/dao">
+                  Go to CHEESEDao
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* CHEESEFarm CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🌱</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the FARMS.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/farm">
+                  Go to CHEESEFarm
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Row 3: CHEESELock + CHEESEDrop */}
+          {/* CHEESELock CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔐</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/locker">
+                  Go to CHEESELock
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* CHEESEDrops CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">💧</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEDrop allows all WAX users to create NFT drops and sell them for various WAX tokens
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/drops">
+                  Go to CHEESEDrop
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Row 4: CHEESEWallet + CHEESEAmp */}
+          {/* CHEESEWallet CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <img src={walletIcon} alt="Wallet" className="h-12 w-12 object-contain" />
               </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-4">
-                  A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Rent CPU and NET. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards.
-                </p>
-                <p className="text-cheese font-semibold max-w-sm mx-auto mb-6">
-                  + Manage Alcor LP Farm Positions
-                </p>
-                <Button 
-                  size="lg" 
-                  className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold"
-                  onClick={() => window.dispatchEvent(new CustomEvent('open-cheese-wallet'))}
-                >
-                  Open Wallet
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-4">
+                A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Rent CPU and NET. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards.
+              </p>
+              <p className="text-cheese font-semibold max-w-sm mx-auto mb-6">
+                + Manage Alcor LP Farm Positions
+              </p>
+              <Button 
+                size="lg" 
+                className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-cheese-wallet'))}
+              >
+                Open Wallet
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </CardContent>
+          </Card>
 
-          {/* Remaining tools in 2-col grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* CHEESE DAO CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">🏛️</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
-                </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <Link to="/dao">
-                    Go to CHEESEDao
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* CHEESELock CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">🔐</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
-                </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <Link to="/locker">
-                    Go to CHEESELock
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* CHEESEDrops CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">💧</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEDrop allows all WAX users to create NFT drops and sell them for various WAX tokens
-                </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <Link to="/drops">
-                    Go to CHEESEDrop
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* CHEESEFarm CTA */}
-            <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-              <CardContent className="py-12 text-center">
-                <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-4xl">🌱</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span></h2>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                  Powered by the FARMS.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
-                </p>
-                <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                  <Link to="/farm">
-                    Go to CHEESEFarm
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          {/* CHEESEAmp CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🎧</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Amp</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                A simple, clean NFT music player that populates a list automatically with your music NFTS. Play videos, create playlists, shuffle tracks and enjoy your musical blockchain assets like never before. Minimizes to the background and keeps playing while you work or browse the web
+              </p>
+              <Button 
+                size="lg" 
+                className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-cheese-amp'))}
+              >
+                Open CHEESEAmp
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </section>
     </Layout>

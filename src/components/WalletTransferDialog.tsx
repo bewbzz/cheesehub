@@ -187,31 +187,43 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   const handleSend = async () => {
     if (!canSend || !selectedToken) return;
 
-    console.log('[WalletTransferDialog] Starting send transaction...');
-    console.log('[WalletTransferDialog] Token:', selectedToken.symbol, 'Amount:', parsedAmount, 'To:', recipient);
+    // CRITICAL: Call transferToken IMMEDIATELY before any state updates!
+    // Cloud Wallet popup requires a direct "user gesture" chain.
+    // Any React state update (like setIsSending) adds micro-delays that
+    // break the gesture chain, causing browsers to block the popup silently.
     
+    // Capture values synchronously before async call
+    const tokenContract = selectedToken.contract;
+    const tokenSymbol = selectedToken.symbol;
+    const tokenPrecision = selectedToken.precision;
+    const sendAmount = parsedAmount;
+    const sendRecipient = recipient;
+    const sendMemo = memo;
+    
+    // Start transaction FIRST - this must be the immediate async call
+    const txPromise = transferToken(
+      tokenContract,
+      tokenSymbol,
+      tokenPrecision,
+      sendRecipient,
+      sendAmount,
+      sendMemo
+    );
+    
+    // Now we can safely update UI state
     setIsSending(true);
+    
     try {
-      console.log('[WalletTransferDialog] Calling transferToken...');
-      const txId = await transferToken(
-        selectedToken.contract,
-        selectedToken.symbol,
-        selectedToken.precision,
-        recipient,
-        parsedAmount,
-        memo
-      );
-      console.log('[WalletTransferDialog] transferToken result:', txId);
+      const txId = await txPromise;
       if (txId) {
-        const quantity = `${parsedAmount.toFixed(selectedToken.precision)} ${selectedToken.symbol}`;
-        showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${recipient}`, txId);
+        const quantity = `${sendAmount.toFixed(tokenPrecision)} ${tokenSymbol}`;
+        showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${sendRecipient}`, txId);
         setTimeout(() => refetch(), 2000);
       }
     } catch (error) {
       console.error('[WalletTransferDialog] Send error:', error);
     } finally {
       setIsSending(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

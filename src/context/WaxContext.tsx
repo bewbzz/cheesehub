@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { Session } from '@wharfkit/session';
 import { sessionKit, closeWharfkitModals, setLoginInProgress, isUserCancellation } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  getWaxJS, 
+  loginWithCloudWallet, 
+  transactWithCloudWallet, 
+  logoutCloudWallet,
+  getCloudWalletAccount 
+} from '@/lib/waxJsDirect';
 
 
 interface WaxContextType {
@@ -44,12 +51,19 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [cheeseBalance, setCheeseBalance] = useState(0);
   const { toast } = useToast();
+  
+  // Track if using direct WaxJS (for Cloud Wallet) vs WharfKit session (for Anchor)
+  const [cloudWalletAccount, setCloudWalletAccount] = useState<string | null>(null);
+  const isUsingCloudWallet = !!cloudWalletAccount;
 
-  const accountName = session?.actor?.toString() || null;
-  const isConnected = !!session;
+  // Account name can come from either WharfKit session or direct Cloud Wallet
+  const accountName = cloudWalletAccount || session?.actor?.toString() || null;
+  const isConnected = !!session || !!cloudWalletAccount;
 
   const refreshBalance = useCallback(async () => {
-    if (!session) {
+    // Use either cloud wallet account or session account
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       setCheeseBalance(0);
       return;
     }
@@ -65,7 +79,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               code: CHEESE_CONFIG.tokenContract,
-              account: session.actor.toString(),
+              account,
               symbol: CHEESE_CONFIG.tokenSymbol,
             }),
           }
@@ -93,7 +107,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     // All endpoints failed
     console.error('All RPC endpoints failed for CHEESE balance');
     setCheeseBalance(0);
-  }, [session]);
+  }, [session, cloudWalletAccount]);
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -125,32 +139,55 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  // Initial balance refresh on session change
+  // Initial balance refresh on session or cloudWallet change
   useEffect(() => {
     refreshBalance();
-  }, [session, refreshBalance]);
+  }, [session, cloudWalletAccount, refreshBalance]);
 
   // Periodic balance refresh every 30 seconds when connected
   useEffect(() => {
-    if (!session) return;
+    if (!session && !cloudWalletAccount) return;
     
     const intervalId = setInterval(() => {
       refreshBalance();
     }, 30000); // 30 seconds
     
     return () => clearInterval(intervalId);
-  }, [session, refreshBalance]);
+  }, [session, cloudWalletAccount, refreshBalance]);
 
   const login = async () => {
     setIsLoading(true);
     setLoginInProgress(true);
     try {
+      // First, let user choose wallet via WharfKit UI
       const response = await sessionKit.login();
-      setSession(response.session);
-      toast({
-        title: 'Wallet Connected',
-        description: `Connected as ${response.session.actor}`,
-      });
+      const actorName = response.session.actor.toString();
+      
+      // If Cloud Wallet (.wam account), switch to direct WaxJS signing
+      if (actorName.endsWith('.wam')) {
+        console.log('[WaxContext] Cloud Wallet detected, switching to direct WaxJS...');
+        
+        // Logout from WharfKit (we'll use WaxJS directly for transactions)
+        await sessionKit.logout(response.session);
+        
+        // Login via direct WaxJS to establish proper signing bridge
+        const waxAccount = await loginWithCloudWallet();
+        setCloudWalletAccount(waxAccount);
+        setSession(null); // Don't use WharfKit session for Cloud Wallet
+        
+        toast({
+          title: 'Cloud Wallet Connected',
+          description: `Connected as ${waxAccount}`,
+        });
+      } else {
+        // Anchor wallet - use WharfKit session normally
+        setSession(response.session);
+        setCloudWalletAccount(null);
+        toast({
+          title: 'Wallet Connected',
+          description: `Connected as ${actorName}`,
+        });
+      }
     } catch (error) {
       console.error('Login failed:', error);
       toast({
@@ -165,33 +202,43 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Handle WharfKit session logout
     if (session) {
       try {
         await sessionKit.logout(session);
-        
-        // Clear ALL WharfKit and wallet storage to prevent stale state
-        Object.keys(localStorage)
-          .filter(key => 
-            key.includes('wharfkit') || 
-            key.includes('cloudwallet') ||
-            key.includes('anchor-link')
-          )
-          .forEach(key => localStorage.removeItem(key));
-        
-        setSession(null);
-        setCheeseBalance(0);
-        toast({
-          title: 'Wallet Disconnected',
-          description: 'You have been logged out',
-        });
       } catch (error) {
-        console.error('Logout failed:', error);
+        console.error('WharfKit logout failed:', error);
       }
     }
+    
+    // Handle direct Cloud Wallet logout
+    if (cloudWalletAccount) {
+      logoutCloudWallet();
+    }
+    
+    // Clear ALL wallet storage to prevent stale state
+    Object.keys(localStorage)
+      .filter(key => 
+        key.includes('wharfkit') || 
+        key.includes('cloudwallet') ||
+        key.includes('anchor-link') ||
+        key.includes('wax')
+      )
+      .forEach(key => localStorage.removeItem(key));
+    
+    setSession(null);
+    setCloudWalletAccount(null);
+    setCheeseBalance(0);
+    
+    toast({
+      title: 'Wallet Disconnected',
+      description: 'You have been logged out',
+    });
   };
 
   const transferCheese = async (amount: number, memo: string): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -206,17 +253,25 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: CHEESE_CONFIG.tokenContract,
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          from: session.actor.toString(),
+          from: account,
           to: CHEESE_CONFIG.paymentWallet,
           quantity,
           memo,
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      // Use direct WaxJS for Cloud Wallet, WharfKit for Anchor
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
 
       toast({
         title: 'Transaction Successful',
@@ -228,8 +283,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Transfer failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      // Only cleanup modals on explicit user cancellation (Anchor only)
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -250,7 +305,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     amount: number,
     memo: string
   ): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -265,24 +321,34 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: tokenContract,
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          from: session.actor.toString(),
+          from: account,
           to,
           quantity,
           memo,
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      // Use direct WaxJS for Cloud Wallet, WharfKit for Anchor
+      if (isUsingCloudWallet) {
+        console.log('[WaxContext] Using direct WaxJS for Cloud Wallet transaction');
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
+      
       await refreshBalance();
       return txId;
     } catch (error) {
       console.error('Transfer failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      // Only cleanup modals on explicit user cancellation (Anchor only)
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -300,7 +366,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     assetIds: string[],
     memo: string
   ): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -313,23 +380,30 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: 'atomicassets',
         name: 'transfer',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          from: session.actor.toString(),
+          from: account,
           to,
           asset_ids: assetIds,
           memo,
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
+      
       return txId;
     } catch (error) {
       console.error('NFT transfer failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -350,7 +424,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     tokenSymbol: string,
     precision: number
   ): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -368,9 +443,9 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         {
           account: tokenContract,
           name: 'transfer',
-          authorization: [session.permissionLevel],
+          authorization: [{ actor: account, permission: 'active' }],
           data: {
-            from: session.actor.toString(),
+            from: account,
             to: NFTHIVE_CONFIG.dropContract,
             quantity: priceQuantity,
             memo: 'deposit',
@@ -379,9 +454,9 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         {
           account: NFTHIVE_CONFIG.dropContract,
           name: 'claimdrop',
-          authorization: [session.permissionLevel],
+          authorization: [{ actor: account, permission: 'active' }],
           data: {
-            claimer: session.actor.toString(),
+            claimer: account,
             drop_id: parseInt(dropId),
             amount: quantity,
             intended_delphi_median: 0,
@@ -392,15 +467,22 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       ];
       
-      const result = await session.transact({ actions });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet(actions);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
+      
       await refreshBalance();
       return txId;
     } catch (error) {
       console.error('Claim drop failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -418,7 +500,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     dropId: string,
     quantity: number
   ): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -431,9 +514,9 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: NFTHIVE_CONFIG.dropContract,
         name: 'claimdrop',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          claimer: session.actor.toString(),
+          claimer: account,
           drop_id: parseInt(dropId),
           amount: quantity,
           intended_delphi_median: 0,
@@ -443,8 +526,15 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
 
       toast({
         title: 'Claim Successful! 🧀',
@@ -455,8 +545,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Claim free drop failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -470,7 +559,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   };
 
   const joinDao = async (daoName: string): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -483,15 +573,22 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: 'dao.waxdao',
         name: 'joindao',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          user: session.actor.toString(),
+          user: account,
           dao: daoName,
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
 
       toast({
         title: 'Joined DAO',
@@ -502,8 +599,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Join DAO failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       
@@ -529,7 +625,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   };
 
   const leaveDao = async (daoName: string): Promise<string | null> => {
-    if (!session) {
+    const account = cloudWalletAccount || session?.actor?.toString();
+    if (!account) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your wallet first',
@@ -542,15 +639,22 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       const action = {
         account: 'dao.waxdao',
         name: 'leavedao',
-        authorization: [session.permissionLevel],
+        authorization: [{ actor: account, permission: 'active' }],
         data: {
-          user: session.actor.toString(),
+          user: account,
           dao: daoName,
         },
       };
       
-      const result = await session.transact({ actions: [action] });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+      let txId: string | null = null;
+      
+      if (isUsingCloudWallet) {
+        const result = await transactWithCloudWallet([action]);
+        txId = result.transaction_id;
+      } else if (session) {
+        const result = await session.transact({ actions: [action] });
+        txId = result.resolved?.transaction.id?.toString() || null;
+      }
 
       toast({
         title: 'Left DAO',
@@ -561,8 +665,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Leave DAO failed:', error);
       
-      // Only cleanup modals on explicit user cancellation
-      if (isUserCancellation(error)) {
+      if (!isUsingCloudWallet && isUserCancellation(error)) {
         closeWharfkitModals();
       }
       

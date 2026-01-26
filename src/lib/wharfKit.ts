@@ -1,13 +1,11 @@
 import { SessionKit, ChainDefinition } from '@wharfkit/session';
 import { WebRenderer } from '@wharfkit/web-renderer';
 import { WalletPluginAnchor } from '@wharfkit/wallet-plugin-anchor';
-import { WalletPluginCloudWallet } from '@wharfkit/wallet-plugin-cloudwallet';
-import { TransactPluginResourceProvider } from '@wharfkit/transact-plugin-resource-provider';
 
 // Initialize the WebRenderer for wallet selection UI
 const webRenderer = new WebRenderer();
 
-// WAX mainnet chain ID for Greymass Fuel endpoint
+// WAX mainnet chain ID
 const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4';
 
 // Define WAX mainnet with a more reliable primary RPC endpoint
@@ -16,10 +14,9 @@ const waxChain = ChainDefinition.from({
   url: 'https://wax.eosusa.io',
 });
 
-// Create SessionKit with both wallet plugins
-// NOTE: Greymass Fuel resource provider is DISABLED because it conflicts with Cloud Wallet.
-// Fuel modifies the transaction after Cloud Wallet signs, invalidating the signature.
-// Cloud Wallet has its own resource provisioning system.
+// Create SessionKit for ANCHOR WALLET ONLY
+// Cloud Wallet is handled directly via WaxJS (@waxio/waxjs) to avoid
+// the signature application bug in @wharfkit/wallet-plugin-cloudwallet
 export const sessionKit = new SessionKit(
   {
     appName: 'CHEESEHub',
@@ -27,16 +24,9 @@ export const sessionKit = new SessionKit(
     ui: webRenderer,
     walletPlugins: [
       new WalletPluginAnchor(),
-      new WalletPluginCloudWallet({
-        supportedChains: [WAX_CHAIN_ID],
-        url: 'https://www.mycloudwallet.com',
-        // REMOVED autoUrl - forces popup signing flow which is more reliable
-        // autoUrl can fail silently if contracts aren't whitelisted for auto-accept
-        loginTimeout: 300000,
-      }),
+      // Cloud Wallet REMOVED - uses direct WaxJS instead (see src/lib/waxJsDirect.ts)
     ],
   }
-  // Fuel resource provider removed - conflicts with Cloud Wallet signing
 );
 
 // Track if a login is in progress to avoid removing modal during login

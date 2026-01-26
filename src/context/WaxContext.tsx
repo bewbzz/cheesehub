@@ -18,7 +18,9 @@ interface WaxContextType {
   isLoading: boolean;
   accountName: string | null;
   cheeseBalance: number;
-  login: () => Promise<void>;
+  login: () => void; // Opens wallet selection dialog
+  loginCloudWallet: () => Promise<void>;
+  loginAnchor: () => Promise<void>;
   logout: () => Promise<void>;
   refreshBalance: () => Promise<void>;
   transferCheese: (amount: number, memo: string) => Promise<string | null>;
@@ -155,46 +157,67 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [session, cloudWalletAccount, refreshBalance]);
 
-  const login = async () => {
+  // Trigger wallet selection dialog (dispatches event to WalletConnect)
+  const login = () => {
+    window.dispatchEvent(new CustomEvent('open-wallet-connect'));
+  };
+
+  // Direct Cloud Wallet login - triggers ONE popup immediately
+  const loginCloudWallet = async () => {
+    setIsLoading(true);
+    try {
+      console.log('[WaxContext] Logging in with Cloud Wallet directly...');
+      const waxAccount = await loginWithCloudWallet();
+      setCloudWalletAccount(waxAccount);
+      setSession(null); // Don't use WharfKit session for Cloud Wallet
+      
+      toast({
+        title: 'Cloud Wallet Connected',
+        description: `Connected as ${waxAccount}`,
+      });
+    } catch (error) {
+      console.error('Cloud Wallet login failed:', error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // Don't show error for user cancellation
+      if (!errorMsg.toLowerCase().includes('closed') && !errorMsg.toLowerCase().includes('cancel')) {
+        toast({
+          title: 'Login Failed',
+          description: errorMsg || 'Failed to connect Cloud Wallet',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Anchor Wallet login via WharfKit - triggers ONE modal
+  const loginAnchor = async () => {
     setIsLoading(true);
     setLoginInProgress(true);
     try {
-      // First, let user choose wallet via WharfKit UI
+      console.log('[WaxContext] Logging in with Anchor via WharfKit...');
       const response = await sessionKit.login();
       const actorName = response.session.actor.toString();
       
-      // If Cloud Wallet (.wam account), switch to direct WaxJS signing
-      if (actorName.endsWith('.wam')) {
-        console.log('[WaxContext] Cloud Wallet detected, switching to direct WaxJS...');
-        
-        // Logout from WharfKit (we'll use WaxJS directly for transactions)
-        await sessionKit.logout(response.session);
-        
-        // Login via direct WaxJS to establish proper signing bridge
-        const waxAccount = await loginWithCloudWallet();
-        setCloudWalletAccount(waxAccount);
-        setSession(null); // Don't use WharfKit session for Cloud Wallet
-        
+      setSession(response.session);
+      setCloudWalletAccount(null);
+      
+      toast({
+        title: 'Anchor Wallet Connected',
+        description: `Connected as ${actorName}`,
+      });
+    } catch (error) {
+      console.error('Anchor login failed:', error);
+      
+      if (!isUserCancellation(error)) {
         toast({
-          title: 'Cloud Wallet Connected',
-          description: `Connected as ${waxAccount}`,
-        });
-      } else {
-        // Anchor wallet - use WharfKit session normally
-        setSession(response.session);
-        setCloudWalletAccount(null);
-        toast({
-          title: 'Wallet Connected',
-          description: `Connected as ${actorName}`,
+          title: 'Login Failed',
+          description: error instanceof Error ? error.message : 'Failed to connect Anchor',
+          variant: 'destructive',
         });
       }
-    } catch (error) {
-      console.error('Login failed:', error);
-      toast({
-        title: 'Login Failed',
-        description: error instanceof Error ? error.message : 'Failed to connect wallet',
-        variant: 'destructive',
-      });
     } finally {
       setLoginInProgress(false);
       setIsLoading(false);
@@ -687,6 +710,8 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         accountName,
         cheeseBalance,
         login,
+        loginCloudWallet,
+        loginAnchor,
         logout,
         refreshBalance,
         transferCheese,

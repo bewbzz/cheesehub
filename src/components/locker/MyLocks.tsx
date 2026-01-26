@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
+import { getWaxApi } from "@/lib/waxJsDirect";
 import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
 import { WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function MyLocks() {
-  const { session, accountName } = useWax();
+  const { session, accountName, isUsingCloudWallet } = useWax();
   const { toast } = useToast();
   const [locks, setLocks] = useState<TokenLock[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,21 +42,51 @@ export function MyLocks() {
   }, [session]);
 
   const handleClaim = async (lock: TokenLock) => {
+    if (!accountName) return;
+    
+    const action = {
+      account: WAXDAO_CONTRACT,
+      name: "withdraw",
+      authorization: [{ actor: accountName, permission: "active" }],
+      data: {
+        lock_ID: lock.ID,
+      },
+    };
+
+    // For Cloud Wallet: Call api.transact() directly as first async operation
+    if (isUsingCloudWallet) {
+      const waxApi = getWaxApi();
+      const txPromise = waxApi.transact(
+        { actions: [action] },
+        { blocksBehind: 3, expireSeconds: 120 }
+      );
+
+      setClaiming(lock.ID);
+      
+      try {
+        await txPromise;
+        toast({
+          title: "Success!",
+          description: "Tokens claimed successfully",
+        });
+        await loadLocks();
+      } catch (error: any) {
+        toast({
+          title: "Claim Failed",
+          description: error.message || "Failed to claim tokens",
+          variant: "destructive",
+        });
+      } finally {
+        setClaiming(null);
+      }
+      return;
+    }
+
+    // For Anchor: Use existing WharfKit session flow
     if (!session) return;
     setClaiming(lock.ID);
     try {
-      await session.transact({
-        actions: [
-          {
-            account: WAXDAO_CONTRACT,
-            name: "withdraw",
-            authorization: [session.permissionLevel],
-            data: {
-              lock_ID: lock.ID,
-            },
-          },
-        ],
-      });
+      await session.transact({ actions: [action] });
       toast({
         title: "Success!",
         description: "Tokens claimed successfully",

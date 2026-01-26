@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWax } from '@/context/WaxContext';
+import { getWaxApi } from '@/lib/waxJsDirect';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { TokenLogo } from '@/components/TokenLogo';
 import { RamManager } from '@/components/wallet/RamManager';
@@ -75,7 +76,7 @@ const allMenuItems = [...mainMenuItems, ...bottomMenuItems];
 
 export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialogProps) {
   const isMobile = useIsMobile();
-  const { accountName, transferToken } = useWax();
+  const { accountName, transferToken, isUsingCloudWallet } = useWax();
   const [activeSection, setActiveSection] = useState<WalletSection>('send');
   const [recipient, setRecipient] = useState('');
   const [selectedTokenKey, setSelectedTokenKey] = useState<string>('');
@@ -185,22 +186,60 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
   };
 
   const handleSend = async () => {
-    if (!canSend || !selectedToken) return;
+    if (!canSend || !selectedToken || !accountName) return;
 
-    // CRITICAL: Call transferToken IMMEDIATELY before any state updates!
-    // Cloud Wallet popup requires a direct "user gesture" chain.
-    // Any React state update (like setIsSending) adds micro-delays that
-    // break the gesture chain, causing browsers to block the popup silently.
-    
-    // Capture values synchronously before async call
+    // Capture values synchronously before any async calls
     const tokenContract = selectedToken.contract;
     const tokenSymbol = selectedToken.symbol;
     const tokenPrecision = selectedToken.precision;
     const sendAmount = parsedAmount;
     const sendRecipient = recipient;
     const sendMemo = memo;
-    
-    // Start transaction FIRST - this must be the immediate async call
+    const quantity = `${sendAmount.toFixed(tokenPrecision)} ${tokenSymbol}`;
+
+    // For Cloud Wallet: Call api.transact() IMMEDIATELY as the first async operation
+    // This preserves the user gesture chain so the signing popup isn't blocked
+    if (isUsingCloudWallet) {
+      const action = {
+        account: tokenContract,
+        name: 'transfer',
+        authorization: [{ actor: accountName, permission: 'active' }],
+        data: {
+          from: accountName,
+          to: sendRecipient,
+          quantity,
+          memo: sendMemo,
+        },
+      };
+
+      // CRITICAL: Start transaction BEFORE any state updates
+      const waxApi = getWaxApi();
+      const txPromise = waxApi.transact(
+        { actions: [action] },
+        { blocksBehind: 3, expireSeconds: 120 }
+      );
+
+      // Now safe to update UI
+      setIsSending(true);
+
+      try {
+        const result = await txPromise;
+        const txResult = result as { transaction_id?: string; processed?: { id?: string } };
+        const txId = txResult.transaction_id || txResult.processed?.id || '';
+        
+        if (txId) {
+          showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${sendRecipient}`, txId);
+          setTimeout(() => refetch(), 2000);
+        }
+      } catch (error) {
+        console.error('[WalletTransferDialog] Cloud Wallet send error:', error);
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
+
+    // For Anchor: Use the existing WharfKit flow via context
     const txPromise = transferToken(
       tokenContract,
       tokenSymbol,
@@ -209,14 +248,12 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       sendAmount,
       sendMemo
     );
-    
-    // Now we can safely update UI state
+
     setIsSending(true);
-    
+
     try {
       const txId = await txPromise;
       if (txId) {
-        const quantity = `${sendAmount.toFixed(tokenPrecision)} ${tokenSymbol}`;
         showSuccessDialog('Transaction Successful!', `Sent ${quantity} to ${sendRecipient}`, txId);
         setTimeout(() => refetch(), 2000);
       }

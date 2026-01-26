@@ -27,15 +27,7 @@ function getStorageKey(accountName: string): string {
   return `${STORAGE_KEY_PREFIX}${accountName}`;
 }
 
-function loadState(accountName: string): CheeseAmpState {
-  try {
-    const saved = localStorage.getItem(getStorageKey(accountName));
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {
-    // Ignore errors
-  }
+function getDefaultState(): CheeseAmpState {
   return {
     currentPlaylistId: DEFAULT_PLAYLIST_ID,
     playlists: [],
@@ -46,33 +38,46 @@ function loadState(accountName: string): CheeseAmpState {
   };
 }
 
+function loadState(accountName: string): CheeseAmpState {
+  try {
+    const saved = localStorage.getItem(getStorageKey(accountName));
+    console.log('[CHEESEAmp] Loading state for', accountName, saved ? 'found' : 'not found');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      console.log('[CHEESEAmp] Loaded', parsed.playlists?.length || 0, 'playlists');
+      return parsed;
+    }
+  } catch (e) {
+    console.error('[CHEESEAmp] Load error:', e);
+  }
+  return getDefaultState();
+}
+
 function saveState(accountName: string, state: CheeseAmpState): void {
+  console.log('[CHEESEAmp] Saving', state.playlists?.length || 0, 'playlists for', accountName);
   try {
     localStorage.setItem(getStorageKey(accountName), JSON.stringify(state));
-  } catch {
-    // Ignore storage errors
+  } catch (e) {
+    console.error('[CHEESEAmp] Save error:', e);
   }
 }
 
 export function useCheeseAmpPlaylist(accountName: string | null, allTracks: StackedMusicNFT[]) {
   const [state, setState] = useState<CheeseAmpState>(() => 
-    accountName ? loadState(accountName) : {
-      currentPlaylistId: DEFAULT_PLAYLIST_ID,
-      playlists: [],
-      recentlyPlayed: [],
-      volume: 0.8,
-      shuffle: false,
-      repeat: 'none',
-    }
+    accountName ? loadState(accountName) : getDefaultState()
   );
   
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
+  const [isLoaded, setIsLoaded] = useState(() => !!accountName);
 
   // Load state when account changes
   useEffect(() => {
     if (accountName) {
       setState(loadState(accountName));
+      setIsLoaded(true);
+    } else {
+      setIsLoaded(false);
     }
   }, [accountName]);
 
@@ -92,12 +97,12 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
     }
   }, [allTracks]); // Only run when tracks load, not on currentIndex changes
 
-  // Save state when it changes
+  // Save state ONLY when it changes AND has been loaded first
   useEffect(() => {
-    if (accountName) {
+    if (accountName && isLoaded) {
       saveState(accountName, state);
     }
-  }, [accountName, state]);
+  }, [accountName, state, isLoaded]);
 
   // Get current playlist tracks
   const currentPlaylistTracks = useMemo(() => {

@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { buildExtendFarmAction, FarmInfo } from "@/lib/farm";
+import { getTransactPlugins } from "@/lib/wharfKit";
 
 interface ExtendFarmDialogProps {
   farm: FarmInfo;
@@ -145,7 +146,7 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
         newExpirationTimestamp
       );
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({ 
         title: "Farm Extended!", 

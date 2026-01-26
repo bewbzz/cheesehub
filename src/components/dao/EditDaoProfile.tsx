@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DaoInfo, buildSetProfileActionWithSocials, DaoSocials } from "@/lib/dao";
 import { useWax } from "@/context/WaxContext";
+import { getTransactPlugins } from "@/lib/wharfKit";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
@@ -112,7 +113,7 @@ export function EditDaoProfile({ dao, open, onClose, onProfileUpdated }: EditDao
         sanitizedSocials
       );
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({
         title: "Profile Updated",

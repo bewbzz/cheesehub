@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { 
   fetchUserLiquidityLocks, 
@@ -71,7 +71,7 @@ export function MyLiquidityLocks() {
             },
           },
         ],
-      });
+      }, { transactPlugins: getTransactPlugins(session) });
       toast({
         title: "Success!",
         description: "LP tokens claimed successfully",

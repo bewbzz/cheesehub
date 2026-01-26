@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileActionWithSocials, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
@@ -255,7 +255,7 @@ export function CreateDao() {
         actions = [assertAction, feeAction, createAction, setProfileAction];
       }
       
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       
       toast.success("DAO created successfully!");
       setFormData({

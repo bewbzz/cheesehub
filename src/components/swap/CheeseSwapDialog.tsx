@@ -9,6 +9,7 @@ import {
 import { useWax } from '@/context/WaxContext';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
 import { toast } from 'sonner';
+import { getTransactPlugins } from '@/lib/wharfKit';
 import '@waxonedge/swap';
 import './CheeseSwap.css';
 
@@ -201,7 +202,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           swapElement.setAttribute('signing', 'true');
           
           console.log('[CheeseSwap] Signing normalized actions:', actions);
-          const result = await session.transact({ actions });
+          const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
           
           // Extract transaction ID
           const txId = result?.response?.transaction_id || null;

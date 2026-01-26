@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { buildOpenFarmAction, FarmInfo } from "@/lib/farm";
+import { getTransactPlugins } from "@/lib/wharfKit";
 
 interface OpenFarmDialogProps {
   farm: FarmInfo;
@@ -90,7 +91,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
         expirationTimestamp
       );
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({ 
         title: "Farm Opened!", 

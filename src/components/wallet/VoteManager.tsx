@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -266,7 +266,7 @@ export function VoteManager({ onTransactionComplete, onTransactionSuccess }: Vot
         },
       }];
 
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
       
       if (selectedProxy) {

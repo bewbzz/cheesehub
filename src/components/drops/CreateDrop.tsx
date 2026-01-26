@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useWax } from "@/context/WaxContext";
 import { buildDropCreationActions, validateDropFormData, fetchCollectionRamBalance, DropFormData, DropType, TokenBacking, RamBalance } from "@/lib/drops";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { toast } from "sonner";
 import { Loader2, Plus, Wallet, Info, Calendar, Image as ImageIcon, Package, Zap, Check, Coins, X, HardDrive, AlertTriangle } from "lucide-react";
 import { ManageRamDialog } from "./ManageRamDialog";
@@ -183,7 +183,7 @@ export function CreateDrop() {
       // Debug: Log the complete actions array before submitting
       console.log('🧀 Submitting drop creation with actions:', JSON.stringify(actions, null, 2));
 
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
 
       toast.success("Drop created successfully!");
       

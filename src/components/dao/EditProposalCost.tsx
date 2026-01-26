@@ -7,7 +7,7 @@ import { DaoInfo, buildEditPropCostAction } from "@/lib/dao";
 import { parseListingPrice, getTokenConfig } from "@/lib/tokenRegistry";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, Coins } from "lucide-react";
 
 interface EditProposalCostProps {
@@ -61,7 +61,7 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
       const formattedCost = `${parsedAmount.toFixed(precision)} ${tokenSymbol}`;
       const action = buildEditPropCostAction(accountName, dao.dao_name, formattedCost);
 
-      await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({
         title: "Proposal Cost Updated",

@@ -30,14 +30,32 @@ export const sessionKit = new SessionKit({
 
 // Helper to check if session is from Anchor wallet (supports Fuel co-signing)
 export function isAnchorSession(session: Session): boolean {
+  // Check multiple properties to ensure accurate detection
   const walletId = session.walletPlugin?.id || '';
-  return walletId.toLowerCase().includes('anchor');
+  const walletName = (session.walletPlugin as any)?.metadata?.name || '';
+  
+  // Log for debugging
+  console.log('[WharfKit] Wallet detection:', { walletId, walletName });
+  
+  // Cloud Wallet uses 'cloudwallet' or 'wax-cloud-wallet' as ID
+  // Anchor uses 'anchor' in its ID
+  const isAnchor = walletId.toLowerCase().includes('anchor');
+  const isCloudWallet = walletId.toLowerCase().includes('cloud') || 
+                        walletId.toLowerCase().includes('wax-cloud') ||
+                        walletName.toLowerCase().includes('cloud');
+  
+  console.log('[WharfKit] Session type:', { isAnchor, isCloudWallet });
+  
+  return isAnchor && !isCloudWallet;
 }
 
 // Get transact options with Fuel plugin for Anchor-only sessions
 // Cloud Wallet doesn't support Fuel's partial signature flow
 export function getTransactPlugins(session: Session) {
-  if (isAnchorSession(session)) {
+  const useAnchorPlugins = isAnchorSession(session);
+  console.log('[WharfKit] getTransactPlugins - using Fuel:', useAnchorPlugins);
+  
+  if (useAnchorPlugins) {
     return [
       new TransactPluginResourceProvider({
         endpoints: {
@@ -49,6 +67,7 @@ export function getTransactPlugins(session: Session) {
     ];
   }
   // Return empty array for Cloud Wallet - no Fuel support
+  console.log('[WharfKit] Returning EMPTY plugins for Cloud Wallet');
   return [];
 }
 

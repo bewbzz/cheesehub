@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session } from '@wharfkit/session';
-import { sessionKit, closeWharfkitModals, setLoginInProgress } from '@/lib/wharfKit';
+import { sessionKit, closeWharfkitModals, setLoginInProgress, getTransactPlugins } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
 
@@ -189,7 +189,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -245,7 +245,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -291,7 +291,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       return txId;
@@ -359,7 +359,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       ];
 
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       await refreshBalance();
@@ -408,7 +408,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -452,7 +452,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({
@@ -509,7 +509,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       toast({

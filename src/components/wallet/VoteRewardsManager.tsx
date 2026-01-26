@@ -5,7 +5,7 @@ import { Loader2, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { cn } from '@/lib/utils';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 
 const WAX_ENDPOINTS = [
   'https://wax.greymass.com',
@@ -290,7 +290,7 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         },
       }];
 
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
       
       const rewardAmount = estimatedRewards > 0 ? estimatedRewards.toFixed(8) : '0';

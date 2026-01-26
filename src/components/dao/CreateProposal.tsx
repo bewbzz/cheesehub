@@ -22,7 +22,7 @@ import {
 import { WAX_TOKENS, getTokenConfig } from "@/lib/tokenRegistry";
 import { TokenLogo } from "@/components/TokenLogo";
 import { toast } from "sonner";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, X, FileText, Send, Plus, Trash2, ListOrdered, Vote, Trophy, ImageIcon, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -206,7 +206,7 @@ export function CreateProposal({ daoName, proposalCost, onSuccess, onCancel }: C
       }
       actions.push(proposalAction);
 
-      await session.transact({ actions });
+      await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       toast.success("Proposal created successfully!");
       onSuccess();
     } catch (error) {

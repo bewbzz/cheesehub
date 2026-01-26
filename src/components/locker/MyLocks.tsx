@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { fetchUserLocks, TokenLock, parseAsset, formatUnlockTime, isClaimable, getTimeRemaining, getLockStatus, LOCK_STATUS } from "@/lib/locker";
 import { WAXDAO_CONTRACT } from "@/lib/wax";
@@ -55,7 +55,7 @@ export function MyLocks() {
             },
           },
         ],
-      });
+      }, { transactPlugins: getTransactPlugins(session) });
       toast({
         title: "Success!",
         description: "Tokens claimed successfully",

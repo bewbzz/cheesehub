@@ -79,7 +79,7 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
       });
     } finally {
       setIsSubmitting(false);
-      closeWharfkitModals();
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

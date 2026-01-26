@@ -207,13 +207,11 @@ export function CreateDrop() {
       setRamBalance(null);
       setTemplatePreview(null);
     } catch (error) {
-      closeWharfkitModals();
       console.error("Failed to create drop:", error);
       toast.error(error instanceof Error ? error.message : "Failed to create drop");
     } finally {
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
       setLoading(false);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 

@@ -169,8 +169,7 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       }
     } finally {
       setIsSending(false);
-      // Always try to clean up modals after transaction attempt
-      setTimeout(() => closeWharfkitModals(), 100);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

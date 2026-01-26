@@ -204,12 +204,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.success(`Voted ${vote} successfully!`);
     } catch (error) {
       console.error("Vote failed:", error);
-      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 
@@ -253,12 +251,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
-      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 
@@ -304,12 +300,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       onVote?.(proposal.proposal_id, voteData);
     } catch (error) {
       console.error("Vote failed:", error);
-      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Vote failed");
     } finally {
       setVoting(false);
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 
@@ -347,12 +341,10 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       onVote?.(proposal.proposal_id, { choice_index: -1, weight: 0 });
     } catch (error) {
       console.error("Finalize failed:", error);
-      closeWharfkitModals();
       toast.error(error instanceof Error ? error.message : "Failed to finalize proposal");
     } finally {
       setFinalizing(false);
-      closeWharfkitModals();
-      setTimeout(() => closeWharfkitModals(), 300);
+      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   }
 

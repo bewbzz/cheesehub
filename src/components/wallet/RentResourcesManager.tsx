@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { usePowerupEstimate, fetchPowerupState, findFracForWax, parsePriceWax } from '@/hooks/usePowerupEstimate';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { Zap, Cpu, Wifi, Loader2, Check, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import cheeseLogo from '@/assets/cheese-logo.png';
@@ -104,7 +104,7 @@ export function RentResourcesManager({
           },
         };
 
-        const result = await session.transact({ actions: [action] });
+        const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
         const txId = result.resolved?.transaction?.id?.toString() || null;
 
         onTransactionSuccess?.(
@@ -159,7 +159,7 @@ export function RentResourcesManager({
           },
         };
 
-        const result = await session.transact({ actions: [action] });
+        const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
         const txId = result.resolved?.transaction?.id?.toString() || null;
 
         onTransactionSuccess?.(

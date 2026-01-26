@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import { Session } from '@wharfkit/session';
-import { closeWharfkitModals } from '@/lib/wharfKit';
+import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { useToast } from '@/hooks/use-toast';
-
 interface TransactionOptions {
   successTitle?: string;
   successDescription?: string;
@@ -50,7 +49,7 @@ export function useWaxTransaction(session: Session | null) {
     }
 
     try {
-      const result = await session.transact({ actions });
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
       const txId = result.resolved?.transaction.id?.toString() || null;
 
       if (showSuccessToast) {
@@ -108,7 +107,7 @@ export function useWaxTransaction(session: Session | null) {
     }
 
     try {
-      return await session.transact({ actions });
+      return await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
     } catch (error) {
       console.error('Transaction failed:', error);
       closeWharfkitModals();

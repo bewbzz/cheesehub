@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
 import { getTokenBalances, WAXDAO_CONTRACT } from "@/lib/wax";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -136,7 +136,7 @@ export function CreateLock() {
             },
           },
         ],
-      });
+      }, { transactPlugins: getTransactPlugins(session) });
 
       toast({
         title: "Lock Created!",

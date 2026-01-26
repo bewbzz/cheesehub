@@ -7,7 +7,7 @@ import { RecipientInput } from "./RecipientInput";
 import { Zap, Cpu, Wifi, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { usePowerupEstimate } from "@/hooks/usePowerupEstimate";
-import { closeWharfkitModals } from "@/lib/wharfKit";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import {
   Dialog,
   DialogContent,
@@ -131,7 +131,7 @@ export const PowerUpCard = ({
         },
       };
 
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       setSuccessDetails({
         cpuMs: estimate?.estimatedCpuMs || 0,

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
+import { getWaxApi } from "@/lib/waxJsDirect";
 import { 
   fetchUserLiquidityLocks, 
-  LiquidityLock, 
+  LiquidityLock,
   parseLPAsset, 
   formatLiqUnlockTime, 
   isLiqClaimable, 
@@ -31,6 +32,7 @@ export function MyLiquidityLocks() {
 
   const session = waxContext?.session ?? null;
   const accountName = waxContext?.accountName ?? null;
+  const isUsingCloudWallet = waxContext?.isUsingCloudWallet ?? false;
 
   const loadLocks = async () => {
     if (!session || !accountName) return;
@@ -57,21 +59,51 @@ export function MyLiquidityLocks() {
   }, [session]);
 
   const handleClaim = async (lock: LiquidityLock) => {
+    if (!accountName) return;
+    
+    const action = {
+      account: LIQLOCKER_CONTRACT,
+      name: "withdraw",
+      authorization: [{ actor: accountName, permission: "active" }],
+      data: {
+        lock_ID: lock.ID,
+      },
+    };
+
+    // For Cloud Wallet: Call api.transact() directly as first async operation
+    if (isUsingCloudWallet) {
+      const waxApi = getWaxApi();
+      const txPromise = waxApi.transact(
+        { actions: [action] },
+        { blocksBehind: 3, expireSeconds: 120 }
+      );
+
+      setClaiming(lock.ID);
+      
+      try {
+        await txPromise;
+        toast({
+          title: "Success!",
+          description: "LP tokens claimed successfully",
+        });
+        await loadLocks();
+      } catch (error: any) {
+        toast({
+          title: "Claim Failed",
+          description: error.message || "Failed to claim LP tokens",
+          variant: "destructive",
+        });
+      } finally {
+        setClaiming(null);
+      }
+      return;
+    }
+
+    // For Anchor: Use existing WharfKit session flow
     if (!session) return;
     setClaiming(lock.ID);
     try {
-      await session.transact({
-        actions: [
-          {
-            account: LIQLOCKER_CONTRACT,
-            name: "withdraw",
-            authorization: [session.permissionLevel],
-            data: {
-              lock_ID: lock.ID,
-            },
-          },
-        ],
-      });
+      await session.transact({ actions: [action] });
       toast({
         title: "Success!",
         description: "LP tokens claimed successfully",

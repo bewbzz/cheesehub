@@ -18,6 +18,7 @@ interface WaxContextType {
   isLoading: boolean;
   accountName: string | null;
   cheeseBalance: number;
+  isUsingCloudWallet: boolean; // Expose so components can call WaxJS directly
   login: () => void; // Opens wallet selection dialog
   loginCloudWallet: () => Promise<void>;
   loginAnchor: () => Promise<void>;
@@ -709,6 +710,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         isLoading,
         accountName,
         cheeseBalance,
+        isUsingCloudWallet,
         login,
         loginCloudWallet,
         loginAnchor,

@@ -60,8 +60,24 @@ export function getCloudWalletAccount(): string | null {
 }
 
 /**
+ * Get the WaxJS api object for DIRECT transaction calls.
+ * IMPORTANT: For Cloud Wallet popups to work, api.transact() MUST be 
+ * called as the IMMEDIATE first async operation after a user click.
+ * Any intermediate function calls or state updates break the gesture chain.
+ */
+export function getWaxApi(): typeof waxjs.WaxJS.prototype.api {
+  const wax = getWaxJS();
+  if (!wax.api) {
+    throw new Error('Cloud Wallet not initialized - please login first');
+  }
+  return wax.api;
+}
+
+/**
  * Execute a transaction via Cloud Wallet.
- * This uses the native WaxJS signing flow which properly handles signatures.
+ * NOTE: This wrapper adds function call depth which can break user gesture
+ * chain for popup-based signing. For UI button handlers, prefer calling
+ * getWaxApi().transact() directly instead.
  */
 export async function transactWithCloudWallet(
   actions: Array<{

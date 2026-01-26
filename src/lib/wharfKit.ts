@@ -16,8 +16,10 @@ const waxChain = ChainDefinition.from({
   url: 'https://wax.eosusa.io',
 });
 
-// Create SessionKit with both wallet plugins and Greymass Fuel resource provider
-// The resource provider automatically cosigns transactions when users are out of CPU/NET
+// Create SessionKit with both wallet plugins
+// NOTE: Greymass Fuel resource provider is DISABLED because it conflicts with Cloud Wallet.
+// Fuel modifies the transaction after Cloud Wallet signs, invalidating the signature.
+// Cloud Wallet has its own resource provisioning system.
 export const sessionKit = new SessionKit(
   {
     appName: 'CHEESEHub',
@@ -33,18 +35,8 @@ export const sessionKit = new SessionKit(
         loginTimeout: 300000,
       }),
     ],
-  },
-  {
-    transactPlugins: [
-      new TransactPluginResourceProvider({
-        endpoints: {
-          [WAX_CHAIN_ID]: 'https://wax.greymass.com',
-        },
-        // Don't allow paid Fuel - only use free resource sponsorship
-        allowFees: false,
-      }),
-    ],
   }
+  // Fuel resource provider removed - conflicts with Cloud Wallet signing
 );
 
 // Track if a login is in progress to avoid removing modal during login

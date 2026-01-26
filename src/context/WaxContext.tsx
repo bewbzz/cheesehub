@@ -100,9 +100,21 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       try {
         const restored = await sessionKit.restore();
         if (restored) {
-          // Trust the wallet plugin to manage its own signing UI
-          // Both Anchor and Cloud Wallet can be restored - the plugin handles signing
-          setSession(restored);
+          const actorName = String(restored.actor);
+          const isCloudWallet = actorName.endsWith('.wam');
+          
+          if (isCloudWallet) {
+            // CRITICAL: Cloud Wallet cannot restore signing capability across page refreshes.
+            // The signing bridge (iframe) must be re-established with a fresh login.
+            // Per WAX docs: https://docs.wax.io/build/tutorials/wharfkit/howto_react
+            // We log out the stale session so user sees "Connect Wallet" button
+            console.log('Cloud Wallet session cannot be restored - signing bridge requires fresh login');
+            await sessionKit.logout(restored);
+            // Don't set session - user must click Connect Wallet again
+          } else {
+            // Anchor can maintain deep-link persistence, so restore normally
+            setSession(restored);
+          }
         }
       } catch (error) {
         console.error('Failed to restore session:', error);

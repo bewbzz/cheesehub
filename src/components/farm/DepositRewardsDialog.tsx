@@ -84,7 +84,7 @@ export function DepositRewardsDialog({ farm, onSuccess }: DepositRewardsDialogPr
       toast.error(error?.message || "Failed to deposit rewards");
     } finally {
       setIsLoading(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
     }
   };
 

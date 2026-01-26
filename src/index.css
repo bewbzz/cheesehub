@@ -184,12 +184,3 @@
 #wharfkit-web-ui dialog::backdrop {
   z-index: 999998 !important;
 }
-
-/* Hide scrollbar for mobile horizontal navigation */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}

@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { DaoInfo, buildEditPropCostAction } from "@/lib/dao";
 import { parseListingPrice, getTokenConfig } from "@/lib/tokenRegistry";
 import { useWax } from "@/context/WaxContext";
-import { cloudWalletTransact } from "@/lib/waxJsDirect";
 import { useToast } from "@/hooks/use-toast";
+import { closeWharfkitModals } from "@/lib/wharfKit";
 import { Loader2, Coins } from "lucide-react";
 
 interface EditProposalCostProps {
@@ -18,7 +18,7 @@ interface EditProposalCostProps {
 }
 
 export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProposalCostProps) {
-  const { session, accountName, isUsingCloudWallet } = useWax();
+  const { session, accountName } = useWax();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,7 +35,7 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
   const [newAmount, setNewAmount] = useState(currentAmount.toString());
 
   const handleSubmit = async () => {
-    if (!accountName) {
+    if (!session || !accountName) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet to update the proposal cost",
@@ -54,53 +54,13 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
       return;
     }
 
-    // Format with correct precision and symbol
-    const formattedCost = `${parsedAmount.toFixed(precision)} ${tokenSymbol}`;
-    const action = buildEditPropCostAction(accountName, dao.dao_name, formattedCost);
-
-    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
-    if (isUsingCloudWallet) {
-      setIsSubmitting(true);
-
-      try {
-        // Use manual broadcast pattern with signature verification
-        await cloudWalletTransact([action]);
-        
-        toast({
-          title: "Proposal Cost Updated",
-          description: `New proposal cost: ${formattedCost}`,
-        });
-        onCostUpdated(formattedCost);
-        onClose();
-      } catch (error) {
-        console.error("Failed to update proposal cost:", error);
-        const errorMessage = error instanceof Error ? error.message : "Failed to update proposal cost";
-        if (!errorMessage.toLowerCase().includes('cancel')) {
-          toast({
-            title: "Update Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    // For Anchor: Use existing WharfKit session flow
-    if (!session) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to update the proposal cost",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      // Format with correct precision and symbol
+      const formattedCost = `${parsedAmount.toFixed(precision)} ${tokenSymbol}`;
+      const action = buildEditPropCostAction(accountName, dao.dao_name, formattedCost);
+
       await session.transact({ actions: [action] });
 
       toast({
@@ -119,6 +79,7 @@ export function EditProposalCost({ dao, open, onClose, onCostUpdated }: EditProp
       });
     } finally {
       setIsSubmitting(false);
+      closeWharfkitModals();
     }
   };
 

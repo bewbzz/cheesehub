@@ -167,7 +167,8 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       toast.error(error?.message || 'Failed to stake');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 
@@ -224,7 +225,8 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       toast.error(error?.message || 'Failed to unstake');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 
@@ -257,7 +259,8 @@ export function StakeManager({ resources, onTransactionComplete, onTransactionSu
       toast.error(error?.message || 'Failed to claim refund');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

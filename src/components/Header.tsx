@@ -4,7 +4,6 @@ import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Users, Zap, Sprout } f
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
-import { MobileMenu } from "@/components/MobileMenu";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function Header() {
@@ -15,10 +14,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/60 backdrop-blur-xl">
       {/* Row 1: Logo + Primary Nav + Wallet/Cart */}
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center gap-4 md:gap-8">
-          {/* Mobile hamburger menu */}
-          <MobileMenu />
-          
+        <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
             <img src={cheeseLogo} alt="Cheese Logo" className="h-8 w-8" />
             <span className="text-xl font-bold">

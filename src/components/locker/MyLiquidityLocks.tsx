@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { closeWharfkitModals } from "@/lib/wharfKit";
 import { useWax } from "@/context/WaxContext";
-import { cloudWalletTransact } from "@/lib/waxJsDirect";
 import { 
   fetchUserLiquidityLocks, 
-  LiquidityLock,
+  LiquidityLock, 
   parseLPAsset, 
   formatLiqUnlockTime, 
   isLiqClaimable, 
@@ -32,7 +31,6 @@ export function MyLiquidityLocks() {
 
   const session = waxContext?.session ?? null;
   const accountName = waxContext?.accountName ?? null;
-  const isUsingCloudWallet = waxContext?.isUsingCloudWallet ?? false;
 
   const loadLocks = async () => {
     if (!session || !accountName) return;
@@ -59,50 +57,21 @@ export function MyLiquidityLocks() {
   }, [session]);
 
   const handleClaim = async (lock: LiquidityLock) => {
-    if (!accountName) return;
-    
-    const action = {
-      account: LIQLOCKER_CONTRACT,
-      name: "withdraw",
-      authorization: [{ actor: accountName, permission: "active" }],
-      data: {
-        lock_ID: lock.ID,
-      },
-    };
-
-    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
-    if (isUsingCloudWallet) {
-      setClaiming(lock.ID);
-      
-      try {
-        // Use manual broadcast pattern with signature verification
-        await cloudWalletTransact([action]);
-        
-        toast({
-          title: "Success!",
-          description: "LP tokens claimed successfully",
-        });
-        await loadLocks();
-      } catch (error: any) {
-        const errorMessage = error?.message || "Failed to claim LP tokens";
-        if (!errorMessage.toLowerCase().includes('cancel')) {
-          toast({
-            title: "Claim Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
-      } finally {
-        setClaiming(null);
-      }
-      return;
-    }
-
-    // For Anchor: Use existing WharfKit session flow
     if (!session) return;
     setClaiming(lock.ID);
     try {
-      await session.transact({ actions: [action] });
+      await session.transact({
+        actions: [
+          {
+            account: LIQLOCKER_CONTRACT,
+            name: "withdraw",
+            authorization: [session.permissionLevel],
+            data: {
+              lock_ID: lock.ID,
+            },
+          },
+        ],
+      });
       toast({
         title: "Success!",
         description: "LP tokens claimed successfully",

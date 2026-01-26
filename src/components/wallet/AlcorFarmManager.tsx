@@ -302,7 +302,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       toast.error(error?.message || 'Failed to claim rewards');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }, [session, accountName, onTransactionSuccess, refetch, refetchTokenBalances, onTransactionComplete]);
 
@@ -339,7 +340,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       toast.error(error?.message || 'Failed to claim all rewards');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }, [session, accountName, farmsList, onTransactionSuccess, refetch, refetchTokenBalances, onTransactionComplete]);
 
@@ -381,7 +383,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       toast.error(error?.message || 'Failed to unstake position');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
@@ -411,7 +414,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       toast.error(error?.message || 'Failed to stake position');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 
@@ -439,7 +443,8 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       toast.error(error?.message || 'Failed to stake position');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   }, [session, accountName, onTransactionSuccess, refetch, onTransactionComplete]);
 

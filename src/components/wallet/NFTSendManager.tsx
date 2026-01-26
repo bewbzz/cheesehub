@@ -16,7 +16,6 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Check, X, Loader2, Search, Image, Send, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
-import { cloudWalletTransact } from '@/lib/waxJsDirect';
 import { toast } from 'sonner';
 
 interface NFTSendManagerProps {
@@ -31,7 +30,7 @@ function isValidWaxAccount(account: string): boolean {
 }
 
 export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
-  const { accountName, transferNFTs, isUsingCloudWallet } = useWax();
+  const { accountName, transferNFTs } = useWax();
   const { nfts, isLoading, loadingProgress, refetch, collections } = useUserNFTs(accountName);
 
   const [recipient, setRecipient] = useState('');
@@ -128,77 +127,17 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
   }, [filteredNFTs]);
 
   const handleSend = async () => {
-    if (!canSend || !accountName) return;
+    if (!canSend) return;
 
-    const assetIds = Array.from(selectedNFTs);
-    const sendRecipient = recipient;
-    const sendMemo = memo;
-
-    // For Cloud Wallet: Call login() then transact() to ensure signing bridge is active
-    if (isUsingCloudWallet) {
-      const action = {
-        account: 'atomicassets',
-        name: 'transfer',
-        authorization: [{ actor: accountName, permission: 'active' }],
-        data: {
-          from: accountName,
-          to: sendRecipient,
-          asset_ids: assetIds,
-          memo: sendMemo,
-        },
-      };
-
-      setIsSending(true);
-
-      try {
-        // Use manual broadcast pattern with signature verification
-        const result = await cloudWalletTransact([action]);
-        const txId = result.transaction_id || null;
-
-        onTransactionSuccess(
-          'NFTs Sent Successfully!',
-          `Sent ${assetIds.length} NFT(s) to ${sendRecipient}`,
-          txId
-        );
-        setRecipient('');
-        setMemo('');
-        setSelectedNFTs(new Set());
-        refetch();
-      } catch (error) {
-        console.error('NFT transfer failed:', error);
-        closeWharfkitModals();
-        
-        const errorMessage = error instanceof Error ? error.message : 'Transfer failed';
-        if (!errorMessage.toLowerCase().includes('cancel')) {
-          const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
-                             errorMessage.toLowerCase().includes('billed') ||
-                             errorMessage.toLowerCase().includes('net usage') ||
-                             errorMessage.toLowerCase().includes('deadline exceeded');
-
-          if (isCpuError) {
-            toast.error('Transaction failed - insufficient resources', {
-              description: 'Enable Greymass Fuel in Anchor settings, or use the CHEESEUp page to rent CPU.',
-              duration: 8000,
-            });
-          } else {
-            toast.error('NFT transfer failed', { description: errorMessage });
-          }
-        }
-      } finally {
-        setIsSending(false);
-      }
-      return;
-    }
-
-    // For Anchor: Use existing WharfKit flow via context
     setIsSending(true);
     try {
-      const txId = await transferNFTs(sendRecipient, assetIds, sendMemo);
+      const assetIds = Array.from(selectedNFTs);
+      const txId = await transferNFTs(recipient, assetIds, memo);
 
       if (txId) {
         onTransactionSuccess(
           'NFTs Sent Successfully!',
-          `Sent ${assetIds.length} NFT(s) to ${sendRecipient}`,
+          `Sent ${assetIds.length} NFT(s) to ${recipient}`,
           txId
         );
         setRecipient('');
@@ -230,6 +169,8 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       }
     } finally {
       setIsSending(false);
+      // Always try to clean up modals after transaction attempt
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -360,7 +301,7 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
       {/* Virtualized NFT Grid */}
       <div
         ref={parentRef}
-        className="h-[400px] overflow-auto rounded-md border border-border"
+        className="h-[240px] overflow-auto rounded-md border border-border"
       >
         {isLoading && nfts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2">

@@ -197,7 +197,8 @@ export function RentResourcesManager({
       }
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

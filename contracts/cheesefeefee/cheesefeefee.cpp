@@ -111,9 +111,9 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
  * Returns price of tokenB per tokenA, adjusted for decimal precision
  * 
  * sqrtPriceX64 encodes sqrt(tokenB_raw / tokenA_raw) where raw includes decimals
- * To get human-readable price: raw_price * 10^(precisionA - precisionB)
+ * To get human-readable price: raw_price * 10^(precisionB - precisionA)
  * 
- * Pool 1252: CHEESE(A,4) / WAX(B,8)    - returns WAX per CHEESE (~1.53)
+ * Pool 1252: CHEESE(A,4) / WAX(B,8)    - returns WAX per CHEESE (~1.43)
  * Pool 8017: CHEESE(A,4) / WAXDAO(B,8) - returns WAXDAO per CHEESE (~42)
  */
 double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
@@ -122,23 +122,22 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     check(pool != pools.end(), "Alcor pool not found");
     check(pool->active, "Alcor pool is not active");
     
-    // Read decimals from Alcor's separate decimals field (NOT from symbol)
-    uint8_t precisionA = pool->tokenA.decimals;
-    uint8_t precisionB = pool->tokenB.decimals;
+    // Get token precisions from pool
+    uint8_t precisionA = pool->tokenA.sym.precision();
+    uint8_t precisionB = pool->tokenB.sym.precision();
     
-    // Convert sqrtPriceX64 to price using 2^128 (Alcor's formula)
+    // Convert sqrtPriceX64 to raw price
     // sqrtPriceX64 = sqrt(priceB_raw/priceA_raw) * 2^64
-    // price = sqrtPriceX64^2 / 2^128
-    constexpr double TWO_POW_128 = 340282366920938463463374607431768211456.0;
-    
+    // raw_price = (sqrtPriceX64 / 2^64)^2 = priceB_raw / priceA_raw
     uint128_t sqrtPrice = pool->currSlot.sqrtPriceX64;
-    double sqrtPriceDouble = (double)sqrtPrice;
-    double raw_price = (sqrtPriceDouble * sqrtPriceDouble) / TWO_POW_128;
+    double normalized = (double)sqrtPrice / (double)(1ULL << 64);
+    double raw_price = normalized * normalized;
     
-    // Apply decimal precision adjustment
-    // raw_price = tokenB_raw / tokenA_raw (in smallest units)
-    // To convert to human-readable: multiply by 10^(precisionA - precisionB)
-    int precision_diff = (int)precisionA - (int)precisionB;
+    // CORRECTED: Apply decimal precision adjustment
+    // To convert raw ratio to human-readable: multiply by 10^(precisionB - precisionA)
+    // Pool 1252: CHEESE(4)/WAX(8) → 10^(8-4) = 10^4 = 10000
+    // Pool 8017: CHEESE(4)/WAXDAO(8) → 10^(8-4) = 10^4 = 10000
+    int precision_diff = (int)precisionB - (int)precisionA;
     double adjusted_price = raw_price * pow(10.0, precision_diff);
     
     return adjusted_price;

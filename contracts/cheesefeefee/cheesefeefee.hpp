@@ -62,34 +62,28 @@ public:
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
 
-    // Alcor pool table struct - MUST MATCH EXACT ON-CHAIN LAYOUT
-    // Use __attribute__((packed)) to prevent C++ padding that breaks EOSIO serialization alignment
+    // Alcor pool table struct (read from swap.alcor)
+    // Must match the exact structure from swap.alcor contract
     struct alcor_pool {
         uint64_t id;
         bool active;
         
-        // Token info - Alcor stores decimals separately from symbol
-        struct __attribute__((packed)) extended_token {
-            name contract;
-            symbol_code symbol;   // Just symbol code (e.g., "CHEESE"), no precision
-            uint8_t decimals;     // Precision stored in separate field
+        // Token info with symbol (contains precision)
+        struct extended_symbol {
+            name contract;        // Contract comes FIRST (matches EOSIO standard)
+            eosio::symbol sym;    // Symbol comes SECOND
         };
-        extended_token tokenA;
-        extended_token tokenB;
+        extended_symbol tokenA;
+        extended_symbol tokenB;
         
         // Fee and liquidity fields (must be present even if unused)
         uint32_t fee;
-        uint8_t feeProtocol;      // CRITICAL: This field was missing, causing alignment shift
         int32_t tickSpacing;
         uint128_t maxLiquidityPerTick;
         
-        // slot0 with all fields for correct alignment
-        struct __attribute__((packed)) slot0 {
+        struct slot0 {
             uint128_t sqrtPriceX64;
             int32_t tick;
-            uint32_t lastObservationTimestamp;
-            uint16_t currentObservationNum;
-            uint16_t maxObservationNum;
         } currSlot;
         
         uint64_t feeGrowthGlobalAX64;
@@ -99,7 +93,7 @@ public:
         uint128_t liquidity;
         
         uint64_t primary_key() const { return id; }
-    } __attribute__((packed));
+    };
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:

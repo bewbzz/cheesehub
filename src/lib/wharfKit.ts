@@ -1,11 +1,13 @@
 import { SessionKit, ChainDefinition } from '@wharfkit/session';
 import { WebRenderer } from '@wharfkit/web-renderer';
 import { WalletPluginAnchor } from '@wharfkit/wallet-plugin-anchor';
+import { WalletPluginCloudWallet } from '@wharfkit/wallet-plugin-cloudwallet';
+import { TransactPluginResourceProvider } from '@wharfkit/transact-plugin-resource-provider';
 
 // Initialize the WebRenderer for wallet selection UI
 const webRenderer = new WebRenderer();
 
-// WAX mainnet chain ID
+// WAX mainnet chain ID for Greymass Fuel endpoint
 const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d19d44e01aea5a4';
 
 // Define WAX mainnet with a more reliable primary RPC endpoint
@@ -14,9 +16,8 @@ const waxChain = ChainDefinition.from({
   url: 'https://wax.eosusa.io',
 });
 
-// Create SessionKit for ANCHOR WALLET ONLY
-// Cloud Wallet is handled directly via WaxJS (@waxio/waxjs) to avoid
-// the signature application bug in @wharfkit/wallet-plugin-cloudwallet
+// Create SessionKit with both wallet plugins and Greymass Fuel resource provider
+// The resource provider automatically cosigns transactions when users are out of CPU/NET
 export const sessionKit = new SessionKit(
   {
     appName: 'CHEESEHub',
@@ -24,7 +25,18 @@ export const sessionKit = new SessionKit(
     ui: webRenderer,
     walletPlugins: [
       new WalletPluginAnchor(),
-      // Cloud Wallet REMOVED - uses direct WaxJS instead (see src/lib/waxJsDirect.ts)
+      new WalletPluginCloudWallet(),
+    ],
+  },
+  {
+    transactPlugins: [
+      new TransactPluginResourceProvider({
+        endpoints: {
+          [WAX_CHAIN_ID]: 'https://wax.greymass.com',
+        },
+        // Don't allow paid Fuel - only use free resource sponsorship
+        allowFees: false,
+      }),
     ],
   }
 );
@@ -136,35 +148,6 @@ export function closeWharfkitModals() {
   document.querySelectorAll('[data-radix-portal], [role="dialog"]').forEach(el => {
     (el as HTMLElement).style.pointerEvents = '';
   });
-}
-
-// Utility to clear session data on explicit logout only
-// IMPORTANT: Do NOT clear Cloud Wallet plugin keys - the plugin needs them for signing
-export async function clearStaleSession() {
-  try {
-    // Only clear WharfKit session keys, NOT wallet plugin-specific keys
-    // Cloud Wallet needs its storage to maintain the signing bridge
-    const localStorageKeys = Object.keys(localStorage).filter(
-      key => key.startsWith('wharfkit-session')
-    );
-    localStorageKeys.forEach(key => localStorage.removeItem(key));
-    
-    console.log('Cleared WharfKit session keys (preserving wallet plugin state)');
-  } catch (e) {
-    console.error('Failed to clear session:', e);
-  }
-}
-
-// Helper to check if an error indicates explicit user cancellation
-export function isUserCancellation(error: unknown): boolean {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const msg = errorMessage.toLowerCase();
-  return (
-    msg.includes('cancel') ||
-    msg.includes('rejected') ||
-    msg.includes('user closed') ||
-    msg.includes('user denied')
-  );
 }
 
 // Function to ensure WharfKit modals are always on top with proper pointer events

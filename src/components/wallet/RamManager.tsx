@@ -183,7 +183,8 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
       toast.error(error?.message || 'Failed to buy RAM');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 
@@ -219,7 +220,8 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
       toast.error(error?.message || 'Failed to sell RAM');
     } finally {
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
     }
   };
 

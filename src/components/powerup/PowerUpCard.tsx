@@ -149,6 +149,7 @@ export const PowerUpCard = ({
 
       console.log("Transaction result:", result);
     } catch (error) {
+      closeWharfkitModals();
       console.error("Transaction failed:", error);
       const errorMessage = error instanceof Error ? error.message : "Transaction failed";
 
@@ -168,8 +169,9 @@ export const PowerUpCard = ({
         });
       }
     } finally {
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
       setIsTransacting(false);
-      // Don't call closeWharfkitModals() here - let the wallet plugin manage its own UI
     }
   };
 

@@ -261,10 +261,11 @@ export interface RewardValue {
 
 // Build action for setting template values (V2)
 // The contract expects 'values' as an array of TEMPLATE_REWARD structs
-// Each struct contains: template_id, hourly_rewards (array of FUNGIBLE_TOKEN)
+// Each struct contains: template_id, collection_name, hourly_rewards (array of FUNGIBLE_TOKEN)
 export function buildSetTemplateValuesAction(
   user: string,
   farmname: string,
+  collectionName: string,
   templateId: number,
   rewardValues: RewardValue[]
 ) {
@@ -277,6 +278,7 @@ export function buildSetTemplateValuesAction(
       farmname,
       values: [{
         template_id: templateId,
+        collection_name: collectionName,
         hourly_rewards: rewardValues.map(rv => ({
           quantity: rv.quantity,
           contract: rv.contract,

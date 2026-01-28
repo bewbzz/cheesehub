@@ -31,6 +31,7 @@ function extractIpfsHash(url: string): string | null {
 }
 
 export type RepeatMode = 'none' | 'one' | 'all';
+export type MediaType = 'audio' | 'video';
 
 export interface PlaybackState {
   isPlaying: boolean;
@@ -40,13 +41,16 @@ export interface PlaybackState {
   isMuted: boolean;
   isLoading: boolean;
   error: string | null;
+  isVideo: boolean;
+  hasVideo: boolean;
 }
 
 type PlaybackCallback = (state: PlaybackState) => void;
 type TrackEndCallback = () => void;
 
-class CheeseAmpAudio {
+class CheeseAmpMedia {
   private audio: HTMLAudioElement;
+  private video: HTMLVideoElement | null = null;
   private currentTrack: MusicNFT | null = null;
   private callbacks: Set<PlaybackCallback> = new Set();
   private trackEndCallbacks: Set<TrackEndCallback> = new Set();
@@ -54,40 +58,94 @@ class CheeseAmpAudio {
   private _isMuted: boolean = false;
   private _isLoading: boolean = false;
   private _error: string | null = null;
+  private _mediaType: MediaType = 'audio';
+  private _hasVideo: boolean = false;
   private updateInterval: number | null = null;
+  private videoContainer: HTMLElement | null = null;
 
   constructor() {
     this.audio = new Audio();
     this.audio.crossOrigin = 'anonymous';
     this.audio.volume = this._volume;
 
-    this.audio.addEventListener('play', () => this.notifyCallbacks());
-    this.audio.addEventListener('pause', () => this.notifyCallbacks());
-    this.audio.addEventListener('ended', () => {
-      this.trackEndCallbacks.forEach(cb => cb());
-      this.notifyCallbacks();
-    });
-    this.audio.addEventListener('loadstart', () => {
-      this._isLoading = true;
-      this.notifyCallbacks();
-    });
-    this.audio.addEventListener('canplay', () => {
-      this._isLoading = false;
-      this.notifyCallbacks();
-    });
-    this.audio.addEventListener('error', () => {
-      this._error = 'Failed to load audio';
-      this._isLoading = false;
-      this.notifyCallbacks();
-    });
-    this.audio.addEventListener('durationchange', () => this.notifyCallbacks());
+    this.setupMediaListeners(this.audio);
 
     // Start update interval for time updates
     this.updateInterval = window.setInterval(() => {
-      if (!this.audio.paused) {
+      const activeElement = this.getActiveElement();
+      if (!activeElement.paused) {
         this.notifyCallbacks();
       }
     }, 250);
+  }
+
+  private setupMediaListeners(element: HTMLAudioElement | HTMLVideoElement) {
+    element.addEventListener('play', () => this.notifyCallbacks());
+    element.addEventListener('pause', () => this.notifyCallbacks());
+    element.addEventListener('ended', () => {
+      this.trackEndCallbacks.forEach(cb => cb());
+      this.notifyCallbacks();
+    });
+    element.addEventListener('loadstart', () => {
+      this._isLoading = true;
+      this.notifyCallbacks();
+    });
+    element.addEventListener('canplay', () => {
+      this._isLoading = false;
+      this.notifyCallbacks();
+    });
+    element.addEventListener('error', () => {
+      this._error = 'Failed to load media';
+      this._isLoading = false;
+      this.notifyCallbacks();
+    });
+    element.addEventListener('durationchange', () => this.notifyCallbacks());
+  }
+
+  private getActiveElement(): HTMLAudioElement | HTMLVideoElement {
+    return this._mediaType === 'video' && this.video ? this.video : this.audio;
+  }
+
+  getVideoElement(): HTMLVideoElement {
+    if (!this.video) {
+      this.video = document.createElement('video');
+      this.video.crossOrigin = 'anonymous';
+      this.video.playsInline = true;
+      this.video.loop = false;
+      this.video.volume = this._isMuted ? 0 : this._volume;
+      this.setupMediaListeners(this.video);
+    }
+    return this.video;
+  }
+
+  mountVideo(container: HTMLElement): void {
+    this.videoContainer = container;
+    const video = this.getVideoElement();
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.objectFit = 'cover';
+    if (video.parentElement !== container) {
+      container.appendChild(video);
+    }
+  }
+
+  unmountVideo(): void {
+    if (this.video && this.video.parentElement) {
+      this.video.parentElement.removeChild(this.video);
+    }
+    this.videoContainer = null;
+  }
+
+  isVideoPlaying(): boolean {
+    return this._mediaType === 'video';
+  }
+
+  getMediaType(): MediaType {
+    return this._mediaType;
+  }
+
+  hasVideoAvailable(): boolean {
+    return this._hasVideo;
   }
 
   private notifyCallbacks() {
@@ -96,14 +154,17 @@ class CheeseAmpAudio {
   }
 
   getState(): PlaybackState {
+    const activeElement = this.getActiveElement();
     return {
-      isPlaying: !this.audio.paused,
-      currentTime: this.audio.currentTime || 0,
-      duration: this.audio.duration || 0,
+      isPlaying: !activeElement.paused,
+      currentTime: activeElement.currentTime || 0,
+      duration: activeElement.duration || 0,
       volume: this._volume,
       isMuted: this._isMuted,
       isLoading: this._isLoading,
       error: this._error,
+      isVideo: this._mediaType === 'video',
+      hasVideo: this._hasVideo,
     };
   }
 
@@ -118,44 +179,77 @@ class CheeseAmpAudio {
     return () => this.trackEndCallbacks.delete(callback);
   }
 
-  async play(track: MusicNFT): Promise<void> {
+  async play(track: MusicNFT, preferVideo = true): Promise<void> {
     this._error = null;
     this._isLoading = true;
     this.currentTrack = track;
+    this._hasVideo = !!(track.videoUrl || track.clipUrl);
+    
+    // Determine if we should use video
+    const useVideo = preferVideo && !!(track.videoUrl);
+    this._mediaType = useVideo ? 'video' : 'audio';
+    
+    // Pause the other element
+    if (useVideo) {
+      this.audio.pause();
+    } else if (this.video) {
+      this.video.pause();
+    }
+    
     this.notifyCallbacks();
 
-    const audioUrl = track.audioUrl;
+    const mediaUrl = useVideo ? track.videoUrl! : track.audioUrl;
+    const element = useVideo ? this.getVideoElement() : this.audio;
     
     // Check if it's already a full URL
-    if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+    if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
       try {
-        this.audio.src = audioUrl;
-        await this.audio.play();
+        element.src = mediaUrl;
+        await element.play();
         return;
       } catch (e) {
         // If direct URL fails and it's an IPFS gateway URL, try other gateways
-        const hash = extractIpfsHash(audioUrl);
+        const hash = extractIpfsHash(mediaUrl);
         if (hash) {
-          return this.tryGateways(hash);
+          return this.tryGateways(hash, element);
         }
         throw e;
       }
     }
 
     // If it's an IPFS hash, try gateways
-    const hash = extractIpfsHash(audioUrl);
+    const hash = extractIpfsHash(mediaUrl);
     if (hash) {
-      return this.tryGateways(hash);
+      return this.tryGateways(hash, element);
     }
 
-    throw new Error('Invalid audio URL');
+    throw new Error('Invalid media URL');
   }
 
-  private async tryGateways(hash: string): Promise<void> {
+  async switchMediaType(preferVideo: boolean): Promise<void> {
+    if (!this.currentTrack) return;
+    
+    const currentTime = this.getActiveElement().currentTime;
+    const wasPlaying = !this.getActiveElement().paused;
+    
+    await this.play(this.currentTrack, preferVideo);
+    
+    // Try to restore position
+    const element = this.getActiveElement();
+    if (element.readyState >= 1 && currentTime > 0) {
+      element.currentTime = currentTime;
+    }
+    
+    if (!wasPlaying) {
+      element.pause();
+    }
+  }
+
+  private async tryGateways(hash: string, element: HTMLAudioElement | HTMLVideoElement): Promise<void> {
     for (const gateway of IPFS_GATEWAYS) {
       try {
-        this.audio.src = `${gateway}${hash}`;
-        await this.audio.play();
+        element.src = `${gateway}${hash}`;
+        await element.play();
         this._isLoading = false;
         this.notifyCallbacks();
         return;
@@ -164,24 +258,26 @@ class CheeseAmpAudio {
         continue;
       }
     }
-    this._error = 'Failed to load audio from all gateways';
+    this._error = 'Failed to load media from all gateways';
     this._isLoading = false;
     this.notifyCallbacks();
-    throw new Error('Failed to load audio from all gateways');
+    throw new Error('Failed to load media from all gateways');
   }
 
   resume(): void {
-    if (this.audio.src) {
-      this.audio.play().catch(console.error);
+    const element = this.getActiveElement();
+    if (element.src) {
+      element.play().catch(console.error);
     }
   }
 
   pause(): void {
-    this.audio.pause();
+    this.getActiveElement().pause();
   }
 
   toggle(): void {
-    if (this.audio.paused) {
+    const element = this.getActiveElement();
+    if (element.paused) {
       this.resume();
     } else {
       this.pause();
@@ -189,22 +285,27 @@ class CheeseAmpAudio {
   }
 
   seek(time: number): void {
-    if (this.audio.readyState >= 1) {
-      const duration = this.audio.duration || 0;
-      this.audio.currentTime = Math.max(0, Math.min(time, duration || time));
+    const element = this.getActiveElement();
+    if (element.readyState >= 1) {
+      const duration = element.duration || 0;
+      element.currentTime = Math.max(0, Math.min(time, duration || time));
       this.notifyCallbacks();
     }
   }
 
   setVolume(volume: number): void {
     this._volume = Math.max(0, Math.min(1, volume));
-    this.audio.volume = this._isMuted ? 0 : this._volume;
+    const volumeValue = this._isMuted ? 0 : this._volume;
+    this.audio.volume = volumeValue;
+    if (this.video) this.video.volume = volumeValue;
     this.notifyCallbacks();
   }
 
   toggleMute(): void {
     this._isMuted = !this._isMuted;
-    this.audio.volume = this._isMuted ? 0 : this._volume;
+    const volumeValue = this._isMuted ? 0 : this._volume;
+    this.audio.volume = volumeValue;
+    if (this.video) this.video.volume = volumeValue;
     this.notifyCallbacks();
   }
 
@@ -215,7 +316,13 @@ class CheeseAmpAudio {
   stop(): void {
     this.audio.pause();
     this.audio.currentTime = 0;
+    if (this.video) {
+      this.video.pause();
+      this.video.currentTime = 0;
+    }
     this.currentTrack = null;
+    this._hasVideo = false;
+    this._mediaType = 'audio';
     this.notifyCallbacks();
   }
 
@@ -225,19 +332,24 @@ class CheeseAmpAudio {
     }
     this.audio.pause();
     this.audio.src = '';
+    if (this.video) {
+      this.video.pause();
+      this.video.src = '';
+      this.unmountVideo();
+    }
     this.callbacks.clear();
     this.trackEndCallbacks.clear();
   }
 }
 
 // Singleton instance
-let audioInstance: CheeseAmpAudio | null = null;
+let mediaInstance: CheeseAmpMedia | null = null;
 
-export function getAudioPlayer(): CheeseAmpAudio {
-  if (!audioInstance) {
-    audioInstance = new CheeseAmpAudio();
+export function getAudioPlayer(): CheeseAmpMedia {
+  if (!mediaInstance) {
+    mediaInstance = new CheeseAmpMedia();
   }
-  return audioInstance;
+  return mediaInstance;
 }
 
 export function formatTime(seconds: number): string {

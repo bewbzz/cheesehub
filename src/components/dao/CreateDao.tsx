@@ -244,8 +244,8 @@ export function CreateDao() {
         
         actions = [
           cheesePayAction,  // 1. User sends CHEESE, contract sends WAXDAO back + burns CHEESE (inline)
-          waxdaoFeeAction,  // 2. User pays WAXDAO to dao.waxdao
-          assertAction,     // 3. Assert point
+          assertAction,     // 2. Assert point (must come before fee payment)
+          waxdaoFeeAction,  // 3. User pays WAXDAO to dao.waxdao
           createAction,     // 4. Create DAO
           setProfileAction, // 5. Set DAO profile
         ];

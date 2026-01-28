@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Disc3, Video, Music2 } from 'lucide-react';
+import { Disc3, Video, Music2, Maximize2, Minimize2 } from 'lucide-react';
 
 const IPFS_GATEWAYS = [
   'https://ipfs.io/ipfs/',
@@ -32,6 +32,8 @@ interface MediaDisplayProps {
   isVideo: boolean;
   hasVideo: boolean;
   onToggleVideo?: () => void;
+  isTheaterMode?: boolean;
+  onToggleTheater?: () => void;
 }
 
 export function MediaDisplay({ 
@@ -42,6 +44,8 @@ export function MediaDisplay({
   isVideo,
   hasVideo,
   onToggleVideo,
+  isTheaterMode = false,
+  onToggleTheater,
 }: MediaDisplayProps) {
   const [imgSrc, setImgSrc] = useState(coverArt);
   const [gatewayIndex, setGatewayIndex] = useState(0);
@@ -68,6 +72,17 @@ export function MediaDisplay({
     };
   }, [isVideo]);
 
+  // Handle fullscreen
+  const handleFullscreen = useCallback(() => {
+    if (videoContainerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        videoContainerRef.current.requestFullscreen();
+      }
+    }
+  }, []);
+
   const handleError = useCallback(() => {
     const hash = extractIpfsHash(coverArt);
     if (hash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
@@ -91,7 +106,10 @@ export function MediaDisplay({
 
   return (
     <div 
-      className="relative w-full h-full"
+      className={cn(
+        "relative w-full h-full",
+        isTheaterMode && "fixed inset-0 z-50 bg-black"
+      )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
@@ -99,7 +117,10 @@ export function MediaDisplay({
       {isVideo && (
         <div 
           ref={videoContainerRef}
-          className="absolute inset-0 rounded-lg overflow-hidden bg-black"
+          className={cn(
+            "absolute inset-0 overflow-hidden bg-black",
+            isTheaterMode ? "rounded-none" : "rounded-lg"
+          )}
         />
       )}
       
@@ -117,36 +138,82 @@ export function MediaDisplay({
         )
       )}
 
-      {/* Video toggle button - only show when track has video */}
-      {hasVideo && onToggleVideo && (isHovering || isVideo) && (
-        <div className="absolute bottom-2 right-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90",
-                    isVideo && "text-cheese"
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleVideo();
-                  }}
-                >
-                  {isVideo ? (
-                    <Music2 className="h-4 w-4" />
-                  ) : (
-                    <Video className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                {isVideo ? 'Switch to audio' : 'Watch music video'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      {/* Control overlay - shown on hover */}
+      {(isHovering || isTheaterMode) && (
+        <div className={cn(
+          "absolute inset-x-0 bottom-0 flex items-center justify-end gap-1 p-2",
+          isTheaterMode && "bg-gradient-to-t from-black/60 to-transparent"
+        )}>
+          {/* Video toggle button - only show when track has video */}
+          {hasVideo && onToggleVideo && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className={cn(
+                      "h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90",
+                      isVideo && "text-cheese"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleVideo();
+                    }}
+                  >
+                    {isVideo ? (
+                      <Music2 className="h-4 w-4" />
+                    ) : (
+                      <Video className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {isVideo ? 'Switch to audio' : 'Watch music video'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* Theater/Fullscreen button - only show when video is playing */}
+          {isVideo && (
+            <>
+              {/* Theater mode toggle */}
+              {onToggleTheater && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleTheater();
+                        }}
+                      >
+                        {isTheaterMode ? (
+                          <Minimize2 className="h-4 w-4" />
+                        ) : (
+                          <Maximize2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      {isTheaterMode ? 'Exit theater mode' : 'Theater mode'}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ESC hint in theater mode */}
+      {isTheaterMode && isHovering && (
+        <div className="absolute top-4 left-4 text-white/60 text-xs bg-black/40 px-2 py-1 rounded">
+          Press ESC or click ✕ to exit
         </div>
       )}
     </div>

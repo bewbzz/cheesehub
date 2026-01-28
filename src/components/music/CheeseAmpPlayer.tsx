@@ -134,7 +134,7 @@ export function CheeseAmpPlayer() {
   const [viewMode, setViewMode] = useState<'library' | 'playlists'>('library');
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
-
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const audioPlayer = getAudioPlayer();
 
   const handleCreatePlaylist = () => {
@@ -246,6 +246,21 @@ export function CheeseAmpPlayer() {
     }
   }, [audioPlayer, playbackState.isVideo]);
 
+  const handleToggleTheater = useCallback(() => {
+    setIsTheaterMode(prev => !prev);
+  }, []);
+
+  // Handle ESC key to exit theater mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isTheaterMode) {
+        setIsTheaterMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTheaterMode]);
+
   // Empty state
   if (isLoadingNfts) {
     return (
@@ -332,6 +347,8 @@ export function CheeseAmpPlayer() {
                 isVideo={playbackState.isVideo}
                 hasVideo={playbackState.hasVideo}
                 onToggleVideo={handleToggleVideo}
+                isTheaterMode={isTheaterMode}
+                onToggleTheater={handleToggleTheater}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

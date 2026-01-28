@@ -85,8 +85,8 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
     }
 
     // Validate inputs based on farm type
-    if (farm.farm_type === 2 && !templateId) {
-      toast.error("Please enter a template ID");
+    if (farm.farm_type === 2 && (!templateId || !collectionName)) {
+      toast.error("Please enter template ID and collection name");
       return;
     }
     if (farm.farm_type === 0 && !collectionName) {
@@ -137,6 +137,7 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
           action = buildSetTemplateValuesAction(
             accountName,
             farm.farm_name,
+            collectionName,
             parseInt(templateId),
             rewardValues
           );
@@ -293,16 +294,27 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
         );
       case 2: // Templates
         return (
-          <div className="space-y-2">
-            <Label htmlFor="templateId">Template ID</Label>
-            <Input
-              id="templateId"
-              type="number"
-              placeholder="e.g., 123456"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            />
-          </div>
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="templateCollectionName">Collection Name</Label>
+              <Input
+                id="templateCollectionName"
+                placeholder="e.g., cheesenfts111"
+                value={collectionName}
+                onChange={(e) => setCollectionName(e.target.value.toLowerCase())}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="templateId">Template ID</Label>
+              <Input
+                id="templateId"
+                type="number"
+                placeholder="e.g., 123456"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+              />
+            </div>
+          </>
         );
       case 3: // Attributes
         return (

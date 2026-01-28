@@ -1,53 +1,96 @@
 
+# Fix CHEESE Fee Payment Action Ordering
 
-# Configure GitHub Pages Deployment
+## Problem
 
-Deploy CHEESEHub to `https://cheeseonwax.github.io/cheesehub/`
+The error "Must use assertpoint action first" occurs because the WaxDAO contracts (`dao.waxdao` and `farms.waxdao`) require the `assertpoint` action to execute BEFORE receiving any fee payment. Currently, the CHEESE payment flow sends the WAXDAO fee before calling `assertpoint`.
 
-## What We'll Do
+## Root Cause
 
-### 1. Update Vite Configuration
-Add the `base` path so all links and assets load from the correct `/cheesehub/` subfolder.
+In both `CreateFarm.tsx` and `CreateDao.tsx`, the action order for CHEESE payments is:
 
-**File:** `vite.config.ts`
-
-```typescript
-export default defineConfig(({ mode }) => ({
-  base: '/cheesehub/',  // ← Add this line
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  // ... rest stays the same
-}));
+```text
+1. cheesePayAction   → Send CHEESE to cheesefeefee
+2. waxdaoFeeAction   → Pay WAXDAO fee  ← Contract rejects this
+3. assertAction      → assertpoint (comes too late)
+4. createAction      → Create entity
 ```
 
-### 2. Add 404.html Workaround
-GitHub Pages doesn't understand React Router. When someone visits `cheeseonwax.github.io/cheesehub/drops` directly, GitHub says "page not found" because there's no actual `drops.html` file.
+The WAX payment flow already works correctly because it uses: `assertAction → feeAction → createAction`
 
-The fix: Create a special `404.html` that redirects to your app, which then handles the routing.
+## Solution
 
-**New file:** `public/404.html`
+Reorder the actions so `assertAction` comes before `waxdaoFeeAction`:
 
-This file will redirect any "not found" page back to your main app while preserving the URL, so React Router can handle it.
+```text
+1. cheesePayAction   → Send CHEESE (receive WAXDAO back inline)
+2. assertAction      → Set up payment context
+3. waxdaoFeeAction   → Pay WAXDAO fee (now accepted)
+4. createAction      → Create entity
+```
 
-### 3. Update index.html
-Add a small script to catch the redirect and restore the correct URL.
+## Files to Modify
 
-## Files to Change
+| File | Lines | Change |
+|------|-------|--------|
+| `src/components/farm/CreateFarm.tsx` | 248-253 | Swap `waxdaoFeeAction` and `assertAction` positions |
+| `src/components/dao/CreateDao.tsx` | 245-251 | Swap `waxdaoFeeAction` and `assertAction` positions |
 
-| File | Change |
-|------|--------|
-| `vite.config.ts` | Add `base: '/cheesehub/'` |
-| `public/404.html` | New file - redirect script for client-side routing |
-| `index.html` | Add script to handle the redirect |
+## Technical Details
 
-## After These Changes
+### CreateFarm.tsx
 
-1. Push the code to the `cheeseonwax/cheesehub` repository
-2. In GitHub: Go to **Settings → Pages → Source** and select your branch (usually `main`) and folder (`/root` or `/docs`)
-3. Wait a few minutes for GitHub to build and deploy
-4. Visit `https://cheeseonwax.github.io/cheesehub/` 
+**Current (broken):**
+```typescript
+actions = [
+  cheesePayAction,
+  waxdaoFeeAction,  // Position 2
+  assertAction,     // Position 3
+  createAction,
+];
+```
 
-All your routes (`/drops`, `/farm`, `/dao`, etc.) will work correctly, even when accessed directly or refreshed.
+**Fixed:**
+```typescript
+actions = [
+  cheesePayAction,
+  assertAction,     // Position 2 (moved up)
+  waxdaoFeeAction,  // Position 3 (moved down)
+  createAction,
+];
+```
 
+### CreateDao.tsx
+
+**Current (broken):**
+```typescript
+actions = [
+  cheesePayAction,
+  waxdaoFeeAction,  // Position 2
+  assertAction,     // Position 3
+  createAction,
+  setProfileAction,
+];
+```
+
+**Fixed:**
+```typescript
+actions = [
+  cheesePayAction,
+  assertAction,     // Position 2 (moved up)
+  waxdaoFeeAction,  // Position 3 (moved down)
+  createAction,
+  setProfileAction,
+];
+```
+
+## Why This Works
+
+The `assertpoint` action tells WaxDAO "a creation fee is about to be paid." By moving it before the fee transfer:
+
+1. **CHEESE payment** executes, and the contract returns WAXDAO to the user (inline action)
+2. **assertpoint** signals WaxDAO that a fee payment follows
+3. **WAXDAO transfer** is now accepted as a valid creation fee
+4. **Creation action** succeeds
+
+No changes are needed to the C++ contracts - this is purely a frontend transaction ordering fix.

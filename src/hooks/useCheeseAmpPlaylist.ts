@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import type { RepeatMode } from '@/lib/musicPlayer';
 import { getAudioPlayer } from '@/lib/musicPlayer';
@@ -69,15 +69,32 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
   
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
-  const [isLoaded, setIsLoaded] = useState(() => !!accountName);
+  
+  // Use refs to prevent race condition between load and save
+  // Refs update synchronously and don't trigger re-renders
+  const hasInitialLoadCompleted = useRef<boolean>(false);
+  const lastLoadedAccount = useRef<string | null>(null);
 
-  // Load state when account changes
+  // Load state when account changes - MUST complete before saves are allowed
   useEffect(() => {
     if (accountName) {
-      setState(loadState(accountName));
-      setIsLoaded(true);
+      // Reset flag when switching accounts to prevent cross-account data leaks
+      if (lastLoadedAccount.current !== accountName) {
+        hasInitialLoadCompleted.current = false;
+      }
+      
+      const loadedState = loadState(accountName);
+      setState(loadedState);
+      
+      // Mark as loaded AFTER setState - ref updates synchronously
+      lastLoadedAccount.current = accountName;
+      hasInitialLoadCompleted.current = true;
+      
+      console.log('[CHEESEAmp] Load complete for', accountName, '- playlists:', loadedState.playlists.length);
     } else {
-      setIsLoaded(false);
+      // No account - reset everything
+      hasInitialLoadCompleted.current = false;
+      lastLoadedAccount.current = null;
     }
   }, [accountName]);
 
@@ -97,12 +114,16 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
     }
   }, [allTracks]); // Only run when tracks load, not on currentIndex changes
 
-  // Save state ONLY when it changes AND has been loaded first
+  // Save state ONLY after initial load has completed for this account
+  // This prevents saving empty state before localStorage data is restored
   useEffect(() => {
-    if (accountName && isLoaded) {
-      saveState(accountName, state);
-    }
-  }, [accountName, state, isLoaded]);
+    if (!accountName) return;
+    if (!hasInitialLoadCompleted.current) return;
+    if (lastLoadedAccount.current !== accountName) return;
+    
+    console.log('[CHEESEAmp] Saving state for', accountName, '- playlists:', state.playlists.length);
+    saveState(accountName, state);
+  }, [accountName, state]);
 
   // Get current playlist tracks
   const currentPlaylistTracks = useMemo(() => {

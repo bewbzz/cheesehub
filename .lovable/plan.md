@@ -1,96 +1,134 @@
 
-# Fix CHEESE Fee Payment Action Ordering
+# Fix Template Values Action Structure
 
 ## Problem
 
-The error "Must use assertpoint action first" occurs because the WaxDAO contracts (`dao.waxdao` and `farms.waxdao`) require the `assertpoint` action to execute BEFORE receiving any fee payment. Currently, the CHEESE payment flow sends the WAXDAO fee before calling `assertpoint`.
+The error `Encoding error at root<settmpvalues>.values<TEMPLATE_REWARD[]>.0.collection_name<name>: Found undefined for non-optional type` indicates that the WaxDAO V2 contract now requires `collection_name` as a mandatory field in the `TEMPLATE_REWARD` struct, but the current implementation only sends `template_id` and `hourly_rewards`.
 
 ## Root Cause
 
-In both `CreateFarm.tsx` and `CreateDao.tsx`, the action order for CHEESE payments is:
+The `buildSetTemplateValuesAction` function in `src/lib/farm.ts` builds a values array without the required `collection_name`:
 
-```text
-1. cheesePayAction   → Send CHEESE to cheesefeefee
-2. waxdaoFeeAction   → Pay WAXDAO fee  ← Contract rejects this
-3. assertAction      → assertpoint (comes too late)
-4. createAction      → Create entity
+```typescript
+// Current (broken)
+values: [{
+  template_id: templateId,
+  hourly_rewards: [...]  // Missing collection_name!
+}]
 ```
 
-The WAX payment flow already works correctly because it uses: `assertAction → feeAction → createAction`
+The WaxDAO contract expects:
+
+```typescript
+// Expected by contract
+values: [{
+  template_id: templateId,
+  collection_name: "somecollection",  // Required!
+  hourly_rewards: [...]
+}]
+```
 
 ## Solution
 
-Reorder the actions so `assertAction` comes before `waxdaoFeeAction`:
-
-```text
-1. cheesePayAction   → Send CHEESE (receive WAXDAO back inline)
-2. assertAction      → Set up payment context
-3. waxdaoFeeAction   → Pay WAXDAO fee (now accepted)
-4. createAction      → Create entity
-```
+1. Update `buildSetTemplateValuesAction` in `src/lib/farm.ts` to accept a `collectionName` parameter
+2. Update `ManageStakableAssets.tsx` to:
+   - Show a collection name input field for template-based farms (type 2)
+   - Pass the collection name when calling `buildSetTemplateValuesAction`
+   - Validate that collection name is provided
 
 ## Files to Modify
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/components/farm/CreateFarm.tsx` | 248-253 | Swap `waxdaoFeeAction` and `assertAction` positions |
-| `src/components/dao/CreateDao.tsx` | 245-251 | Swap `waxdaoFeeAction` and `assertAction` positions |
+| File | Change |
+|------|--------|
+| `src/lib/farm.ts` | Add `collectionName` parameter to `buildSetTemplateValuesAction` |
+| `src/components/farm/ManageStakableAssets.tsx` | Add collection name input for template farms, pass to action builder |
 
 ## Technical Details
 
-### CreateFarm.tsx
+### 1. Update farm.ts (lines 265-287)
 
-**Current (broken):**
+Add `collectionName` as a required parameter:
+
 ```typescript
-actions = [
-  cheesePayAction,
-  waxdaoFeeAction,  // Position 2
-  assertAction,     // Position 3
-  createAction,
-];
+export function buildSetTemplateValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string,  // New required parameter
+  templateId: number,
+  rewardValues: RewardValue[]
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "settmpvalues",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      values: [{
+        template_id: templateId,
+        collection_name: collectionName,  // Include in values
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
+    },
+  };
+}
 ```
 
-**Fixed:**
+### 2. Update ManageStakableAssets.tsx
+
+**Update validation (line 88-91):**
 ```typescript
-actions = [
-  cheesePayAction,
-  assertAction,     // Position 2 (moved up)
-  waxdaoFeeAction,  // Position 3 (moved down)
-  createAction,
-];
+if (farm.farm_type === 2 && (!templateId || !collectionName)) {
+  toast.error("Please enter template ID and collection name");
+  return;
+}
 ```
 
-### CreateDao.tsx
-
-**Current (broken):**
+**Update form fields for template type (lines 294-306):**
+Add collection name input alongside template ID:
 ```typescript
-actions = [
-  cheesePayAction,
-  waxdaoFeeAction,  // Position 2
-  assertAction,     // Position 3
-  createAction,
-  setProfileAction,
-];
+case 2: // Templates
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="collectionName">Collection Name</Label>
+        <Input
+          id="collectionName"
+          placeholder="e.g., cheesenfts111"
+          value={collectionName}
+          onChange={(e) => setCollectionName(e.target.value.toLowerCase())}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="templateId">Template ID</Label>
+        <Input
+          id="templateId"
+          type="number"
+          placeholder="e.g., 123456"
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+        />
+      </div>
+    </>
+  );
 ```
 
-**Fixed:**
+**Update action call (lines 136-142):**
 ```typescript
-actions = [
-  cheesePayAction,
-  assertAction,     // Position 2 (moved up)
-  waxdaoFeeAction,  // Position 3 (moved down)
-  createAction,
-  setProfileAction,
-];
+case 2: // Templates
+  action = buildSetTemplateValuesAction(
+    accountName,
+    farm.farm_name,
+    collectionName,  // Pass collection name
+    parseInt(templateId),
+    rewardValues
+  );
+  break;
 ```
 
-## Why This Works
+## Why This Happened
 
-The `assertpoint` action tells WaxDAO "a creation fee is about to be paid." By moving it before the fee transfer:
-
-1. **CHEESE payment** executes, and the contract returns WAXDAO to the user (inline action)
-2. **assertpoint** signals WaxDAO that a fee payment follows
-3. **WAXDAO transfer** is now accepted as a valid creation fee
-4. **Creation action** succeeds
-
-No changes are needed to the C++ contracts - this is purely a frontend transaction ordering fix.
+The WaxDAO V2 contract structure requires templates to be associated with a collection for proper validation and indexing. This ensures the template actually belongs to the specified collection and enables better filtering/querying of stakable assets.

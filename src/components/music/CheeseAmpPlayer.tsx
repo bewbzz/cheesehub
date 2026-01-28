@@ -137,23 +137,23 @@ export function CheeseAmpPlayer() {
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const audioPlayer = getAudioPlayer();
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = useCallback(() => {
     if (newPlaylistName.trim()) {
       playlist.createPlaylist(newPlaylistName.trim());
       setNewPlaylistName('');
       setShowCreatePlaylist(false);
     }
-  };
+  }, [newPlaylistName, playlist]);
 
-  const handleViewPlaylist = (playlistId: string) => {
+  const handleViewPlaylist = useCallback((playlistId: string) => {
     playlist.selectPlaylist(playlistId);
-    setViewMode('library'); // Switch back to show tracks
-  };
+    setViewMode('library');
+  }, [playlist]);
 
-  const handleBackToLibrary = () => {
+  const handleBackToLibrary = useCallback(() => {
     playlist.selectPlaylist('library');
     setViewMode('library');
-  };
+  }, [playlist]);
 
   // Subscribe to playback state updates
   useEffect(() => {
@@ -165,19 +165,14 @@ export function CheeseAmpPlayer() {
   useEffect(() => {
     const currentlyPlayingTrack = audioPlayer.getCurrentTrack();
     if (currentlyPlayingTrack && stackedNfts.length > 0) {
-      // Find the matching track in stackedNfts and sync playlist state
       const matchingTrack = stackedNfts.find(
         t => t.template_id === currentlyPlayingTrack.template_id
       );
       if (matchingTrack && playlist.currentTrack?.template_id !== matchingTrack.template_id) {
-        // Sync the playlist state without triggering a new play
         playlist.playTrack(matchingTrack);
       }
     }
   }, [audioPlayer, stackedNfts, playlist]);
-
-  // Note: Track end handling is managed by useCheeseAmpAutoAdvance hook in WalletConnect
-  // This ensures auto-advance works even when the dialog is minimized
 
   const handlePlayTrack = useCallback(async (track: StackedMusicNFT) => {
     playlist.playTrack(track);
@@ -210,7 +205,6 @@ export function CheeseAmpPlayer() {
   }, [audioPlayer, playlist]);
 
   const handlePrevious = useCallback(async () => {
-    // If we're more than 3 seconds in, restart current track
     if (playbackState.currentTime > 3) {
       audioPlayer.seek(0);
       return;
@@ -261,7 +255,13 @@ export function CheeseAmpPlayer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isTheaterMode]);
 
-  // Empty state
+  // Derived values - computed after all hooks
+  const currentTrack = playlist.currentTrack;
+  const progress = playbackState.duration > 0 
+    ? (playbackState.currentTime / playbackState.duration) * 100 
+    : 0;
+
+  // Early returns AFTER all hooks are defined (React hooks rule)
   if (isLoadingNfts) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -291,11 +291,6 @@ export function CheeseAmpPlayer() {
       </div>
     );
   }
-
-  const currentTrack = playlist.currentTrack;
-  const progress = playbackState.duration > 0 
-    ? (playbackState.currentTime / playbackState.duration) * 100 
-    : 0;
 
   return (
     <div className="flex flex-col h-full">

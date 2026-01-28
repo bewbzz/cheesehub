@@ -1,160 +1,70 @@
 
-# CHEESEAmp Performance and Video Resolution Improvements
+# Fix CHEESEAmp Playlist Persistence
 
-## Problems Identified
+## Problem Identified
 
-### 1. Slow Collection Loading
-The current implementation fetches NFT metadata in batches but:
-- Fetches up to 50 pages (5000 assets) sequentially after initial parallel burst
-- No timeout per API request causes hanging when endpoints are slow
-- IPFS gateway fallback in metadata URLs uses first gateway only (no race)
+Playlists are being lost due to a race condition in the `useCheeseAmpPlaylist` hook. The current implementation:
 
-### 2. Slow Track Playback
-The `tryGateways()` method in musicPlayer.ts:
-- Tries gateways sequentially, waiting for each to fully fail before trying next
-- No timeout per gateway attempt - slow gateways block for seconds
-- First gateway (ipfs.io) is often slow, causing unnecessary delays
+1. Initializes state with `getDefaultState()` when `accountName` is null at first render
+2. Sets `isLoaded = true` when account becomes available
+3. Saves the (empty) state to localStorage before the load effect can restore the saved playlists
+4. Effectively overwrites user playlists with empty state on every app reload
 
-### 3. Low Video Resolution
-- Video container is only 256x256px (the "now playing" art area)
-- No way to view video at larger size
-- Source videos may be higher quality but are being scaled down
+## Root Cause
 
----
-
-## Solution Overview
-
-### Phase 1: Faster IPFS Media Loading (Race Strategy)
-
-**File: `src/lib/musicPlayer.ts`**
-
-Replace sequential gateway fallback with a **racing strategy** that tries multiple gateways in parallel:
-
-```text
-Current (slow):
-Gateway 1 → wait → fail → Gateway 2 → wait → fail → Gateway 3 → success
-
-New (fast):
-Gateway 1 ─┐
-Gateway 2 ─┼─→ First success wins, cancel others
-Gateway 3 ─┘
+The save effect on lines 101-105 triggers too early:
+```typescript
+useEffect(() => {
+  if (accountName && isLoaded) {
+    saveState(accountName, state);  // This saves empty state before load completes!
+  }
+}, [accountName, state, isLoaded]);
 ```
 
-Implementation:
-- Try first 2-3 gateways in parallel with `Promise.race`
-- Add 5-second timeout per gateway attempt
-- First successful response wins and starts playback
+The `isLoaded` flag is set to `true` in the same effect that loads state, but React batches these updates, causing the save to trigger with stale (empty) state.
 
-### Phase 2: Faster Collection Loading
+## Solution
 
-**File: `src/hooks/useMusicNFTs.ts`**
+Implement a proper "loaded" tracking mechanism that only enables saving AFTER the initial load has completed and the state has been populated:
 
-Optimizations:
-- Add request timeouts (reduce from 8s default to 5s for faster failover)
-- Increase parallel batch fetching from 3 to 5 concurrent requests
-- Use faster IPFS gateways first (Pinata > ipfs.io for reliability)
-- Skip slow unchecked-assets phase for large collections (> 500)
+1. **Track load completion separately** - Use a ref or separate flag that only becomes true AFTER `setState(loadState(...))` has been called
+2. **Debounce saves** - Add a small delay to ensure state is fully loaded before first save
+3. **Add version/timestamp guard** - Don't save if the loaded state is newer than what we're trying to save
 
-### Phase 3: Video Theater Mode
+## Implementation
 
-**File: `src/components/music/MediaDisplay.tsx`**
+### File: `src/hooks/useCheeseAmpPlaylist.ts`
 
-Add fullscreen/theater mode for video playback:
-- Expand button in corner of video
-- Theater mode: Video fills the dialog (larger viewing area)
-- Fullscreen mode: Native browser fullscreen API
-- Keep controls accessible during expanded view
+**Changes:**
 
----
+1. Add a `hasInitialLoadCompleted` ref to track when the FIRST load for an account is done
+2. Modify the load effect to set this flag AFTER setState completes
+3. Modify the save effect to only save when `hasInitialLoadCompleted` is true
+4. Reset the flag when account changes to prevent saving stale data during transitions
+
+```
+Current flow (buggy):
+Mount → state=empty → accountName arrives → isLoaded=true → SAVE(empty) → load(saved)
+
+Fixed flow:
+Mount → state=empty → accountName arrives → load(saved) → hasLoadCompleted=true → SAVE(loaded)
+```
 
 ## Technical Details
 
-### IPFS Gateway Racing
+The fix uses a ref (`hasInitialLoadCompleted`) instead of state because:
+- Refs don't trigger re-renders
+- The value updates synchronously, avoiding race conditions
+- It can be checked in the same render cycle it's set
 
-```typescript
-// New approach in musicPlayer.ts
-private async tryGatewaysRace(
-  hash: string, 
-  element: HTMLAudioElement | HTMLVideoElement
-): Promise<void> {
-  const TIMEOUT = 5000; // 5 second timeout per gateway
-  
-  // Try multiple gateways in parallel
-  const attempts = IPFS_GATEWAYS.slice(0, 3).map((gateway, index) => 
-    new Promise<string>((resolve, reject) => {
-      const timeoutId = setTimeout(() => reject(new Error('timeout')), TIMEOUT);
-      
-      // Small stagger to prefer faster gateways
-      setTimeout(async () => {
-        try {
-          const url = `${gateway}${hash}`;
-          const response = await fetch(url, { method: 'HEAD' });
-          if (response.ok) {
-            clearTimeout(timeoutId);
-            resolve(url);
-          } else {
-            reject(new Error('not ok'));
-          }
-        } catch (e) {
-          reject(e);
-        }
-      }, index * 100); // 100ms stagger between gateways
-    })
-  );
-
-  try {
-    const winningUrl = await Promise.any(attempts);
-    element.src = winningUrl;
-    await element.play();
-  } catch {
-    throw new Error('All gateways failed');
-  }
-}
-```
-
-### Video Theater Mode UI
-
-Add to MediaDisplay.tsx:
-- "Expand" button (corners icon) when video is playing
-- Theater mode expands video to fill the dialog
-- Fullscreen button uses native `requestFullscreen()` API
-- ESC key or click outside to exit theater mode
-
-```text
-Normal View:         Theater View:
-┌────────────────┐   ┌────────────────────────────┐
-│ ┌────┐ Track   │   │                            │
-│ │Vid │ Info    │   │      VIDEO FILLS AREA      │
-│ └────┘         │   │                            │
-│ [Controls]     │   │ [Controls Overlay]         │
-│ [Playlist...] │   └────────────────────────────┘
-└────────────────┘
-```
-
----
+Additionally, we'll add the `lastLoadedAccount` ref to detect account switches and prevent cross-account data leaks.
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/musicPlayer.ts` | Add racing gateway strategy with timeouts |
-| `src/hooks/useMusicNFTs.ts` | Add request timeouts, increase parallelism |
-| `src/components/music/MediaDisplay.tsx` | Add theater/fullscreen mode |
-| `src/components/music/CheeseAmpPlayer.tsx` | Support theater mode state |
-
----
-
-## Expected Improvements
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Track start time | 3-10s | 1-3s |
-| Collection load (500 NFTs) | 15-30s | 8-15s |
-| Video display size | 256x256 | Fullscreen capable |
-| IPFS gateway failures | Blocks playback | Graceful failover |
-
----
+| `src/hooks/useCheeseAmpPlaylist.ts` | Fix race condition with proper load/save sequencing |
 
 ## Summary
 
-This update brings the same robust fallback patterns used elsewhere in CHEESEHub to the CHEESEAmp player. The racing strategy dramatically improves load times by not waiting for slow gateways, and theater mode lets users enjoy music videos at full quality.
+This fix ensures playlists are only saved to localStorage AFTER they've been properly loaded from localStorage. Users will no longer lose their playlists when reopening the app or switching accounts.

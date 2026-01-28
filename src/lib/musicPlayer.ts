@@ -246,22 +246,74 @@ class CheeseAmpMedia {
   }
 
   private async tryGateways(hash: string, element: HTMLAudioElement | HTMLVideoElement): Promise<void> {
-    for (const gateway of IPFS_GATEWAYS) {
-      try {
-        element.src = `${gateway}${hash}`;
-        await element.play();
-        this._isLoading = false;
-        this.notifyCallbacks();
-        return;
-      } catch (e) {
-        console.warn(`Gateway ${gateway} failed, trying next...`);
-        continue;
+    const TIMEOUT = 5000; // 5 second timeout per gateway
+    
+    // Race multiple gateways in parallel for faster loading
+    // Use Promise.race with success tracking since Promise.any may not be available
+    const raceGateways = IPFS_GATEWAYS.slice(0, 3);
+    let succeeded = false;
+    
+    const racePromise = new Promise<string>((resolve, reject) => {
+      let failCount = 0;
+      
+      raceGateways.forEach((gateway, index) => {
+        // Small stagger to prefer faster gateways while still racing
+        setTimeout(async () => {
+          if (succeeded) return;
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+          
+          try {
+            const url = `${gateway}${hash}`;
+            const response = await fetch(url, { 
+              method: 'HEAD',
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            
+            if (response.ok && !succeeded) {
+              succeeded = true;
+              resolve(url);
+            } else {
+              failCount++;
+              if (failCount >= raceGateways.length) reject(new Error('All racing gateways failed'));
+            }
+          } catch {
+            clearTimeout(timeoutId);
+            failCount++;
+            if (failCount >= raceGateways.length) reject(new Error('All racing gateways failed'));
+          }
+        }, index * 100); // 100ms stagger
+      });
+    });
+
+    try {
+      const winningUrl = await racePromise;
+      console.log(`[musicPlayer] Racing gateway won: ${winningUrl.split('/ipfs/')[0]}`);
+      element.src = winningUrl;
+      await element.play();
+      this._isLoading = false;
+      this.notifyCallbacks();
+    } catch {
+      // All raced gateways failed, try remaining gateways sequentially as fallback
+      console.warn('[musicPlayer] All racing gateways failed, trying remaining...');
+      for (const gateway of IPFS_GATEWAYS.slice(3)) {
+        try {
+          element.src = `${gateway}${hash}`;
+          await element.play();
+          this._isLoading = false;
+          this.notifyCallbacks();
+          return;
+        } catch {
+          continue;
+        }
       }
+      this._error = 'Failed to load media from all gateways';
+      this._isLoading = false;
+      this.notifyCallbacks();
+      throw new Error('Failed to load media from all gateways');
     }
-    this._error = 'Failed to load media from all gateways';
-    this._isLoading = false;
-    this.notifyCallbacks();
-    throw new Error('Failed to load media from all gateways');
   }
 
   resume(): void {

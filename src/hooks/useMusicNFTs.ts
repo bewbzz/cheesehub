@@ -228,7 +228,7 @@ async function getOwnedAssets(owner: string): Promise<Map<string, OnChainAsset>>
   return ownedAssets;
 }
 
-// Fetch metadata for specific asset IDs in parallel batches
+// Fetch metadata for specific asset IDs in parallel batches with faster timeouts
 async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
   if (assetIds.length === 0) return [];
   
@@ -239,7 +239,8 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
     batches.push(assetIds.slice(i, i + batchSize));
   }
   
-  const parallelLimit = 3;
+  // Increased parallelism for faster loading
+  const parallelLimit = 5;
   const results: MusicNFT[] = [];
   
   for (let i = 0; i < batches.length; i += parallelLimit) {
@@ -252,7 +253,8 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
         try {
           const cacheBuster = `&_ts=${Date.now()}`;
           const path = `${ATOMIC_API.paths.assets}?ids=${idsParam}${cacheBuster}`;
-          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+          // Use faster 5s timeout for quicker failover
+          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000);
           const json = await response.json();
           
           if (json.success && json.data) {
@@ -321,7 +323,8 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
   const path = `${ATOMIC_API.paths.assets}?${params.toString()}${cacheBuster}`;
   
   try {
-    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    // Use faster 5s timeout for quicker failover
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000);
     const json = await response.json();
 
     if (!json.success || !json.data) {

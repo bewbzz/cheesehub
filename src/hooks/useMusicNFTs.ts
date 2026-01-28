@@ -14,6 +14,7 @@ export interface MusicNFT {
   audioUrl: string;
   clipUrl?: string;
   videoUrl?: string;
+  hasVideo: boolean;
   coverArt: string;
   backCover?: string;
   duration?: number;
@@ -264,6 +265,8 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
               const allData = { ...templateData, ...immutableData, ...mutableData };
               
               if (isMusicNFT(allData)) {
+                const videoUrl = allData.video ? getMediaUrl(allData.video as string) : undefined;
+                const clipUrl = allData.clip ? getMediaUrl(allData.clip as string) : undefined;
                 musicNfts.push({
                   asset_id: asset.asset_id,
                   name: asset.name || allData.name || 'Untitled Track',
@@ -271,9 +274,10 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
                   artist: allData.artist as string | undefined,
                   album: allData.album as string | undefined,
                   genre: allData.genre as string | undefined,
-                  audioUrl: getMediaUrl((allData.audio || allData.clip) as string | undefined),
-                  clipUrl: allData.clip ? getMediaUrl(allData.clip as string) : undefined,
-                  videoUrl: allData.video ? getMediaUrl(allData.video as string) : undefined,
+                  audioUrl: getMediaUrl((allData.audio || allData.clip || allData.video) as string | undefined),
+                  clipUrl,
+                  videoUrl,
+                  hasVideo: !!(videoUrl || clipUrl),
                   coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
                   backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
                   duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
@@ -333,6 +337,8 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
       const allData = { ...templateData, ...immutableData, ...mutableData };
       
       if (isMusicNFT(allData)) {
+        const videoUrl = allData.video ? getMediaUrl(allData.video as string) : undefined;
+        const clipUrl = allData.clip ? getMediaUrl(allData.clip as string) : undefined;
         musicNfts.push({
           asset_id: asset.asset_id,
           name: asset.name || allData.name || 'Untitled Track',
@@ -340,9 +346,10 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
           artist: allData.artist as string | undefined,
           album: allData.album as string | undefined,
           genre: allData.genre as string | undefined,
-          audioUrl: getMediaUrl((allData.audio || allData.clip) as string | undefined),
-          clipUrl: allData.clip ? getMediaUrl(allData.clip as string) : undefined,
-          videoUrl: allData.video ? getMediaUrl(allData.video as string) : undefined,
+          audioUrl: getMediaUrl((allData.audio || allData.clip || allData.video) as string | undefined),
+          clipUrl,
+          videoUrl,
+          hasVideo: !!(videoUrl || clipUrl),
           coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
           backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
           duration: allData.duration ? parseInt(String(allData.duration)) : undefined,

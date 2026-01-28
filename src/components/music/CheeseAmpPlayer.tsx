@@ -49,6 +49,7 @@ import {
   ListMusic,
   Trash2,
 } from 'lucide-react';
+import { MediaDisplay, VideoIndicator } from './MediaDisplay';
 
 const IPFS_GATEWAYS = [
   'https://ipfs.io/ipfs/',
@@ -70,6 +71,7 @@ interface CoverArtProps {
   isPlaying: boolean;
 }
 
+// CoverArt component for track list thumbnails (not the main player)
 function CoverArt({ src, alt, isPlaying }: CoverArtProps) {
   const [imgSrc, setImgSrc] = useState(src);
   const [gatewayIndex, setGatewayIndex] = useState(0);
@@ -96,7 +98,7 @@ function CoverArt({ src, alt, isPlaying }: CoverArtProps) {
     return (
       <div className="w-full h-full bg-muted/50 flex items-center justify-center">
         <Disc3 className={cn(
-          "h-16 w-16 text-cheese/50",
+          "h-4 w-4 text-cheese/50",
           isPlaying && "animate-spin"
         )} style={{ animationDuration: '3s' }} />
       </div>
@@ -125,6 +127,8 @@ export function CheeseAmpPlayer() {
     isMuted: false,
     isLoading: false,
     error: null,
+    isVideo: false,
+    hasVideo: false,
   });
   const [showPlaylist, setShowPlaylist] = useState(true);
   const [viewMode, setViewMode] = useState<'library' | 'playlists'>('library');
@@ -234,6 +238,14 @@ export function CheeseAmpPlayer() {
     audioPlayer.toggleMute();
   }, [audioPlayer]);
 
+  const handleToggleVideo = useCallback(async () => {
+    try {
+      await audioPlayer.switchMediaType(!playbackState.isVideo);
+    } catch (error) {
+      console.error('Failed to switch media type:', error);
+    }
+  }, [audioPlayer, playbackState.isVideo]);
+
   // Empty state
   if (isLoadingNfts) {
     return (
@@ -309,13 +321,17 @@ export function CheeseAmpPlayer() {
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Now Playing */}
         <div className="flex flex-col w-64 shrink-0">
-          {/* Cover Art */}
+          {/* Cover Art / Video */}
           <div className="aspect-square rounded-lg overflow-hidden bg-muted/30 border border-border/50 mb-4">
             {currentTrack ? (
-              <CoverArt
-                src={currentTrack.coverArt}
+              <MediaDisplay
+                coverArt={currentTrack.coverArt}
+                videoUrl={currentTrack.videoUrl}
                 alt={currentTrack.name}
                 isPlaying={playbackState.isPlaying}
+                isVideo={playbackState.isVideo}
+                hasVideo={playbackState.hasVideo}
+                onToggleVideo={handleToggleVideo}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -596,6 +612,7 @@ export function CheeseAmpPlayer() {
                                   {track.artist || track.collection}
                                 </p>
                               </div>
+                              <VideoIndicator hasVideo={track.hasVideo} />
                               {track.copies > 1 && (
                                 <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full shrink-0">
                                   x{track.copies}

@@ -247,8 +247,8 @@ export function CreateFarm() {
         
         actions = [
           cheesePayAction,  // 1. User sends CHEESE, contract sends WAXDAO back + burns CHEESE (inline)
-          waxdaoFeeAction,  // 2. User pays WAXDAO to farms.waxdao
-          assertAction,     // 3. Assert point
+          assertAction,     // 2. Assert point (must come before fee payment)
+          waxdaoFeeAction,  // 3. User pays WAXDAO to farms.waxdao
           createAction,     // 4. Create Farm
         ];
       } else {

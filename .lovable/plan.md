@@ -1,62 +1,134 @@
 
-
-# Fix: DialogOverlay Not Being Hidden
+# Fix Template Values Action Structure
 
 ## Problem
 
-The CSS selector `[&_[data-radix-dialog-overlay]]:hidden` doesn't work because the overlay is rendered inside a **Portal** that attaches directly to `document.body`, not as a child of our wrapper div.
+The error `Encoding error at root<settmpvalues>.values<TEMPLATE_REWARD[]>.0.collection_name<name>: Found undefined for non-optional type` indicates that the WaxDAO V2 contract now requires `collection_name` as a mandatory field in the `TEMPLATE_REWARD` struct, but the current implementation only sends `template_id` and `hourly_rewards`.
+
+## Root Cause
+
+The `buildSetTemplateValuesAction` function in `src/lib/farm.ts` builds a values array without the required `collection_name`:
+
+```typescript
+// Current (broken)
+values: [{
+  template_id: templateId,
+  hourly_rewards: [...]  // Missing collection_name!
+}]
+```
+
+The WaxDAO contract expects:
+
+```typescript
+// Expected by contract
+values: [{
+  template_id: templateId,
+  collection_name: "somecollection",  // Required!
+  hourly_rewards: [...]
+}]
+```
 
 ## Solution
 
-The simplest fix is to add an `overlayClassName` prop to `DialogContent` so we can pass styles directly to the overlay.
+1. Update `buildSetTemplateValuesAction` in `src/lib/farm.ts` to accept a `collectionName` parameter
+2. Update `ManageStakableAssets.tsx` to:
+   - Show a collection name input field for template-based farms (type 2)
+   - Pass the collection name when calling `buildSetTemplateValuesAction`
+   - Validate that collection name is provided
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/ui/dialog.tsx` | Add `overlayClassName` prop to DialogContent |
-| `src/components/music/CheeseAmpDialog.tsx` | Pass `overlayClassName="hidden"` when minimized |
-
----
+| `src/lib/farm.ts` | Add `collectionName` parameter to `buildSetTemplateValuesAction` |
+| `src/components/farm/ManageStakableAssets.tsx` | Add collection name input for template farms, pass to action builder |
 
 ## Technical Details
 
-### 1. Modify dialog.tsx
+### 1. Update farm.ts (lines 265-287)
 
-Update `DialogContent` to accept an optional `overlayClassName` prop and pass it to `DialogOverlay`:
+Add `collectionName` as a required parameter:
 
 ```typescript
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
-    overlayClassName?: string;
-  }
->(({ className, children, overlayClassName, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay className={overlayClassName} />
-    <DialogPrimitive.Content ...>
+export function buildSetTemplateValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string,  // New required parameter
+  templateId: number,
+  rewardValues: RewardValue[]
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "settmpvalues",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      values: [{
+        template_id: templateId,
+        collection_name: collectionName,  // Include in values
+        hourly_rewards: rewardValues.map(rv => ({
+          quantity: rv.quantity,
+          contract: rv.contract,
+        })),
+      }],
+    },
+  };
+}
 ```
 
-### 2. Update CheeseAmpDialog.tsx
+### 2. Update ManageStakableAssets.tsx
 
-Remove the wrapper div and just pass the overlayClassName:
-
-```tsx
-<Dialog open={open} onOpenChange={handleOpenChange}>
-  <DialogContent 
-    className={cn(
-      "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
-      minimized && "opacity-0 pointer-events-none scale-95"
-    )}
-    overlayClassName={minimized ? "hidden" : ""}
-    onInteractOutside={(e) => e.preventDefault()}
-    onEscapeKeyDown={(e) => e.preventDefault()}
-  >
+**Update validation (line 88-91):**
+```typescript
+if (farm.farm_type === 2 && (!templateId || !collectionName)) {
+  toast.error("Please enter template ID and collection name");
+  return;
+}
 ```
 
----
+**Update form fields for template type (lines 294-306):**
+Add collection name input alongside template ID:
+```typescript
+case 2: // Templates
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="collectionName">Collection Name</Label>
+        <Input
+          id="collectionName"
+          placeholder="e.g., cheesenfts111"
+          value={collectionName}
+          onChange={(e) => setCollectionName(e.target.value.toLowerCase())}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="templateId">Template ID</Label>
+        <Input
+          id="templateId"
+          type="number"
+          placeholder="e.g., 123456"
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+        />
+      </div>
+    </>
+  );
+```
 
-## Why This Works
+**Update action call (lines 136-142):**
+```typescript
+case 2: // Templates
+  action = buildSetTemplateValuesAction(
+    accountName,
+    farm.farm_name,
+    collectionName,  // Pass collection name
+    parseInt(templateId),
+    rewardValues
+  );
+  break;
+```
 
-By passing a className directly to the DialogOverlay component, we can control its visibility regardless of where it's portaled. When `minimized=true`, the overlay gets `hidden` class which uses `display: none`, completely removing it from view and pointer events.
+## Why This Happened
 
+The WaxDAO V2 contract structure requires templates to be associated with a collection for proper validation and indexing. This ensures the template actually belongs to the specified collection and enables better filtering/querying of stakable assets.

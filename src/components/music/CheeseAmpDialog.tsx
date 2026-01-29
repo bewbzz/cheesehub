@@ -9,50 +9,27 @@ import { Button } from '@/components/ui/button';
 import { CheeseAmpPlayer } from './CheeseAmpPlayer';
 import { getAudioPlayer } from '@/lib/musicPlayer';
 import { Music2, Minus, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface CheeseAmpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMinimize?: () => void;
-  minimized?: boolean;
 }
 
-export function CheeseAmpDialog({ 
-  open, 
-  onOpenChange, 
-  onMinimize,
-  minimized = false 
-}: CheeseAmpDialogProps) {
+export function CheeseAmpDialog({ open, onOpenChange, onMinimize }: CheeseAmpDialogProps) {
   const handleClose = () => {
     getAudioPlayer().stop();
     onOpenChange(false);
   };
 
   const handleMinimize = () => {
-    // Just hide the dialog - music keeps playing
     onMinimize?.();
   };
 
-  // Prevent Radix from triggering onOpenChange directly - we control open state ourselves
-  // This ensures we can differentiate between minimize (keep playing) and close (stop)
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      // Dialog wants to close - only allow through our explicit close handler
-      // This prevents accidental closes from stopping music
-      return;
-    }
-    onOpenChange(newOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className={cn(
-          "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
-          minimized && "opacity-0 pointer-events-none scale-95"
-        )}
-        overlayClassName={minimized ? "hidden" : ""}
+        className="sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >

@@ -27,7 +27,6 @@ export function WalletConnect() {
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
-  const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
 
   // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
   useCheeseAmpAutoAdvance(accountName);
@@ -50,7 +49,6 @@ export function WalletConnect() {
     const handleOpenCheeseAmp = () => {
       if (isConnected) {
         setCheeseAmpOpen(true);
-        setCheeseAmpMinimized(false);
       } else {
         setOpen(true);
       }
@@ -90,10 +88,7 @@ export function WalletConnect() {
             <Send className="mr-2 h-4 w-4" />
             Wallet
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => {
-            setCheeseAmpOpen(true);
-            setCheeseAmpMinimized(false);
-          }} className="cursor-pointer">
+          <DropdownMenuItem onClick={() => setCheeseAmpOpen(true)} className="cursor-pointer">
             <Music2 className="mr-2 h-4 w-4" />
             <span><span className="text-cheese">CHEESE</span>Amp</span>
           </DropdownMenuItem>
@@ -107,12 +102,8 @@ export function WalletConnect() {
       <WalletTransferDialog open={walletOpen} onOpenChange={setWalletOpen} />
       <CheeseAmpDialog 
         open={cheeseAmpOpen} 
-        onOpenChange={(open) => {
-          setCheeseAmpOpen(open);
-          if (!open) setCheeseAmpMinimized(false);
-        }}
-        onMinimize={() => setCheeseAmpMinimized(true)}
-        minimized={cheeseAmpMinimized}
+        onOpenChange={setCheeseAmpOpen} 
+        onMinimize={() => setCheeseAmpOpen(false)} 
       />
     </>
     );

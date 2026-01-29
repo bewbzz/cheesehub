@@ -1,133 +1,68 @@
 
+# Fix: Prevent Sample Tracks from Hiding Full Tracks in CHEESEAmp
 
-# Add Minimal Floating Mini Player Bar for CHEESEAmp
+## Problem
 
-## Overview
+The CHARLY RELEASE shows only the 1-minute sample instead of the full track. This is caused by the stacking logic that groups NFTs by `template_id` alone.
 
-Create a compact floating bar in the lower-right corner that appears when CHEESEAmp is minimized. The mini player will be a simple horizontal bar with essential playback controls only - no album art, no video display.
+When an artist mints both a sample/clip AND a full track under the same template (or with the same template_id), the current stacking logic:
 
-## Visual Design
+1. Groups them together
+2. Picks the **lowest mint number** as the representative
+3. Hides the higher mint - which could be the full track
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              Main Website Content                             │
-│                                                                               │
-│                                                                               │
-│                                                                               │
-│           ┌────────────────────────────────────────────────────────┐         │
-│           │ 🧀 Track Title - Artist    ◀◀  ▶  ▶▶  0:45/3:21  ↗  ✕ │         │
-│           └────────────────────────────────────────────────────────┘         │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                                      ↑ Fixed bottom-right
-```
+## Solution
 
-**Desktop**: Compact bar (~320px wide) in lower-right corner
-**Mobile**: Full-width bar at bottom of screen
+Update the stacking key to differentiate tracks by their actual audio content, not just template_id. NFTs with different audio URLs should NOT be stacked together, even if they share the same template.
 
-## Mini Player Contents
+## Technical Changes
 
-| Element | Description |
-|---------|-------------|
-| CHEESE logo | Small branding (cheese emoji or icon) |
-| Track info | Title and artist, truncated if needed |
-| Previous | Skip to previous track |
-| Play/Pause | Toggle playback |
-| Next | Skip to next track |
-| Time | Current position / duration |
-| Expand | Button to reopen full CHEESEAmp dialog |
-| Close | Stop music and dismiss mini player |
+### File: `src/hooks/useMusicNFTs.ts`
 
-## Files to Create/Modify
+**Update the stacking key** from:
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/music/CheeseAmpMiniPlayer.tsx` | **Create** | New minimal bar component |
-| `src/components/WalletConnect.tsx` | Modify | Add minimized state and render mini player |
-
-## Technical Implementation
-
-### 1. CheeseAmpMiniPlayer.tsx (New File)
-
-A simple horizontal bar that:
-- Subscribes to `getAudioPlayer()` for playback state
-- Uses `audioPlayer.getCurrentTrack()` to display track info
-- Provides prev/play-pause/next controls
-- Has expand button to reopen full dialog
-- Has close button to stop music entirely
-- Uses `useIsMobile()` for responsive layout
-
-**Styling:**
-- `fixed bottom-4 right-4 z-50` (desktop)
-- `fixed bottom-0 left-0 right-0 z-50` (mobile)
-- Semi-transparent background with backdrop blur
-- Cheese-themed border accent
-
-### 2. WalletConnect.tsx Modifications
-
-**New State:**
 ```typescript
-const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
+const key = nft.template_id || nft.asset_id;
 ```
 
-**Updated Handlers:**
-- `handleMinimize`: Close dialog, show mini player
-- `handleExpand`: Hide mini player, open dialog
-- `handleMiniPlayerClose`: Stop audio, hide mini player
+**To:**
 
-**Updated Event Listener:**
-When CHEESEAmp menu item clicked while minimized, expand instead of opening fresh
-
-**Render Mini Player:**
 ```typescript
-{cheeseAmpMinimized && (
-  <CheeseAmpMiniPlayer
-    onExpand={handleExpand}
-    onClose={handleMiniPlayerClose}
-  />
-)}
+// Use template + audioUrl as key to prevent stacking tracks with different audio content
+// This ensures a sample and full track (same template, different audio) are shown separately
+const audioIdentifier = nft.audioUrl ? nft.audioUrl.slice(-32) : ''; // Last 32 chars of IPFS hash
+const key = (nft.template_id || nft.asset_id) + '_' + audioIdentifier;
 ```
 
-### 3. Skip Track Logic
+This means:
+- Same template + same audio = stacked (copies of the same track)
+- Same template + different audio = shown separately (sample vs full)
 
-The mini player needs to trigger next/previous. Two approaches:
+## Why This Works
 
-**Option A - Custom Events (Recommended):**
-Dispatch events that `useCheeseAmpAutoAdvance` can listen to:
+| Scenario | Old Key | New Key | Result |
+|----------|---------|---------|--------|
+| 2 copies of same track | `template123` | `template123_abc123` | Correctly stacked |
+| Sample + Full track (same template) | `template123` | `template123_sample` vs `template123_full` | Shown separately |
+| Different templates | `templateA` vs `templateB` | `templateA_xyz` vs `templateB_xyz` | Shown separately |
+
+## Additional Enhancement (Optional)
+
+Add a visual indicator to distinguish sample vs full tracks:
+
 ```typescript
-window.dispatchEvent(new CustomEvent('cheeseamp-next'));
-window.dispatchEvent(new CustomEvent('cheeseamp-previous'));
+// In MusicNFT interface
+isSample?: boolean; // True if audioUrl matches clipUrl
+
+// When creating NFT object
+isSample: allData.clip && allData.audio && allData.clip === allData.audio,
 ```
 
-Update `useCheeseAmpAutoAdvance.ts` to handle these events.
+This would allow showing a "Sample" badge in the UI.
 
-**Option B - Direct Playlist Access:**
-Import `useCheeseAmpPlaylist` in the mini player and call `playNext()`/`playPrevious()` directly.
+## Expected Outcome
 
-I'll use Option B since the mini player can access the same hooks.
-
-## Edge Cases
-
-| Scenario | Behavior |
-|----------|----------|
-| No track playing | Show "Nothing playing" or hide mini player |
-| Track ends | Auto-advance continues working via existing hook |
-| User logs out | Mini player closes automatically |
-| Click CHEESEAmp while minimized | Expands to full dialog (doesn't open second instance) |
-| Page navigation | Mini player persists (it's in the header which wraps all routes) |
-
-## Mobile Responsive Layout
-
-Using `useIsMobile()` hook:
-
-**Desktop:**
-```css
-fixed bottom-4 right-4 w-80
-```
-
-**Mobile:**
-```css
-fixed bottom-0 left-0 right-0 w-full px-2 pb-2
-```
-
-Mobile will have larger touch targets (44-48px buttons) and a simpler single-row layout.
-
+After this fix:
+- CHARLY RELEASE will show BOTH the sample AND the full track as separate entries
+- Users can choose which version to play
+- Stacking still works correctly for true duplicates (same template AND same audio)

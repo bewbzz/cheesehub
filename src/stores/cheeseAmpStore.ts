@@ -5,7 +5,7 @@ interface CheeseAmpState {
   setMinimized: (minimized: boolean) => void;
 }
 
-export const useCheeseAmpStore = create<CheeseAmpState>((set) => ({
+export const useCheeseAmpStore = create<CheeseAmpState>()((set) => ({
   isMinimized: false,
   setMinimized: (minimized) => set({ isMinimized: minimized }),
 }));

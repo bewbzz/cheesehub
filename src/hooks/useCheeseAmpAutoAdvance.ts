@@ -123,6 +123,64 @@ export function useCheeseAmpAutoAdvance(accountName: string | null) {
     return tracks[nextIndex];
   }, [accountName, stackedNfts]);
 
+  // Get the previous track based on current settings
+  const getPreviousTrack = useCallback((): StackedMusicNFT | null => {
+    if (!accountName || stackedNfts.length === 0) return null;
+    
+    const audioPlayer = getAudioPlayer();
+    const currentTrack = audioPlayer.getCurrentTrack();
+    if (!currentTrack) return null;
+    
+    const settings = loadSettings(accountName);
+    
+    // Get the current playlist tracks
+    let tracks: StackedMusicNFT[];
+    if (settings.currentPlaylistId === 'library') {
+      tracks = stackedNfts;
+    } else {
+      const playlist = settings.playlists.find(p => p.id === settings.currentPlaylistId);
+      if (!playlist) {
+        tracks = stackedNfts;
+      } else {
+        tracks = playlist.trackIds
+          .map(id => stackedNfts.find(t => t.asset_id === id))
+          .filter((t): t is StackedMusicNFT => t !== undefined);
+      }
+    }
+    
+    if (tracks.length === 0) return null;
+    
+    // Find current index
+    const currentIndex = tracks.findIndex(t => t.asset_id === currentTrack.asset_id);
+    if (currentIndex === -1) return null;
+    
+    // Handle shuffle
+    if (settings.shuffle && shuffleOrderRef.current.length === tracks.length) {
+      const shuffleIndex = shuffleOrderRef.current.indexOf(currentIndex);
+      const prevShuffleIndex = shuffleIndex - 1;
+      
+      if (prevShuffleIndex < 0) {
+        if (settings.repeat === 'all') {
+          return tracks[shuffleOrderRef.current[tracks.length - 1]];
+        }
+        return tracks[shuffleOrderRef.current[0]]; // Stay at first
+      }
+      
+      return tracks[shuffleOrderRef.current[prevShuffleIndex]];
+    }
+    
+    // Normal sequential playback
+    const prevIndex = currentIndex - 1;
+    if (prevIndex < 0) {
+      if (settings.repeat === 'all') {
+        return tracks[tracks.length - 1];
+      }
+      return tracks[0]; // Stay at first track
+    }
+    
+    return tracks[prevIndex];
+  }, [accountName, stackedNfts]);
+
   // Subscribe to track end events
   useEffect(() => {
     if (!accountName) return;
@@ -138,4 +196,33 @@ export function useCheeseAmpAutoAdvance(accountName: string | null) {
     
     return unsubscribe;
   }, [accountName, getNextTrack]);
+
+  // Listen for skip next/previous events from mini player
+  useEffect(() => {
+    if (!accountName) return;
+    
+    const audioPlayer = getAudioPlayer();
+    
+    const handleSkipNext = () => {
+      const nextTrack = getNextTrack();
+      if (nextTrack) {
+        audioPlayer.play(nextTrack).catch(console.error);
+      }
+    };
+    
+    const handleSkipPrevious = () => {
+      const prevTrack = getPreviousTrack();
+      if (prevTrack) {
+        audioPlayer.play(prevTrack).catch(console.error);
+      }
+    };
+    
+    window.addEventListener('cheeseamp-skip-next', handleSkipNext);
+    window.addEventListener('cheeseamp-skip-previous', handleSkipPrevious);
+    
+    return () => {
+      window.removeEventListener('cheeseamp-skip-next', handleSkipNext);
+      window.removeEventListener('cheeseamp-skip-previous', handleSkipPrevious);
+    };
+  }, [accountName, getNextTrack, getPreviousTrack]);
 }

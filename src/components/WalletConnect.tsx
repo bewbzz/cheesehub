@@ -20,13 +20,16 @@ import {
 import cheeseLogo from "@/assets/cheese-logo.png";
 import { WalletTransferDialog } from "./WalletTransferDialog";
 import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
+import { CheeseAmpMiniPlayer } from "./music/CheeseAmpMiniPlayer";
 import { useCheeseAmpAutoAdvance } from "@/hooks/useCheeseAmpAutoAdvance";
+import { getAudioPlayer } from "@/lib/musicPlayer";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
+  const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
 
   // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
   useCheeseAmpAutoAdvance(accountName);
@@ -48,13 +51,26 @@ export function WalletConnect() {
   useEffect(() => {
     const handleOpenCheeseAmp = () => {
       if (isConnected) {
-        setCheeseAmpOpen(true);
+        // If minimized, expand instead of opening fresh
+        if (cheeseAmpMinimized) {
+          setCheeseAmpMinimized(false);
+          setCheeseAmpOpen(true);
+        } else {
+          setCheeseAmpOpen(true);
+        }
       } else {
         setOpen(true);
       }
     };
     window.addEventListener('open-cheese-amp', handleOpenCheeseAmp);
     return () => window.removeEventListener('open-cheese-amp', handleOpenCheeseAmp);
+  }, [isConnected, cheeseAmpMinimized]);
+
+  // Close mini player when user logs out
+  useEffect(() => {
+    if (!isConnected) {
+      setCheeseAmpMinimized(false);
+    }
   }, [isConnected]);
 
   const handleLogin = async () => {
@@ -66,6 +82,21 @@ export function WalletConnect() {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     await login();
+  };
+
+  const handleCheeseAmpMinimize = () => {
+    setCheeseAmpOpen(false);
+    setCheeseAmpMinimized(true);
+  };
+
+  const handleCheeseAmpExpand = () => {
+    setCheeseAmpMinimized(false);
+    setCheeseAmpOpen(true);
+  };
+
+  const handleMiniPlayerClose = () => {
+    getAudioPlayer().stop();
+    setCheeseAmpMinimized(false);
   };
 
   if (isConnected && accountName) {
@@ -88,7 +119,16 @@ export function WalletConnect() {
             <Send className="mr-2 h-4 w-4" />
             Wallet
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setCheeseAmpOpen(true)} className="cursor-pointer">
+          <DropdownMenuItem 
+            onClick={() => {
+              if (cheeseAmpMinimized) {
+                handleCheeseAmpExpand();
+              } else {
+                setCheeseAmpOpen(true);
+              }
+            }} 
+            className="cursor-pointer"
+          >
             <Music2 className="mr-2 h-4 w-4" />
             <span><span className="text-cheese">CHEESE</span>Amp</span>
           </DropdownMenuItem>
@@ -103,8 +143,14 @@ export function WalletConnect() {
       <CheeseAmpDialog 
         open={cheeseAmpOpen} 
         onOpenChange={setCheeseAmpOpen} 
-        onMinimize={() => setCheeseAmpOpen(false)} 
+        onMinimize={handleCheeseAmpMinimize} 
       />
+      {cheeseAmpMinimized && (
+        <CheeseAmpMiniPlayer
+          onExpand={handleCheeseAmpExpand}
+          onClose={handleMiniPlayerClose}
+        />
+      )}
     </>
     );
   }

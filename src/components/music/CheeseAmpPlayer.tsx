@@ -5,6 +5,7 @@ import { useCheeseAmpPlaylist } from '@/hooks/useCheeseAmpPlaylist';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import {
@@ -493,6 +494,20 @@ export function CheeseAmpPlayer() {
                 <ListMusic className="h-3 w-3 mr-1" />
                 Playlists
               </Button>
+              
+              {/* Spacer */}
+              <div className="flex-1" />
+              
+              {/* Shuffle Toggle */}
+              <div className="flex items-center gap-2">
+                <Shuffle className={cn("h-3.5 w-3.5", playlist.shuffle ? "text-cheese" : "text-muted-foreground")} />
+                <span className={cn("text-xs", playlist.shuffle ? "text-foreground" : "text-muted-foreground")}>Shuffle</span>
+                <Switch
+                  checked={playlist.shuffle}
+                  onCheckedChange={playlist.toggleShuffle}
+                  className="data-[state=checked]:bg-cheese"
+                />
+              </div>
               {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
                 <Button
                   variant="secondary"

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, SkipBack, SkipForward, Maximize2, X } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Play, Pause, SkipBack, SkipForward, Maximize2, X, Volume2, VolumeX } from 'lucide-react';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import cheeseLogo from '@/assets/cheese-logo.png';
@@ -59,6 +60,14 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
     getAudioPlayer().stop();
     onClose();
   }, [onClose]);
+
+  const handleVolumeChange = useCallback((value: number[]) => {
+    getAudioPlayer().setVolume(value[0]);
+  }, []);
+
+  const handleMuteToggle = useCallback(() => {
+    getAudioPlayer().toggleMute();
+  }, []);
 
   // Don't render if no track is loaded
   if (!currentTrack) {
@@ -124,6 +133,33 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
         >
           <SkipForward className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Volume control */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-white hover:text-cheese hover:bg-white/10"
+          onClick={handleMuteToggle}
+          aria-label={playbackState.isMuted ? "Unmute" : "Mute"}
+        >
+          {playbackState.isMuted || playbackState.volume === 0 ? (
+            <VolumeX className="h-4 w-4" />
+          ) : (
+            <Volume2 className="h-4 w-4" />
+          )}
+        </Button>
+        {!isMobile && (
+          <Slider
+            value={[playbackState.isMuted ? 0 : playbackState.volume]}
+            max={1}
+            step={0.01}
+            onValueChange={handleVolumeChange}
+            className="w-16"
+            aria-label="Volume"
+          />
+        )}
       </div>
 
       {/* Time display - hide on very small screens */}

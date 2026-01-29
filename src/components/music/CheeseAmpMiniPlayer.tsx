@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, SkipBack, SkipForward, Maximize2, X } from 'lucide-react';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 interface CheeseAmpMiniPlayerProps {
@@ -69,34 +69,50 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
   const artistName = currentTrack.artist || 'Unknown Artist';
   const displayText = `${trackTitle} - ${artistName}`;
 
-  return (
+  const miniPlayer = (
     <div
-      className={cn(
-        "fixed z-50 flex items-center gap-2 px-3 py-2",
-        "bg-background/50 backdrop-blur-sm",
-        "border border-cheese/30 rounded-lg",
-        "shadow-lg shadow-cheese/10",
-        isMobile
-          ? "bottom-0 left-0 right-0 mx-2 mb-2 rounded-lg"
-          : "bottom-4 right-4 w-80"
-      )}
+      style={{
+        position: 'fixed',
+        bottom: isMobile ? '8px' : '16px',
+        right: isMobile ? '8px' : '16px',
+        left: isMobile ? '8px' : 'auto',
+        width: isMobile ? 'auto' : '320px',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 12px',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 193, 7, 0.3)',
+        borderRadius: '8px',
+        boxShadow: '0 4px 20px rgba(255, 193, 7, 0.1)',
+      }}
     >
       {/* CHEESE branding */}
-      <img src={cheeseLogo} alt="CHEESE" className="h-5 w-5 flex-shrink-0" />
+      <img src={cheeseLogo} alt="CHEESE" style={{ height: '20px', width: '20px', flexShrink: 0 }} />
 
       {/* Track info - truncated */}
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <p className="text-sm font-medium truncate text-foreground">
+      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <p style={{ 
+          fontSize: '14px', 
+          fontWeight: 500, 
+          whiteSpace: 'nowrap', 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis',
+          color: 'white',
+          margin: 0,
+        }}>
           {displayText}
         </p>
       </div>
 
       {/* Transport controls */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 text-white hover:text-cheese hover:bg-white/10"
           onClick={handlePrevious}
           aria-label="Previous track"
         >
@@ -106,7 +122,7 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 text-white hover:text-cheese hover:bg-white/10"
           onClick={handlePlayPause}
           aria-label={playbackState.isPlaying ? "Pause" : "Play"}
         >
@@ -120,7 +136,7 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 text-white hover:text-cheese hover:bg-white/10"
           onClick={handleNext}
           aria-label="Next track"
         >
@@ -129,15 +145,17 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
       </div>
 
       {/* Time display - hide on very small screens */}
-      <span className="text-xs text-muted-foreground flex-shrink-0 hidden sm:block">
-        {formatTime(playbackState.currentTime)}/{formatTime(playbackState.duration)}
-      </span>
+      {!isMobile && (
+        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}>
+          {formatTime(playbackState.currentTime)}/{formatTime(playbackState.duration)}
+        </span>
+      )}
 
       {/* Expand button */}
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 flex-shrink-0"
+        className="h-8 w-8 text-white hover:text-cheese hover:bg-white/10"
         onClick={onExpand}
         aria-label="Expand player"
       >
@@ -148,7 +166,7 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+        className="h-8 w-8 text-white/70 hover:text-red-400 hover:bg-white/10"
         onClick={handleClose}
         aria-label="Close player"
       >
@@ -156,4 +174,7 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
       </Button>
     </div>
   );
+
+  // Use portal to render at document body level, ensuring correct positioning
+  return createPortal(miniPlayer, document.body);
 }

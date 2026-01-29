@@ -352,7 +352,7 @@ export function ManageStakableAssets({ farm, onSuccess }: ManageStakableAssetsPr
           Manage Stakable Assets
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-primary" />

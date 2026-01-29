@@ -34,7 +34,10 @@ function stackMusicNFTs(nfts: MusicNFT[]): StackedMusicNFT[] {
   
   // Group by template_id (same template = same song)
   for (const nft of nfts) {
-    const key = nft.template_id || nft.asset_id; // Fallback to asset_id if no template
+    // Use template + audioUrl as key to prevent stacking tracks with different audio content
+    // This ensures a sample and full track (same template, different audio) are shown separately
+    const audioIdentifier = nft.audioUrl ? nft.audioUrl.slice(-32) : ''; // Last 32 chars of IPFS hash
+    const key = (nft.template_id || nft.asset_id) + '_' + audioIdentifier;
     const existing = templateMap.get(key) || [];
     existing.push(nft);
     templateMap.set(key, existing);

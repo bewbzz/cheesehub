@@ -1,134 +1,133 @@
 
-# Fix Template Values Action Structure
 
-## Problem
+# Add Minimal Floating Mini Player Bar for CHEESEAmp
 
-The error `Encoding error at root<settmpvalues>.values<TEMPLATE_REWARD[]>.0.collection_name<name>: Found undefined for non-optional type` indicates that the WaxDAO V2 contract now requires `collection_name` as a mandatory field in the `TEMPLATE_REWARD` struct, but the current implementation only sends `template_id` and `hourly_rewards`.
+## Overview
 
-## Root Cause
+Create a compact floating bar in the lower-right corner that appears when CHEESEAmp is minimized. The mini player will be a simple horizontal bar with essential playback controls only - no album art, no video display.
 
-The `buildSetTemplateValuesAction` function in `src/lib/farm.ts` builds a values array without the required `collection_name`:
+## Visual Design
 
-```typescript
-// Current (broken)
-values: [{
-  template_id: templateId,
-  hourly_rewards: [...]  // Missing collection_name!
-}]
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              Main Website Content                             │
+│                                                                               │
+│                                                                               │
+│                                                                               │
+│           ┌────────────────────────────────────────────────────────┐         │
+│           │ 🧀 Track Title - Artist    ◀◀  ▶  ▶▶  0:45/3:21  ↗  ✕ │         │
+│           └────────────────────────────────────────────────────────┘         │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                                      ↑ Fixed bottom-right
 ```
 
-The WaxDAO contract expects:
+**Desktop**: Compact bar (~320px wide) in lower-right corner
+**Mobile**: Full-width bar at bottom of screen
 
+## Mini Player Contents
+
+| Element | Description |
+|---------|-------------|
+| CHEESE logo | Small branding (cheese emoji or icon) |
+| Track info | Title and artist, truncated if needed |
+| Previous | Skip to previous track |
+| Play/Pause | Toggle playback |
+| Next | Skip to next track |
+| Time | Current position / duration |
+| Expand | Button to reopen full CHEESEAmp dialog |
+| Close | Stop music and dismiss mini player |
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/music/CheeseAmpMiniPlayer.tsx` | **Create** | New minimal bar component |
+| `src/components/WalletConnect.tsx` | Modify | Add minimized state and render mini player |
+
+## Technical Implementation
+
+### 1. CheeseAmpMiniPlayer.tsx (New File)
+
+A simple horizontal bar that:
+- Subscribes to `getAudioPlayer()` for playback state
+- Uses `audioPlayer.getCurrentTrack()` to display track info
+- Provides prev/play-pause/next controls
+- Has expand button to reopen full dialog
+- Has close button to stop music entirely
+- Uses `useIsMobile()` for responsive layout
+
+**Styling:**
+- `fixed bottom-4 right-4 z-50` (desktop)
+- `fixed bottom-0 left-0 right-0 z-50` (mobile)
+- Semi-transparent background with backdrop blur
+- Cheese-themed border accent
+
+### 2. WalletConnect.tsx Modifications
+
+**New State:**
 ```typescript
-// Expected by contract
-values: [{
-  template_id: templateId,
-  collection_name: "somecollection",  // Required!
-  hourly_rewards: [...]
-}]
+const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
 ```
 
-## Solution
+**Updated Handlers:**
+- `handleMinimize`: Close dialog, show mini player
+- `handleExpand`: Hide mini player, open dialog
+- `handleMiniPlayerClose`: Stop audio, hide mini player
 
-1. Update `buildSetTemplateValuesAction` in `src/lib/farm.ts` to accept a `collectionName` parameter
-2. Update `ManageStakableAssets.tsx` to:
-   - Show a collection name input field for template-based farms (type 2)
-   - Pass the collection name when calling `buildSetTemplateValuesAction`
-   - Validate that collection name is provided
+**Updated Event Listener:**
+When CHEESEAmp menu item clicked while minimized, expand instead of opening fresh
 
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/lib/farm.ts` | Add `collectionName` parameter to `buildSetTemplateValuesAction` |
-| `src/components/farm/ManageStakableAssets.tsx` | Add collection name input for template farms, pass to action builder |
-
-## Technical Details
-
-### 1. Update farm.ts (lines 265-287)
-
-Add `collectionName` as a required parameter:
-
+**Render Mini Player:**
 ```typescript
-export function buildSetTemplateValuesAction(
-  user: string,
-  farmname: string,
-  collectionName: string,  // New required parameter
-  templateId: number,
-  rewardValues: RewardValue[]
-) {
-  return {
-    account: FARM_CONTRACT,
-    name: "settmpvalues",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname,
-      values: [{
-        template_id: templateId,
-        collection_name: collectionName,  // Include in values
-        hourly_rewards: rewardValues.map(rv => ({
-          quantity: rv.quantity,
-          contract: rv.contract,
-        })),
-      }],
-    },
-  };
-}
+{cheeseAmpMinimized && (
+  <CheeseAmpMiniPlayer
+    onExpand={handleExpand}
+    onClose={handleMiniPlayerClose}
+  />
+)}
 ```
 
-### 2. Update ManageStakableAssets.tsx
+### 3. Skip Track Logic
 
-**Update validation (line 88-91):**
+The mini player needs to trigger next/previous. Two approaches:
+
+**Option A - Custom Events (Recommended):**
+Dispatch events that `useCheeseAmpAutoAdvance` can listen to:
 ```typescript
-if (farm.farm_type === 2 && (!templateId || !collectionName)) {
-  toast.error("Please enter template ID and collection name");
-  return;
-}
+window.dispatchEvent(new CustomEvent('cheeseamp-next'));
+window.dispatchEvent(new CustomEvent('cheeseamp-previous'));
 ```
 
-**Update form fields for template type (lines 294-306):**
-Add collection name input alongside template ID:
-```typescript
-case 2: // Templates
-  return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="collectionName">Collection Name</Label>
-        <Input
-          id="collectionName"
-          placeholder="e.g., cheesenfts111"
-          value={collectionName}
-          onChange={(e) => setCollectionName(e.target.value.toLowerCase())}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="templateId">Template ID</Label>
-        <Input
-          id="templateId"
-          type="number"
-          placeholder="e.g., 123456"
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
-        />
-      </div>
-    </>
-  );
+Update `useCheeseAmpAutoAdvance.ts` to handle these events.
+
+**Option B - Direct Playlist Access:**
+Import `useCheeseAmpPlaylist` in the mini player and call `playNext()`/`playPrevious()` directly.
+
+I'll use Option B since the mini player can access the same hooks.
+
+## Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| No track playing | Show "Nothing playing" or hide mini player |
+| Track ends | Auto-advance continues working via existing hook |
+| User logs out | Mini player closes automatically |
+| Click CHEESEAmp while minimized | Expands to full dialog (doesn't open second instance) |
+| Page navigation | Mini player persists (it's in the header which wraps all routes) |
+
+## Mobile Responsive Layout
+
+Using `useIsMobile()` hook:
+
+**Desktop:**
+```css
+fixed bottom-4 right-4 w-80
 ```
 
-**Update action call (lines 136-142):**
-```typescript
-case 2: // Templates
-  action = buildSetTemplateValuesAction(
-    accountName,
-    farm.farm_name,
-    collectionName,  // Pass collection name
-    parseInt(templateId),
-    rewardValues
-  );
-  break;
+**Mobile:**
+```css
+fixed bottom-0 left-0 right-0 w-full px-2 pb-2
 ```
 
-## Why This Happened
+Mobile will have larger touch targets (44-48px buttons) and a simpler single-row layout.
 
-The WaxDAO V2 contract structure requires templates to be associated with a collection for proper validation and indexing. This ensures the template actually belongs to the specified collection and enables better filtering/querying of stakable assets.

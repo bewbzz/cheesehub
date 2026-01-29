@@ -23,13 +23,14 @@ import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
 import { CheeseAmpMiniPlayer } from "./music/CheeseAmpMiniPlayer";
 import { useCheeseAmpAutoAdvance } from "@/hooks/useCheeseAmpAutoAdvance";
 import { getAudioPlayer } from "@/lib/musicPlayer";
+import { useCheeseAmpStore } from "@/stores/cheeseAmpStore";
 
 export function WalletConnect() {
   const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
-  const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
+  const { isMinimized: cheeseAmpMinimized, setMinimized: setCheeseAmpMinimized } = useCheeseAmpStore();
 
   // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
   useCheeseAmpAutoAdvance(accountName);

@@ -1,45 +1,62 @@
 
 
-# Simple Fix: Hide the Overlay When Minimized
+# Fix: DialogOverlay Not Being Hidden
 
-## The Problem
-The `DialogOverlay` (dark backdrop at line 35 in dialog.tsx) is always rendered and blocks all clicks. We're only hiding the content, not the overlay.
+## Problem
 
-## The Simple Fix
-Add `pointer-events-none` and `opacity-0` to the overlay when minimized. 
+The CSS selector `[&_[data-radix-dialog-overlay]]:hidden` doesn't work because the overlay is rendered inside a **Portal** that attaches directly to `document.body`, not as a child of our wrapper div.
 
-### Option 1: Quick CSS fix in CheeseAmpDialog (1 line change)
-Just target the overlay with a CSS selector on the wrapper:
+## Solution
 
-```tsx
-// CheeseAmpDialog.tsx - wrap the Dialog
-<div className={minimized ? "[&_[data-radix-dialog-overlay]]:hidden" : ""}>
-  <Dialog ...>
-```
+The simplest fix is to add an `overlayClassName` prop to `DialogContent` so we can pass styles directly to the overlay.
 
-### Option 2: Pass overlayClassName prop (cleaner)
-Modify dialog.tsx to accept an `overlayClassName` prop and pass it through.
-
----
-
-## Recommended: Option 1 (Fastest)
-
-Just wrap the Dialog in a div with a CSS selector that hides the overlay when minimized:
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/music/CheeseAmpDialog.tsx` | Wrap Dialog in div with overlay-hiding CSS |
+| `src/components/ui/dialog.tsx` | Add `overlayClassName` prop to DialogContent |
+| `src/components/music/CheeseAmpDialog.tsx` | Pass `overlayClassName="hidden"` when minimized |
 
-**One line wrap:**
-```tsx
-return (
-  <div className={minimized ? "[&_[data-radix-dialog-overlay]]:hidden" : ""}>
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {/* existing content */}
-    </Dialog>
-  </div>
-);
+---
+
+## Technical Details
+
+### 1. Modify dialog.tsx
+
+Update `DialogContent` to accept an optional `overlayClassName` prop and pass it to `DialogOverlay`:
+
+```typescript
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    overlayClassName?: string;
+  }
+>(({ className, children, overlayClassName, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay className={overlayClassName} />
+    <DialogPrimitive.Content ...>
 ```
 
-This uses Tailwind's child selector to target the Radix overlay by its data attribute and hide it when minimized.
+### 2. Update CheeseAmpDialog.tsx
+
+Remove the wrapper div and just pass the overlayClassName:
+
+```tsx
+<Dialog open={open} onOpenChange={handleOpenChange}>
+  <DialogContent 
+    className={cn(
+      "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
+      minimized && "opacity-0 pointer-events-none scale-95"
+    )}
+    overlayClassName={minimized ? "hidden" : ""}
+    onInteractOutside={(e) => e.preventDefault()}
+    onEscapeKeyDown={(e) => e.preventDefault()}
+  >
+```
+
+---
+
+## Why This Works
+
+By passing a className directly to the DialogOverlay component, we can control its visibility regardless of where it's portaled. When `minimized=true`, the overlay gets `hidden` class which uses `display: none`, completely removing it from view and pointer events.
 

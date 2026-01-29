@@ -34,10 +34,7 @@ function stackMusicNFTs(nfts: MusicNFT[]): StackedMusicNFT[] {
   
   // Group by template_id (same template = same song)
   for (const nft of nfts) {
-    // Use template + audioUrl as key to prevent stacking tracks with different audio content
-    // This ensures a sample and full track (same template, different audio) are shown separately
-    const audioIdentifier = nft.audioUrl ? nft.audioUrl.slice(-32) : ''; // Last 32 chars of IPFS hash
-    const key = (nft.template_id || nft.asset_id) + '_' + audioIdentifier;
+    const key = nft.template_id || nft.asset_id; // Fallback to asset_id if no template
     const existing = templateMap.get(key) || [];
     existing.push(nft);
     templateMap.set(key, existing);
@@ -73,7 +70,7 @@ const IPFS_GATEWAYS = [
   'https://dweb.link/ipfs/',
 ];
 
-const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_v2_';
+const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function extractIpfsHash(url: string | undefined): string | null {
@@ -126,70 +123,6 @@ function isMusicNFT(data: Record<string, unknown>): boolean {
   // Check for video with music metadata (music videos)
   if (data.video && (data.artist || data.title || data.album)) return true;
   return false;
-}
-
-// Helper to create MusicNFT entries from asset data - creates multiple entries if both audio and clip exist
-function createMusicNFTsFromAsset(asset: { asset_id: string; name?: string; collection?: { collection_name?: string }; schema?: { schema_name?: string }; template?: { template_id?: string; immutable_data?: Record<string, unknown> }; template_mint?: string }, allData: Record<string, unknown>): MusicNFT[] {
-  const results: MusicNFT[] = [];
-  const videoUrl = allData.video ? getMediaUrl(allData.video as string) : undefined;
-  const clipUrl = allData.clip ? getMediaUrl(allData.clip as string) : undefined;
-  const fullAudioUrl = allData.audio ? getMediaUrl(allData.audio as string) : undefined;
-  
-  const baseNFT = {
-    name: asset.name || (allData.name as string) || 'Untitled Track',
-    title: allData.title as string | undefined,
-    artist: allData.artist as string | undefined,
-    album: allData.album as string | undefined,
-    genre: allData.genre as string | undefined,
-    coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
-    backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
-    duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
-    collection: asset.collection?.collection_name || '',
-    schema: asset.schema?.schema_name || '',
-    template_id: asset.template?.template_id || '',
-    mint: asset.template_mint || '',
-  };
-
-  // Add full track entry if audio field exists
-  if (fullAudioUrl) {
-    results.push({
-      ...baseNFT,
-      asset_id: asset.asset_id,
-      audioUrl: fullAudioUrl,
-      clipUrl,
-      videoUrl,
-      hasVideo: !!videoUrl,
-    });
-  }
-
-  // Add clip entry - only label as "Sample" if BOTH audio and clip exist
-  if (clipUrl && clipUrl !== fullAudioUrl) {
-    // Only mark as sample if there's ALSO a full audio track
-    const isSample = !!fullAudioUrl;
-    results.push({
-      ...baseNFT,
-      asset_id: isSample ? `${asset.asset_id}-clip` : asset.asset_id,
-      audioUrl: clipUrl,
-      clipUrl: undefined, // This IS the clip
-      videoUrl: isSample ? undefined : videoUrl,
-      hasVideo: isSample ? false : !!videoUrl,
-      name: isSample ? `${baseNFT.name} (Sample)` : baseNFT.name,
-    });
-  }
-
-  // Fallback: if no audio and no clip, try video with music metadata
-  if (results.length === 0 && videoUrl && (allData.artist || allData.title)) {
-    results.push({
-      ...baseNFT,
-      asset_id: asset.asset_id,
-      audioUrl: videoUrl,
-      clipUrl,
-      videoUrl,
-      hasVideo: true,
-    });
-  }
-
-  return results;
 }
 
 function getCachedMusicNFTs(owner: string): CachedMusicData | null {
@@ -334,7 +267,27 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
               const allData = { ...templateData, ...immutableData, ...mutableData };
               
               if (isMusicNFT(allData)) {
-                musicNfts.push(...createMusicNFTsFromAsset(asset, allData));
+                const videoUrl = allData.video ? getMediaUrl(allData.video as string) : undefined;
+                const clipUrl = allData.clip ? getMediaUrl(allData.clip as string) : undefined;
+                musicNfts.push({
+                  asset_id: asset.asset_id,
+                  name: asset.name || allData.name || 'Untitled Track',
+                  title: allData.title as string | undefined,
+                  artist: allData.artist as string | undefined,
+                  album: allData.album as string | undefined,
+                  genre: allData.genre as string | undefined,
+                  audioUrl: getMediaUrl((allData.audio || allData.clip || allData.video) as string | undefined),
+                  clipUrl,
+                  videoUrl,
+                  hasVideo: !!(videoUrl || clipUrl),
+                  coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
+                  backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
+                  duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
+                  collection: asset.collection?.collection_name || '',
+                  schema: asset.schema?.schema_name || '',
+                  template_id: asset.template?.template_id || '',
+                  mint: asset.template_mint || '',
+                });
               }
             }
             
@@ -387,7 +340,27 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
       const allData = { ...templateData, ...immutableData, ...mutableData };
       
       if (isMusicNFT(allData)) {
-        musicNfts.push(...createMusicNFTsFromAsset(asset, allData));
+        const videoUrl = allData.video ? getMediaUrl(allData.video as string) : undefined;
+        const clipUrl = allData.clip ? getMediaUrl(allData.clip as string) : undefined;
+        musicNfts.push({
+          asset_id: asset.asset_id,
+          name: asset.name || allData.name || 'Untitled Track',
+          title: allData.title as string | undefined,
+          artist: allData.artist as string | undefined,
+          album: allData.album as string | undefined,
+          genre: allData.genre as string | undefined,
+          audioUrl: getMediaUrl((allData.audio || allData.clip || allData.video) as string | undefined),
+          clipUrl,
+          videoUrl,
+          hasVideo: !!(videoUrl || clipUrl),
+          coverArt: getMediaUrl((allData.img || allData.image) as string | undefined),
+          backCover: allData.backimg ? getMediaUrl(allData.backimg as string) : undefined,
+          duration: allData.duration ? parseInt(String(allData.duration)) : undefined,
+          collection: asset.collection?.collection_name || '',
+          schema: asset.schema?.schema_name || '',
+          template_id: asset.template?.template_id || '',
+          mint: asset.template_mint || '',
+        });
       }
     }
 
@@ -461,9 +434,7 @@ export function useMusicNFTs() {
 
       for (const pageResult of firstPages) {
         for (const nft of pageResult.musicNfts) {
-          // Strip -clip suffix to check real asset ownership
-          const realAssetId = nft.asset_id.replace(/-clip$/, '');
-          if (ownedAssetIds.has(realAssetId) && !fetchedAssetIds.has(nft.asset_id)) {
+          if (ownedAssetIds.has(nft.asset_id) && !fetchedAssetIds.has(nft.asset_id)) {
             fetchedAssetIds.add(nft.asset_id);
             allMusicNfts.push(nft);
           }
@@ -497,9 +468,7 @@ export function useMusicNFTs() {
           let foundAny = false;
           for (const result of results) {
             for (const nft of result.musicNfts) {
-              // Strip -clip suffix to check real asset ownership
-              const realAssetId = nft.asset_id.replace(/-clip$/, '');
-              if (ownedAssetIds.has(realAssetId) && !fetchedAssetIds.has(nft.asset_id)) {
+              if (ownedAssetIds.has(nft.asset_id) && !fetchedAssetIds.has(nft.asset_id)) {
                 fetchedAssetIds.add(nft.asset_id);
                 allMusicNfts.push(nft);
                 foundAny = true;

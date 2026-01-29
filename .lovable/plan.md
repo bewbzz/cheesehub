@@ -1,99 +1,133 @@
 
-# Fix: Properly Handle NFTs with Only Clip Field (No Audio)
 
-## Problem Identified
+# Add Minimal Floating Mini Player Bar for CHEESEAmp
 
-The current logic labels ALL tracks from the `clip` field as "(Sample)" - even when `clip` is the ONLY audio source. This means:
+## Overview
 
-- If NFT has `audio` + `clip` (different) → works correctly: 2 entries
-- If NFT has ONLY `audio` → works correctly: 1 entry (full track)
-- If NFT has ONLY `clip` → **BUG**: 1 entry labeled "(Sample)" when it should be the main track
+Create a compact floating bar in the lower-right corner that appears when CHEESEAmp is minimized. The mini player will be a simple horizontal bar with essential playback controls only - no album art, no video display.
 
-For the CHARLY RELEASE and "Fly High My Polow" NFTs, the likely scenario is that these NFTs:
-- Have no `audio` field OR an empty `audio` field
-- Only have a `clip` field
-- The code creates an entry with "(Sample)" suffix incorrectly
-
-## Root Cause
+## Visual Design
 
 ```text
-Line 165-176: Creates sample entry when clip !== audio
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              Main Website Content                             │
+│                                                                               │
+│                                                                               │
+│                                                                               │
+│           ┌────────────────────────────────────────────────────────┐         │
+│           │ 🧀 Track Title - Artist    ◀◀  ▶  ▶▶  0:45/3:21  ↗  ✕ │         │
+│           └────────────────────────────────────────────────────────┘         │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                                      ↑ Fixed bottom-right
 ```
 
-When `audio` is undefined/empty and only `clip` exists:
-- `fullAudioUrl` = undefined
-- `clipUrl !== fullAudioUrl` = true (since clip !== undefined)
-- Creates entry with "(Sample)" suffix
+**Desktop**: Compact bar (~320px wide) in lower-right corner
+**Mobile**: Full-width bar at bottom of screen
 
-## Solution
+## Mini Player Contents
 
-Change the logic to only label tracks as "(Sample)" when BOTH `audio` AND `clip` exist with different content. If only `clip` exists (no `audio`), treat it as the main track without the sample label.
+| Element | Description |
+|---------|-------------|
+| CHEESE logo | Small branding (cheese emoji or icon) |
+| Track info | Title and artist, truncated if needed |
+| Previous | Skip to previous track |
+| Play/Pause | Toggle playback |
+| Next | Skip to next track |
+| Time | Current position / duration |
+| Expand | Button to reopen full CHEESEAmp dialog |
+| Close | Stop music and dismiss mini player |
 
-## Technical Changes
+## Files to Create/Modify
 
-### File: `src/hooks/useMusicNFTs.ts`
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/music/CheeseAmpMiniPlayer.tsx` | **Create** | New minimal bar component |
+| `src/components/WalletConnect.tsx` | Modify | Add minimized state and render mini player |
 
-Update `createMusicNFTsFromAsset` function:
+## Technical Implementation
 
+### 1. CheeseAmpMiniPlayer.tsx (New File)
+
+A simple horizontal bar that:
+- Subscribes to `getAudioPlayer()` for playback state
+- Uses `audioPlayer.getCurrentTrack()` to display track info
+- Provides prev/play-pause/next controls
+- Has expand button to reopen full dialog
+- Has close button to stop music entirely
+- Uses `useIsMobile()` for responsive layout
+
+**Styling:**
+- `fixed bottom-4 right-4 z-50` (desktop)
+- `fixed bottom-0 left-0 right-0 z-50` (mobile)
+- Semi-transparent background with backdrop blur
+- Cheese-themed border accent
+
+### 2. WalletConnect.tsx Modifications
+
+**New State:**
 ```typescript
-// Add full track entry if audio field exists
-if (fullAudioUrl) {
-  results.push({
-    ...baseNFT,
-    asset_id: asset.asset_id,
-    audioUrl: fullAudioUrl,
-    clipUrl,
-    videoUrl,
-    hasVideo: !!videoUrl,
-  });
-}
-
-// Add clip entry - only label as "Sample" if BOTH audio and clip exist
-if (clipUrl && clipUrl !== fullAudioUrl) {
-  // Only mark as sample if there's ALSO a full audio track
-  const isSample = !!fullAudioUrl;
-  results.push({
-    ...baseNFT,
-    asset_id: isSample ? `${asset.asset_id}-clip` : asset.asset_id,
-    audioUrl: clipUrl,
-    clipUrl: undefined,
-    videoUrl: isSample ? undefined : videoUrl,
-    hasVideo: isSample ? false : !!videoUrl,
-    name: isSample ? `${baseNFT.name} (Sample)` : baseNFT.name,
-  });
-}
+const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
 ```
 
-## Additional Fix: Clear Stale Cache
+**Updated Handlers:**
+- `handleMinimize`: Close dialog, show mini player
+- `handleExpand`: Hide mini player, open dialog
+- `handleMiniPlayerClose`: Stop audio, hide mini player
 
-Since the user already has cached data from before the fix, we should also invalidate the cache. Two options:
+**Updated Event Listener:**
+When CHEESEAmp menu item clicked while minimized, expand instead of opening fresh
 
-1. **Change cache key version** - Add a version number to force re-fetch
-2. **User action** - Have user clear browser storage
-
-I recommend option 1 to ensure all users get fresh data.
-
-Update cache key:
+**Render Mini Player:**
 ```typescript
-const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_v2_'; // Changed from v1
+{cheeseAmpMinimized && (
+  <CheeseAmpMiniPlayer
+    onExpand={handleExpand}
+    onClose={handleMiniPlayerClose}
+  />
+)}
 ```
 
-## Expected Outcome
+### 3. Skip Track Logic
 
-| NFT Metadata | Before Fix | After Fix |
-|-------------|------------|-----------|
-| Has `audio` only | 1 entry (full) | 1 entry (full) ✓ |
-| Has `clip` only | 1 entry labeled "(Sample)" ❌ | 1 entry (main track) ✓ |
-| Has both `audio` + `clip` | 2 entries (full + sample) | 2 entries (full + sample) ✓ |
+The mini player needs to trigger next/previous. Two approaches:
 
-After this fix:
-- CHARLY RELEASE will show full track (not labeled as sample)
-- "Fly High My Polow" will show correctly
-- NFTs with both versions will show both entries correctly
-- Cache will be invalidated so fresh data loads immediately
+**Option A - Custom Events (Recommended):**
+Dispatch events that `useCheeseAmpAutoAdvance` can listen to:
+```typescript
+window.dispatchEvent(new CustomEvent('cheeseamp-next'));
+window.dispatchEvent(new CustomEvent('cheeseamp-previous'));
+```
 
-## Files to Modify
+Update `useCheeseAmpAutoAdvance.ts` to handle these events.
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useMusicNFTs.ts` | Fix sample labeling logic, bump cache version |
+**Option B - Direct Playlist Access:**
+Import `useCheeseAmpPlaylist` in the mini player and call `playNext()`/`playPrevious()` directly.
+
+I'll use Option B since the mini player can access the same hooks.
+
+## Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| No track playing | Show "Nothing playing" or hide mini player |
+| Track ends | Auto-advance continues working via existing hook |
+| User logs out | Mini player closes automatically |
+| Click CHEESEAmp while minimized | Expands to full dialog (doesn't open second instance) |
+| Page navigation | Mini player persists (it's in the header which wraps all routes) |
+
+## Mobile Responsive Layout
+
+Using `useIsMobile()` hook:
+
+**Desktop:**
+```css
+fixed bottom-4 right-4 w-80
+```
+
+**Mobile:**
+```css
+fixed bottom-0 left-0 right-0 w-full px-2 pb-2
+```
+
+Mobile will have larger touch targets (44-48px buttons) and a simpler single-row layout.
+

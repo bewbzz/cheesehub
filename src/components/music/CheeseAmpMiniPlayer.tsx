@@ -65,10 +65,6 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
     return null;
   }
 
-  const trackTitle = currentTrack.title || currentTrack.name || 'Unknown Track';
-  const artistName = currentTrack.artist || 'Unknown Artist';
-  const displayText = `${trackTitle} - ${artistName}`;
-
   const miniPlayer = (
     <div
       style={{
@@ -92,20 +88,6 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
       {/* CHEESE branding */}
       <img src={cheeseLogo} alt="CHEESE" style={{ height: '20px', width: '20px', flexShrink: 0 }} />
 
-      {/* Track info - truncated */}
-      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <p style={{ 
-          fontSize: '14px', 
-          fontWeight: 500, 
-          whiteSpace: 'nowrap', 
-          overflow: 'hidden', 
-          textOverflow: 'ellipsis',
-          color: 'white',
-          margin: 0,
-        }}>
-          {displayText}
-        </p>
-      </div>
 
       {/* Transport controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>

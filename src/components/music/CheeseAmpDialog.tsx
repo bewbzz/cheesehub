@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,17 +18,34 @@ interface CheeseAmpDialogProps {
 }
 
 export function CheeseAmpDialog({ open, onOpenChange, onMinimize }: CheeseAmpDialogProps) {
+  // Track if we're minimizing to prevent stopping music
+  const isMinimizingRef = useRef(false);
+
   const handleClose = () => {
     getAudioPlayer().stop();
     onOpenChange(false);
   };
 
   const handleMinimize = () => {
+    isMinimizingRef.current = true;
     onMinimize?.();
+    // Reset after a tick
+    setTimeout(() => {
+      isMinimizingRef.current = false;
+    }, 100);
+  };
+
+  // Only stop music when explicitly closing (X button), not when minimizing
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && !isMinimizingRef.current) {
+      // Dialog is closing and NOT minimizing - stop the music
+      getAudioPlayer().stop();
+    }
+    onOpenChange(newOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden"
         onInteractOutside={(e) => e.preventDefault()}

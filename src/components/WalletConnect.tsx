@@ -30,7 +30,8 @@ export function WalletConnect() {
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
-  const { isMinimized: cheeseAmpMinimized, setMinimized: setCheeseAmpMinimized } = useCheeseAmpStore();
+  const cheeseAmpMinimized = useCheeseAmpStore((state) => state.isMinimized);
+  const setCheeseAmpMinimized = useCheeseAmpStore((state) => state.setMinimized);
 
   // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
   useCheeseAmpAutoAdvance(accountName);

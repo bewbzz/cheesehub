@@ -73,7 +73,7 @@ const IPFS_GATEWAYS = [
   'https://dweb.link/ipfs/',
 ];
 
-const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_';
+const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_v2_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function extractIpfsHash(url: string | undefined): string | null {
@@ -162,16 +162,18 @@ function createMusicNFTsFromAsset(asset: { asset_id: string; name?: string; coll
     });
   }
 
-  // Add separate clip entry if clip exists AND is different from audio
+  // Add clip entry - only label as "Sample" if BOTH audio and clip exist
   if (clipUrl && clipUrl !== fullAudioUrl) {
+    // Only mark as sample if there's ALSO a full audio track
+    const isSample = !!fullAudioUrl;
     results.push({
       ...baseNFT,
-      asset_id: `${asset.asset_id}-clip`, // Unique ID for the clip version
+      asset_id: isSample ? `${asset.asset_id}-clip` : asset.asset_id,
       audioUrl: clipUrl,
       clipUrl: undefined, // This IS the clip
-      videoUrl: undefined,
-      hasVideo: false,
-      name: `${baseNFT.name} (Sample)`, // Mark as sample
+      videoUrl: isSample ? undefined : videoUrl,
+      hasVideo: isSample ? false : !!videoUrl,
+      name: isSample ? `${baseNFT.name} (Sample)` : baseNFT.name,
     });
   }
 

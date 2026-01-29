@@ -23,11 +23,23 @@ export function CheeseAmpDialog({ open, onOpenChange, onMinimize }: CheeseAmpDia
   };
 
   const handleMinimize = () => {
+    // Just hide the dialog - music keeps playing
     onMinimize?.();
   };
 
+  // Prevent Radix from triggering onOpenChange directly - we control open state ourselves
+  // This ensures we can differentiate between minimize (keep playing) and close (stop)
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // Dialog wants to close - only allow through our explicit close handler
+      // This prevents accidental closes from stopping music
+      return;
+    }
+    onOpenChange(newOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden"
         onInteractOutside={(e) => e.preventDefault()}

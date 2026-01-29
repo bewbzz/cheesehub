@@ -81,7 +81,7 @@ export function CheeseAmpMiniPlayer({ onExpand, onClose }: CheeseAmpMiniPlayerPr
         bottom: isMobile ? '8px' : '16px',
         right: isMobile ? '8px' : '16px',
         left: isMobile ? '8px' : 'auto',
-        width: isMobile ? 'auto' : '320px',
+        width: isMobile ? 'auto' : '420px',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',

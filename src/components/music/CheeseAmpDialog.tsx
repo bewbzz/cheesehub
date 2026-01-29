@@ -46,16 +46,16 @@ export function CheeseAmpDialog({
   };
 
   return (
-    <div className={minimized ? "[&_[data-radix-dialog-overlay]]:hidden" : ""}>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent 
-          className={cn(
-            "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
-            minimized && "opacity-0 pointer-events-none scale-95"
-          )}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent 
+        className={cn(
+          "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
+          minimized && "opacity-0 pointer-events-none scale-95"
+        )}
+        overlayClassName={minimized ? "hidden" : ""}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="relative pr-16">
           <div className="absolute right-0 top-0 flex items-center gap-1">
             <Button
@@ -96,6 +96,5 @@ export function CheeseAmpDialog({
         </div>
       </DialogContent>
     </Dialog>
-    </div>
   );
 }

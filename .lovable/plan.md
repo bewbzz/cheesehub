@@ -1,134 +1,160 @@
 
-# Fix Template Values Action Structure
+
+# Fix CHEESEAmp Music Stopping on Minimize
 
 ## Problem
 
-The error `Encoding error at root<settmpvalues>.values<TEMPLATE_REWARD[]>.0.collection_name<name>: Found undefined for non-optional type` indicates that the WaxDAO V2 contract now requires `collection_name` as a mandatory field in the `TEMPLATE_REWARD` struct, but the current implementation only sends `template_id` and `hourly_rewards`.
+When clicking the minimize button (−), music stops playing even though only the close button (X) should stop music.
 
 ## Root Cause
 
-The `buildSetTemplateValuesAction` function in `src/lib/farm.ts` builds a values array without the required `collection_name`:
+The current flow when clicking minimize:
 
-```typescript
-// Current (broken)
-values: [{
-  template_id: templateId,
-  hourly_rewards: [...]  // Missing collection_name!
-}]
-```
+1. `handleMinimize()` in CheeseAmpDialog calls `onMinimize?.()`
+2. This calls `setCheeseAmpOpen(false)` in WalletConnect.tsx (line 106)
+3. Dialog `open` prop becomes `false`
+4. Radix unmounts `DialogContent` and `CheeseAmpPlayer`
+5. Something in the unmount chain interferes with the audio singleton
 
-The WaxDAO contract expects:
-
-```typescript
-// Expected by contract
-values: [{
-  template_id: templateId,
-  collection_name: "somecollection",  // Required!
-  hourly_rewards: [...]
-}]
-```
+**Key insight**: Even though `getAudioPlayer()` returns a singleton that should persist, when the Dialog unmounts entirely, the React component tree cleanup can cause issues. The `handleOpenChange` guard in CheeseAmpDialog only blocks Radix-initiated closes (like clicking backdrop or ESC), not direct state changes from the parent.
 
 ## Solution
 
-1. Update `buildSetTemplateValuesAction` in `src/lib/farm.ts` to accept a `collectionName` parameter
-2. Update `ManageStakableAssets.tsx` to:
-   - Show a collection name input field for template-based farms (type 2)
-   - Pass the collection name when calling `buildSetTemplateValuesAction`
-   - Validate that collection name is provided
+Keep the dialog mounted but visually hidden when minimized. This prevents React unmount side effects while keeping audio playing.
+
+---
+
+## Technical Approach
+
+### 1. Add minimized state (WalletConnect.tsx)
+
+Add a separate `minimized` state alongside `open`. The dialog stays `open={true}` while music is playing - we only hide it visually.
+
+```
+State Flow:
+- Open CHEESEAmp: open=true, minimized=false
+- Click Minimize: open=true, minimized=true (dialog hidden but mounted)  
+- Click menu to reopen: open=true, minimized=false
+- Click Close (X): open=false, minimized=false (audio stopped)
+```
+
+### 2. Pass minimized prop to CheeseAmpDialog
+
+The dialog receives a `minimized` prop and applies CSS to hide itself without unmounting.
+
+### 3. Apply visual hiding (CheeseAmpDialog.tsx)
+
+When `minimized=true`, apply CSS to make the dialog invisible and non-interactive:
+- `opacity-0` - invisible
+- `pointer-events-none` - can't interact
+- `scale-95` - slight shrink effect
+
+---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/lib/farm.ts` | Add `collectionName` parameter to `buildSetTemplateValuesAction` |
-| `src/components/farm/ManageStakableAssets.tsx` | Add collection name input for template farms, pass to action builder |
+| File | Changes |
+|------|---------|
+| `src/components/WalletConnect.tsx` | Add `cheeseAmpMinimized` state, update handlers |
+| `src/components/music/CheeseAmpDialog.tsx` | Add `minimized` prop, apply hide CSS |
 
-## Technical Details
+---
 
-### 1. Update farm.ts (lines 265-287)
+## Implementation Details
 
-Add `collectionName` as a required parameter:
+### WalletConnect.tsx Changes
 
+**Add new state (after line 29):**
 ```typescript
-export function buildSetTemplateValuesAction(
-  user: string,
-  farmname: string,
-  collectionName: string,  // New required parameter
-  templateId: number,
-  rewardValues: RewardValue[]
-) {
-  return {
-    account: FARM_CONTRACT,
-    name: "settmpvalues",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname,
-      values: [{
-        template_id: templateId,
-        collection_name: collectionName,  // Include in values
-        hourly_rewards: rewardValues.map(rv => ({
-          quantity: rv.quantity,
-          contract: rv.contract,
-        })),
-      }],
-    },
+const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
+```
+
+**Update the event handler for opening (lines 48-58):**
+```typescript
+useEffect(() => {
+  const handleOpenCheeseAmp = () => {
+    if (isConnected) {
+      setCheeseAmpOpen(true);
+      setCheeseAmpMinimized(false); // Un-minimize when opening
+    } else {
+      setOpen(true);
+    }
   };
+  window.addEventListener('open-cheese-amp', handleOpenCheeseAmp);
+  return () => window.removeEventListener('open-cheese-amp', handleOpenCheeseAmp);
+}, [isConnected]);
+```
+
+**Update the dropdown menu item (line 91):**
+```typescript
+<DropdownMenuItem 
+  onClick={() => {
+    setCheeseAmpOpen(true);
+    setCheeseAmpMinimized(false);
+  }} 
+  className="cursor-pointer"
+>
+```
+
+**Update CheeseAmpDialog props (lines 103-107):**
+```typescript
+<CheeseAmpDialog 
+  open={cheeseAmpOpen} 
+  onOpenChange={(open) => {
+    setCheeseAmpOpen(open);
+    if (!open) setCheeseAmpMinimized(false);
+  }}
+  onMinimize={() => setCheeseAmpMinimized(true)}  // Only set minimized, don't close
+  minimized={cheeseAmpMinimized}
+/>
+```
+
+### CheeseAmpDialog.tsx Changes
+
+**Update interface (lines 13-17):**
+```typescript
+interface CheeseAmpDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onMinimize?: () => void;
+  minimized?: boolean;  // New prop
 }
 ```
 
-### 2. Update ManageStakableAssets.tsx
-
-**Update validation (line 88-91):**
+**Update function signature (line 19):**
 ```typescript
-if (farm.farm_type === 2 && (!templateId || !collectionName)) {
-  toast.error("Please enter template ID and collection name");
-  return;
-}
+export function CheeseAmpDialog({ 
+  open, 
+  onOpenChange, 
+  onMinimize,
+  minimized = false 
+}: CheeseAmpDialogProps) {
 ```
 
-**Update form fields for template type (lines 294-306):**
-Add collection name input alongside template ID:
+**Add cn import if not present, then update DialogContent (lines 43-46):**
 ```typescript
-case 2: // Templates
-  return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="collectionName">Collection Name</Label>
-        <Input
-          id="collectionName"
-          placeholder="e.g., cheesenfts111"
-          value={collectionName}
-          onChange={(e) => setCollectionName(e.target.value.toLowerCase())}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="templateId">Template ID</Label>
-        <Input
-          id="templateId"
-          type="number"
-          placeholder="e.g., 123456"
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
-        />
-      </div>
-    </>
-  );
+import { cn } from '@/lib/utils';
+
+// In the return...
+<DialogContent 
+  className={cn(
+    "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
+    minimized && "opacity-0 pointer-events-none scale-95"
+  )}
+  onInteractOutside={(e) => e.preventDefault()}
+  onEscapeKeyDown={(e) => e.preventDefault()}
+>
 ```
 
-**Update action call (lines 136-142):**
-```typescript
-case 2: // Templates
-  action = buildSetTemplateValuesAction(
-    accountName,
-    farm.farm_name,
-    collectionName,  // Pass collection name
-    parseInt(templateId),
-    rewardValues
-  );
-  break;
-```
+---
 
-## Why This Happened
+## Expected Behavior After Fix
 
-The WaxDAO V2 contract structure requires templates to be associated with a collection for proper validation and indexing. This ensures the template actually belongs to the specified collection and enables better filtering/querying of stakable assets.
+| Action | Music | Dialog State |
+|--------|-------|--------------|
+| Click Minimize (−) | Keeps playing | Hidden but mounted (open=true, minimized=true) |
+| Click CHEESEAmp menu | Resumes UI | Visible (open=true, minimized=false) |
+| Click Close (X) | Stops | Unmounted (open=false) |
+
+The key difference is that minimize no longer unmounts the component tree - it just hides the UI visually. The audio singleton continues playing undisturbed.
+

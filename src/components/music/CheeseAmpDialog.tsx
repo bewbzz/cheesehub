@@ -9,14 +9,21 @@ import { Button } from '@/components/ui/button';
 import { CheeseAmpPlayer } from './CheeseAmpPlayer';
 import { getAudioPlayer } from '@/lib/musicPlayer';
 import { Music2, Minus, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CheeseAmpDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMinimize?: () => void;
+  minimized?: boolean;
 }
 
-export function CheeseAmpDialog({ open, onOpenChange, onMinimize }: CheeseAmpDialogProps) {
+export function CheeseAmpDialog({ 
+  open, 
+  onOpenChange, 
+  onMinimize,
+  minimized = false 
+}: CheeseAmpDialogProps) {
   const handleClose = () => {
     getAudioPlayer().stop();
     onOpenChange(false);
@@ -41,7 +48,10 @@ export function CheeseAmpDialog({ open, onOpenChange, onMinimize }: CheeseAmpDia
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden"
+        className={cn(
+          "sm:max-w-[700px] max-h-[90vh] overflow-hidden [&>button]:hidden",
+          minimized && "opacity-0 pointer-events-none scale-95"
+        )}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >

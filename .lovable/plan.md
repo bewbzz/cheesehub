@@ -1,133 +1,101 @@
 
+# Fix Vote Rewards "Calculating..." Stuck Issue
 
-# Add Minimal Floating Mini Player Bar for CHEESEAmp
+## Problem Summary
+The vote rewards calculation is stuck showing "Calculating..." because it's fetching from the wrong blockchain table (`global4` instead of `global`). The `global4` table contains standby bucket data, not the `voters_bucket` needed for reward calculations.
 
-## Overview
+## Technical Diagnosis
+- Current code fetches `eosio::global4` table first
+- `global4` returns standby bucket data (confirmed in network logs)
+- The `voters_bucket` and `total_unpaid_voteshare` fields are in the `global` table
+- Since `global4` fetch succeeds (status 200), the fallback to `global` never triggers
+- Result: `votersBucket: 0` and `currentTotalVoteshare: 0` causing calculation to return 0
+- UI displays "Calculating..." when rewards equals 0, which is misleading
 
-Create a compact floating bar in the lower-right corner that appears when CHEESEAmp is minimized. The mini player will be a simple horizontal bar with essential playback controls only - no album art, no video display.
+## Solution
 
-## Visual Design
+### File: `src/components/wallet/VoteRewardsManager.tsx`
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              Main Website Content                             │
-│                                                                               │
-│                                                                               │
-│                                                                               │
-│           ┌────────────────────────────────────────────────────────┐         │
-│           │ 🧀 Track Title - Artist    ◀◀  ▶  ▶▶  0:45/3:21  ↗  ✕ │         │
-│           └────────────────────────────────────────────────────────┘         │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                                      ↑ Fixed bottom-right
-```
+**Change 1: Fetch from `global` table directly (not `global4`)**
 
-**Desktop**: Compact bar (~320px wide) in lower-right corner
-**Mobile**: Full-width bar at bottom of screen
+Replace the current global4/fallback logic with a direct fetch to the `global` table which contains the correct fields:
 
-## Mini Player Contents
-
-| Element | Description |
-|---------|-------------|
-| CHEESE logo | Small branding (cheese emoji or icon) |
-| Track info | Title and artist, truncated if needed |
-| Previous | Skip to previous track |
-| Play/Pause | Toggle playback |
-| Next | Skip to next track |
-| Time | Current position / duration |
-| Expand | Button to reopen full CHEESEAmp dialog |
-| Close | Stop music and dismiss mini player |
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/music/CheeseAmpMiniPlayer.tsx` | **Create** | New minimal bar component |
-| `src/components/WalletConnect.tsx` | Modify | Add minimized state and render mini player |
-
-## Technical Implementation
-
-### 1. CheeseAmpMiniPlayer.tsx (New File)
-
-A simple horizontal bar that:
-- Subscribes to `getAudioPlayer()` for playback state
-- Uses `audioPlayer.getCurrentTrack()` to display track info
-- Provides prev/play-pause/next controls
-- Has expand button to reopen full dialog
-- Has close button to stop music entirely
-- Uses `useIsMobile()` for responsive layout
-
-**Styling:**
-- `fixed bottom-4 right-4 z-50` (desktop)
-- `fixed bottom-0 left-0 right-0 z-50` (mobile)
-- Semi-transparent background with backdrop blur
-- Cheese-themed border accent
-
-### 2. WalletConnect.tsx Modifications
-
-**New State:**
 ```typescript
-const [cheeseAmpMinimized, setCheeseAmpMinimized] = useState(false);
+// Fetch global state for reward calculation - use 'global' table
+const globalResponse = await fetchWithFallback(
+  WAX_ENDPOINTS,
+  '/v1/chain/get_table_rows',
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: 'eosio',
+      scope: 'eosio',
+      table: 'global',  // Changed from 'global4'
+      limit: 1,
+      json: true,
+    }),
+  }
+);
+globalData = await globalResponse.json();
 ```
 
-**Updated Handlers:**
-- `handleMinimize`: Close dialog, show mini player
-- `handleExpand`: Hide mini player, open dialog
-- `handleMiniPlayerClose`: Stop audio, hide mini player
+**Change 2: Update GlobalState interface to match actual fields**
 
-**Updated Event Listener:**
-When CHEESEAmp menu item clicked while minimized, expand instead of opening fresh
+The `global` table has different field names. Update the interface to match:
 
-**Render Mini Player:**
 ```typescript
-{cheeseAmpMinimized && (
-  <CheeseAmpMiniPlayer
-    onExpand={handleExpand}
-    onClose={handleMiniPlayerClose}
-  />
-)}
+interface GlobalState {
+  max_ram_size: string;
+  total_ram_bytes_reserved: string;
+  total_ram_stake: string;
+  last_producer_schedule_update: string;
+  // ... other fields
+  perblock_bucket: number;
+  pervote_bucket: number;
+  total_unpaid_blocks: number;
+  total_activated_stake: string;
+  thresh_activated_stake_time: string;
+  last_producer_schedule_size: number;
+  total_producer_vote_weight: string;
+  last_name_close: string;
+  voters_bucket: string;  // This is what we need
+  total_unpaid_voteshare: string;  // This too
+  total_voteshare_change_rate: string;
+}
 ```
 
-### 3. Skip Track Logic
+**Change 3: Fix the UI display logic**
 
-The mini player needs to trigger next/previous. Two approaches:
+Change "Calculating..." to a more accurate message when calculation completes but returns 0:
 
-**Option A - Custom Events (Recommended):**
-Dispatch events that `useCheeseAmpAutoAdvance` can listen to:
 ```typescript
-window.dispatchEvent(new CustomEvent('cheeseamp-next'));
-window.dispatchEvent(new CustomEvent('cheeseamp-previous'));
+<span className="font-medium text-cheese">
+  {estimatedRewards > 0 
+    ? `${estimatedRewards.toFixed(8)} WAX` 
+    : estimatedRewards === -1 
+      ? 'Rewards Available!' 
+      : hasVoted && canClaim
+        ? 'Claim to check' 
+        : '0.00000000 WAX'}
+</span>
 ```
 
-Update `useCheeseAmpAutoAdvance.ts` to handle these events.
+**Change 4: Remove outdated CORS-failing endpoint**
 
-**Option B - Direct Playlist Access:**
-Import `useCheeseAmpPlaylist` in the mini player and call `playNext()`/`playPrevious()` directly.
+Per project memory, remove `wax.greymass.com` from the endpoints list as it has persistent CORS issues:
 
-I'll use Option B since the mini player can access the same hooks.
-
-## Edge Cases
-
-| Scenario | Behavior |
-|----------|----------|
-| No track playing | Show "Nothing playing" or hide mini player |
-| Track ends | Auto-advance continues working via existing hook |
-| User logs out | Mini player closes automatically |
-| Click CHEESEAmp while minimized | Expands to full dialog (doesn't open second instance) |
-| Page navigation | Mini player persists (it's in the header which wraps all routes) |
-
-## Mobile Responsive Layout
-
-Using `useIsMobile()` hook:
-
-**Desktop:**
-```css
-fixed bottom-4 right-4 w-80
+```typescript
+const WAX_ENDPOINTS = [
+  'https://wax.eosusa.io',
+  'https://api.wax.alohaeos.com',
+  'https://wax.cryptolions.io',
+  'https://wax.eu.eosamsterdam.net',
+];
 ```
 
-**Mobile:**
-```css
-fixed bottom-0 left-0 right-0 w-full px-2 pb-2
-```
-
-Mobile will have larger touch targets (44-48px buttons) and a simpler single-row layout.
-
+## Expected Outcome
+- Vote rewards will be properly calculated using the `voters_bucket` from the `global` table
+- Users will see their actual estimated WAX rewards instead of "Calculating..."
+- If calculation still returns 0 for valid reasons (e.g., no rewards accrued yet), it shows "0.00000000 WAX" or "Claim to check" instead of misleading "Calculating..."
+- Network requests will be more reliable without the CORS-failing endpoint

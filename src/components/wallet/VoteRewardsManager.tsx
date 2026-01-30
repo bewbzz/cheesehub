@@ -8,11 +8,10 @@ import { cn } from '@/lib/utils';
 import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 
 const WAX_ENDPOINTS = [
-  'https://wax.greymass.com',
   'https://wax.eosusa.io',
   'https://api.wax.alohaeos.com',
-  'https://wax.pink.gg',
   'https://wax.cryptolions.io',
+  'https://wax.eu.eosamsterdam.net',
 ];
 
 interface VoteRewardsManagerProps {
@@ -37,13 +36,12 @@ interface VoterInfo {
 }
 
 interface GlobalState {
+  voters_bucket: string;
   total_unpaid_voteshare: string;
   total_voteshare_change_rate: string;
   total_unpaid_voteshare_last_updated: string;
-  voters_bucket: string;
   pervote_bucket: number;
   total_activated_stake: string;
-  last_pervote_bucket_fill: string;
 }
 
 export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess }: VoteRewardsManagerProps) {
@@ -90,10 +88,10 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
       const voterData = await voterResponse.json();
       console.log('Voter data response:', voterData);
       
-      // Fetch global state for reward calculation - try global4 first, fallback to global3
+      // Fetch global state for reward calculation from 'global' table
       let globalData: any = { rows: [] };
       try {
-        const global4Response = await fetchWithFallback(
+        const globalResponse = await fetchWithFallback(
           WAX_ENDPOINTS,
           '/v1/chain/get_table_rows',
           {
@@ -102,38 +100,16 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
             body: JSON.stringify({
               code: 'eosio',
               scope: 'eosio',
-              table: 'global4',
+              table: 'global',
               limit: 1,
               json: true,
             }),
           }
         );
-        globalData = await global4Response.json();
-        console.log('Global4 data:', globalData);
+        globalData = await globalResponse.json();
+        console.log('Global data:', globalData);
       } catch (e) {
-        console.log('Global4 fetch failed, trying global3:', e);
-        // Fallback - calculate from voters bucket in global state
-        try {
-          const globalResponse = await fetchWithFallback(
-            WAX_ENDPOINTS,
-            '/v1/chain/get_table_rows',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                code: 'eosio',
-                scope: 'eosio',
-                table: 'global',
-                limit: 1,
-                json: true,
-              }),
-            }
-          );
-          globalData = await globalResponse.json();
-          console.log('Global data fallback:', globalData);
-        } catch (e2) {
-          console.log('Global fetch also failed:', e2);
-        }
+        console.log('Global fetch failed:', e);
       }
       
       if (voterData.rows && voterData.rows.length > 0) {
@@ -393,7 +369,9 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
                   ? `${estimatedRewards.toFixed(8)} WAX` 
                   : estimatedRewards === -1 
                     ? 'Rewards Available!' 
-                    : 'Calculating...'}
+                    : hasVoted && canClaim
+                      ? 'Claim to check' 
+                      : '0.00000000 WAX'}
               </span>
             </div>
 

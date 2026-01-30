@@ -215,7 +215,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Amp</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                A simple, clean NFT music player that populates a list automatically with your music NFTS. Play videos, create playlists, shuffle tracks and enjoy your musical blockchain assets like never before. Minimizes to the background and keeps playing while you work or browse the web
+                A simple, clean NFT music player that populates a list automatically with your music NFTS. Play videos, create playlists, shuffle tracks and enjoy your musical blockchain assets like never before. Minimizes to mini player and keeps playing while you work or browse the web
               </p>
               <Button 
                 size="lg" 

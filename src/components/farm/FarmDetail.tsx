@@ -103,7 +103,12 @@ export function FarmDetail() {
   });
 
   const handleFarmUpdated = async () => {
+    // Immediate refetch
     await refetch();
+    // Delayed refetch to handle indexer lag
+    setTimeout(() => {
+      refetch();
+    }, 2000);
   };
 
   const handleRefresh = async () => {

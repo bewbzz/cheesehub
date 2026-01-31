@@ -1,80 +1,166 @@
 
-# Fix Rent Resources "Failed to Fetch" Error
 
-## Problem Summary
-When trying to rent resources using CHEESE in the wallet, transactions fail with "Failed to fetch" errors. This is caused by the primary WAX RPC endpoint (`wax.eosusa.io`) being temporarily unavailable, and WharfKit having no fallback mechanism.
+# Add Farm Profile Editing Capability
 
-## Root Cause Analysis
-From the console and network logs:
-- `wax.eosusa.io` is returning "Failed to fetch" (CORS or connectivity issues)
-- `api.wax.alohaeos.com` is also failing
-- `wax.eosphere.io` is responding successfully (status 200)
-- WharfKit is configured with only ONE endpoint (`wax.eosusa.io`)
-- When that endpoint fails, all transactions fail with no fallback
+## Overview
+This implementation adds the ability for farm owners to edit their farm's profile from the farm detail page, matching the WaxDAO interface shown in the reference image. The solution mirrors the existing DAO profile editing pattern.
 
-## Solution
+## Reference Image Analysis
+From the WaxDAO "Manage Farm" interface, the Profile tab includes:
+- **Cover Image** (IPFS hash input, e.g., "QMabc123...")
+- **Avatar** (IPFS hash input, e.g., "QMabc123...")
+- **Description** (multi-line textarea)
+- **Socials Section**:
+  - Website (e.g., waxdao.io)
+  - Twitter (e.g., twitter.com/MikeD_Cryo)
+  - Telegram (e.g., t.me/hoodpunks)
+  - Discord (e.g., discord.gg/helio)
+  - Medium (e.g., medium.com/wax)
+  - YouTube (e.g., youtube.com/MikeDCryp)
+  - AtomicHub (e.g., wax.atomichub.io/waxd)
+  - WaxDAO (e.g., waxdao.io/u/mikedeypnr)
 
-### File: `src/lib/wharfKit.ts`
+## Implementation Plan
 
-**Change 1: Update primary RPC endpoint to a more reliable one**
+### 1. Add Action Builder to `src/lib/farm.ts`
 
-Replace the failing `wax.eosusa.io` with `wax.eosphere.io` which is currently responding:
+Add a new `buildSetFarmProfileAction` function to construct the `setprofile` action for the `farms.waxdao` contract:
 
 ```typescript
-// Define WAX mainnet with a more reliable primary RPC endpoint
-const waxChain = ChainDefinition.from({
-  id: WAX_CHAIN_ID,
-  url: 'https://wax.eosphere.io', // Changed from wax.eosusa.io
-});
+export function buildSetFarmProfileAction(
+  user: string,
+  farmName: string,
+  profile: {
+    avatar: string;
+    cover_image: string;
+    description: string;
+  },
+  socials: FarmSocials
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "setprofile",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+      profile: {
+        avatar: profile.avatar || "",
+        cover_image: profile.cover_image || "",
+        description: profile.description || "",
+      },
+      // Socials must be in ALPHABETICAL ORDER per contract ABI
+      socials: {
+        atomichub: socials.atomichub || "",
+        discord: socials.discord || "",
+        medium: socials.medium || "",
+        telegram: socials.telegram || "",
+        twitter: socials.twitter || "",
+        waxdao: socials.waxdao || "",
+        website: socials.website || "",
+        youtube: socials.youtube || "",
+      },
+    },
+  };
+}
 ```
 
-### File: `src/lib/waxRpcFallback.ts`
+### 2. Create `src/components/farm/EditFarmProfile.tsx`
 
-**Change 2: Reorder endpoints to prioritize working ones**
+New dialog component based on the DAO pattern with:
 
-Move `wax.eosphere.io` to the top of the fallback list since it's currently the most reliable:
+**Profile Fields:**
+- Cover Image (IPFS hash input with placeholder "e.g. QMabc123...")
+- Avatar (IPFS hash input with placeholder "e.g. QMabc123...")
+- Description (textarea, 500 char max with counter)
 
+**Social Links Section (Collapsible):**
+- Website
+- Twitter
+- Telegram
+- Discord
+- Medium
+- YouTube
+- AtomicHub
+- WaxDAO
+
+**Features:**
+- Dialog modal matching existing UI patterns
+- Pre-populated with current farm profile data
+- Submit handler calls `buildSetFarmProfileAction` and executes transaction
+- Success callback triggers farm data refresh
+- Loading state during transaction
+- Toast notifications for success/error states
+- Prevents accidental close on outside click (per project memory)
+
+### 3. Update `src/components/farm/FarmDetail.tsx`
+
+Add the Edit Profile button in the header section:
+
+**Import Changes:**
 ```typescript
-export const WAX_RPC_ENDPOINTS = [
-  "https://wax.eosphere.io",    // Currently most reliable
-  "https://api.waxsweden.org",  // Usually stable
-  "https://wax.pink.gg",
-  "https://wax.eosusa.io",      // Currently having issues
-  "https://api.wax.alohaeos.com",
-  // Note: wax.greymass.com removed due to persistent CORS issues
-];
-
-const HYPERION_ENDPOINTS = [
-  "https://wax.eosphere.io",    // Currently most reliable
-  "https://wax.pink.gg",
-  "https://wax.eosusa.io",
-  "https://api.wax.alohaeos.com",
-];
+import { EditFarmProfile } from "./EditFarmProfile";
+import { Pencil } from "lucide-react";
 ```
 
-**Change 3: Remove `wax.greymass.com` from RPC endpoints**
-
-Per project memory, this endpoint has persistent CORS issues:
-
+**State Addition:**
 ```typescript
-// Remove from WAX_RPC_ENDPOINTS array:
-"https://wax.greymass.com", // REMOVE - CORS issues
+const [editProfileOpen, setEditProfileOpen] = useState(false);
+```
+
+**UI Addition (after "Copy Name" button, only for creators):**
+```typescript
+{isCreator && (
+  <Button 
+    size="sm" 
+    variant="outline" 
+    onClick={() => setEditProfileOpen(true)}
+  >
+    <Pencil className="h-4 w-4 mr-1" />
+    Edit Profile
+  </Button>
+)}
+```
+
+**Dialog Render:**
+```typescript
+{isCreator && (
+  <EditFarmProfile
+    farm={farm}
+    open={editProfileOpen}
+    onClose={() => setEditProfileOpen(false)}
+    onProfileUpdated={handleFarmUpdated}
+  />
+)}
 ```
 
 ## Technical Details
 
-### Why This Works
-- WharfKit's SessionKit uses the `url` from ChainDefinition for all blockchain RPC calls
-- Changing to `wax.eosphere.io` immediately fixes transactions since that endpoint is responding
-- Reordering fallback endpoints ensures data fetching also tries working endpoints first
+### Contract ABI Requirements
+The `setprofile` action on `farms.waxdao` expects:
+- `user`: Account name executing the action
+- `farmname`: The farm identifier
+- `profile`: Object with `avatar`, `cover_image`, `description` strings
+- `socials`: Object with fields in **alphabetical order** (atomichub, discord, medium, telegram, twitter, waxdao, website, youtube)
 
-### Why Not Add Multiple Endpoints to WharfKit?
-- WharfKit's ChainDefinition only accepts a single URL for the chain
-- Adding fallback logic would require wrapping the session's transact method
-- Changing the primary endpoint is the simplest and most reliable fix
+### UI Placement
+The "Edit Profile" button will appear:
+- In the header section next to "Copy Name" and "Manage Stakable Assets"
+- Only visible to the farm creator (`isCreator === true`)
+- Styled consistently with other action buttons using variant="outline"
 
-## Expected Outcome
-- Rent resources transactions will succeed using CHEESE or WAX
-- Balance fetching will be faster (prioritizes working endpoints)
-- Fewer "Failed to fetch" errors across the app
-- If `wax.eosphere.io` later has issues, the fallback system will try other endpoints for data fetching (but transactions may need another endpoint update)
+### Dialog Behavior
+- Prevents accidental close on outside click (`onInteractOutside={(e) => e.preventDefault()}`)
+- Pre-populates all fields from current farm data
+- Shows loading spinner during transaction
+- Auto-refreshes farm data on successful update
+- Toast notifications for success/error states
+
+## Files Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/farm.ts` | Modify | Add `buildSetFarmProfileAction` function |
+| `src/components/farm/EditFarmProfile.tsx` | Create | New dialog component for editing farm profile |
+| `src/components/farm/FarmDetail.tsx` | Modify | Add Edit Profile button for farm creators |
+

@@ -8,6 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Package,
   ArrowUpFromLine,
@@ -19,6 +26,8 @@ import {
   RefreshCw,
   Search,
   Check,
+  AlertTriangle,
+  Link as LinkIcon,
 } from "lucide-react";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +39,7 @@ import {
   buildClaimRewardsAction,
   fetchUserStakes,
   fetchFarmStakableConfig,
+  fetchUserGlobalStakes,
   FarmInfo,
   PendingReward,
 } from "@/lib/farm";
@@ -93,9 +103,10 @@ interface NFTCardProps {
   isSelected: boolean;
   onToggle: () => void;
   selectedColor?: "primary" | "destructive";
+  stakedInFarm?: string; // Name of farm where this NFT is already staked (if any)
 }
 
-function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCardProps) {
+function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary", stakedInFarm }: NFTCardProps) {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [imgError, setImgError] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -103,6 +114,7 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
 
   const ipfsHash = extractIpfsHash(nft.image);
   const hasValidImage = Boolean(nft.image && nft.image.length > 0 && nft.image !== '/placeholder.svg');
+  const isStakedElsewhere = Boolean(stakedInFarm);
   
   // Build current image URL with gateway rotation
   const currentImageUrl = useMemo(() => {
@@ -148,23 +160,37 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
   };
 
   const showErrorState = !hasValidImage || imgError;
-  const borderColor = selectedColor === "destructive" ? "border-destructive ring-destructive" : "border-primary ring-primary";
+  const borderColor = isStakedElsewhere 
+    ? "border-amber-500 ring-amber-500" 
+    : selectedColor === "destructive" 
+      ? "border-destructive ring-destructive" 
+      : "border-primary ring-primary";
 
-  return (
+  const cardContent = (
     <button
       onClick={onToggle}
       className={cn(
         "group relative rounded-md overflow-hidden border-2 transition-all aspect-square",
+        isStakedElsewhere && "opacity-70",
         isSelected
           ? `${borderColor} ring-1`
-          : "border-transparent hover:border-muted-foreground/30"
+          : isStakedElsewhere 
+            ? "border-amber-500/50"
+            : "border-transparent hover:border-muted-foreground/30"
       )}
     >
+      {/* Staked elsewhere indicator */}
+      {isStakedElsewhere && (
+        <div className="absolute top-1 left-1 z-10">
+          <AlertTriangle className="h-3 w-3 text-amber-500" />
+        </div>
+      )}
+
       {/* Selection indicator */}
       {isSelected && (
         <div className={cn(
           "absolute top-1 right-1 z-10 rounded-full p-0.5",
-          selectedColor === "destructive" ? "bg-destructive" : "bg-primary"
+          isStakedElsewhere ? "bg-amber-500" : selectedColor === "destructive" ? "bg-destructive" : "bg-primary"
         )}>
           <Check className="h-3 w-3 text-primary-foreground" />
         </div>
@@ -219,10 +245,36 @@ function NFTCard({ nft, isSelected, onToggle, selectedColor = "primary" }: NFTCa
       {/* Info bar at bottom - compact */}
       <div className="absolute bottom-0 left-0 right-0 px-0.5 py-0.5 bg-background/90">
         <p className="text-[8px] font-medium truncate leading-tight">{nft.name}</p>
-        <p className="text-[7px] text-muted-foreground truncate leading-tight">#{nft.asset_id}</p>
+        {isStakedElsewhere ? (
+          <p className="text-[7px] text-amber-500 truncate leading-tight">in: {stakedInFarm}</p>
+        ) : (
+          <p className="text-[7px] text-muted-foreground truncate leading-tight">#{nft.asset_id}</p>
+        )}
       </div>
     </button>
   );
+
+  // Wrap in tooltip if staked elsewhere
+  if (isStakedElsewhere) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {cardContent}
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[200px]">
+            <p className="text-xs">
+              <AlertTriangle className="h-3 w-3 inline mr-1 text-amber-500" />
+              Already staked in <span className="font-semibold">{stakedInFarm}</span>. 
+              Unstake there first to stake here.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return cardContent;
 }
 
 export function NFTStaking({ farm }: NFTStakingProps) {
@@ -248,6 +300,27 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     queryFn: () => fetchFarmStakableConfig(farm.farm_name),
     staleTime: 60000,
   });
+
+  // Fetch user's global stakes across ALL V2 farms to detect conflicts
+  const { data: globalStakes = [], refetch: refetchGlobalStakes } = useQuery({
+    queryKey: ["userGlobalStakes", accountName],
+    queryFn: () => fetchUserGlobalStakes(accountName!),
+    enabled: !!accountName,
+    staleTime: 30000,
+  });
+
+  // Create a map of asset_id -> farm_name for quick lookup (excluding current farm)
+  const globallyStakedMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const stake of globalStakes) {
+      if (stake.farmName !== farm.farm_name) {
+        for (const assetId of stake.assetIds) {
+          map.set(assetId, stake.farmName);
+        }
+      }
+    }
+    return map;
+  }, [globalStakes, farm.farm_name]);
 
   // Fetch user's staked NFTs
   const { data: stakedNfts = [], isLoading: isLoadingStaked, refetch: refetchStaked } = useQuery({
@@ -770,7 +843,19 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     
     setIsStaking(true);
     try {
-      const assetIds = Array.from(selectedToStake);
+      // Filter out NFTs that are staked elsewhere - only stake ones that will succeed
+      const conflictingIds = new Set(selectedConflicts.map(c => c.assetId));
+      const assetIds = Array.from(selectedToStake).filter(id => !conflictingIds.has(id));
+      
+      if (assetIds.length === 0) {
+        toast({
+          title: "No Valid NFTs",
+          description: "All selected NFTs are already staked in other farms",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const action = buildStakeNftsAction(
         session.actor.toString(),
         farm.farm_name,
@@ -789,6 +874,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       // Invalidate and refetch all related queries
       queryClient.invalidateQueries({ queryKey: ["stakedNftDetails"] });
       queryClient.invalidateQueries({ queryKey: ["farmDetail", farm.farm_name] });
+      queryClient.invalidateQueries({ queryKey: ["userGlobalStakes", accountName] });
       
       // Refetch data with a small delay to allow blockchain state to propagate
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -796,6 +882,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         refetchStaked(),
         refetchEligible(),
         refetchStakedDetails(),
+        refetchGlobalStakes(),
       ]);
     } catch (error) {
       console.error("Stake failed:", error);
@@ -918,6 +1005,29 @@ export function NFTStaking({ farm }: NFTStakingProps) {
 
   const totalPendingRewards = pendingRewards.reduce((acc, r) => acc + r.amount, 0);
   const hasRewards = totalPendingRewards > 0;
+
+  // Find selected NFTs that are staked in other farms (will fail staking)
+  const selectedConflicts = useMemo(() => {
+    const conflicts: Array<{ assetId: string; farmName: string }> = [];
+    for (const assetId of selectedToStake) {
+      const farmName = globallyStakedMap.get(assetId);
+      if (farmName) {
+        conflicts.push({ assetId, farmName });
+      }
+    }
+    return conflicts;
+  }, [selectedToStake, globallyStakedMap]);
+
+  const hasConflicts = selectedConflicts.length > 0;
+
+  // Helper to remove conflicting NFTs from selection
+  const removeConflictsFromSelection = () => {
+    const newSet = new Set(selectedToStake);
+    for (const { assetId } of selectedConflicts) {
+      newSet.delete(assetId);
+    }
+    setSelectedToStake(newSet);
+  };
 
   // Filtered NFTs based on search
   const filteredEligibleNfts = useMemo(() => {
@@ -1266,6 +1376,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                                 isSelected={selectedToStake.has(nft.asset_id)}
                                 onToggle={() => toggleStakeSelection(nft.asset_id)}
                                 selectedColor="primary"
+                                stakedInFarm={globallyStakedMap.get(nft.asset_id)}
                               />
                             ))}
                           </div>
@@ -1273,10 +1384,37 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                       })}
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                    {/* Warning for NFTs staked elsewhere */}
+                    {hasConflicts && (
+                      <Alert className="border-amber-500/50 bg-amber-500/10">
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <AlertDescription className="text-xs">
+                          <span className="font-medium text-amber-500">{selectedConflicts.length} NFT(s)</span> are already staked in other farms and will fail:
+                          <ul className="mt-1 ml-4 list-disc text-muted-foreground">
+                            {selectedConflicts.slice(0, 3).map(({ assetId, farmName }) => (
+                              <li key={assetId}>
+                                #{assetId} → <a href={`/farm/${farmName}`} className="text-primary hover:underline">{farmName}</a>
+                              </li>
+                            ))}
+                            {selectedConflicts.length > 3 && (
+                              <li>...and {selectedConflicts.length - 3} more</li>
+                            )}
+                          </ul>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-7 text-xs border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                            onClick={removeConflictsFromSelection}
+                          >
+                            Remove from selection
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <Button
                       onClick={handleStake}
-                      disabled={isStaking || selectedToStake.size === 0}
+                      disabled={isStaking || selectedToStake.size === 0 || (hasConflicts && selectedConflicts.length === selectedToStake.size)}
                       className="w-full bg-primary hover:bg-primary/90"
                     >
                       {isStaking ? (
@@ -1284,8 +1422,15 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                       ) : (
                         <ArrowDownToLine className="h-4 w-4 mr-2" />
                       )}
-                      Stake {selectedToStake.size} NFT(s)
+                      {hasConflicts 
+                        ? `Stake ${selectedToStake.size - selectedConflicts.length} NFT(s)` 
+                        : `Stake ${selectedToStake.size} NFT(s)`}
                     </Button>
+                    {hasConflicts && selectedToStake.size > selectedConflicts.length && (
+                      <p className="text-xs text-center text-muted-foreground">
+                        {selectedConflicts.length} NFT(s) will be skipped
+                      </p>
+                    )}
                   </div>
                 </>
               )}

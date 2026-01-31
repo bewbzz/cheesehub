@@ -1,9 +1,55 @@
 // WaxDAO V2 Farm Contract Interface
 // Contract: farms.waxdao
 
-import { fetchTableRows } from "./waxRpcFallback";
+import { fetchTableRows, waxRpcCall } from "./waxRpcFallback";
 
 export const FARM_CONTRACT = "farms.waxdao";
+
+// Global staking info for cross-farm detection
+export interface GlobalStakeInfo {
+  farmName: string;
+  assetIds: string[];
+}
+
+// Fetches all asset IDs the user has staked across ALL V2 farms
+// Uses the stakers table with index 2 (user index) to find all farms where user has stakes
+export async function fetchUserGlobalStakes(account: string): Promise<GlobalStakeInfo[]> {
+  try {
+    const response = await waxRpcCall<{
+      rows: Array<{
+        user: string;
+        farmname: string;
+        asset_ids: string[];
+        claimable_balances: Array<{ quantity: string; contract: string }>;
+        rates_per_hour: Array<{ quantity: string; contract: string }>;
+        last_state_change: number;
+      }>;
+      more: boolean;
+    }>('/v1/chain/get_table_rows', {
+      json: true,
+      code: FARM_CONTRACT,
+      scope: FARM_CONTRACT,
+      table: 'stakers',
+      index_position: 2,
+      key_type: 'name',
+      lower_bound: account,
+      upper_bound: account,
+      limit: 100,
+    });
+
+    if (!response.rows || response.rows.length === 0) {
+      return [];
+    }
+
+    return response.rows.map(row => ({
+      farmName: row.farmname,
+      assetIds: row.asset_ids.map(id => String(id)),
+    }));
+  } catch (error) {
+    console.error('[fetchUserGlobalStakes] Error:', error);
+    return [];
+  }
+}
 
 // Fee constants for farm creation
 export const FARM_CREATION_FEES = {

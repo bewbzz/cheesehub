@@ -311,7 +311,14 @@ export function FarmDetail() {
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>
-                <p className="font-medium">{expirationDate.toLocaleDateString()}</p>
+                <div>
+                  <p className="font-medium">{expirationDate.toLocaleDateString()}</p>
+                  {isCreator && !isUnderConstruction && (
+                    <p className="text-xs text-muted-foreground">
+                      {expirationDate.toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 

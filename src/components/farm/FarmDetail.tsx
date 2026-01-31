@@ -103,12 +103,22 @@ export function FarmDetail() {
   });
 
   const handleFarmUpdated = async () => {
+    // Invalidate cache to force fresh fetch
+    queryClient.invalidateQueries({ queryKey: ["farmDetail", farmName] });
+    
     // Immediate refetch
     await refetch();
-    // Delayed refetch to handle indexer lag
+    
+    // Multiple delayed refetches to handle RPC caching and indexer lag
     setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["farmDetail", farmName] });
       refetch();
     }, 2000);
+    
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["farmDetail", farmName] });
+      refetch();
+    }, 5000);
   };
 
   const handleRefresh = async () => {

@@ -1,166 +1,113 @@
 
 
-# Add Farm Profile Editing Capability
+# Add Warning for NFTs Already Staked in Other Farms
 
 ## Overview
-This implementation adds the ability for farm owners to edit their farm's profile from the farm detail page, matching the WaxDAO interface shown in the reference image. The solution mirrors the existing DAO profile editing pattern.
+This implementation adds a warning system to the NFT staking interface that alerts users when they try to stake NFTs that are already registered in another WaxDAO V2 farm. Since V2 farms are non-custodial but enforce single-farm staking per asset, users need clear feedback before attempting to stake.
 
-## Reference Image Analysis
-From the WaxDAO "Manage Farm" interface, the Profile tab includes:
-- **Cover Image** (IPFS hash input, e.g., "QMabc123...")
-- **Avatar** (IPFS hash input, e.g., "QMabc123...")
-- **Description** (multi-line textarea)
-- **Socials Section**:
-  - Website (e.g., waxdao.io)
-  - Twitter (e.g., twitter.com/MikeD_Cryo)
-  - Telegram (e.g., t.me/hoodpunks)
-  - Discord (e.g., discord.gg/helio)
-  - Medium (e.g., medium.com/wax)
-  - YouTube (e.g., youtube.com/MikeDCryp)
-  - AtomicHub (e.g., wax.atomichub.io/waxd)
-  - WaxDAO (e.g., waxdao.io/u/mikedeypnr)
+## Problem Context
+WaxDAO V2 farms use a global tracking system where each NFT can only be staked in one V2 farm at a time. When a user tries to stake an NFT already registered elsewhere, they get the error:
+```
+assertion failure with message: asset id [ID] is already staked here
+```
+
+The "here" refers to the global contract tracking, not the current farm.
+
+## Solution Design
+Add a query to fetch all NFTs the user has globally staked across V2 farms, then display visual indicators on NFTs that are already staked elsewhere, along with information about which farm they are staked in.
+
+```text
++---------------------------+
+|  NFT Card (Eligible)      |
+|  +-------------------+    |
+|  |                   |    |
+|  |     [NFT Image]   |    |
+|  |                   |    |
+|  +-------------------+    |
+|  | Name: Cool NFT    |    |
+|  | Staked in: farm1  | <-- Warning badge
++---------------------------+
+```
 
 ## Implementation Plan
 
-### 1. Add Action Builder to `src/lib/farm.ts`
+### 1. Add Global Staking Query Function to `src/lib/farm.ts`
 
-Add a new `buildSetFarmProfileAction` function to construct the `setprofile` action for the `farms.waxdao` contract:
+Add a new function `fetchUserGlobalStakes` that queries the `stakers` table using the user index (index 2) to get all farms where the user has staked NFTs:
 
 ```typescript
-export function buildSetFarmProfileAction(
-  user: string,
-  farmName: string,
-  profile: {
-    avatar: string;
-    cover_image: string;
-    description: string;
-  },
-  socials: FarmSocials
-) {
-  return {
-    account: FARM_CONTRACT,
-    name: "setprofile",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname: farmName,
-      profile: {
-        avatar: profile.avatar || "",
-        cover_image: profile.cover_image || "",
-        description: profile.description || "",
-      },
-      // Socials must be in ALPHABETICAL ORDER per contract ABI
-      socials: {
-        atomichub: socials.atomichub || "",
-        discord: socials.discord || "",
-        medium: socials.medium || "",
-        telegram: socials.telegram || "",
-        twitter: socials.twitter || "",
-        waxdao: socials.waxdao || "",
-        website: socials.website || "",
-        youtube: socials.youtube || "",
-      },
-    },
-  };
+// Return type
+interface GlobalStakeInfo {
+  farmName: string;
+  assetIds: string[];
 }
+
+// Fetches all asset IDs the user has staked across ALL V2 farms
+export async function fetchUserGlobalStakes(account: string): Promise<GlobalStakeInfo[]>
 ```
 
-### 2. Create `src/components/farm/EditFarmProfile.tsx`
+This function will:
+- Query the `stakers` table at contract scope with index 2 (by user)
+- Return an array of objects containing farm name and staked asset IDs
+- Allow the UI to identify which NFTs are staked elsewhere and in which farm
 
-New dialog component based on the DAO pattern with:
+### 2. Update `src/components/farm/NFTStaking.tsx`
 
-**Profile Fields:**
-- Cover Image (IPFS hash input with placeholder "e.g. QMabc123...")
-- Avatar (IPFS hash input with placeholder "e.g. QMabc123...")
-- Description (textarea, 500 char max with counter)
+**Add new state and query:**
+- Add a React Query hook to fetch global stakes for the connected user
+- Create a computed `globallyStakedMap` that maps asset_id -> farm_name for quick lookup (excluding current farm)
 
-**Social Links Section (Collapsible):**
-- Website
-- Twitter
-- Telegram
-- Discord
-- Medium
-- YouTube
-- AtomicHub
-- WaxDAO
+**Update the eligible NFTs display:**
+- Modify the NFTCard rendering to show a warning indicator when an NFT is staked in another farm
+- Add a tooltip or badge showing which farm the NFT is currently staked in
 
-**Features:**
-- Dialog modal matching existing UI patterns
-- Pre-populated with current farm profile data
-- Submit handler calls `buildSetFarmProfileAction` and executes transaction
-- Success callback triggers farm data refresh
-- Loading state during transaction
-- Toast notifications for success/error states
-- Prevents accidental close on outside click (per project memory)
+**Add a warning banner:**
+- When any selected NFTs are staked elsewhere, show a prominent warning above the stake button
+- List which NFTs would fail and provide the option to deselect them
 
-### 3. Update `src/components/farm/FarmDetail.tsx`
+**Disable staking for already-staked NFTs:**
+- Prevent selection of NFTs that are globally staked
+- Or allow selection but show clear warning with option to auto-deselect
 
-Add the Edit Profile button in the header section:
+### 3. UI Design Updates
 
-**Import Changes:**
-```typescript
-import { EditFarmProfile } from "./EditFarmProfile";
-import { Pencil } from "lucide-react";
+**NFT Card Enhancement:**
+Add a visual indicator for NFTs staked elsewhere:
+- Amber/yellow overlay or border on NFT cards that are staked in another farm
+- Small badge showing "Staked in [farmname]"
+- Reduce opacity slightly to indicate unavailability
+
+**Selection Behavior:**
+- When selecting an NFT staked elsewhere, show a toast warning
+- Or prevent selection entirely with a visual "locked" indicator
+
+**Stake Button Warning:**
+If any selected NFTs are staked elsewhere, show:
 ```
-
-**State Addition:**
-```typescript
-const [editProfileOpen, setEditProfileOpen] = useState(false);
-```
-
-**UI Addition (after "Copy Name" button, only for creators):**
-```typescript
-{isCreator && (
-  <Button 
-    size="sm" 
-    variant="outline" 
-    onClick={() => setEditProfileOpen(true)}
-  >
-    <Pencil className="h-4 w-4 mr-1" />
-    Edit Profile
-  </Button>
-)}
-```
-
-**Dialog Render:**
-```typescript
-{isCreator && (
-  <EditFarmProfile
-    farm={farm}
-    open={editProfileOpen}
-    onClose={() => setEditProfileOpen(false)}
-    onProfileUpdated={handleFarmUpdated}
-  />
-)}
+Warning: X NFT(s) are already staked in other farms and will fail:
+- NFT #123 (in farmA)
+- NFT #456 (in farmB)
+[Remove from selection] [Stake anyway]
 ```
 
 ## Technical Details
 
-### Contract ABI Requirements
-The `setprofile` action on `farms.waxdao` expects:
-- `user`: Account name executing the action
-- `farmname`: The farm identifier
-- `profile`: Object with `avatar`, `cover_image`, `description` strings
-- `socials`: Object with fields in **alphabetical order** (atomichub, discord, medium, telegram, twitter, waxdao, website, youtube)
+### Contract Query Strategy
+The `stakers` table at `farms.waxdao` scope with index 2 (key_type: name) returns all staking records for a user. Each row contains:
+- `user`: account name
+- `farmname`: the farm where NFTs are staked
+- `asset_ids`: array of staked asset IDs
+- Other metadata (claimable_balances, etc.)
 
-### UI Placement
-The "Edit Profile" button will appear:
-- In the header section next to "Copy Name" and "Manage Stakable Assets"
-- Only visible to the farm creator (`isCreator === true`)
-- Styled consistently with other action buttons using variant="outline"
-
-### Dialog Behavior
-- Prevents accidental close on outside click (`onInteractOutside={(e) => e.preventDefault()}`)
-- Pre-populates all fields from current farm data
-- Shows loading spinner during transaction
-- Auto-refreshes farm data on successful update
-- Toast notifications for success/error states
+### Performance Considerations
+- Cache the global stakes query with appropriate staleTime (30s)
+- Only refetch when user navigates to farm or after stake/unstake operations
+- Use a Map for O(1) lookups when rendering NFT cards
 
 ## Files Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/farm.ts` | Modify | Add `buildSetFarmProfileAction` function |
-| `src/components/farm/EditFarmProfile.tsx` | Create | New dialog component for editing farm profile |
-| `src/components/farm/FarmDetail.tsx` | Modify | Add Edit Profile button for farm creators |
+| `src/lib/farm.ts` | Modify | Add `fetchUserGlobalStakes` function |
+| `src/components/farm/NFTStaking.tsx` | Modify | Add global stakes query, update NFTCard with warning indicators, add stake button warning |
 

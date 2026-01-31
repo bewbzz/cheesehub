@@ -41,6 +41,7 @@ export function FeePaymentSelector({
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
+  const [showWaxFallback, setShowWaxFallback] = useState(false);
 
   // Update parent with CHEESE amount when pricing changes and CHEESE is selected
   useEffect(() => {
@@ -80,6 +81,13 @@ export function FeePaymentSelector({
 
   // Check if pool has enough WAXDAO for the calculated amount
   const poolHasEnoughWaxdao = poolBalance !== null && waxdaoPricing.isAvailable && poolBalance >= waxdaoPricing.waxdaoAmount;
+
+  // Show WAX fallback when pool is insufficient - keep it visible once shown
+  useEffect(() => {
+    if (poolBalance !== null && !isCheckingPool && waxdaoPricing.isAvailable && !poolHasEnoughWaxdao) {
+      setShowWaxFallback(true);
+    }
+  }, [poolBalance, isCheckingPool, waxdaoPricing.isAvailable, poolHasEnoughWaxdao]);
 
   // Determine if CHEESE option is fully available
   const isCheeseSelectable = CHEESE_FEE_ENABLED && cheesePricing.isAvailable;
@@ -215,10 +223,14 @@ export function FeePaymentSelector({
             </div>
           )}
 
-          {/* WAX Option - Only shown when CHEESE pool is insufficient */}
-          {selectedMethod === "cheese" && poolBalance !== null && !poolHasEnoughWaxdao && !isCheckingPool && (
+          {/* WAX Option - Shown when CHEESE pool is insufficient, stays visible once shown */}
+          {showWaxFallback && (
             <div
-              className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer border-border/50 hover:bg-muted/30`}
+              className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                selectedMethod === "wax"
+                  ? "border-amber-500/50 bg-amber-500/10"
+                  : "border-border/50 hover:bg-muted/30"
+              }`}
             >
               <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
               <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">

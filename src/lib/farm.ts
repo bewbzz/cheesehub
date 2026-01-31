@@ -480,6 +480,44 @@ export function buildClaimRewardsAction(staker: string, farmName: string) {
   };
 }
 
+// Build action for setting farm profile
+export function buildSetFarmProfileAction(
+  user: string,
+  farmName: string,
+  profile: {
+    avatar: string;
+    cover_image: string;
+    description: string;
+  },
+  socials: FarmSocials
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "setprofile",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+      profile: {
+        avatar: profile.avatar || "",
+        cover_image: profile.cover_image || "",
+        description: profile.description || "",
+      },
+      // Socials must be in ALPHABETICAL ORDER per contract ABI
+      socials: {
+        atomichub: socials.atomichub || "",
+        discord: socials.discord || "",
+        medium: socials.medium || "",
+        telegram: socials.telegram || "",
+        twitter: socials.twitter || "",
+        waxdao: socials.waxdao || "",
+        website: socials.website || "",
+        youtube: socials.youtube || "",
+      },
+    },
+  };
+}
+
 // Fetch all V2 farms from the contract
 export async function fetchAllFarms(): Promise<FarmInfo[]> {
   try {

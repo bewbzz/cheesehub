@@ -69,7 +69,9 @@ import { ManageStakableAssets } from "./ManageStakableAssets";
 import { OpenFarmDialog } from "./OpenFarmDialog";
 import { ExtendFarmDialog } from "./ExtendFarmDialog";
 import { DepositRewardsDialog } from "./DepositRewardsDialog";
+import { EditFarmProfile } from "./EditFarmProfile";
 import { useWax } from "@/context/WaxContext";
+import { Pencil } from "lucide-react";
 // Farm type labels based on WaxDAO contract
 const FARM_TYPE_LABELS: Record<number, string> = {
   0: "Collections",
@@ -87,6 +89,7 @@ export function FarmDetail() {
   const { accountName } = useWax();
   const [copied, setCopied] = useState(false);
   const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const queryClient = useQueryClient();
   
@@ -217,6 +220,12 @@ export function FarmDetail() {
               {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
               Copy Name
             </Button>
+            {isCreator && (
+              <Button size="sm" variant="outline" onClick={() => setEditProfileOpen(true)}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit Profile
+              </Button>
+            )}
             {isCreator && (
               <ManageStakableAssets farm={farm} onSuccess={handleFarmUpdated} />
             )}
@@ -526,6 +535,16 @@ export function FarmDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Farm Profile Dialog */}
+      {isCreator && (
+        <EditFarmProfile
+          farm={farm}
+          open={editProfileOpen}
+          onClose={() => setEditProfileOpen(false)}
+          onProfileUpdated={handleFarmUpdated}
+        />
+      )}
     </div>
   );
 }

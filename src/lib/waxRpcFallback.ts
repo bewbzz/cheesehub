@@ -3,19 +3,19 @@
 
 // Hyperion endpoints for get_tokens (faster for balance queries)
 const HYPERION_ENDPOINTS = [
+  "https://wax.eosphere.io",    // Currently most reliable
+  "https://wax.pink.gg",
   "https://wax.eosusa.io",
   "https://api.wax.alohaeos.com",
-  "https://wax.eosphere.io",
-  "https://wax.pink.gg",
 ];
 
 export const WAX_RPC_ENDPOINTS = [
-  "https://wax.eosusa.io",
-  "https://api.wax.alohaeos.com",
-  "https://wax.eosphere.io",
+  "https://wax.eosphere.io",    // Currently most reliable
+  "https://api.waxsweden.org",  // Usually stable
   "https://wax.pink.gg",
-  "https://api.waxsweden.org",
-  "https://wax.greymass.com",
+  "https://wax.eosusa.io",      // Currently having issues
+  "https://api.wax.alohaeos.com",
+  // Note: wax.greymass.com removed due to persistent CORS issues
 ];
 
 interface TableRowsParams {

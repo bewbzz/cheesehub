@@ -7,6 +7,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { RefreshCw, Loader2, Coins, Info, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useCheeseFeePricing } from "@/hooks/useCheeseFeePricing";
 import { useWaxdaoFeePricing } from "@/hooks/useWaxdaoFeePricing";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { useWax } from "@/context/WaxContext";
 import {
   CHEESE_FEE_ENABLED,
   PaymentMethod,
@@ -15,6 +17,8 @@ import {
 } from "@/lib/cheeseFees";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import { CheeseSwapDialog } from "@/components/swap/CheeseSwapDialog";
+
+const WAX_TOKEN = { symbol: "WAX", contract: "eosio.token", precision: 8, displayName: "WAX" };
 
 interface FeePaymentSelectorProps {
   waxFee?: number;
@@ -36,12 +40,19 @@ export function FeePaymentSelector({
   disabled = false,
   hideCheeseOption = false,
 }: FeePaymentSelectorProps) {
+  const { session } = useWax();
+  const accountName = session ? String(session.actor) : null;
+  
   const cheesePricing = useCheeseFeePricing(waxFee);
   const waxdaoPricing = useWaxdaoFeePricing();
+  const { balance: waxBalance, isLoading: waxBalanceLoading } = useTokenBalance(accountName, WAX_TOKEN);
+  
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [isCheckingPool, setIsCheckingPool] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [showWaxFallback, setShowWaxFallback] = useState(false);
+  
+  const hasEnoughWax = waxBalance >= waxFee;
 
   // Update parent with CHEESE amount when pricing changes and CHEESE is selected
   useEffect(() => {
@@ -226,13 +237,13 @@ export function FeePaymentSelector({
           {/* WAX Option - Shown when CHEESE pool is insufficient, stays visible once shown */}
           {showWaxFallback && (
             <div
-              className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+              className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                 selectedMethod === "wax"
                   ? "border-amber-500/50 bg-amber-500/10"
                   : "border-border/50 hover:bg-muted/30"
               }`}
             >
-              <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} />
+              <RadioGroupItem value="wax" id="payment-wax" disabled={disabled} className="mt-1" />
               <Label htmlFor="payment-wax" className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{waxFee} WAX</span>
@@ -240,6 +251,26 @@ export function FeePaymentSelector({
                     Fallback option
                   </Badge>
                 </div>
+                {selectedMethod === "wax" && (
+                  <div className="flex items-center gap-2 text-xs mt-2">
+                    {waxBalanceLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-muted-foreground">Checking balance...</span>
+                      </>
+                    ) : hasEnoughWax ? (
+                      <>
+                        <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        <span className="text-green-600">Balance: {waxBalance.toFixed(2)} WAX</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3 w-3 text-destructive" />
+                        <span className="text-destructive">Insufficient funds ({waxBalance.toFixed(2)} WAX)</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </Label>
             </div>
           )}

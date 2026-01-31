@@ -1,101 +1,80 @@
 
-# Fix Vote Rewards "Calculating..." Stuck Issue
+# Fix Rent Resources "Failed to Fetch" Error
 
 ## Problem Summary
-The vote rewards calculation is stuck showing "Calculating..." because it's fetching from the wrong blockchain table (`global4` instead of `global`). The `global4` table contains standby bucket data, not the `voters_bucket` needed for reward calculations.
+When trying to rent resources using CHEESE in the wallet, transactions fail with "Failed to fetch" errors. This is caused by the primary WAX RPC endpoint (`wax.eosusa.io`) being temporarily unavailable, and WharfKit having no fallback mechanism.
 
-## Technical Diagnosis
-- Current code fetches `eosio::global4` table first
-- `global4` returns standby bucket data (confirmed in network logs)
-- The `voters_bucket` and `total_unpaid_voteshare` fields are in the `global` table
-- Since `global4` fetch succeeds (status 200), the fallback to `global` never triggers
-- Result: `votersBucket: 0` and `currentTotalVoteshare: 0` causing calculation to return 0
-- UI displays "Calculating..." when rewards equals 0, which is misleading
+## Root Cause Analysis
+From the console and network logs:
+- `wax.eosusa.io` is returning "Failed to fetch" (CORS or connectivity issues)
+- `api.wax.alohaeos.com` is also failing
+- `wax.eosphere.io` is responding successfully (status 200)
+- WharfKit is configured with only ONE endpoint (`wax.eosusa.io`)
+- When that endpoint fails, all transactions fail with no fallback
 
 ## Solution
 
-### File: `src/components/wallet/VoteRewardsManager.tsx`
+### File: `src/lib/wharfKit.ts`
 
-**Change 1: Fetch from `global` table directly (not `global4`)**
+**Change 1: Update primary RPC endpoint to a more reliable one**
 
-Replace the current global4/fallback logic with a direct fetch to the `global` table which contains the correct fields:
+Replace the failing `wax.eosusa.io` with `wax.eosphere.io` which is currently responding:
 
 ```typescript
-// Fetch global state for reward calculation - use 'global' table
-const globalResponse = await fetchWithFallback(
-  WAX_ENDPOINTS,
-  '/v1/chain/get_table_rows',
-  {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code: 'eosio',
-      scope: 'eosio',
-      table: 'global',  // Changed from 'global4'
-      limit: 1,
-      json: true,
-    }),
-  }
-);
-globalData = await globalResponse.json();
+// Define WAX mainnet with a more reliable primary RPC endpoint
+const waxChain = ChainDefinition.from({
+  id: WAX_CHAIN_ID,
+  url: 'https://wax.eosphere.io', // Changed from wax.eosusa.io
+});
 ```
 
-**Change 2: Update GlobalState interface to match actual fields**
+### File: `src/lib/waxRpcFallback.ts`
 
-The `global` table has different field names. Update the interface to match:
+**Change 2: Reorder endpoints to prioritize working ones**
 
-```typescript
-interface GlobalState {
-  max_ram_size: string;
-  total_ram_bytes_reserved: string;
-  total_ram_stake: string;
-  last_producer_schedule_update: string;
-  // ... other fields
-  perblock_bucket: number;
-  pervote_bucket: number;
-  total_unpaid_blocks: number;
-  total_activated_stake: string;
-  thresh_activated_stake_time: string;
-  last_producer_schedule_size: number;
-  total_producer_vote_weight: string;
-  last_name_close: string;
-  voters_bucket: string;  // This is what we need
-  total_unpaid_voteshare: string;  // This too
-  total_voteshare_change_rate: string;
-}
-```
-
-**Change 3: Fix the UI display logic**
-
-Change "Calculating..." to a more accurate message when calculation completes but returns 0:
+Move `wax.eosphere.io` to the top of the fallback list since it's currently the most reliable:
 
 ```typescript
-<span className="font-medium text-cheese">
-  {estimatedRewards > 0 
-    ? `${estimatedRewards.toFixed(8)} WAX` 
-    : estimatedRewards === -1 
-      ? 'Rewards Available!' 
-      : hasVoted && canClaim
-        ? 'Claim to check' 
-        : '0.00000000 WAX'}
-</span>
-```
+export const WAX_RPC_ENDPOINTS = [
+  "https://wax.eosphere.io",    // Currently most reliable
+  "https://api.waxsweden.org",  // Usually stable
+  "https://wax.pink.gg",
+  "https://wax.eosusa.io",      // Currently having issues
+  "https://api.wax.alohaeos.com",
+  // Note: wax.greymass.com removed due to persistent CORS issues
+];
 
-**Change 4: Remove outdated CORS-failing endpoint**
-
-Per project memory, remove `wax.greymass.com` from the endpoints list as it has persistent CORS issues:
-
-```typescript
-const WAX_ENDPOINTS = [
-  'https://wax.eosusa.io',
-  'https://api.wax.alohaeos.com',
-  'https://wax.cryptolions.io',
-  'https://wax.eu.eosamsterdam.net',
+const HYPERION_ENDPOINTS = [
+  "https://wax.eosphere.io",    // Currently most reliable
+  "https://wax.pink.gg",
+  "https://wax.eosusa.io",
+  "https://api.wax.alohaeos.com",
 ];
 ```
 
+**Change 3: Remove `wax.greymass.com` from RPC endpoints**
+
+Per project memory, this endpoint has persistent CORS issues:
+
+```typescript
+// Remove from WAX_RPC_ENDPOINTS array:
+"https://wax.greymass.com", // REMOVE - CORS issues
+```
+
+## Technical Details
+
+### Why This Works
+- WharfKit's SessionKit uses the `url` from ChainDefinition for all blockchain RPC calls
+- Changing to `wax.eosphere.io` immediately fixes transactions since that endpoint is responding
+- Reordering fallback endpoints ensures data fetching also tries working endpoints first
+
+### Why Not Add Multiple Endpoints to WharfKit?
+- WharfKit's ChainDefinition only accepts a single URL for the chain
+- Adding fallback logic would require wrapping the session's transact method
+- Changing the primary endpoint is the simplest and most reliable fix
+
 ## Expected Outcome
-- Vote rewards will be properly calculated using the `voters_bucket` from the `global` table
-- Users will see their actual estimated WAX rewards instead of "Calculating..."
-- If calculation still returns 0 for valid reasons (e.g., no rewards accrued yet), it shows "0.00000000 WAX" or "Claim to check" instead of misleading "Calculating..."
-- Network requests will be more reliable without the CORS-failing endpoint
+- Rent resources transactions will succeed using CHEESE or WAX
+- Balance fetching will be faster (prioritizes working endpoints)
+- Fewer "Failed to fetch" errors across the app
+- If `wax.eosphere.io` later has issues, the fallback system will try other endpoints for data fetching (but transactions may need another endpoint update)

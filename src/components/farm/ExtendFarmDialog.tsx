@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Clock, CalendarPlus, AlertTriangle } from "lucide-react";
+import { CalendarIcon, CalendarPlus, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -11,22 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { buildExtendFarmAction, FarmInfo } from "@/lib/farm";
 import { getTransactPlugins } from "@/lib/wharfKit";
-
-const DURATION_OPTIONS = [
-  { value: "24h", label: "24 hours", hours: 24 },
-  { value: "7d", label: "7 days", hours: 24 * 7 },
-  { value: "30d", label: "30 days", hours: 24 * 30 },
-  { value: "90d", label: "90 days", hours: 24 * 90 },
-  { value: "180d", label: "180 days", hours: 24 * 180 },
-  { value: "360d", label: "360 days", hours: 24 * 360 },
-];
 
 interface ExtendFarmDialogProps {
   farm: FarmInfo;
@@ -42,31 +38,18 @@ interface RewardShortfall {
 
 export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
   const [open, setOpen] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState("7d");
+  const [date, setDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { session } = useWax();
 
   const currentExpiration = new Date(farm.expiration * 1000);
 
-  // Calculate expiration date from selected duration (from NOW)
-  const expirationDate = useMemo(() => {
-    const option = DURATION_OPTIONS.find(o => o.value === selectedDuration);
-    if (!option) return null;
-    const date = new Date();
-    date.setHours(date.getHours() + option.hours);
-    return date;
-  }, [selectedDuration]);
-
-  const expirationTimestamp = expirationDate 
-    ? Math.floor(expirationDate.getTime() / 1000) 
-    : 0;
-
   // Calculate reward shortfalls based on selected extension date
   const rewardShortfalls = useMemo((): RewardShortfall[] => {
-    if (!expirationDate) return [];
+    if (!date) return [];
     
-    const newExpirationTimestamp = Math.floor(expirationDate.getTime() / 1000);
+    const newExpirationTimestamp = Math.floor(date.getTime() / 1000);
     const currentExpirationTimestamp = farm.expiration;
     
     // Calculate additional hours from current expiration to new expiration
@@ -101,15 +84,15 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
     }
     
     return shortfalls;
-  }, [expirationDate, farm.expiration, farm.reward_pools]);
+  }, [date, farm.expiration, farm.reward_pools]);
 
   const hasShortfall = rewardShortfalls.length > 0;
 
   const handleExtendFarm = async () => {
-    if (!expirationDate) {
+    if (!date) {
       toast({ 
-        title: "Duration required", 
-        description: "Please select a duration",
+        title: "Date required", 
+        description: "Please select a new expiration date",
         variant: "destructive" 
       });
       return;
@@ -133,10 +116,11 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
       return;
     }
 
+    const newExpirationTimestamp = Math.floor(date.getTime() / 1000);
     const now = Math.floor(Date.now() / 1000);
 
     // Must be in the future and after current expiration (if set)
-    if (expirationTimestamp <= now) {
+    if (newExpirationTimestamp <= now) {
       toast({ 
         title: "Invalid date", 
         description: "Expiration date must be in the future",
@@ -145,7 +129,7 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
       return;
     }
 
-    if (farm.expiration > 0 && expirationTimestamp <= farm.expiration) {
+    if (farm.expiration > 0 && newExpirationTimestamp <= farm.expiration) {
       toast({ 
         title: "Invalid date", 
         description: "New expiration must be after the current expiration date",
@@ -159,14 +143,14 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
       const action = buildExtendFarmAction(
         farm.creator,
         farm.farm_name,
-        expirationTimestamp
+        newExpirationTimestamp
       );
 
       await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({ 
         title: "Farm Extended!", 
-        description: `${farm.farm_name} now expires on ${format(expirationDate, "PPP")}` 
+        description: `${farm.farm_name} now expires on ${format(date, "PPP")}` 
       });
       setOpen(false);
       onSuccess?.();
@@ -181,6 +165,13 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
       setIsSubmitting(false);
     }
   };
+
+  // Minimum date is tomorrow or the day after current expiration (whichever is later)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const afterExpiration = new Date(farm.expiration * 1000);
+  afterExpiration.setDate(afterExpiration.getDate() + 1);
+  const minDate = afterExpiration > tomorrow ? afterExpiration : tomorrow;
 
   // Format shortfall amounts with proper precision
   const formatAmount = (amount: number, symbol: string) => {
@@ -208,46 +199,47 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
         <div className="space-y-4 py-4">
           <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
             <p className="text-sm text-muted-foreground">Current Expiration</p>
-            <p className="font-medium">{format(currentExpiration, "PPP 'at' p")}</p>
+            <p className="font-medium">{format(currentExpiration, "PPP")}</p>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Extend Duration (from now)</label>
-            <RadioGroup 
-              value={selectedDuration} 
-              onValueChange={setSelectedDuration}
-              className="grid grid-cols-2 gap-2"
-            >
-              {DURATION_OPTIONS.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option.value} id={`extend-${option.value}`} />
-                  <Label htmlFor={`extend-${option.value}`} className="cursor-pointer">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">New Expiration Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(d) => d < minDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              The new date must be after the current expiration.
+            </p>
           </div>
-
-          {expirationDate && (
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>New expiration:</span>
-              </div>
-              <p className="font-medium mt-1">
-                {format(expirationDate, "PPP 'at' p")}
-              </p>
-            </div>
-          )}
 
           {/* Reward shortfall warning */}
-          {hasShortfall && expirationDate && (
+          {hasShortfall && date && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="space-y-2">
                 <p className="font-medium">
-                  Before extending the farm to {format(expirationDate, "PPP")}, the following rewards need to be deposited:
+                  Before extending the farm to {format(date, "PPP")}, the following rewards need to be deposited:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   {rewardShortfalls.map((shortfall) => (
@@ -271,7 +263,7 @@ export function ExtendFarmDialog({ farm, onSuccess }: ExtendFarmDialogProps) {
           </Button>
           <Button 
             onClick={handleExtendFarm} 
-            disabled={isSubmitting || !expirationDate || hasShortfall}
+            disabled={isSubmitting || !date || hasShortfall}
           >
             {isSubmitting ? "Extending..." : "Extend Farm"}
           </Button>

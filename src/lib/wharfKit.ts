@@ -13,7 +13,7 @@ export const WAX_CHAIN_ID = '1064487b3cd1a897ce03ae5b6a865651747e2e152090f99c1d1
 // Define WAX mainnet with a more reliable primary RPC endpoint
 const waxChain = ChainDefinition.from({
   id: WAX_CHAIN_ID,
-  url: 'https://wax.eosusa.io',
+  url: 'https://wax.eosphere.io',
 });
 
 // Create SessionKit WITHOUT Fuel resource provider by default

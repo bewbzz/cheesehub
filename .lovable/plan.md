@@ -1,44 +1,53 @@
 
-# Show Farm End Time for Creator Only
+# Restore Calendar Date Picker to Open Farm Dialog
 
 ## Overview
-Add the exact local time when the farm expires, displayed only to the farm creator. This gives creators precise visibility into when their farm will end without cluttering the view for regular users.
+Replace the preset duration radio buttons in the Open Farm dialog with a calendar date picker, matching the pattern already used in the Extend Farm dialog.
 
-## Current Display
+## Current State
+The Open Farm dialog uses preset durations (24h, 7d, 30d, etc.) via a RadioGroup.
+
+## Target State
+The Open Farm dialog will use a Calendar date picker for selecting the expiration date, consistent with how Extend Farm works.
+
+## Changes to `src/components/farm/OpenFarmDialog.tsx`
+
+### Imports
+- Remove: `RadioGroup`, `RadioGroupItem`, `Label`
+- Add: `Calendar`, `Popover`, `PopoverContent`, `PopoverTrigger`, `CalendarIcon`, `cn`
+
+### State Changes
+- Remove: `selectedDuration` state and `DURATION_OPTIONS` constant
+- Add: `date` state as `Date | undefined`
+
+### Logic Changes
+- Remove: `useMemo` for calculating expiration from duration
+- Update: Derive `expirationDate` directly from `date` state
+- Add: Minimum date constraint (tomorrow)
+
+### UI Changes
+Replace the RadioGroup with a Popover + Calendar picker:
+
 ```text
-Expires: 2/15/2026
+Before:                          After:
++------------------+             +---------------------------+
+| ( ) 24 hours     |             | Expiration Date           |
+| (o) 7 days       |             | [Pick a date        📅]   |
+| ( ) 30 days      |             +---------------------------+
+| ( ) 90 days      |             | Calendar popover          |
+| ( ) 180 days     |             |                           |
+| ( ) 360 days     |             +---------------------------+
++------------------+
 ```
 
-## New Display (Creator Only)
-```text
-Expires: 2/15/2026
-         3:45:30 PM  ← Only visible to creator
-```
+### Key Implementation Details
+- Use `pointer-events-auto` class on Calendar to ensure it works inside the dialog
+- Set minimum date to tomorrow to prevent selecting past dates
+- Keep the "Farm expires" preview box showing the selected date/time
+- Disable date picker when rewards are missing (same as current behavior)
 
-## Implementation
+## File Summary
 
-### File: `src/components/farm/FarmDetail.tsx`
-
-**Current code (line 314):**
-```tsx
-<p className="font-medium">{expirationDate.toLocaleDateString()}</p>
-```
-
-**New code:**
-```tsx
-<div>
-  <p className="font-medium">{expirationDate.toLocaleDateString()}</p>
-  {isCreator && !isUnderConstruction && (
-    <p className="text-xs text-muted-foreground">
-      {expirationDate.toLocaleTimeString()}
-    </p>
-  )}
-</div>
-```
-
-## Technical Notes
-
-- Uses `toLocaleTimeString()` which automatically formats the time based on the user's browser locale/timezone
-- The time is hidden when the farm is "under construction" (no expiration set yet)
-- Styled as smaller, muted text to keep focus on the date
-- No additional dependencies needed - uses native JavaScript Date methods
+| File | Action |
+|------|--------|
+| `src/components/farm/OpenFarmDialog.tsx` | Replace RadioGroup with Calendar date picker |

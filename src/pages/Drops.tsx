@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import type { NFTDrop } from "@/types/drop";
 import { Package, Plus, Grid, Sandwich, RefreshCw, Search, X, Loader2 } from "lucide-react";
 import { CHEESE_CONFIG } from "@/lib/waxConfig";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 
 const DROPS_PER_PAGE = 50;
 
@@ -154,7 +154,7 @@ const Drops = () => {
   const { enrichedDrops: enrichedCheeseDrops, isEnriching: isEnrichingCheese } = useEnrichDrops(cheeseDrops);
 
   // Reset page only when filters change (not on mount)
-  const isInitialMount = useMemo(() => ({ current: true }), []);
+  const isInitialMount = useRef(true);
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;

@@ -1,113 +1,103 @@
 
 
-# Add Warning for NFTs Already Staked in Other Farms
+# Replace Calendar with Duration Presets in Farm Dialogs
 
 ## Overview
-This implementation adds a warning system to the NFT staking interface that alerts users when they try to stake NFTs that are already registered in another WaxDAO V2 farm. Since V2 farms are non-custodial but enforce single-farm staking per asset, users need clear feedback before attempting to stake.
+Replace the calendar date picker in both the "Open Farm" and "Extend Farm" dialogs with simple duration preset options. This provides a much better user experience by eliminating the need to manually select dates.
 
-## Problem Context
-WaxDAO V2 farms use a global tracking system where each NFT can only be staked in one V2 farm at a time. When a user tries to stake an NFT already registered elsewhere, they get the error:
+## Duration Options
+
+```typescript
+const DURATION_OPTIONS = [
+  { value: "24h", label: "24 hours", hours: 24 },
+  { value: "7d", label: "7 days", hours: 24 * 7 },
+  { value: "30d", label: "30 days", hours: 24 * 30 },
+  { value: "90d", label: "90 days", hours: 24 * 90 },
+  { value: "180d", label: "180 days", hours: 24 * 180 },
+  { value: "360d", label: "360 days", hours: 24 * 360 },
+];
 ```
-assertion failure with message: asset id [ID] is already staked here
-```
 
-The "here" refers to the global contract tracking, not the current farm.
-
-## Solution Design
-Add a query to fetch all NFTs the user has globally staked across V2 farms, then display visual indicators on NFTs that are already staked elsewhere, along with information about which farm they are staked in.
+## UI Design
 
 ```text
-+---------------------------+
-|  NFT Card (Eligible)      |
-|  +-------------------+    |
-|  |                   |    |
-|  |     [NFT Image]   |    |
-|  |                   |    |
-|  +-------------------+    |
-|  | Name: Cool NFT    |    |
-|  | Staked in: farm1  | <-- Warning badge
-+---------------------------+
++--------------------------------+
+| Open Farm / Extend Farm        |
+| Set how long the farm runs     |
++--------------------------------+
+| [Current Expiration: Feb 1]    |  <- Only for Extend dialog
++--------------------------------+
+| Farm Duration                  |
+| +----------------------------+ |
+| | ( ) 24 hours               | |
+| | ( ) 7 days                 | |
+| | (x) 30 days                | |
+| | ( ) 90 days                | |
+| | ( ) 180 days               | |
+| | ( ) 360 days               | |
+| +----------------------------+ |
+|                                |
+| Expires: March 2, 2026 3:45 PM |
++--------------------------------+
+| [Cancel]         [Open Farm]   |
++--------------------------------+
 ```
 
 ## Implementation Plan
 
-### 1. Add Global Staking Query Function to `src/lib/farm.ts`
+### 1. Update `src/components/farm/OpenFarmDialog.tsx`
 
-Add a new function `fetchUserGlobalStakes` that queries the `stakers` table using the user index (index 2) to get all farms where the user has staked NFTs:
+**Remove:**
+- Calendar component import
+- Popover imports  
+- CalendarIcon import
+- `date` state and minDate calculation
 
-```typescript
-// Return type
-interface GlobalStakeInfo {
-  farmName: string;
-  assetIds: string[];
-}
+**Add:**
+- RadioGroup, RadioGroupItem imports from `@/components/ui/radio-group`
+- Clock icon import from lucide-react
+- `DURATION_OPTIONS` constant with all 6 options
+- `selectedDuration` state (string, default to "7d")
 
-// Fetches all asset IDs the user has staked across ALL V2 farms
-export async function fetchUserGlobalStakes(account: string): Promise<GlobalStakeInfo[]>
-```
+**Modify:**
+- Calculate expiration date from selected duration using `useMemo`
+- Replace calendar Popover UI with RadioGroup showing the six duration options
+- Show calculated expiration date/time below the options
+- Update submit handler to use computed expiration timestamp
+- Update disabled logic on submit button
 
-This function will:
-- Query the `stakers` table at contract scope with index 2 (by user)
-- Return an array of objects containing farm name and staked asset IDs
-- Allow the UI to identify which NFTs are staked elsewhere and in which farm
+### 2. Update `src/components/farm/ExtendFarmDialog.tsx`
 
-### 2. Update `src/components/farm/NFTStaking.tsx`
-
-**Add new state and query:**
-- Add a React Query hook to fetch global stakes for the connected user
-- Create a computed `globallyStakedMap` that maps asset_id -> farm_name for quick lookup (excluding current farm)
-
-**Update the eligible NFTs display:**
-- Modify the NFTCard rendering to show a warning indicator when an NFT is staked in another farm
-- Add a tooltip or badge showing which farm the NFT is currently staked in
-
-**Add a warning banner:**
-- When any selected NFTs are staked elsewhere, show a prominent warning above the stake button
-- List which NFTs would fail and provide the option to deselect them
-
-**Disable staking for already-staked NFTs:**
-- Prevent selection of NFTs that are globally staked
-- Or allow selection but show clear warning with option to auto-deselect
-
-### 3. UI Design Updates
-
-**NFT Card Enhancement:**
-Add a visual indicator for NFTs staked elsewhere:
-- Amber/yellow overlay or border on NFT cards that are staked in another farm
-- Small badge showing "Staked in [farmname]"
-- Reduce opacity slightly to indicate unavailability
-
-**Selection Behavior:**
-- When selecting an NFT staked elsewhere, show a toast warning
-- Or prevent selection entirely with a visual "locked" indicator
-
-**Stake Button Warning:**
-If any selected NFTs are staked elsewhere, show:
-```
-Warning: X NFT(s) are already staked in other farms and will fail:
-- NFT #123 (in farmA)
-- NFT #456 (in farmB)
-[Remove from selection] [Stake anyway]
-```
+**Same changes as OpenFarmDialog, plus:**
+- Keep the "Current Expiration" info display at the top
+- Duration is calculated from NOW (current time), not from current expiration
+- Update reward shortfall calculation to use the computed expiration date
+- Show "New Expiration" date clearly
 
 ## Technical Details
 
-### Contract Query Strategy
-The `stakers` table at `farms.waxdao` scope with index 2 (key_type: name) returns all staking records for a user. Each row contains:
-- `user`: account name
-- `farmname`: the farm where NFTs are staked
-- `asset_ids`: array of staked asset IDs
-- Other metadata (claimable_balances, etc.)
+### Expiration Calculation
+```typescript
+const expirationDate = useMemo(() => {
+  const option = DURATION_OPTIONS.find(o => o.value === selectedDuration);
+  if (!option) return null;
+  const date = new Date();
+  date.setHours(date.getHours() + option.hours);
+  return date;
+}, [selectedDuration]);
 
-### Performance Considerations
-- Cache the global stakes query with appropriate staleTime (30s)
-- Only refetch when user navigates to farm or after stake/unstake operations
-- Use a Map for O(1) lookups when rendering NFT cards
+const expirationTimestamp = expirationDate 
+  ? Math.floor(expirationDate.getTime() / 1000) 
+  : 0;
+```
+
+### ExtendFarmDialog Shortfall Integration
+The existing reward shortfall calculation uses `date` state - we'll replace that with the computed `expirationDate` from the duration preset. The shortfall logic calculates hours from current expiration to new expiration, which will continue to work correctly.
 
 ## Files Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/farm.ts` | Modify | Add `fetchUserGlobalStakes` function |
-| `src/components/farm/NFTStaking.tsx` | Modify | Add global stakes query, update NFTCard with warning indicators, add stake button warning |
+| `src/components/farm/OpenFarmDialog.tsx` | Modify | Replace calendar with 6 duration radio buttons |
+| `src/components/farm/ExtendFarmDialog.tsx` | Modify | Replace calendar with 6 duration radio buttons, maintain shortfall logic |
 

@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { Clock, Rocket, AlertTriangle } from "lucide-react";
+import { Clock, Rocket, AlertTriangle, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -11,22 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
 import { buildOpenFarmAction, FarmInfo } from "@/lib/farm";
 import { getTransactPlugins } from "@/lib/wharfKit";
-
-const DURATION_OPTIONS = [
-  { value: "24h", label: "24 hours", hours: 24 },
-  { value: "7d", label: "7 days", hours: 24 * 7 },
-  { value: "30d", label: "30 days", hours: 24 * 30 },
-  { value: "90d", label: "90 days", hours: 24 * 90 },
-  { value: "180d", label: "180 days", hours: 24 * 180 },
-  { value: "360d", label: "360 days", hours: 24 * 360 },
-];
 
 interface OpenFarmDialogProps {
   farm: FarmInfo;
@@ -35,7 +31,7 @@ interface OpenFarmDialogProps {
 
 export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
   const [open, setOpen] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState("7d");
+  const [date, setDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { session } = useWax();
@@ -47,17 +43,13 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
   });
   const hasAllRewards = farm.reward_pools.length > 0 && poolsWithoutRewards.length === 0;
 
-  // Calculate expiration date from selected duration
-  const expirationDate = useMemo(() => {
-    const option = DURATION_OPTIONS.find(o => o.value === selectedDuration);
-    if (!option) return null;
-    const date = new Date();
-    date.setHours(date.getHours() + option.hours);
-    return date;
-  }, [selectedDuration]);
+  // Minimum date is tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow;
 
-  const expirationTimestamp = expirationDate 
-    ? Math.floor(expirationDate.getTime() / 1000) 
+  const expirationTimestamp = date 
+    ? Math.floor(date.getTime() / 1000) 
     : 0;
 
   const handleOpenFarm = async () => {
@@ -70,10 +62,10 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
       return;
     }
 
-    if (!expirationDate) {
+    if (!date) {
       toast({ 
-        title: "Duration required", 
-        description: "Please select a duration",
+        title: "Date required", 
+        description: "Please select an expiration date",
         variant: "destructive" 
       });
       return;
@@ -100,7 +92,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
 
       toast({ 
         title: "Farm Opened!", 
-        description: `${farm.farm_name} is now live until ${format(expirationDate, "PPP")}` 
+        description: `${farm.farm_name} is now live until ${format(date, "PPP")}` 
       });
       setOpen(false);
       onSuccess?.();
@@ -128,7 +120,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
         <DialogHeader>
           <DialogTitle>Open Farm</DialogTitle>
           <DialogDescription>
-            Set how long the farm will run. Once opened, users can start staking.
+            Select when the farm will expire. Once opened, users can start staking.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,33 +134,43 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
             </Alert>
           )}
 
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Farm Duration</label>
-            <RadioGroup 
-              value={selectedDuration} 
-              onValueChange={setSelectedDuration}
-              className="grid grid-cols-2 gap-2"
-              disabled={!hasAllRewards}
-            >
-              {DURATION_OPTIONS.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option.value} id={option.value} />
-                  <Label htmlFor={option.value} className="cursor-pointer">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Expiration Date</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                  disabled={!hasAllRewards}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  disabled={(d) => d < minDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {expirationDate && (
+          {date && (
             <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 <span>Farm expires:</span>
               </div>
               <p className="font-medium mt-1">
-                {format(expirationDate, "PPP 'at' p")}
+                {format(date, "PPP 'at' p")}
               </p>
             </div>
           )}
@@ -180,7 +182,7 @@ export function OpenFarmDialog({ farm, onSuccess }: OpenFarmDialogProps) {
           </Button>
           <Button 
             onClick={handleOpenFarm} 
-            disabled={isSubmitting || !expirationDate || !hasAllRewards}
+            disabled={isSubmitting || !date || !hasAllRewards}
             className="bg-green-600 hover:bg-green-700"
           >
             {isSubmitting ? "Opening..." : "Open Farm"}

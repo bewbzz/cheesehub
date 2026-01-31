@@ -12,39 +12,110 @@ export interface GlobalStakeInfo {
 }
 
 // Fetches all asset IDs the user has staked across ALL V2 farms
-// Uses the stakers table with index 2 (user index) to find all farms where user has stakes
+// Uses multiple strategies since WAX secondary indexes are unreliable
 export async function fetchUserGlobalStakes(account: string): Promise<GlobalStakeInfo[]> {
+  const results: GlobalStakeInfo[] = [];
+  
   try {
-    const response = await waxRpcCall<{
-      rows: Array<{
-        user: string;
-        farmname: string;
-        asset_ids: string[];
-        claimable_balances: Array<{ quantity: string; contract: string }>;
-        rates_per_hour: Array<{ quantity: string; contract: string }>;
-        last_state_change: number;
-      }>;
-      more: boolean;
-    }>('/v1/chain/get_table_rows', {
-      json: true,
-      code: FARM_CONTRACT,
-      scope: FARM_CONTRACT,
-      table: 'stakers',
-      index_position: 2,
-      key_type: 'name',
-      lower_bound: account,
-      upper_bound: account,
-      limit: 100,
-    });
-
-    if (!response.rows || response.rows.length === 0) {
-      return [];
+    // Strategy 1: Try secondary index first (fastest if it works)
+    try {
+      const response = await fetchTableRows({
+        code: FARM_CONTRACT,
+        scope: FARM_CONTRACT,
+        table: 'stakers',
+        index_position: 2,
+        key_type: 'name',
+        lower_bound: account,
+        upper_bound: account,
+        limit: 100,
+      });
+      
+      console.log('[fetchUserGlobalStakes] Secondary index returned', response.rows?.length || 0, 'rows');
+      
+      if (response.rows && response.rows.length > 0) {
+        for (const row of response.rows) {
+          const farmRow = row as Record<string, unknown>;
+          const farmName = (farmRow.farmname || farmRow.farm_name || '') as string;
+          const assetIds = (farmRow.asset_ids || []) as (string | number)[];
+          
+          if (farmName && assetIds.length > 0) {
+            results.push({
+              farmName,
+              assetIds: assetIds.map(id => String(id)),
+            });
+          }
+        }
+        
+        if (results.length > 0) {
+          console.log('[fetchUserGlobalStakes] Found stakes in', results.length, 'farms via secondary index');
+          return results;
+        }
+      }
+    } catch (e) {
+      console.log('[fetchUserGlobalStakes] Secondary index failed:', e);
     }
-
-    return response.rows.map(row => ({
-      farmName: row.farmname,
-      assetIds: row.asset_ids.map(id => String(id)),
-    }));
+    
+    // Strategy 2: Scan stakers table with reverse pagination (newest first)
+    // This catches cases where secondary index doesn't work
+    console.log('[fetchUserGlobalStakes] Trying reverse scan strategy');
+    
+    let hasMore = true;
+    let upperBound = '';
+    let iterations = 0;
+    const MAX_ITERATIONS = 20; // Limit scan to prevent infinite loops
+    const seenFarms = new Set<string>();
+    
+    while (hasMore && iterations < MAX_ITERATIONS) {
+      try {
+        const response = await fetchTableRows({
+          code: FARM_CONTRACT,
+          scope: FARM_CONTRACT,
+          table: 'stakers',
+          limit: 100,
+          reverse: true,
+          ...(upperBound ? { upper_bound: upperBound } : {}),
+        });
+        
+        if (!response.rows || response.rows.length === 0) {
+          hasMore = false;
+          break;
+        }
+        
+        for (const row of response.rows) {
+          const farmRow = row as Record<string, unknown>;
+          const user = (farmRow.user || '') as string;
+          const farmName = (farmRow.farmname || farmRow.farm_name || '') as string;
+          const assetIds = (farmRow.asset_ids || []) as (string | number)[];
+          
+          if (user === account && farmName && assetIds.length > 0 && !seenFarms.has(farmName)) {
+            seenFarms.add(farmName);
+            results.push({
+              farmName,
+              assetIds: assetIds.map(id => String(id)),
+            });
+          }
+        }
+        
+        // Get next page
+        const lastRow = response.rows[response.rows.length - 1] as Record<string, unknown>;
+        const lastId = lastRow.id as number | undefined;
+        
+        if (lastId !== undefined && response.more) {
+          upperBound = String(lastId - 1);
+        } else {
+          hasMore = false;
+        }
+        
+        iterations++;
+      } catch (e) {
+        console.log('[fetchUserGlobalStakes] Reverse scan iteration failed:', e);
+        hasMore = false;
+      }
+    }
+    
+    console.log('[fetchUserGlobalStakes] Found stakes in', results.length, 'farms via reverse scan after', iterations, 'iterations');
+    return results;
+    
   } catch (error) {
     console.error('[fetchUserGlobalStakes] Error:', error);
     return [];

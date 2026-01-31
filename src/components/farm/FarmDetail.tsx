@@ -21,7 +21,8 @@ import {
   Globe,
   Youtube,
   BookOpen,
-  ImageIcon
+  ImageIcon,
+  RefreshCw
 } from "lucide-react";
 
 // IPFS gateway fallback system
@@ -90,6 +91,7 @@ export function FarmDetail() {
   const [copied, setCopied] = useState(false);
   const [coverGatewayIndex, setCoverGatewayIndex] = useState(0);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const queryClient = useQueryClient();
   
@@ -102,6 +104,16 @@ export function FarmDetail() {
 
   const handleFarmUpdated = async () => {
     await refetch();
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      toast({ title: "Farm data refreshed!" });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleCopyFarmName = () => {
@@ -418,6 +430,19 @@ export function FarmDetail() {
       </div>
 
       {/* Stats Cards */}
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-lg font-semibold">Farm Stats</h2>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          {isRefreshing ? "Refreshing..." : "Refresh"}
+        </Button>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/50 bg-card/50">
           <CardContent className="p-4">

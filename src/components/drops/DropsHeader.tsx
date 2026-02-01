@@ -1,4 +1,4 @@
-import { ShoppingCart, Wallet, LogOut, RefreshCw, ChevronDown, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Wallet, LogOut, RefreshCw, ChevronDown, ArrowLeft, Users, UserPlus, Check, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,6 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import { useCart } from "@/context/CartContext";
 import { useWax } from "@/context/WaxContext";
@@ -14,7 +18,30 @@ import cheeseLogo from "@/assets/cheese-logo.png";
 
 export function DropsHeader() {
   const { totalItems, setIsOpen } = useCart();
-  const { isConnected, isLoading, accountName, cheeseBalance, login, logout, refreshBalance } = useWax();
+  const { 
+    isConnected, 
+    isLoading, 
+    accountName, 
+    cheeseBalance, 
+    login, 
+    logout, 
+    refreshBalance,
+    allSessions,
+    switchAccount,
+    addAccount,
+    removeAccount,
+  } = useWax();
+
+  // Filter out the current session from the switch list
+  const otherSessions = allSessions.filter(
+    s => String(s.actor) !== accountName
+  );
+
+  const handleAddAccount = async () => {
+    // Small delay to ensure dropdown is closed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await addAccount();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -50,11 +77,62 @@ export function DropsHeader() {
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-card border-border z-50">
+              <DropdownMenuContent align="end" className="w-56 bg-card border-border z-50">
                 <DropdownMenuItem onClick={refreshBalance} className="cursor-pointer">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Refresh Balance
                 </DropdownMenuItem>
+                
+                {/* Account Switching Submenu */}
+                {allSessions.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="cursor-pointer">
+                        <Users className="mr-2 h-4 w-4" />
+                        Switch Account
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-56 bg-card border-border">
+                          {/* Current account */}
+                          <DropdownMenuItem disabled className="opacity-100">
+                            <Check className="mr-2 h-4 w-4 text-primary" />
+                            <span className="font-medium">{accountName}</span>
+                            <span className="ml-auto text-xs text-muted-foreground">(active)</span>
+                          </DropdownMenuItem>
+                          
+                          {/* Other accounts */}
+                          {otherSessions.map((s) => (
+                            <DropdownMenuItem 
+                              key={`${String(s.actor)}-${s.permission}`}
+                              className="cursor-pointer group"
+                              onClick={() => switchAccount(s)}
+                            >
+                              <div className="w-4 mr-2" /> {/* Spacer for alignment */}
+                              <span>{String(s.actor)}</span>
+                              <button
+                                className="ml-auto opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity p-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeAccount(s);
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </DropdownMenuItem>
+                          ))}
+                          
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleAddAccount} className="cursor-pointer">
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Add Account
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </>
+                )}
+                
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />

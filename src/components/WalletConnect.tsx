@@ -9,13 +9,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { Wallet, LogOut, ChevronDown, Send, Music2 } from "lucide-react";
+import { Wallet, LogOut, ChevronDown, Send, Music2, UserPlus, Users, Check, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import cheeseLogo from "@/assets/cheese-logo.png";
 import { WalletTransferDialog } from "./WalletTransferDialog";
@@ -26,7 +30,19 @@ import { getAudioPlayer } from "@/lib/musicPlayer";
 import { useCheeseAmpStore } from "@/stores/cheeseAmpStore";
 
 export function WalletConnect() {
-  const { session, isConnected, isLoading, accountName, cheeseBalance, login, logout } = useWax();
+  const { 
+    session, 
+    isConnected, 
+    isLoading, 
+    accountName, 
+    cheeseBalance, 
+    login, 
+    logout,
+    allSessions,
+    switchAccount,
+    addAccount,
+    removeAccount,
+  } = useWax();
   const [open, setOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [cheeseAmpOpen, setCheeseAmpOpen] = useState(false);
@@ -86,6 +102,12 @@ export function WalletConnect() {
     await login();
   };
 
+  const handleAddAccount = async () => {
+    // Small delay to ensure dropdown is closed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await addAccount();
+  };
+
   const handleCheeseAmpMinimize = () => {
     setCheeseAmpOpen(false);
     setCheeseAmpMinimized(true);
@@ -100,6 +122,11 @@ export function WalletConnect() {
     getAudioPlayer().stop();
     setCheeseAmpMinimized(false);
   };
+
+  // Filter out the current session from the switch list
+  const otherSessions = allSessions.filter(
+    s => String(s.actor) !== accountName
+  );
 
   if (isConnected && accountName) {
     return (
@@ -116,7 +143,7 @@ export function WalletConnect() {
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onClick={() => setWalletOpen(true)} className="cursor-pointer">
             <Send className="mr-2 h-4 w-4" />
             Wallet
@@ -134,6 +161,57 @@ export function WalletConnect() {
             <Music2 className="mr-2 h-4 w-4" />
             <span><span className="text-cheese">CHEESE</span>Amp</span>
           </DropdownMenuItem>
+          
+          {/* Account Switching Submenu */}
+          {allSessions.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="cursor-pointer">
+                  <Users className="mr-2 h-4 w-4" />
+                  Switch Account
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-56">
+                    {/* Current account */}
+                    <DropdownMenuItem disabled className="opacity-100">
+                      <Check className="mr-2 h-4 w-4 text-cheese" />
+                      <span className="font-medium">{accountName}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">(active)</span>
+                    </DropdownMenuItem>
+                    
+                    {/* Other accounts */}
+                    {otherSessions.map((s) => (
+                      <DropdownMenuItem 
+                        key={`${String(s.actor)}-${s.permission}`}
+                        className="cursor-pointer group"
+                        onClick={() => switchAccount(s)}
+                      >
+                        <div className="w-4 mr-2" /> {/* Spacer for alignment */}
+                        <span>{String(s.actor)}</span>
+                        <button
+                          className="ml-auto opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeAccount(s);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </DropdownMenuItem>
+                    ))}
+                    
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleAddAccount} className="cursor-pointer">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Add Account
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            </>
+          )}
+          
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="cursor-pointer">
             <LogOut className="mr-2 h-4 w-4" />

@@ -1,120 +1,76 @@
 
-# Add Multi-Account Switching via WharfKit Sessions
 
-## Overview
-Implement a dropdown account switcher in the wallet menu that allows users to quickly switch between multiple logged-in WAX accounts without needing to fully logout and login each time. Similar to how bloks.io handles account switching.
+# Persist Accounts After Disconnect for Easy Switching
 
-## How It Works
+## What You Want
 
-**WharfKit's Built-in Multi-Session Support:**
-- `sessionKit.getSessions()` - Retrieves all stored sessions from localStorage
-- `sessionKit.restore(session)` - Switches to a specific session
-- `sessionKit.login()` - Adds a new session (keeps existing ones)
-- `sessionKit.logout(session)` - Removes only a specific session
-
-Each login creates a new session stored in localStorage. Sessions persist across browser refreshes and can be restored/switched without re-authenticating (the wallet plugin handles this seamlessly).
-
-## User Experience
-
-**Current Flow:**
-1. Connected as `cheesedao.gm`
-2. Want to use `anotherwax` account
-3. Click Disconnect -> Click Connect -> Choose wallet -> Select account
-4. Repeat for each account switch
-
-**New Flow:**
-1. Connected as `cheesedao.gm`
-2. Click wallet dropdown -> See "Switch Account" submenu
-3. Click on `anotherwax` (previously logged in) -> Instant switch
-4. Or click "Add Account" to login with another account
-
-## UI Design
+Currently when you click "Disconnect", the account is removed from storage and can't be switched back to. You want accounts to **persist** so you can switch between all accounts you've ever logged into:
 
 ```text
-+------------------------------------------+
-| [Wallet]                                 |
-|  Wallet                                  |
-|  CHEESEAmp                              |
-|  ─────────────────────────────────       |
-|  ▼ Switch Account                        |
-|     ● cheesedao.gm     (active)         |
-|       anotherwax                         |
-|       testwaxacc                         |
-|     + Add Account                        |
-|  ─────────────────────────────────       |
-|  Disconnect                              |
-+------------------------------------------+
+Login A → disconnect → Login B → can switch to A
+→ disconnect → Login C → can switch to A, B, C
 ```
 
-Clicking an account name instantly switches to it. "Add Account" triggers a fresh login flow that adds to the existing sessions.
+## The Problem
 
-## Technical Implementation
+The current `logout()` function calls `sessionKit.logout(session)` which **removes** the session from WharfKit's localStorage. That's why your previous account disappears.
 
-### 1. Update WaxContext (`src/context/WaxContext.tsx`)
+## The Solution
 
-Add new context properties:
+Change "Disconnect" behavior:
+- **Currently**: Calls `sessionKit.logout()` → removes session from storage
+- **New behavior**: Only clears the active session state → keeps session in storage
+
+The "Remove Account" button (X icon) will be the only way to permanently delete an account from the list.
+
+## Technical Changes
+
+### 1. Update `logout()` in WaxContext.tsx
+
+Instead of calling `sessionKit.logout(session)`, simply clear the local state:
+
 ```typescript
-interface WaxContextType {
-  // ... existing properties
-  
-  // Multi-account support
-  allSessions: SerializedSession[];
-  switchAccount: (session: SerializedSession) => Promise<void>;
-  addAccount: () => Promise<void>;
-  removeAccount: (session: SerializedSession) => Promise<void>;
-  refreshSessions: () => Promise<void>;
-}
+const logout = async () => {
+  if (session) {
+    // DON'T call sessionKit.logout() - that removes from storage
+    // Just clear the active session state
+    setSession(null);
+    setCheeseBalance(0);
+    toast({
+      title: 'Wallet Disconnected',
+      description: 'You have been logged out. Your account is saved for quick switching.',
+    });
+    // Sessions remain in storage for future switching
+  }
+};
 ```
 
-Implement the new functions:
-- `refreshSessions()` - Calls `sessionKit.getSessions()` and updates state
-- `switchAccount()` - Calls `sessionKit.restore(session)` and updates active session
-- `addAccount()` - Calls `sessionKit.login()` without logging out first
-- `removeAccount()` - Calls `sessionKit.logout(session)` for a specific session
+### 2. Keep `removeAccount()` As-Is
 
-### 2. Update WalletConnect Component (`src/components/WalletConnect.tsx`)
+This function already calls `sessionKit.logout()` to permanently delete from storage - that's the intended behavior for the X button.
 
-Add a submenu in the wallet dropdown that shows:
-- All available sessions from `allSessions`
-- Active session indicator (bullet point or checkmark)
-- "Add Account" button at bottom of list
-- Optional: Remove button per account (or hold-to-remove)
+### 3. Update Connect Flow
 
-Use Radix's `DropdownMenuSub` for the nested submenu.
+When not connected but sessions exist, show "Connect" which offers:
+- Quick-switch to a stored account, OR
+- Add a new account via wallet login
 
-### 3. Update DropsHeader Component (`src/components/drops/DropsHeader.tsx`)
+## User Experience After This Change
 
-Mirror the same account switching UI for consistency on the Drops page.
+| Action | Before | After |
+|--------|--------|-------|
+| Click Disconnect | Account deleted from list | Account stays in list |
+| Click X on account | Account deleted | Account deleted (same) |
+| Login new account | Only new account in list | All previous + new account in list |
+| Refresh page | Need to re-login | Can quick-switch to any saved account |
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/context/WaxContext.tsx` | Add `allSessions` state, `switchAccount`, `addAccount`, `removeAccount` functions |
-| `src/components/WalletConnect.tsx` | Add "Switch Account" submenu with session list and "Add Account" option |
-| `src/components/drops/DropsHeader.tsx` | Add same account switching submenu for Drops page consistency |
+| File | Change |
+|------|--------|
+| `src/context/WaxContext.tsx` | Update `logout()` to not call `sessionKit.logout()` |
 
-## Edge Cases Handled
+## Session Limit
 
-- **No other sessions**: Hide "Switch Account" submenu if only one session
-- **Session expired**: If restore fails, show toast and remove stale session
-- **Same account selected**: No-op if clicking the already-active account
-- **Cloud Wallet vs Anchor**: Both work, sessions track which wallet plugin was used
+WharfKit doesn't have a built-in limit on stored sessions. It stores all sessions in localStorage. You could add dozens of accounts if needed. The practical limit is localStorage space (typically 5-10MB, which is plenty for session data).
 
-## Session Data Structure
-
-WharfKit stores sessions with this structure:
-```typescript
-interface SerializedSession {
-  actor: string;        // e.g., "cheesedao.gm"
-  chain: string;        // WAX chain ID
-  permission: string;   // e.g., "active"
-  walletPlugin: {
-    id: string;         // "anchor" or "cloudwallet"
-    data?: any;
-  };
-  default?: boolean;
-}
-```
-
-This allows us to display the account name and even show which wallet type each session uses.

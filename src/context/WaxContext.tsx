@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Session } from '@wharfkit/session';
+import { Session, SerializedSession } from '@wharfkit/session';
 import { sessionKit, closeWharfkitModals, setLoginInProgress, getTransactPlugins } from '@/lib/wharfKit';
 import { CHEESE_CONFIG, WAX_CHAIN, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { useToast } from '@/hooks/use-toast';
-
 
 interface WaxContextType {
   session: Session | null;
@@ -35,6 +34,12 @@ interface WaxContextType {
   claimFreeDrop: (dropId: string, quantity: number) => Promise<string | null>;
   joinDao: (daoName: string) => Promise<string | null>;
   leaveDao: (daoName: string) => Promise<string | null>;
+  // Multi-account support
+  allSessions: SerializedSession[];
+  switchAccount: (session: SerializedSession) => Promise<void>;
+  addAccount: () => Promise<void>;
+  removeAccount: (session: SerializedSession) => Promise<void>;
+  refreshSessions: () => Promise<void>;
 }
 
 const WaxContext = createContext<WaxContextType | undefined>(undefined);
@@ -43,6 +48,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [cheeseBalance, setCheeseBalance] = useState(0);
+  const [allSessions, setAllSessions] = useState<SerializedSession[]>([]);
   const { toast } = useToast();
 
   const accountName = session?.actor?.toString() || null;
@@ -95,6 +101,17 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     setCheeseBalance(0);
   }, [session]);
 
+  // Refresh all stored sessions
+  const refreshSessions = useCallback(async () => {
+    try {
+      const sessions = await sessionKit.getSessions();
+      setAllSessions(sessions);
+    } catch (error) {
+      console.error('Failed to get sessions:', error);
+      setAllSessions([]);
+    }
+  }, []);
+
   useEffect(() => {
     const restoreSession = async () => {
       try {
@@ -102,12 +119,14 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         if (restored) {
           setSession(restored);
         }
+        // Also load all sessions
+        await refreshSessions();
       } catch (error) {
         console.error('Failed to restore session:', error);
       }
     };
     restoreSession();
-  }, []);
+  }, [refreshSessions]);
 
   // Initial balance refresh on session change
   useEffect(() => {
@@ -131,6 +150,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     try {
       const response = await sessionKit.login();
       setSession(response.session);
+      await refreshSessions(); // Refresh session list after login
       toast({
         title: 'Wallet Connected',
         description: `Connected as ${response.session.actor}`,
@@ -154,6 +174,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         await sessionKit.logout(session);
         setSession(null);
         setCheeseBalance(0);
+        await refreshSessions(); // Refresh session list after logout
         toast({
           title: 'Wallet Disconnected',
           description: 'You have been logged out',
@@ -161,6 +182,87 @@ export function WaxProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Logout failed:', error);
       }
+    }
+  };
+
+  // Switch to a different stored session
+  const switchAccount = async (serializedSession: SerializedSession) => {
+    try {
+      setIsLoading(true);
+      const restored = await sessionKit.restore(serializedSession);
+      if (restored) {
+        setSession(restored);
+        toast({
+          title: 'Account Switched',
+          description: `Now using ${restored.actor}`,
+        });
+      }
+    } catch (error) {
+      console.error('Switch account failed:', error);
+      toast({
+        title: 'Switch Failed',
+        description: error instanceof Error ? error.message : 'Failed to switch account',
+        variant: 'destructive',
+      });
+      // Session might be stale, refresh the list
+      await refreshSessions();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add another account without logging out current one
+  const addAccount = async () => {
+    setIsLoading(true);
+    setLoginInProgress(true);
+    try {
+      const response = await sessionKit.login();
+      setSession(response.session);
+      await refreshSessions();
+      toast({
+        title: 'Account Added',
+        description: `Added and switched to ${response.session.actor}`,
+      });
+    } catch (error) {
+      console.error('Add account failed:', error);
+      toast({
+        title: 'Add Account Failed',
+        description: error instanceof Error ? error.message : 'Failed to add account',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoginInProgress(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Remove a specific session without affecting others
+  const removeAccount = async (serializedSession: SerializedSession) => {
+    try {
+      // Find and restore the session to get a proper Session object for logout
+      const sessionToRemove = await sessionKit.restore(serializedSession);
+      if (sessionToRemove) {
+        await sessionKit.logout(sessionToRemove);
+        
+        // If we removed the active session, clear state
+        if (session?.actor?.toString() === serializedSession.actor) {
+          setSession(null);
+          setCheeseBalance(0);
+        }
+        
+        await refreshSessions();
+        toast({
+          title: 'Account Removed',
+          description: `Removed ${serializedSession.actor}`,
+        });
+      }
+    } catch (error) {
+      console.error('Remove account failed:', error);
+      toast({
+        title: 'Remove Failed',
+        description: error instanceof Error ? error.message : 'Failed to remove account',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -550,6 +652,12 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         claimFreeDrop,
         joinDao,
         leaveDao,
+        // Multi-account support
+        allSessions,
+        switchAccount,
+        addAccount,
+        removeAccount,
+        refreshSessions,
       }}
     >
       {children}

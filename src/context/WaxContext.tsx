@@ -170,18 +170,14 @@ export function WaxProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     if (session) {
-      try {
-        await sessionKit.logout(session);
-        setSession(null);
-        setCheeseBalance(0);
-        await refreshSessions(); // Refresh session list after logout
-        toast({
-          title: 'Wallet Disconnected',
-          description: 'You have been logged out',
-        });
-      } catch (error) {
-        console.error('Logout failed:', error);
-      }
+      // Don't call sessionKit.logout() - that removes from storage
+      // Just clear the active session state, keeping account in switch list
+      setSession(null);
+      setCheeseBalance(0);
+      toast({
+        title: 'Wallet Disconnected',
+        description: 'Your account is saved for quick switching.',
+      });
     }
   };
 

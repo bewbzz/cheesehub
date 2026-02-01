@@ -1,53 +1,120 @@
 
-# Restore Calendar Date Picker to Open Farm Dialog
+# Add Multi-Account Switching via WharfKit Sessions
 
 ## Overview
-Replace the preset duration radio buttons in the Open Farm dialog with a calendar date picker, matching the pattern already used in the Extend Farm dialog.
+Implement a dropdown account switcher in the wallet menu that allows users to quickly switch between multiple logged-in WAX accounts without needing to fully logout and login each time. Similar to how bloks.io handles account switching.
 
-## Current State
-The Open Farm dialog uses preset durations (24h, 7d, 30d, etc.) via a RadioGroup.
+## How It Works
 
-## Target State
-The Open Farm dialog will use a Calendar date picker for selecting the expiration date, consistent with how Extend Farm works.
+**WharfKit's Built-in Multi-Session Support:**
+- `sessionKit.getSessions()` - Retrieves all stored sessions from localStorage
+- `sessionKit.restore(session)` - Switches to a specific session
+- `sessionKit.login()` - Adds a new session (keeps existing ones)
+- `sessionKit.logout(session)` - Removes only a specific session
 
-## Changes to `src/components/farm/OpenFarmDialog.tsx`
+Each login creates a new session stored in localStorage. Sessions persist across browser refreshes and can be restored/switched without re-authenticating (the wallet plugin handles this seamlessly).
 
-### Imports
-- Remove: `RadioGroup`, `RadioGroupItem`, `Label`
-- Add: `Calendar`, `Popover`, `PopoverContent`, `PopoverTrigger`, `CalendarIcon`, `cn`
+## User Experience
 
-### State Changes
-- Remove: `selectedDuration` state and `DURATION_OPTIONS` constant
-- Add: `date` state as `Date | undefined`
+**Current Flow:**
+1. Connected as `cheesedao.gm`
+2. Want to use `anotherwax` account
+3. Click Disconnect -> Click Connect -> Choose wallet -> Select account
+4. Repeat for each account switch
 
-### Logic Changes
-- Remove: `useMemo` for calculating expiration from duration
-- Update: Derive `expirationDate` directly from `date` state
-- Add: Minimum date constraint (tomorrow)
+**New Flow:**
+1. Connected as `cheesedao.gm`
+2. Click wallet dropdown -> See "Switch Account" submenu
+3. Click on `anotherwax` (previously logged in) -> Instant switch
+4. Or click "Add Account" to login with another account
 
-### UI Changes
-Replace the RadioGroup with a Popover + Calendar picker:
+## UI Design
 
 ```text
-Before:                          After:
-+------------------+             +---------------------------+
-| ( ) 24 hours     |             | Expiration Date           |
-| (o) 7 days       |             | [Pick a date        📅]   |
-| ( ) 30 days      |             +---------------------------+
-| ( ) 90 days      |             | Calendar popover          |
-| ( ) 180 days     |             |                           |
-| ( ) 360 days     |             +---------------------------+
-+------------------+
++------------------------------------------+
+| [Wallet]                                 |
+|  Wallet                                  |
+|  CHEESEAmp                              |
+|  ─────────────────────────────────       |
+|  ▼ Switch Account                        |
+|     ● cheesedao.gm     (active)         |
+|       anotherwax                         |
+|       testwaxacc                         |
+|     + Add Account                        |
+|  ─────────────────────────────────       |
+|  Disconnect                              |
++------------------------------------------+
 ```
 
-### Key Implementation Details
-- Use `pointer-events-auto` class on Calendar to ensure it works inside the dialog
-- Set minimum date to tomorrow to prevent selecting past dates
-- Keep the "Farm expires" preview box showing the selected date/time
-- Disable date picker when rewards are missing (same as current behavior)
+Clicking an account name instantly switches to it. "Add Account" triggers a fresh login flow that adds to the existing sessions.
 
-## File Summary
+## Technical Implementation
 
-| File | Action |
-|------|--------|
-| `src/components/farm/OpenFarmDialog.tsx` | Replace RadioGroup with Calendar date picker |
+### 1. Update WaxContext (`src/context/WaxContext.tsx`)
+
+Add new context properties:
+```typescript
+interface WaxContextType {
+  // ... existing properties
+  
+  // Multi-account support
+  allSessions: SerializedSession[];
+  switchAccount: (session: SerializedSession) => Promise<void>;
+  addAccount: () => Promise<void>;
+  removeAccount: (session: SerializedSession) => Promise<void>;
+  refreshSessions: () => Promise<void>;
+}
+```
+
+Implement the new functions:
+- `refreshSessions()` - Calls `sessionKit.getSessions()` and updates state
+- `switchAccount()` - Calls `sessionKit.restore(session)` and updates active session
+- `addAccount()` - Calls `sessionKit.login()` without logging out first
+- `removeAccount()` - Calls `sessionKit.logout(session)` for a specific session
+
+### 2. Update WalletConnect Component (`src/components/WalletConnect.tsx`)
+
+Add a submenu in the wallet dropdown that shows:
+- All available sessions from `allSessions`
+- Active session indicator (bullet point or checkmark)
+- "Add Account" button at bottom of list
+- Optional: Remove button per account (or hold-to-remove)
+
+Use Radix's `DropdownMenuSub` for the nested submenu.
+
+### 3. Update DropsHeader Component (`src/components/drops/DropsHeader.tsx`)
+
+Mirror the same account switching UI for consistency on the Drops page.
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/context/WaxContext.tsx` | Add `allSessions` state, `switchAccount`, `addAccount`, `removeAccount` functions |
+| `src/components/WalletConnect.tsx` | Add "Switch Account" submenu with session list and "Add Account" option |
+| `src/components/drops/DropsHeader.tsx` | Add same account switching submenu for Drops page consistency |
+
+## Edge Cases Handled
+
+- **No other sessions**: Hide "Switch Account" submenu if only one session
+- **Session expired**: If restore fails, show toast and remove stale session
+- **Same account selected**: No-op if clicking the already-active account
+- **Cloud Wallet vs Anchor**: Both work, sessions track which wallet plugin was used
+
+## Session Data Structure
+
+WharfKit stores sessions with this structure:
+```typescript
+interface SerializedSession {
+  actor: string;        // e.g., "cheesedao.gm"
+  chain: string;        // WAX chain ID
+  permission: string;   // e.g., "active"
+  walletPlugin: {
+    id: string;         // "anchor" or "cloudwallet"
+    data?: any;
+  };
+  default?: boolean;
+}
+```
+
+This allows us to display the account name and even show which wallet type each session uses.

@@ -22,6 +22,7 @@ import {
 } from "@/lib/dao";
 import { fetchUserNFTsBySchema } from "@/services/atomicApi";
 import { closeWharfkitModals } from "@/lib/wharfKit";
+import { ClaimVoteRam } from "./ClaimVoteRam";
 import { Loader2, Coins, Image, Wallet, Plus, Minus, RefreshCw, CheckCircle, UserPlus, AlertCircle, Lock } from "lucide-react";
 
 interface DaoStakingProps {
@@ -330,6 +331,11 @@ export function DaoStaking({ dao, onStakingChange }: DaoStakingProps) {
             ))}
           </div>
         </div>
+        
+        {/* Claim Vote RAM Section for Type 5 DAOs */}
+        {accountName && (
+          <ClaimVoteRam dao={dao} userAccount={accountName} />
+        )}
       </div>
     );
   }

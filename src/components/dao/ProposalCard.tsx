@@ -12,6 +12,7 @@ import {
   buildMultiOptionVoteAction, 
   buildRankedChoiceVoteAction,
   buildFinalizeProposalAction,
+  buildClaimVoteRamAction,
   fetchUserStakedTokens,
   PROPOSAL_VOTING_TYPES,
   VOTING_TYPE_LABELS 
@@ -19,7 +20,7 @@ import {
 import { useWax } from "@/context/WaxContext";
 import { toast } from "sonner";
 import { closeWharfkitModals } from "@/lib/wharfKit";
-import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel, ChevronDown } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Minus, Loader2, Clock, User, GripVertical, Vote, Trophy, ListOrdered, Send, Coins, AlertCircle, UserPlus, CheckCircle2, ArrowRight, Wallet, Image, Target, TrendingUp, Gavel, ChevronDown, Database } from "lucide-react";
 import { NFTVotePicker } from "./NFTVotePicker";
 
 interface ProposalCardProps {
@@ -33,6 +34,8 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
   const { session, isConnected, accountName } = useWax();
   const [voting, setVoting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [claimingRam, setClaimingRam] = useState(false);
+  const [ramClaimed, setRamClaimed] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [rankings, setRankings] = useState<number[]>([]);
   const [stakedWeight, setStakedWeight] = useState<number | null>(null);
@@ -351,6 +354,41 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
       toast.error(error instanceof Error ? error.message : "Failed to finalize proposal");
     } finally {
       setFinalizing(false);
+      closeWharfkitModals();
+      setTimeout(() => closeWharfkitModals(), 300);
+    }
+  }
+
+  // Handle claiming vote RAM for Type 5 DAOs after proposal ends
+  async function handleClaimVoteRam() {
+    if (!session || !isHoldNFTDao) return;
+
+    setClaimingRam(true);
+    try {
+      const action = buildClaimVoteRamAction(
+        String(session.actor),
+        proposal.dao_name,
+        proposal.proposal_id
+      );
+
+      await session.transact({ actions: [action] });
+      setRamClaimed(true);
+      
+      toast.success("Vote RAM reclaimed successfully!");
+    } catch (error) {
+      console.error("Claim RAM failed:", error);
+      closeWharfkitModals();
+      
+      const errorMsg = error instanceof Error ? error.message : "Failed to claim RAM";
+      // Check if already claimed
+      if (errorMsg.includes("already claimed") || errorMsg.includes("no votes found")) {
+        setRamClaimed(true);
+        toast.info("RAM was already claimed for this proposal");
+      } else {
+        toast.error(errorMsg);
+      }
+    } finally {
+      setClaimingRam(false);
       closeWharfkitModals();
       setTimeout(() => closeWharfkitModals(), 300);
     }
@@ -981,6 +1019,42 @@ export function ProposalCard({ proposal, dao, initialVote, onVote }: ProposalCar
                 </>
               )}
             </Button>
+          </div>
+        )}
+
+        {/* Claim Vote RAM Button - shown for Type 5 DAOs on past proposals where user voted */}
+        {isHoldNFTDao && 
+         isConnected && 
+         hasVoted() && 
+         (isAlreadyFinalized || isFinalized || displayStatus === "expired") &&
+         votingEnded && (
+          <div className="pt-2 border-t border-border/50">
+            {ramClaimed ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-green-500 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Vote RAM claimed</span>
+              </div>
+            ) : (
+              <Button
+                onClick={handleClaimVoteRam}
+                disabled={claimingRam}
+                variant="outline"
+                size="sm"
+                className="w-full hover:bg-cheese/10 hover:text-cheese hover:border-cheese/50"
+              >
+                {claimingRam ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Claiming RAM...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Claim Vote RAM
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

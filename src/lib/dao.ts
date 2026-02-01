@@ -77,6 +77,26 @@ export function buildFinalizeProposalAction(user: string, daoName: string, propo
   };
 }
 
+// Build action for claiming vote RAM after proposal ends (Type 5 Hold NFT DAOs)
+// When users vote on proposals using NFT asset IDs, the contract consumes RAM to store vote records.
+// After the proposal ends, users can reclaim this RAM by calling the claimvoteram action.
+export function buildClaimVoteRamAction(
+  user: string,
+  daoName: string,
+  proposalId: number
+) {
+  return {
+    account: DAO_CONTRACT,
+    name: "claimvoteram",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user: user,
+      dao: daoName,
+      proposal_id: proposalId,
+    },
+  };
+}
+
 // Build action for recounting votes (required before finalize for transfer proposals)
 export function buildRecountProposalAction(user: string, daoName: string, proposalId: number) {
   return {

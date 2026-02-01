@@ -84,7 +84,8 @@ export function buildClaimVoteRamAction(
   user: string,
   daoName: string,
   proposalId: number,
-  max: number = 100 // Maximum vote records to clear per transaction
+  skip: number = 0,   // Number of records to skip (for pagination)
+  max: number = 100   // Maximum vote records to clear per transaction
 ) {
   return {
     account: DAO_CONTRACT,
@@ -94,6 +95,7 @@ export function buildClaimVoteRamAction(
       user: user,
       dao: daoName,
       proposal_id: proposalId,
+      skip: skip,
       max: max,
     },
   };

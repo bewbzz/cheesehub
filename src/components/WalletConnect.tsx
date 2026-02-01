@@ -144,10 +144,6 @@ export function WalletConnect() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem onClick={() => setWalletOpen(true)} className="cursor-pointer">
-            <Send className="mr-2 h-4 w-4" />
-            <span><span className="text-cheese">CHEESE</span>Wallet</span>
-          </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => {
               if (cheeseAmpMinimized) {
@@ -160,6 +156,10 @@ export function WalletConnect() {
           >
             <Music2 className="mr-2 h-4 w-4" />
             <span><span className="text-cheese">CHEESE</span>Amp</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setWalletOpen(true)} className="cursor-pointer">
+            <Send className="mr-2 h-4 w-4" />
+            <span><span className="text-cheese">CHEESE</span>Wallet</span>
           </DropdownMenuItem>
           
           {/* Account Switching Submenu */}

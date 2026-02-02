@@ -1,153 +1,77 @@
 
-# Claim Vote RAM Feature for Type 5 NFT DAOs
+# Add Flashing "Stake Positions" Button to Collapsed Farm View
 
 ## Overview
 
-When users vote on proposals in Type 5 (Hold NFT) DAOs, the dao.waxdao contract consumes RAM to store their vote records. After proposals end, users can reclaim this RAM by calling the `claimvoteram` action. This feature will allow users to see their reclaimable RAM and claim it back.
+Currently, when new stakeable incentives become available in an existing farm position, users only see this information after expanding the farm card. This change adds a prominently flashing "Stake Positions" button directly on the collapsed/main view to improve discoverability.
 
-## How It Works
+## Current Behavior
 
-In Type 5 DAOs:
-1. User votes on a proposal using their NFT asset IDs
-2. The contract stores vote records in the `votesbyprop` and `votesbynft` tables, consuming the user's RAM
-3. After the proposal ends/finalizes, users can call `claimvoteram` to reclaim their RAM
-4. The action parameters are: `user` (voter account), `dao` (DAO name), `proposal_id` (the proposal they voted on)
+- The "Stake Position" or "Stake All" button only appears after clicking the expand chevron
+- Users have no visual cue on the main view that new rewards are available to stake
 
-## Where to Add This Feature
+## Proposed Change
 
-The feature will be added in two strategic locations:
+Add a flashing green "Stake" button to the actions area of each farm position row (next to the Claim button) when `position.unstakedIncentives.length > 0`.
 
-1. **DaoStaking.tsx** - In the "Hold NFTs to Vote" section for Type 5 DAOs, add a "Claim Vote RAM" card that shows:
-   - Past proposals the user has voted on
-   - A button to claim RAM for each eligible proposal
+## Implementation Details
 
-2. **ProposalCard.tsx** - For past proposals where the user has voted, show a "Claim RAM" button if the proposal has ended
+### File: `src/components/wallet/AlcorFarmManager.tsx`
 
-## Technical Details
+**Location**: Inside the staked position card's actions section (around line 826-855), add a new button that appears before the Claim/Unstake buttons when there are unstaked incentives.
 
-### New Function in `src/lib/dao.ts`
+**Button Behavior**:
+- Shows when `position.unstakedIncentives.length > 0`
+- Single incentive: Shows "Stake" button that calls `handleStakeToIncentive`
+- Multiple incentives: Shows "Stake (N)" button that calls `handleStakeAllIncentives`
+- Uses `animate-pulse` class for attention-grabbing flashing effect
+- Green styling to indicate positive action (earning opportunity)
+- Compact size to fit alongside existing action buttons
 
-```typescript
-// Build action for claiming vote RAM after proposal ends
-export function buildClaimVoteRamAction(
-  user: string,
-  daoName: string,
-  proposalId: number
-) {
-  return {
-    account: DAO_CONTRACT,
-    name: "claimvoteram",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user: user,
-      dao: daoName,
-      proposal_id: proposalId,
-    },
-  };
-}
-
-// Fetch user's vote RAM claims (proposals they've voted on that have ended)
-export async function fetchUserVoteRamClaims(
-  daoName: string,
-  userAccount: string,
-  proposals: Proposal[]
-): Promise<{ proposalId: number; canClaim: boolean }[]> {
-  // Filter to past proposals where user has voted
-  const now = Math.floor(Date.now() / 1000);
-  const pastProposals = proposals.filter(p => p.end_time_ts < now);
-  
-  // Check which ones user voted on by querying votesbyprop
-  const claims: { proposalId: number; canClaim: boolean }[] = [];
-  
-  for (const proposal of pastProposals) {
-    const vote = await fetchUserVote(daoName, proposal.proposal_id, userAccount);
-    if (vote) {
-      claims.push({
-        proposalId: proposal.proposal_id,
-        canClaim: true, // They voted, so they can claim
-      });
-    }
-  }
-  
-  return claims;
-}
+**Visual Design**:
+```
+[Stake] [Claim] [▼]     ← When 1 unstaked incentive
+[Stake (3)] [Claim] [▼] ← When 3 unstaked incentives
 ```
 
-### UI Component: ClaimVoteRam.tsx
+### Code Changes
 
-New component in `src/components/dao/ClaimVoteRam.tsx`:
-- Shows a list of past proposals the user voted on
-- "Claim RAM" button for each proposal
-- "Claim All" button to batch claim multiple proposals
-- Success feedback when RAM is claimed
+In the actions `<div>` section (currently lines 826-855), add a conditional button before the existing claim/unstake logic:
 
-### Integration Points
+```tsx
+{/* Stake new incentives button - visible on collapsed view */}
+{position.unstakedIncentives.length > 0 && (
+  <Button
+    size="sm"
+    onClick={(e) => {
+      e.stopPropagation();
+      if (position.unstakedIncentives.length === 1) {
+        handleStakeToIncentive(position.positionId, position.unstakedIncentives[0]);
+      } else {
+        handleStakeAllIncentives(position.positionId, position.unstakedIncentives);
+      }
+    }}
+    disabled={isTransacting}
+    className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white animate-pulse"
+  >
+    <Zap className="h-3 w-3 mr-1" />
+    {position.unstakedIncentives.length === 1 
+      ? 'Stake' 
+      : `Stake (${position.unstakedIncentives.length})`
+    }
+  </Button>
+)}
+```
+
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/lib/dao.ts` | Add `buildClaimVoteRamAction` function |
-| `src/components/dao/ClaimVoteRam.tsx` | New component for RAM claiming UI |
-| `src/components/dao/DaoStaking.tsx` | Import and render ClaimVoteRam for Type 5 DAOs |
-| `src/components/dao/ProposalCard.tsx` | Add "Claim RAM" button for past voted proposals |
+| `src/components/wallet/AlcorFarmManager.tsx` | Add flashing "Stake" button to the actions area of collapsed farm position cards when unstaked incentives are available |
 
-### User Flow
+## User Experience
 
-```text
-1. User navigates to DAO detail
-2. Goes to "Stake" tab (for Type 5 = "Hold NFTs")
-3. Sees new "Claim Vote RAM" section below NFT info
-4. Section shows past proposals they voted on with claimable RAM
-5. User clicks "Claim RAM" on a proposal
-6. Transaction is signed
-7. RAM is returned to user's account
-```
-
-### Alternative: Button on ProposalCard
-
-For past proposals where user has voted, add a small "Claim RAM" button:
-- Only visible for Type 5 DAOs
-- Only visible when proposal has ended
-- Only visible if user has voted on that proposal
-- Clicking it calls the claimvoteram action
-
-## UI Design
-
-### In DaoStaking.tsx (Type 5 section)
-
-```text
-+-----------------------------------------------+
-| Hold NFTs to Vote                             |
-+-----------------------------------------------+
-| No staking required! This is a "Hold NFT" DAO |
-| ...existing content...                        |
-+-----------------------------------------------+
-| Claim Vote RAM                          [?]   |
-+-----------------------------------------------+
-| When you vote on proposals, RAM is consumed.  |
-| After proposals end, reclaim your RAM here.   |
-|                                               |
-| Proposal #1: "Budget for Q1"    [Claim RAM]   |
-| Proposal #3: "New logo vote"    [Claim RAM]   |
-|                                               |
-| [Claim All (2)]                               |
-+-----------------------------------------------+
-```
-
-### On ProposalCard (for past proposals)
-
-```text
-+----------------------------------+
-| Proposal #1: Budget Q1   PASSED  |
-| ...existing content...           |
-|                                  |
-| You voted: Yes (3 NFTs)          |
-| [Claim Vote RAM]  <-- new button |
-+----------------------------------+
-```
-
-## Edge Cases
-
-1. **Already claimed**: The contract will error if RAM already claimed - we'll catch this and show appropriate message
-2. **Proposal still active**: Button disabled for active proposals
-3. **User didn't vote**: Button not shown if user has no vote record
-4. **Non-Type 5 DAOs**: Feature only shown for Type 5 (Hold NFT) DAOs since token staking DAOs handle RAM differently
+1. User opens wallet and sees their farm positions
+2. If any position has new incentives available, a pulsing green "Stake" button is immediately visible
+3. Clicking the button stakes the position to the new incentive(s) without needing to expand the card
+4. The expanded view continues to show the detailed breakdown of available incentives for users who want more information

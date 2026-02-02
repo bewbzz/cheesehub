@@ -514,20 +514,38 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
   if (farmsList.length === 0 && unstakedList.length === 0) {
     return (
-      <div className="text-center py-12 space-y-4">
-        <div className="text-muted-foreground">
-          <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>You have no LP positions with available farm rewards</p>
+      <>
+        <div className="text-center py-12 space-y-4">
+          <div className="text-muted-foreground">
+            <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>You have no LP positions with available farm rewards</p>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => window.open('https://wax.alcor.exchange/farm', '_blank')}
+            >
+              <ExternalLink className="h-4 w-4" />
+              Explore Alcor Farms
+            </Button>
+            <Button
+              variant="default"
+              className="gap-2 bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+              onClick={() => setCreateFarmOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Create Farm
+            </Button>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          className="gap-2"
-          onClick={() => window.open('https://wax.alcor.exchange/farm', '_blank')}
-        >
-          <ExternalLink className="h-4 w-4" />
-          Explore Alcor Farms
-        </Button>
-      </div>
+        
+        <CreateAlcorFarmDialog
+          open={createFarmOpen}
+          onOpenChange={setCreateFarmOpen}
+          onTransactionSuccess={onTransactionSuccess}
+        />
+      </>
     );
   }
 

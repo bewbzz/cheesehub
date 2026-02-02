@@ -824,6 +824,28 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
                       {/* Actions */}
                       <div className="flex items-center gap-2">
+                        {/* Stake new incentives button - visible on collapsed view */}
+                        {position.unstakedIncentives.length > 0 && (
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (position.unstakedIncentives.length === 1) {
+                                handleStakeToIncentive(position.positionId, position.unstakedIncentives[0]);
+                              } else {
+                                handleStakeAllIncentives(position.positionId, position.unstakedIncentives);
+                              }
+                            }}
+                            disabled={isTransacting}
+                            className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white animate-pulse"
+                          >
+                            <Zap className="h-3 w-3 mr-1" />
+                            {position.unstakedIncentives.length === 1 
+                              ? 'Stake' 
+                              : `Stake (${position.unstakedIncentives.length})`
+                            }
+                          </Button>
+                        )}
                         {allIncentivesExpired ? (
                           <Button
                             size="sm"

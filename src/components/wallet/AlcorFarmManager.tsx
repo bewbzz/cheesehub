@@ -705,22 +705,46 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
                 >
                     <CardContent className="p-4">
                     {/* Header row - raised to top */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex -space-x-2">
-                        <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
-                        <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm">
-                          {position.tokenA.symbol}/{position.tokenB.symbol}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-2">
+                          <TokenLogo contract={position.tokenA.contract} symbol={position.tokenA.symbol} size="sm" />
+                          <TokenLogo contract={position.tokenB.contract} symbol={position.tokenB.symbol} size="sm" />
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Pool #{position.positionId}
-                          {position.usdValue > 0 && (
-                            <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
-                          )}
+                        <div>
+                          <div className="font-medium text-sm">
+                            {position.tokenA.symbol}/{position.tokenB.symbol}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            Pool #{position.positionId}
+                            {position.usdValue > 0 && (
+                              <span className="text-cheese ml-1">${position.usdValue.toFixed(2)}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {/* Stake new incentives button - visible on collapsed view */}
+                      {position.unstakedIncentives.length > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (position.unstakedIncentives.length === 1) {
+                              handleStakeToIncentive(position.positionId, position.unstakedIncentives[0]);
+                            } else {
+                              handleStakeAllIncentives(position.positionId, position.unstakedIncentives);
+                            }
+                          }}
+                          disabled={isTransacting}
+                          className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white animate-pulse"
+                        >
+                          <Zap className="h-3 w-3 mr-1" />
+                          {position.unstakedIncentives.length === 1 
+                            ? 'Stake' 
+                            : `Stake (${position.unstakedIncentives.length})`
+                          }
+                        </Button>
+                      )}
                     </div>
 
                     {/* Data rows - stake amounts aligned with incentive data */}
@@ -824,28 +848,6 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
 
                       {/* Actions */}
                       <div className="flex items-center gap-2">
-                        {/* Stake new incentives button - visible on collapsed view */}
-                        {position.unstakedIncentives.length > 0 && (
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (position.unstakedIncentives.length === 1) {
-                                handleStakeToIncentive(position.positionId, position.unstakedIncentives[0]);
-                              } else {
-                                handleStakeAllIncentives(position.positionId, position.unstakedIncentives);
-                              }
-                            }}
-                            disabled={isTransacting}
-                            className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white animate-pulse"
-                          >
-                            <Zap className="h-3 w-3 mr-1" />
-                            {position.unstakedIncentives.length === 1 
-                              ? 'Stake' 
-                              : `Stake (${position.unstakedIncentives.length})`
-                            }
-                          </Button>
-                        )}
                         {allIncentivesExpired ? (
                           <Button
                             size="sm"

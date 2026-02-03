@@ -69,6 +69,7 @@ import { NFTStaking } from "./NFTStaking";
 import { ManageStakableAssets } from "./ManageStakableAssets";
 import { OpenFarmDialog } from "./OpenFarmDialog";
 import { ExtendFarmDialog } from "./ExtendFarmDialog";
+import { CloseFarmDialog } from "./CloseFarmDialog";
 import { DepositRewardsDialog } from "./DepositRewardsDialog";
 import { EditFarmProfile } from "./EditFarmProfile";
 import { useWax } from "@/context/WaxContext";
@@ -307,8 +308,11 @@ export function FarmDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground">Expires</p>
-                  {isCreator && !isUnderConstruction && (
+                  {isCreator && !isUnderConstruction && !isExpired && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                  )}
+                  {isCreator && isExpired && (
+                    <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>
                 <div>

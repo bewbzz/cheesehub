@@ -490,6 +490,19 @@ export function buildSetAttributeValuesAction(
   };
 }
 
+// Build action for closing an expired farm
+export function buildCloseFarmAction(user: string, farmName: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "closefarm",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+    },
+  };
+}
+
 // Build action for depositing reward tokens
 export function buildAddRewardsAction(
   sender: string,

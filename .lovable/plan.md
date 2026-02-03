@@ -1,77 +1,99 @@
 
-# Add Flashing "Stake Positions" Button to Collapsed Farm View
+# Add Close Farm Button for Expired Farms
 
 ## Overview
 
-Currently, when new stakeable incentives become available in an existing farm position, users only see this information after expanding the farm card. This change adds a prominently flashing "Stake Positions" button directly on the collapsed/main view to improve discoverability.
+When a WaxDAO V2 farm expires, the creator should see a "Close Farm" button instead of the "Extend" button. This calls the `closefarm` action on the `farms.waxdao` contract to properly shut down the farm.
 
 ## Current Behavior
 
-- The "Stake Position" or "Stake All" button only appears after clicking the expand chevron
-- Users have no visual cue on the main view that new rewards are available to stake
+- The "Extend" button appears for creators on all active farms (lines 310-311 in FarmDetail.tsx)
+- The extend button is shown regardless of whether the farm has expired
+- No `closefarm` action exists in the codebase
 
-## Proposed Change
+## Proposed Changes
 
-Add a flashing green "Stake" button to the actions area of each farm position row (next to the Claim button) when `position.unstakedIncentives.length > 0`.
+### 1. Add `buildCloseFarmAction` to `src/lib/farm.ts`
 
-## Implementation Details
+Add a new action builder following the existing pattern (similar to `buildExtendFarmAction`):
 
-### File: `src/components/wallet/AlcorFarmManager.tsx`
-
-**Location**: Inside the staked position card's actions section (around line 826-855), add a new button that appears before the Claim/Unstake buttons when there are unstaked incentives.
-
-**Button Behavior**:
-- Shows when `position.unstakedIncentives.length > 0`
-- Single incentive: Shows "Stake" button that calls `handleStakeToIncentive`
-- Multiple incentives: Shows "Stake (N)" button that calls `handleStakeAllIncentives`
-- Uses `animate-pulse` class for attention-grabbing flashing effect
-- Green styling to indicate positive action (earning opportunity)
-- Compact size to fit alongside existing action buttons
-
-**Visual Design**:
-```
-[Stake] [Claim] [▼]     ← When 1 unstaked incentive
-[Stake (3)] [Claim] [▼] ← When 3 unstaked incentives
+```typescript
+export function buildCloseFarmAction(user: string, farmName: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "closefarm",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+    },
+  };
+}
 ```
 
-### Code Changes
+### 2. Create `CloseFarmDialog` Component
 
-In the actions `<div>` section (currently lines 826-855), add a conditional button before the existing claim/unstake logic:
+New file: `src/components/farm/CloseFarmDialog.tsx`
 
-```tsx
-{/* Stake new incentives button - visible on collapsed view */}
-{position.unstakedIncentives.length > 0 && (
-  <Button
-    size="sm"
-    onClick={(e) => {
-      e.stopPropagation();
-      if (position.unstakedIncentives.length === 1) {
-        handleStakeToIncentive(position.positionId, position.unstakedIncentives[0]);
-      } else {
-        handleStakeAllIncentives(position.positionId, position.unstakedIncentives);
-      }
-    }}
-    disabled={isTransacting}
-    className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700 text-white animate-pulse"
-  >
-    <Zap className="h-3 w-3 mr-1" />
-    {position.unstakedIncentives.length === 1 
-      ? 'Stake' 
-      : `Stake (${position.unstakedIncentives.length})`
-    }
-  </Button>
-)}
+This dialog will:
+- Show a confirmation warning that closing the farm is permanent
+- Display information about any remaining reward balances that will be returned to the creator
+- Include a destructive-styled "Close Farm" button
+- Call the `closefarm` action on the contract
+
+Key features:
+- Uses `AlertDialog` pattern for destructive action confirmation
+- Shows remaining reward pool balances so the creator knows what will be returned
+- Includes clear warning about the irreversible nature of closing
+
+### 3. Update `FarmDetail.tsx`
+
+Modify the "Expires" section (lines 307-322) to conditionally render:
+- **If NOT expired**: Show `ExtendFarmDialog` (current behavior)
+- **If expired**: Show `CloseFarmDialog` instead
+
+```text
+Before (current):
+  {isCreator && !isUnderConstruction && (
+    <ExtendFarmDialog ... />
+  )}
+
+After:
+  {isCreator && !isUnderConstruction && !isExpired && (
+    <ExtendFarmDialog ... />
+  )}
+  {isCreator && isExpired && (
+    <CloseFarmDialog ... />
+  )}
 ```
 
-## Summary of Changes
+## Technical Details
+
+### CloseFarmDialog Component Structure
+
+| Element | Description |
+|---------|-------------|
+| Trigger Button | Red/destructive styled "Close" button (matches the Extend button size) |
+| Dialog Title | "Close Farm" |
+| Warning Alert | Explains that closing is permanent |
+| Reward Balance Display | Shows remaining tokens that will be returned |
+| Cancel Button | Closes dialog without action |
+| Confirm Button | Destructive button that calls `closefarm` action |
+
+### File Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/components/wallet/AlcorFarmManager.tsx` | Add flashing "Stake" button to the actions area of collapsed farm position cards when unstaked incentives are available |
+| `src/lib/farm.ts` | Add `buildCloseFarmAction` function |
+| `src/components/farm/CloseFarmDialog.tsx` | New component for close farm confirmation |
+| `src/components/farm/FarmDetail.tsx` | Import `CloseFarmDialog`, conditionally render based on expiration status |
 
-## User Experience
+## User Flow
 
-1. User opens wallet and sees their farm positions
-2. If any position has new incentives available, a pulsing green "Stake" button is immediately visible
-3. Clicking the button stakes the position to the new incentive(s) without needing to expand the card
-4. The expanded view continues to show the detailed breakdown of available incentives for users who want more information
+1. Farm creator views their expired farm
+2. Instead of "Extend" button, they see a red "Close" button next to "Expires"
+3. Clicking "Close" opens a confirmation dialog
+4. Dialog shows warning and remaining reward pool balances
+5. Creator clicks "Close Farm" to confirm
+6. Transaction is submitted to the blockchain
+7. Success toast appears and farm data refreshes

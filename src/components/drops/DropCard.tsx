@@ -13,15 +13,16 @@ const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
 };
 
-// IPFS gateway fallbacks for image loading
+// Optimized IPFS gateways - CDN-backed first for speed
 const IPFS_GATEWAYS = [
-  'https://ipfs.io/ipfs/',
   'https://gateway.pinata.cloud/ipfs/',
   'https://cloudflare-ipfs.com/ipfs/',
+  'https://nftstorage.link/ipfs/',
   'https://dweb.link/ipfs/',
+  'https://ipfs.io/ipfs/',
 ];
 
-const IMAGE_LOAD_TIMEOUT = 8000; // 8 seconds
+const IMAGE_LOAD_TIMEOUT = 3000; // 3 seconds - much faster retry
 
 function extractIpfsHash(url: string): string | null {
   if (!url) return null;
@@ -71,6 +72,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
   const [currentImageUrl, setCurrentImageUrl] = useState(drop.image);
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
+  const racingRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
   // Reset state when drop image changes
@@ -120,14 +122,57 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
 
   const handleImageError = useCallback(() => {
     const hash = extractIpfsHash(currentImageUrl);
-    if (hash && gatewayIndex < IPFS_GATEWAYS.length - 1) {
-      const nextIndex = gatewayIndex + 1;
-      setGatewayIndex(nextIndex);
-      setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
-      setImageLoaded(false);
+    if (!hash) {
+      setImageError(true);
+      markDropAsFailed(drop.id);
+      return;
+    }
+    
+    // Try racing next 2 gateways simultaneously - first to load wins
+    const nextGateways = IPFS_GATEWAYS.slice(gatewayIndex + 1, gatewayIndex + 3);
+    if (nextGateways.length > 0 && !racingRef.current) {
+      racingRef.current = true;
+      
+      Promise.race(
+        nextGateways.map((gw, i) => 
+          new Promise<number>((resolve, reject) => {
+            const img = new Image();
+            const timeoutId = setTimeout(() => reject(), 3000);
+            img.onload = () => {
+              clearTimeout(timeoutId);
+              if (img.naturalWidth > 0) {
+                resolve(gatewayIndex + 1 + i);
+              } else {
+                reject();
+              }
+            };
+            img.onerror = () => {
+              clearTimeout(timeoutId);
+              reject();
+            };
+            img.src = `${gw}${hash}`;
+          })
+        )
+      ).then(winnerIndex => {
+        racingRef.current = false;
+        setGatewayIndex(winnerIndex);
+        setCurrentImageUrl(`${IPFS_GATEWAYS[winnerIndex]}${hash}`);
+        setImageLoaded(false);
+      }).catch(() => {
+        racingRef.current = false;
+        // All racing gateways failed, try remaining
+        const nextIndex = gatewayIndex + nextGateways.length + 1;
+        if (nextIndex < IPFS_GATEWAYS.length) {
+          setGatewayIndex(nextIndex);
+          setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
+          setImageLoaded(false);
+        } else {
+          setImageError(true);
+          markDropAsFailed(drop.id);
+        }
+      });
     } else {
       setImageError(true);
-      // Mark this drop as failed so refresh button can retry it
       markDropAsFailed(drop.id);
     }
   }, [currentImageUrl, gatewayIndex, drop.id]);

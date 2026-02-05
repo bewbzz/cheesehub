@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw } from "lucide-react";
+import { ArrowLeft, ShoppingCart, ImageOff, Coins, Lock, CheckCircle, XCircle, Loader2, ExternalLink, RotateCw, Film } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { CartDrawer } from "@/components/drops/CartDrawer";
@@ -297,7 +297,32 @@ const DropDetail = () => {
 
         <div className="grid gap-10 lg:grid-cols-2">
           <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 flex items-center justify-center min-h-[400px]">
-            {imageError ? (
+            {drop.isVideo ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30 py-12">
+                <Film className="h-20 w-20 text-muted-foreground/50" />
+                <div className="text-center">
+                  <span className="text-lg font-medium text-muted-foreground">Video NFT</span>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    This NFT contains video content
+                  </p>
+                </div>
+                {displayImageUrl && (
+                  <video
+                    src={displayImageUrl}
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="max-w-full max-h-[500px] w-auto h-auto rounded-lg mt-4"
+                    onError={() => {
+                      // Video failed to load - keep showing the placeholder
+                      console.log('[DropDetail] Video failed to load');
+                    }}
+                  />
+                )}
+              </div>
+            ) : imageError ? (
               <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted/50 py-12">
                 <ImageOff className="h-16 w-16 text-muted-foreground/50" />
                 <Button

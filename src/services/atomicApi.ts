@@ -62,6 +62,7 @@ function chunkArray<T>(array: T[], size: number): T[][] {
  * Batch fetch multiple templates in a single API call.
  * Uses the AtomicAssets API `ids` parameter to fetch up to 100 templates per request.
  * This is ~50x faster than individual fetchTemplateById calls.
+ * Falls back to individual fetches for missing templates (indexer lag).
  */
 export async function fetchTemplatesBatch(
   requests: { templateId: string; collectionName: string }[]
@@ -118,6 +119,38 @@ export async function fetchTemplatesBatch(
       }
     })
   );
+
+  // Find missing templates (not returned by batch API - likely indexer lag)
+  const missingTemplates: { templateId: string; collectionName: string }[] = [];
+  for (const [key, req] of uniqueRequests) {
+    if (!results.has(key)) {
+      missingTemplates.push(req);
+    }
+  }
+
+  // Fallback: fetch missing templates individually (some indexers have better coverage)
+  if (missingTemplates.length > 0) {
+    console.log(`[NFTHive Batch] Fetching ${missingTemplates.length} missing templates individually`);
+    
+    // Process in parallel batches of 5 to avoid overwhelming the API
+    const FALLBACK_BATCH_SIZE = 5;
+    for (let i = 0; i < missingTemplates.length; i += FALLBACK_BATCH_SIZE) {
+      const batch = missingTemplates.slice(i, i + FALLBACK_BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async ({ templateId, collectionName }) => {
+          try {
+            const data = await fetchTemplateById(templateId, collectionName);
+            if (data && data.image && !data.image.includes('placeholder')) {
+              const key = `${collectionName}:${templateId}`;
+              results.set(key, { name: data.name, image: data.image });
+            }
+          } catch (e) {
+            // Ignore individual fetch errors
+          }
+        })
+      );
+    }
+  }
 
   console.log(`[NFTHive Batch] Successfully fetched ${results.size} templates`);
   return results;

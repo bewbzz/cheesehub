@@ -931,47 +931,60 @@ export async function fetchUserNFTsBySchema(
         templateGroups.get(key)!.push(asset);
       }
 
+      // Build batch request for templates with valid IDs
+      const templateRequests: { templateId: string; collectionName: string }[] = [];
+      const noTemplateAssets: typeof missingMetadata = [];
+      
       for (const [key, assets] of templateGroups) {
         const [collectionName, templateId] = key.split(':');
         if (templateId && templateId !== '0') {
-          try {
-            const templateData = await fetchTemplateById(templateId, collectionName);
-            for (const asset of assets) {
-              results.push({
-                asset_id: asset.asset_id,
-                name: templateData?.name || `NFT #${asset.asset_id}`,
-                image: templateData?.image || '/placeholder.svg',
-                collection: asset.collection_name,
-                schema: asset.schema_name,
-                template_id: String(asset.template_id || ''),
-              });
-            }
-          } catch {
-            // Last resort: placeholder
-            for (const asset of assets) {
-              results.push({
-                asset_id: asset.asset_id,
-                name: `NFT #${asset.asset_id}`,
-                image: '/placeholder.svg',
-                collection: asset.collection_name,
-                schema: asset.schema_name,
-                template_id: String(asset.template_id || ''),
-              });
-            }
-          }
+          templateRequests.push({ templateId, collectionName });
         } else {
-          // No template, use placeholder
+          noTemplateAssets.push(...assets);
+        }
+      }
+      
+      // Batch fetch all templates at once (much faster than sequential)
+      let templateDataMap = new Map<string, { name: string; image: string; isVideo?: boolean }>();
+      if (templateRequests.length > 0) {
+        try {
+          templateDataMap = await fetchTemplatesBatch(templateRequests);
+          console.log('[NFT Fetch] Batch fetched', templateDataMap.size, 'templates');
+        } catch (error) {
+          console.warn('[NFT Fetch] Batch template fetch failed:', error);
+        }
+      }
+      
+      // Map template data back to assets
+      for (const [key, assets] of templateGroups) {
+        const [collectionName, templateId] = key.split(':');
+        if (templateId && templateId !== '0') {
+          const templateKey = `${collectionName}:${templateId}`;
+          const templateData = templateDataMap.get(templateKey);
+          
           for (const asset of assets) {
             results.push({
               asset_id: asset.asset_id,
-              name: `NFT #${asset.asset_id}`,
-              image: '/placeholder.svg',
+              name: templateData?.name || `NFT #${asset.asset_id}`,
+              image: templateData?.image || '/placeholder.svg',
               collection: asset.collection_name,
               schema: asset.schema_name,
-              template_id: '',
+              template_id: String(asset.template_id || ''),
             });
           }
         }
+      }
+      
+      // Handle assets without valid template_id
+      for (const asset of noTemplateAssets) {
+        results.push({
+          asset_id: asset.asset_id,
+          name: `NFT #${asset.asset_id}`,
+          image: '/placeholder.svg',
+          collection: asset.collection_name,
+          schema: asset.schema_name,
+          template_id: '',
+        });
       }
     }
 

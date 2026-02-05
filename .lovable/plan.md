@@ -1,213 +1,254 @@
 
-# Fix CHEESEDrops - Nothing Loads / White Squares
+
+# Fix Image Timeout Issues When Changing Pages
 
 ## Problem Analysis
 
-I've identified the **root causes** from the network requests and code:
+When changing pages, images timeout too quickly and show "Retry" buttons even though they're available. The core issues are:
 
-### Why Nothing Loads Now
+| Issue | Cause | Impact |
+|-------|-------|--------|
+| **3-second timeout per card** | `IMAGE_LOAD_TIMEOUT = 3000` starts independently for each card | Cards time out before images can load |
+| **No coordination with preload** | Images preloaded in `enrichDropTemplates` aren't tracked | Card doesn't know an image is already loading |
+| **Page changes reset all states** | Each card mounts fresh with new timeout | Previous loading progress is lost |
+| **IPFS gateway congestion** | Multiple cards racing to different gateways at once | Network saturation slows everything |
 
-| Issue | Impact | Evidence |
-|-------|--------|----------|
-| **Batch queries grouped by collection** | 30 collections = 30 API calls (not 1-2 as expected) | Each collection makes separate request |
-| **`collection_name` filter causes empty results** | Templates exist but not returned | `downunderpic&ids=901656` returns `data:[]` |
-| **Indexer inconsistency** | blacklusion returns 404, eosamsterdam returns 200 | Network logs show both |
-| **Abort signals cancel fallbacks** | Individual fallback requests get aborted before completing | `signal is aborted without reason` |
-
-### The Fix: Use NFTHive's Proven Approach
-
-NFTHive uses **just `?ids=xxx,yyy,zzz`** without the `collection_name` filter. This:
-- Fetches ALL templates in 1 request (up to 100)
-- Works across multiple collections
-- Doesn't fail when one collection's indexer is behind
+**Why Retry/Refresh works:** When you click retry, the browser already has the image cached from the failed timeout, so it loads instantly.
 
 ---
 
-## Solution: 4-Part Fix
+## Solution: 3-Part Fix
 
-### 1. Remove `collection_name` from Batch Query
+### 1. Increase Timeout and Add Progressive Backoff
 
-The batch query should use **just the `ids` parameter** like NFTHive does:
-
-```text
-Before: /templates?collection_name=foo&ids=1,2,3 (per collection = many calls)
-After:  /templates?ids=1,2,3,4,5,6,7,8,9,10 (all at once = 1 call)
-```
+The 3-second timeout is too aggressive for IPFS, especially when loading 50 images at once. Increase it and use progressive backoff:
 
 ```typescript
-// Fetch ALL templates at once, no collection grouping
-const allIds = Array.from(uniqueRequests.values()).map(r => r.templateId);
-const chunks = chunkArray(allIds, 100);
+// DropCard.tsx
+const BASE_TIMEOUT = 6000; // 6 seconds base (was 3)
+const MAX_TIMEOUT = 15000; // 15 seconds max for retries
 
-for (const chunk of chunks) {
-  const params = new URLSearchParams({
-    ids: chunk.join(','),
-    limit: '100',
+// Calculate timeout based on retry count - give more time for subsequent attempts
+const currentTimeout = Math.min(BASE_TIMEOUT + (gatewayIndex * 3000), MAX_TIMEOUT);
+```
+
+### 2. Track Preloaded Images Globally
+
+Create a shared preload tracker so cards know when an image is already being loaded elsewhere:
+
+```typescript
+// New: Global preload tracking
+const preloadingImages = new Map<string, Promise<boolean>>();
+const loadedImages = new Set<string>();
+
+export function preloadImage(url: string): Promise<boolean> {
+  if (loadedImages.has(url)) return Promise.resolve(true);
+  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
+  
+  const promise = new Promise<boolean>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImages.add(url);
+      preloadingImages.delete(url);
+      resolve(true);
+    };
+    img.onerror = () => {
+      preloadingImages.delete(url);
+      resolve(false);
+    };
+    img.src = url;
   });
-  const path = `${ATOMIC_API.paths.templates}?${params}`;
-  const response = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-  // ... parse results using template.collection.collection_name from response
+  
+  preloadingImages.set(url, promise);
+  return promise;
+}
+
+export function isImageLoaded(url: string): boolean {
+  return loadedImages.has(url);
 }
 ```
 
-### 2. Don't Abort Enrichment on Re-render
+### 3. Cards Check Preload Status Before Starting Timeout
 
-Currently, changing pages aborts in-flight enrichment. The fallback individual fetches get cancelled mid-request.
-
-Fix: Only abort when the drops themselves change, not on every effect run:
+If an image is already being preloaded or has been loaded, skip the timeout:
 
 ```typescript
-// In useEnrichDrops - don't abort enrichment in progress unless drops actually changed
+// DropCard.tsx - in the timeout effect
 useEffect(() => {
-  // Only abort if we're starting enrichment for a DIFFERENT set of drops
-  if (keyChanged && abortRef.current) {
-    abortRef.current.abort();
+  // Skip timeout if image is already loaded globally
+  if (isImageLoaded(currentImageUrl)) {
+    setImageLoaded(true);
+    return;
   }
-  // ... rest of enrichment
-}, [dropsKey]); // Remove dropsNeedingEnrichment.length dependency
-```
-
-### 3. Process Fallback Templates in Parallel (All at Once)
-
-Current code processes fallbacks in batches of 5 sequentially. This is too slow for 20+ missing templates:
-
-```typescript
-// Before: Sequential batches of 5 (20 missing = 4 rounds)
-for (let i = 0; i < missingTemplates.length; i += 5) {
-  await Promise.allSettled(batch.map(...));  // Waits before next batch
-}
-
-// After: All fallbacks in parallel (20 missing = 1 round)
-await Promise.allSettled(
-  missingTemplates.map(async ({ templateId, collectionName }) => {
-    const data = await fetchTemplateById(templateId, collectionName);
-    if (data?.image) results.set(key, data);
-  })
-);
-```
-
-### 4. Better Indexer Fallback Order
-
-The eosamsterdam indexer has better coverage than blacklusion for newly indexed templates. Reorder:
-
-```typescript
-baseUrls: [
-  'https://wax-aa.eu.eosamsterdam.net',  // Better coverage for new templates
-  'https://wax.api.atomicassets.io',
-  'https://aa.wax.blacklusion.io',
-  'https://atomic.wax.eosrio.io',
-],
+  
+  // Skip timeout if image is currently being preloaded
+  if (isImagePreloading(currentImageUrl)) {
+    // Wait for the preload instead of starting our own timeout
+    waitForPreload(currentImageUrl).then(success => {
+      if (success) setImageLoaded(true);
+      else handleImageError();
+    });
+    return;
+  }
+  
+  // Only start timeout if we're loading this image fresh
+  timeoutRef.current = setTimeout(...);
+}, [...]);
 ```
 
 ---
 
 ## File Changes
 
-| File | Change |
-|------|--------|
-| `src/services/atomicApi.ts` | Fix batch query to use just `ids` without `collection_name`; parallelize all fallbacks |
-| `src/hooks/useEnrichDrops.ts` | Fix abort logic to only abort on drops change |
-| `src/lib/waxConfig.ts` | Reorder indexers (eosamsterdam first) |
+| File | Changes |
+|------|---------|
+| `src/services/atomicApi.ts` | Add global preload tracker (`preloadImage`, `isImageLoaded`, `isImagePreloading`) |
+| `src/components/drops/DropCard.tsx` | Increase timeout, check preload status, use progressive backoff |
+
+---
+
+## Technical Implementation
+
+### atomicApi.ts - Add Preload Tracking
+
+```typescript
+// Global preload tracking to coordinate between enrichment and card components
+const preloadingImages = new Map<string, Promise<boolean>>();
+const loadedImages = new Set<string>();
+
+/**
+ * Preload an image and track its status globally.
+ * Returns a promise that resolves to true if loaded successfully.
+ */
+export function preloadImage(url: string): Promise<boolean> {
+  if (!url || url.includes('placeholder')) return Promise.resolve(false);
+  if (loadedImages.has(url)) return Promise.resolve(true);
+  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
+  
+  const promise = new Promise<boolean>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0) {
+        loadedImages.add(url);
+        preloadingImages.delete(url);
+        resolve(true);
+      } else {
+        preloadingImages.delete(url);
+        resolve(false);
+      }
+    };
+    img.onerror = () => {
+      preloadingImages.delete(url);
+      resolve(false);
+    };
+    img.src = url;
+  });
+  
+  preloadingImages.set(url, promise);
+  return promise;
+}
+
+/**
+ * Check if an image has already been loaded successfully.
+ */
+export function isImageLoaded(url: string): boolean {
+  return loadedImages.has(url);
+}
+
+/**
+ * Check if an image is currently being preloaded.
+ */
+export function isImagePreloading(url: string): boolean {
+  return preloadingImages.has(url);
+}
+
+/**
+ * Wait for an in-progress preload to complete.
+ */
+export function waitForPreload(url: string): Promise<boolean> {
+  if (loadedImages.has(url)) return Promise.resolve(true);
+  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
+  return Promise.resolve(false);
+}
+
+// Update enrichDropTemplates to use the new preloadImage function
+// In the enrichedDrops.map section:
+if (cached.image && !cached.image.includes('placeholder')) {
+  preloadImage(cached.image); // Use tracked preloading
+}
+```
+
+### DropCard.tsx - Smarter Timeout Logic
+
+```typescript
+import { isImageLoaded, isImagePreloading, waitForPreload } from '@/services/atomicApi';
+
+// More generous timeouts
+const BASE_TIMEOUT = 6000; // 6 seconds base
+const RETRY_TIMEOUT_INCREMENT = 3000; // Add 3s per gateway retry
+const MAX_TIMEOUT = 15000; // 15 seconds max
+
+// In the timeout useEffect:
+useEffect(() => {
+  if (imageError || imageLoaded || isImageCached) {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    return;
+  }
+
+  // Check if image is already fully loaded globally
+  if (isImageLoaded(currentImageUrl)) {
+    setImageLoaded(true);
+    return;
+  }
+  
+  // Check if image is currently being preloaded by enrichment
+  if (isImagePreloading(currentImageUrl)) {
+    // Wait for the existing preload instead of timing out
+    waitForPreload(currentImageUrl).then(success => {
+      if (success) {
+        setImageLoaded(true);
+      }
+      // If preload failed, the img onError will handle it
+    });
+    return; // Don't start our own timeout
+  }
+
+  // Calculate timeout with progressive backoff for retries
+  const timeout = Math.min(BASE_TIMEOUT + (gatewayIndex * RETRY_TIMEOUT_INCREMENT), MAX_TIMEOUT);
+
+  timeoutRef.current = setTimeout(() => {
+    if (!imageLoaded && !imageError) {
+      handleImageError();
+    }
+  }, timeout);
+
+  return () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  };
+}, [currentImageUrl, imageLoaded, imageError, isImageCached, gatewayIndex]);
+```
 
 ---
 
 ## Expected Results
 
-| Metric | Before Fix | After Fix |
-|--------|-----------|-----------|
-| API calls for 50 drops | 30+ (one per collection) | 1-2 (100 per batch) |
-| Missing template fallbacks | Sequential batches of 5 | All in parallel |
-| Aborted requests | Many (on re-render) | Only when drops change |
-| White squares | Many | Near zero |
-
----
-
-## Technical Details
-
-### Updated `fetchTemplatesBatch` Function
-
-```typescript
-export async function fetchTemplatesBatch(
-  requests: { templateId: string; collectionName: string }[]
-): Promise<Map<string, { name: string; image: string }>> {
-  // Deduplicate by templateId only (not by collection)
-  const uniqueTemplateIds = new Map<string, { templateId: string; collectionName: string }>();
-  for (const req of requests) {
-    if (!uniqueTemplateIds.has(req.templateId)) {
-      uniqueTemplateIds.set(req.templateId, req);
-    }
-  }
-
-  const results = new Map<string, { name: string; image: string }>();
-  const allIds = Array.from(uniqueTemplateIds.keys());
-  
-  console.log(`[NFTHive Batch] Fetching ${allIds.length} unique templates`);
-
-  // Fetch ALL templates at once (chunks of 100 for API limit)
-  const chunks = chunkArray(allIds, 100);
-  
-  for (const chunk of chunks) {
-    try {
-      const params = new URLSearchParams({
-        ids: chunk.join(','),
-        limit: '100',
-      });
-      const path = `${ATOMIC_API.paths.templates}?${params}`;
-      const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 10000);
-      const json = await response.json();
-
-      if (json.success && json.data) {
-        for (const template of json.data) {
-          const data = template.immutable_data || {};
-          const collectionName = template.collection?.collection_name || '';
-          const key = `${collectionName}:${template.template_id}`;
-          results.set(key, {
-            name: data.name || template.name || `Template #${template.template_id}`,
-            image: getImageUrl(data.img || data.image),
-          });
-        }
-      }
-    } catch (error) {
-      console.warn(`[NFTHive Batch] Batch fetch failed:`, error);
-    }
-  }
-
-  // Find missing templates and fetch ALL in parallel
-  const missingTemplates = Array.from(uniqueTemplateIds.values()).filter(req => {
-    const key = `${req.collectionName}:${req.templateId}`;
-    return !results.has(key);
-  });
-
-  if (missingTemplates.length > 0) {
-    console.log(`[NFTHive Batch] Fetching ${missingTemplates.length} missing templates in parallel`);
-    
-    await Promise.allSettled(
-      missingTemplates.map(async ({ templateId, collectionName }) => {
-        try {
-          const data = await fetchTemplateById(templateId, collectionName);
-          if (data && data.image && !data.image.includes('placeholder')) {
-            const key = `${collectionName}:${templateId}`;
-            results.set(key, { name: data.name, image: data.image });
-          }
-        } catch (e) {
-          // Ignore individual fetch errors
-        }
-      })
-    );
-  }
-
-  console.log(`[NFTHive Batch] Successfully fetched ${results.size} templates`);
-  return results;
-}
-```
+| Metric | Before | After |
+|--------|--------|-------|
+| Timeout duration | 3 seconds (fixed) | 6-15 seconds (progressive) |
+| Cards timing out unnecessarily | Many | Near zero |
+| Preload coordination | None | Full tracking |
+| Need to click Retry | Frequent | Rare |
 
 ---
 
 ## Summary
 
-The "nothing loads" issue stems from a flawed batch query approach:
-1. Grouping by collection creates 30+ API calls instead of 1-2
-2. The `collection_name` filter causes empty results for some templates  
-3. Abort signals cancel fallback requests before they complete
+The fix coordinates image loading between the batch enrichment and individual cards:
 
-The fix removes the collection grouping, uses just `ids` parameter (like NFTHive does), and processes all fallbacks in parallel without premature abortion.
+1. **Longer base timeout** - 6 seconds instead of 3 gives IPFS time to respond
+2. **Progressive backoff** - Each retry attempt gets more time
+3. **Global preload tracking** - Cards know when an image is already loading
+4. **Wait for preload** - Instead of timing out, cards wait for in-progress preloads
+
+This eliminates the race condition where cards timeout while the enrichment system is still preloading their images.
+

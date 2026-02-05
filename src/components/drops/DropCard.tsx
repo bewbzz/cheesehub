@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ShoppingCart, Coins, ImageOff, Lock, RotateCw } from "lucide-react";
+import { ShoppingCart, Coins, ImageOff, Lock, RotateCw, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -236,7 +236,12 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
     <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover-cheese-glow">
       <Link to={`/drops/${drop.id}`}>
         <div className="relative aspect-square overflow-hidden bg-muted/50">
-          {imageError ? (
+          {drop.isVideo ? (
+            <div className="flex h-full w-full flex-col items-center justify-center bg-muted/30">
+              <Film className="h-12 w-12 text-muted-foreground/50" />
+              <span className="mt-2 text-xs text-muted-foreground">Video NFT</span>
+            </div>
+          ) : imageError ? (
             <div className="flex h-full w-full flex-col items-center justify-center gap-2">
               <ImageOff className="h-12 w-12 text-muted-foreground/50" />
               <Button

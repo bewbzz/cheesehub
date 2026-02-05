@@ -72,6 +72,10 @@ export function useEnrichDrops(drops: NFTDrop[]): {
       if (cached && cached.image && cached.image !== '/placeholder.svg') {
         return cached;
       }
+      // Also return cached video NFTs (they have a valid image URL even if it's video content)
+      if (cached && cached.isVideo) {
+        return cached;
+      }
       return drop;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps

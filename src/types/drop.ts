@@ -53,6 +53,7 @@ export interface NFTDrop {
   authRequirements?: DropAuthRequirement[];
   isFree?: boolean;
   accountLimit?: number;
+  isVideo?: boolean;  // True if this NFT only has video content (no image)
 }
 
 export interface AtomicSale {

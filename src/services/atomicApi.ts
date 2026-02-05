@@ -2,6 +2,68 @@ import { ATOMIC_API, CHEESE_CONFIG, NFTHIVE_CONFIG } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import type { NFTDrop, AtomicSale, AtomicTemplate, AtomicDrop, NFTHiveDrop, DropPrice } from '@/types/drop';
 
+// =============================================================================
+// Global Image Preload Tracking
+// Coordinates between enrichment (batch preloading) and card components (display)
+// =============================================================================
+const preloadingImages = new Map<string, Promise<boolean>>();
+const loadedImages = new Set<string>();
+
+/**
+ * Preload an image and track its status globally.
+ * Returns a promise that resolves to true if loaded successfully.
+ */
+export function preloadImage(url: string): Promise<boolean> {
+  if (!url || url.includes('placeholder')) return Promise.resolve(false);
+  if (loadedImages.has(url)) return Promise.resolve(true);
+  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
+  
+  const promise = new Promise<boolean>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0) {
+        loadedImages.add(url);
+        preloadingImages.delete(url);
+        resolve(true);
+      } else {
+        preloadingImages.delete(url);
+        resolve(false);
+      }
+    };
+    img.onerror = () => {
+      preloadingImages.delete(url);
+      resolve(false);
+    };
+    img.src = url;
+  });
+  
+  preloadingImages.set(url, promise);
+  return promise;
+}
+
+/**
+ * Check if an image has already been loaded successfully.
+ */
+export function isImageLoaded(url: string): boolean {
+  return loadedImages.has(url);
+}
+
+/**
+ * Check if an image is currently being preloaded.
+ */
+export function isImagePreloading(url: string): boolean {
+  return preloadingImages.has(url);
+}
+
+/**
+ * Wait for an in-progress preload to complete.
+ */
+export function waitForPreload(url: string): Promise<boolean> {
+  if (loadedImages.has(url)) return Promise.resolve(true);
+  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
+  return Promise.resolve(false);
+}
+
 // Optimized IPFS gateways - CDN-backed first for speed
 const IPFS_GATEWAYS = [
   'https://gateway.pinata.cloud/ipfs/',
@@ -492,8 +554,7 @@ export async function enrichDropTemplates(
       if (cached) {
         // Preload image in background for faster rendering
         if (cached.image && !cached.image.includes('placeholder')) {
-          const preload = new Image();
-          preload.src = cached.image;
+          preloadImage(cached.image); // Use tracked preloading
         }
         return {
           ...drop,

@@ -1,106 +1,273 @@
 
-# Fix: DropDetail Page Missing `isVideo` Flag
 
-## Problem Identified
+# Performance Optimization Plan: Apply Drops-Style NFT Loading Across CHEESEHub
 
-The **detail page** (`DropDetail.tsx`) fetches drops using `fetchDropById()`, which internally calls `fetchTemplateById()`. However, `fetchTemplateById()` does **NOT** use the same `getMediaUrl()` helper as the batch enrichment.
+## Summary
 
-**Current `fetchTemplateById` code (line 1030):**
-```typescript
-image: getImageUrl(data.img || data.image), // ❌ No video fallback!
-```
-
-**What it should do (like `fetchTemplatesBatch`):**
-```typescript
-const media = getMediaUrl(data);
-return {
-  image: media.url,
-  isVideo: media.isVideo,  // ✅ Include video flag
-};
-```
-
-This means:
-- **Grid view** (uses `enrichDropTemplates` → `fetchTemplatesBatch`): Gets `isVideo` flag ✅
-- **Detail page** (uses `fetchDropById` → `fetchTemplateById`): Missing `isVideo` flag ❌
+The CHEESEDrops marketplace recently received significant performance improvements including batch template fetching (~50x faster), progressive caching, and video-field detection. These optimizations should be applied to other NFT-viewing interfaces throughout CHEESEHub for a consistent, fast user experience.
 
 ---
 
-## Solution
+## Current State Analysis
 
-### 1. Update `fetchTemplateById` Return Type
+### What Drops Does Well (To Apply Elsewhere)
 
-Add `isVideo` to the return type:
+| Optimization | Implementation |
+|-------------|----------------|
+| **Batch Template Fetching** | `fetchTemplatesBatch()` fetches up to 100 templates per API call vs 1 request per template |
+| **Progressive Enrichment** | `useEnrichDrops` shows data as it loads, updates UI progressively |
+| **Global In-Memory Cache** | `enrichedDropsCache` persists across component re-renders and navigation |
+| **Video Field Detection** | `getMediaUrl()` checks for `video` field when `img` is missing |
+| **Smart Retry System** | `retryFailedDrops()` clears cache for failed items and re-fetches |
+| **Prefetch Next Page** | `usePrefetchDrops()` loads upcoming pages in background |
+| **Abort Controllers** | Prevents stale requests when user navigates away |
+
+### Current NFT Viewers Needing Optimization
+
+| Component | Current Pattern | Issues |
+|-----------|-----------------|--------|
+| **NFTSendManager** (Wallet Send) | Uses `useUserNFTs` hook | Already optimized with batch fetching and template fallback |
+| **TreasuryNFTDeposit** (DAO) | Uses `useUserNFTs` hook | Same as above - shares the hook |
+| **NFTVotePicker** (DAO Voting) | Uses `fetchUserNFTsBySchema` | Has hybrid on-chain + API approach, but fetches templates sequentially |
+| **NFTStaking** (Farm) | Inline `useQuery` with custom logic | Sequential template fetches, no caching, re-fetches on every navigation |
+| **PremintNFTPicker** (Drops) | Uses `useUserNFTs` hook | Already shares optimizations |
+
+---
+
+## Optimization Opportunities
+
+### Priority 1: NFTStaking.tsx (Farm) - Highest Impact
+
+**Current Problems:**
+- Fetches templates **one at a time** in a loop (lines 612-651)
+- No caching - refetches every time user visits farm
+- Re-renders cause duplicate fetches
+- ~500ms per template = 5+ seconds for 10 unindexed NFTs
+
+**Solution:**
+1. Replace sequential template loop with batch `fetchTemplatesBatch()` call
+2. Add localStorage cache for template metadata (like `useUserNFTs`)
+3. Use progressive loading pattern from `useEnrichDrops`
+
+### Priority 2: NFTVotePicker.tsx (DAO) - Medium Impact
+
+**Current Problems:**
+- `fetchUserNFTsBySchema` fetches templates sequentially (lines 934-950 in atomicApi.ts)
+- No persistent cache across component mounts
+
+**Solution:**
+1. Update `fetchUserNFTsBySchema` to batch missing templates using `fetchTemplatesBatch()`
+2. Add in-memory cache for template data during session
+
+### Priority 3: Create Shared NFT Template Cache
+
+**Goal:** Single source of truth for template metadata across all components
+
+**Implementation:**
+- Create `src/lib/templateCache.ts` with:
+  - `getTemplate(templateId, collectionName)` - checks cache first
+  - `setTemplate(templateId, collectionName, data)` - updates cache
+  - `batchGetOrFetch(requests[])` - checks cache, batch-fetches missing, returns all
+  - localStorage persistence with TTL
+
+---
+
+## Detailed Implementation
+
+### Phase 1: Create Shared Template Cache
+
+**New File: `src/lib/templateCache.ts`**
 
 ```typescript
-export async function fetchTemplateById(
-  templateId: string,
-  collectionName?: string
-): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number; isVideo?: boolean } | null>
-```
+// In-memory + localStorage cache for NFT template metadata
+const CACHE_KEY = 'cheesehub_template_cache_v1';
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
-### 2. Use `getMediaUrl` Helper in `fetchTemplateById`
+interface TemplateData {
+  name: string;
+  image: string;
+  isVideo?: boolean;
+  timestamp: number;
+}
 
-Replace the hardcoded image extraction with the helper that checks video fields:
+const memoryCache = new Map<string, TemplateData>();
 
-```typescript
-// Before (line 1030):
-image: getImageUrl(data.img || data.image),
+function makeKey(templateId: string, collectionName: string) {
+  return `${collectionName}:${templateId}`;
+}
 
-// After:
-const media = getMediaUrl(data);
-return {
-  name: data.name || template.name || `Template #${templateId}`,
-  image: media.url,
-  isVideo: media.isVideo,
-  maxSupply: parseInt(template.max_supply) || 0,
-  issuedSupply: parseInt(template.issued_supply) || 0,
-};
-```
+export function getCachedTemplate(templateId: string, collectionName: string): TemplateData | null {
+  const key = makeKey(templateId, collectionName);
+  const cached = memoryCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached;
+  }
+  return null;
+}
 
-### 3. Pass `isVideo` Through in `fetchDropById`
+export function setCachedTemplate(templateId: string, collectionName: string, data: Omit<TemplateData, 'timestamp'>) {
+  const key = makeKey(templateId, collectionName);
+  memoryCache.set(key, { ...data, timestamp: Date.now() });
+}
 
-Update the return statement to include the flag:
+export async function batchGetOrFetch(
+  requests: { templateId: string; collectionName: string }[]
+): Promise<Map<string, TemplateData>> {
+  const results = new Map<string, TemplateData>();
+  const toFetch: typeof requests = [];
 
-```typescript
-// In fetchDropById (around line 761-766):
-if (templateData) {
-  return {
-    ...baseDrop,
-    image: templateData.image || baseDrop.image,
-    name: templateData.name || baseDrop.name,
-    isVideo: templateData.isVideo,  // ✅ Add this
-  };
+  // Check cache first
+  for (const req of requests) {
+    const cached = getCachedTemplate(req.templateId, req.collectionName);
+    if (cached) {
+      results.set(makeKey(req.templateId, req.collectionName), cached);
+    } else {
+      toFetch.push(req);
+    }
+  }
+
+  // Batch fetch missing from API
+  if (toFetch.length > 0) {
+    const fetched = await fetchTemplatesBatch(toFetch);
+    for (const [key, data] of fetched) {
+      const withTimestamp = { ...data, timestamp: Date.now() };
+      memoryCache.set(key, withTimestamp);
+      results.set(key, withTimestamp);
+    }
+  }
+
+  return results;
 }
 ```
 
----
+### Phase 2: Update NFTStaking.tsx
 
-## File Changes
+**Changes to make:**
 
-| File | Lines | Changes |
-|------|-------|---------|
-| `src/services/atomicApi.ts` | 1012 | Update return type to include `isVideo?: boolean` |
-| `src/services/atomicApi.ts` | 1028-1033 | Use `getMediaUrl(data)` instead of `getImageUrl(data.img \|\| data.image)` |
-| `src/services/atomicApi.ts` | 761-766 | Pass `isVideo` from templateData to returned drop |
+1. Import the template cache:
+```typescript
+import { batchGetOrFetch, getCachedTemplate, setCachedTemplate } from '@/lib/templateCache';
+```
 
----
+2. Replace the sequential template fetch loop (lines 612-668) with batch call:
 
-## Expected Results
+```typescript
+// Before (SLOW - sequential):
+for (const [templateId, assetIds] of templateGroups) {
+  const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
+  const templateResponse = await fetchWithFallback(...);
+  // ... process one by one
+}
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| AlienSkullMa in grid | Shows "Video NFT" placeholder or image | Shows image (via img tag) |
-| AlienSkullMa detail page | White square (no isVideo flag) | Shows image correctly |
-| Actual video NFT in grid | Shows placeholder | Shows placeholder, clicking shows video |
-| Actual video NFT detail | White square | Tries image, falls back to video player |
+// After (FAST - batch):
+const templateRequests = Array.from(templateGroups.entries()).map(([templateId, assetIds]) => ({
+  templateId: String(templateId),
+  collectionName: assetMetadataMap.get(assetIds[0])?.collection || '',
+}));
+
+const templateData = await batchGetOrFetch(templateRequests);
+
+for (const [templateId, assetIds] of templateGroups) {
+  const meta = assetMetadataMap.get(assetIds[0]);
+  const key = `${meta?.collection}:${templateId}`;
+  const template = templateData.get(key);
+  
+  for (const assetId of assetIds) {
+    assets.push({
+      asset_id: assetId,
+      name: template?.name || `NFT #${assetId}`,
+      image: template?.image || '/placeholder.svg',
+      collection: meta?.collection || 'Unknown',
+      schema: meta?.schema || '',
+      template_id: String(templateId),
+    });
+  }
+}
+```
+
+3. Apply same fix to staked NFT details fetch (lines 700-800)
+
+### Phase 3: Update fetchUserNFTsBySchema
+
+**File: `src/services/atomicApi.ts` (lines 920-970)**
+
+Replace sequential template fetch with batch:
+
+```typescript
+// Before (lines 934-950 - sequential):
+for (const [key, assets] of templateGroups) {
+  const templateData = await fetchTemplateById(templateId, collectionName);
+  // ...
+}
+
+// After (batch):
+const templateRequests = Array.from(templateGroups.entries()).map(([key]) => {
+  const [collectionName, templateId] = key.split(':');
+  return { templateId, collectionName };
+});
+
+const templates = await fetchTemplatesBatch(templateRequests);
+
+for (const [key, assets] of templateGroups) {
+  const template = templates.get(key);
+  for (const asset of assets) {
+    results.push({
+      asset_id: asset.asset_id,
+      name: template?.name || `NFT #${asset.asset_id}`,
+      image: template?.image || '/placeholder.svg',
+      // ...
+    });
+  }
+}
+```
+
+### Phase 4: Add Video Field Support to All Viewers
+
+Currently only Drops uses `getMediaUrl()` for video detection. Apply to:
+
+| File | Current | Update |
+|------|---------|--------|
+| `useUserNFTs.ts` line 265 | `getImageUrl(data.img \|\| data.image)` | Use `getMediaUrl(data)` |
+| `NFTStaking.tsx` line 581 | `getImageUrl(asset.data?.img)` | Use `getMediaUrl(asset.data)` |
+| `NFTVotePicker.tsx` line 188 | `getImageUrl(nft.image)` | Already receives processed URL |
 
 ---
 
 ## Technical Summary
 
-The fix ensures both code paths (batch enrichment AND individual fetch) use the same `getMediaUrl()` helper to:
-1. Check for `img`/`image` fields first
-2. Fall back to `video` field if no image
-3. Return `isVideo: true` when content comes from video field
+### Files to Modify
 
-This allows the UI to try loading as an image first, then fall back to video player if the image fails.
+| File | Changes |
+|------|---------|
+| `src/lib/templateCache.ts` | **New** - Shared template cache utility |
+| `src/services/atomicApi.ts` | Update `fetchUserNFTsBySchema` to use batch fetch |
+| `src/components/farm/NFTStaking.tsx` | Replace sequential template fetches with batch |
+| `src/hooks/useUserNFTs.ts` | Add video field detection |
+
+### Expected Performance Improvements
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| Farm page with 10 unindexed NFTs | ~5-10 seconds | ~1 second |
+| DAO voting with 20 NFTs | ~10 seconds | ~1-2 seconds |
+| Returning to previously visited farm | Full refetch | Instant (cached) |
+| Video-only NFTs in Wallet/Farm | White squares | Proper placeholder |
+
+### Risks & Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Cache becomes stale | 15-minute TTL, manual refresh button |
+| Memory usage | Limit cache size to 500 templates |
+| Breaking existing functionality | Apply changes incrementally, test each component |
+
+---
+
+## Recommended Implementation Order
+
+1. Create `templateCache.ts` utility (foundational)
+2. Update `NFTStaking.tsx` (highest impact - farms are heavily used)
+3. Update `fetchUserNFTsBySchema` (benefits DAO voting)
+4. Add video field support to remaining components
+5. Test all NFT viewers end-to-end
+

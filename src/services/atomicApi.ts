@@ -67,89 +67,73 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 export async function fetchTemplatesBatch(
   requests: { templateId: string; collectionName: string }[]
 ): Promise<Map<string, { name: string; image: string }>> {
-  // Deduplicate requests
+  // Deduplicate by templateId (keep collection for fallback lookup)
   const uniqueRequests = new Map<string, { templateId: string; collectionName: string }>();
   for (const req of requests) {
-    const key = `${req.collectionName}:${req.templateId}`;
-    uniqueRequests.set(key, req);
-  }
-
-  // Group by collection (API requires collection_name filter with ids)
-  const byCollection = new Map<string, string[]>();
-  for (const req of uniqueRequests.values()) {
-    const ids = byCollection.get(req.collectionName) || [];
-    ids.push(req.templateId);
-    byCollection.set(req.collectionName, ids);
+    // Dedupe by templateId - same template can appear in multiple drops
+    if (!uniqueRequests.has(req.templateId)) {
+      uniqueRequests.set(req.templateId, req);
+    }
   }
 
   const results = new Map<string, { name: string; image: string }>();
+  const allIds = Array.from(uniqueRequests.keys());
   
-  console.log(`[NFTHive Batch] Fetching templates for ${byCollection.size} collections, ${uniqueRequests.size} unique templates`);
+  console.log(`[NFTHive Batch] Fetching ${allIds.length} unique templates (no collection filter)`);
 
-  // Fetch each collection's templates in parallel (max 100 per request)
-  await Promise.all(
-    Array.from(byCollection.entries()).map(async ([collection, ids]) => {
-      // Split into chunks of 100 if needed
-      const chunks = chunkArray(ids, 100);
-      
-      for (const chunk of chunks) {
-        try {
-          const params = new URLSearchParams({
-            collection_name: collection,
-            ids: chunk.join(','),
-            limit: '100',
+  // Fetch ALL templates at once (chunks of 100 for API limit) - NO collection_name filter
+  const chunks = chunkArray(allIds, 100);
+  
+  for (const chunk of chunks) {
+    try {
+      const params = new URLSearchParams({
+        ids: chunk.join(','),
+        limit: '100',
+      });
+      const path = `${ATOMIC_API.paths.templates}?${params}`;
+      const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 10000);
+      const json = await response.json();
+
+      if (json.success && json.data) {
+        for (const template of json.data) {
+          const data = template.immutable_data || {};
+          // Get collection from response (not from grouping)
+          const collectionName = template.collection?.collection_name || '';
+          const key = `${collectionName}:${template.template_id}`;
+          results.set(key, {
+            name: data.name || template.name || `Template #${template.template_id}`,
+            image: getImageUrl(data.img || data.image),
           });
-          const path = `${ATOMIC_API.paths.templates}?${params}`;
-          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 10000);
-          const json = await response.json();
-
-          if (json.success && json.data) {
-            for (const template of json.data) {
-              const data = template.immutable_data || {};
-              const key = `${collection}:${template.template_id}`;
-              results.set(key, {
-                name: data.name || template.name || `Template #${template.template_id}`,
-                image: getImageUrl(data.img || data.image),
-              });
-            }
-          }
-        } catch (error) {
-          console.warn(`[NFTHive Batch] Failed to fetch templates for ${collection}:`, error);
         }
       }
-    })
-  );
-
-  // Find missing templates (not returned by batch API - likely indexer lag)
-  const missingTemplates: { templateId: string; collectionName: string }[] = [];
-  for (const [key, req] of uniqueRequests) {
-    if (!results.has(key)) {
-      missingTemplates.push(req);
+    } catch (error) {
+      console.warn(`[NFTHive Batch] Batch fetch failed:`, error);
     }
   }
 
-  // Fallback: fetch missing templates individually (some indexers have better coverage)
+  // Find missing templates using original collection mapping
+  const missingTemplates = Array.from(uniqueRequests.values()).filter(req => {
+    const key = `${req.collectionName}:${req.templateId}`;
+    return !results.has(key);
+  });
+
+  // Fallback: fetch ALL missing templates in parallel (no sequential batches)
   if (missingTemplates.length > 0) {
-    console.log(`[NFTHive Batch] Fetching ${missingTemplates.length} missing templates individually`);
+    console.log(`[NFTHive Batch] Fetching ${missingTemplates.length} missing templates in parallel`);
     
-    // Process in parallel batches of 5 to avoid overwhelming the API
-    const FALLBACK_BATCH_SIZE = 5;
-    for (let i = 0; i < missingTemplates.length; i += FALLBACK_BATCH_SIZE) {
-      const batch = missingTemplates.slice(i, i + FALLBACK_BATCH_SIZE);
-      await Promise.allSettled(
-        batch.map(async ({ templateId, collectionName }) => {
-          try {
-            const data = await fetchTemplateById(templateId, collectionName);
-            if (data && data.image && !data.image.includes('placeholder')) {
-              const key = `${collectionName}:${templateId}`;
-              results.set(key, { name: data.name, image: data.image });
-            }
-          } catch (e) {
-            // Ignore individual fetch errors
+    await Promise.allSettled(
+      missingTemplates.map(async ({ templateId, collectionName }) => {
+        try {
+          const data = await fetchTemplateById(templateId, collectionName);
+          if (data && data.image && !data.image.includes('placeholder')) {
+            const key = `${collectionName}:${templateId}`;
+            results.set(key, { name: data.name, image: data.image });
           }
-        })
-      );
-    }
+        } catch (e) {
+          // Ignore individual fetch errors
+        }
+      })
+    );
   }
 
   console.log(`[NFTHive Batch] Successfully fetched ${results.size} templates`);

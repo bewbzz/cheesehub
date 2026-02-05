@@ -1,254 +1,160 @@
 
 
-# Fix Image Timeout Issues When Changing Pages
+# Fix Video-Only NFT Display (White Squares Issue)
 
-## Problem Analysis
+## Problem Identified
 
-When changing pages, images timeout too quickly and show "Retry" buttons even though they're available. The core issues are:
+After investigation, I found the root cause of the consistent white squares:
 
-| Issue | Cause | Impact |
-|-------|-------|--------|
-| **3-second timeout per card** | `IMAGE_LOAD_TIMEOUT = 3000` starts independently for each card | Cards time out before images can load |
-| **No coordination with preload** | Images preloaded in `enrichDropTemplates` aren't tracked | Card doesn't know an image is already loading |
-| **Page changes reset all states** | Each card mounts fresh with new timeout | Previous loading progress is lost |
-| **IPFS gateway congestion** | Multiple cards racing to different gateways at once | Network saturation slows everything |
+### The Issue
 
-**Why Retry/Refresh works:** When you click retry, the browser already has the image cached from the failed timeout, so it loads instantly.
+Some NFT templates don't have an `img` field at all - they only have `video` fields. For example, the "Spectral Sessions" NFTs from `cbreakgaming`:
 
----
-
-## Solution: 3-Part Fix
-
-### 1. Increase Timeout and Add Progressive Backoff
-
-The 3-second timeout is too aggressive for IPFS, especially when loading 50 images at once. Increase it and use progressive backoff:
-
-```typescript
-// DropCard.tsx
-const BASE_TIMEOUT = 6000; // 6 seconds base (was 3)
-const MAX_TIMEOUT = 15000; // 15 seconds max for retries
-
-// Calculate timeout based on retry count - give more time for subsequent attempts
-const currentTimeout = Math.min(BASE_TIMEOUT + (gatewayIndex * 3000), MAX_TIMEOUT);
-```
-
-### 2. Track Preloaded Images Globally
-
-Create a shared preload tracker so cards know when an image is already being loaded elsewhere:
-
-```typescript
-// New: Global preload tracking
-const preloadingImages = new Map<string, Promise<boolean>>();
-const loadedImages = new Set<string>();
-
-export function preloadImage(url: string): Promise<boolean> {
-  if (loadedImages.has(url)) return Promise.resolve(true);
-  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
-  
-  const promise = new Promise<boolean>((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      loadedImages.add(url);
-      preloadingImages.delete(url);
-      resolve(true);
-    };
-    img.onerror = () => {
-      preloadingImages.delete(url);
-      resolve(false);
-    };
-    img.src = url;
-  });
-  
-  preloadingImages.set(url, promise);
-  return promise;
-}
-
-export function isImageLoaded(url: string): boolean {
-  return loadedImages.has(url);
+```json
+{
+  "immutable_data": {
+    "name": "ABSTRACT CHAOTIC UNPREDICTABLE...",
+    "video": "QmX3yvZupaup7JKUL5gdCpRcLUqfu6PmQfJTsmi4fqBUDU",
+    "video2": "QmRnQygGWX1J3aSN7SsuuANL9YgJzexRrWjEirUG8BoZ8K"
+    // NO img or image field!
+  }
 }
 ```
 
-### 3. Cards Check Preload Status Before Starting Timeout
+### Current Code Limitation
 
-If an image is already being preloaded or has been loaded, skip the timeout:
+The `getImageUrl()` function only checks for `img` and `image` fields:
 
 ```typescript
-// DropCard.tsx - in the timeout effect
-useEffect(() => {
-  // Skip timeout if image is already loaded globally
-  if (isImageLoaded(currentImageUrl)) {
-    setImageLoaded(true);
-    return;
-  }
-  
-  // Skip timeout if image is currently being preloaded
-  if (isImagePreloading(currentImageUrl)) {
-    // Wait for the preload instead of starting our own timeout
-    waitForPreload(currentImageUrl).then(success => {
-      if (success) setImageLoaded(true);
-      else handleImageError();
-    });
-    return;
-  }
-  
-  // Only start timeout if we're loading this image fresh
-  timeoutRef.current = setTimeout(...);
-}, [...]);
+image: getImageUrl(data.img || data.image),  // Returns placeholder if both are undefined
 ```
+
+### NFTHive's Approach
+
+Looking at NFTHive, they display video-only drops with a dark placeholder in grid view (visible in the screenshot where "Spectral Sessions" cards have no image).
 
 ---
 
-## File Changes
+## Solution: Video Fallback with Proper Placeholder Handling
+
+### Strategy
+
+1. **Update `getImageUrl()` to accept video fallback** - Try `video` field as IPFS content when no image exists
+2. **Detect video-only NFTs and mark them** - Pass a flag indicating this is a video NFT
+3. **Show appropriate placeholder for video NFTs** - Display a video icon overlay or dark background instead of "Retry" button
+4. **Track known video-only template patterns** - Avoid repeatedly trying to load videos as images
+
+---
+
+## Implementation Details
+
+### 1. Update `fetchTemplatesBatch` to Check Video Fields
+
+In `src/services/atomicApi.ts`, expand the image extraction logic:
+
+```typescript
+// New helper function to get media URL (image or video fallback)
+function getMediaUrl(data: Record<string, string>): { url: string; isVideo: boolean } {
+  // Try standard image fields first
+  const imageField = data.img || data.image;
+  if (imageField) {
+    return { url: getImageUrl(imageField), isVideo: false };
+  }
+  
+  // Fallback to video field (common in video NFTs)
+  const videoField = data.video;
+  if (videoField) {
+    // Return video URL - we'll handle it specially in the card
+    return { url: getImageUrl(videoField), isVideo: true };
+  }
+  
+  return { url: '/placeholder.svg', isVideo: false };
+}
+```
+
+Update `fetchTemplatesBatch`:
+
+```typescript
+results.set(key, {
+  name: data.name || template.name || `Template #${template.template_id}`,
+  image: getMediaUrl(data).url,
+  isVideo: getMediaUrl(data).isVideo,  // New flag
+});
+```
+
+### 2. Update NFTDrop Type
+
+In `src/types/drop.ts`, add the `isVideo` field:
+
+```typescript
+export interface NFTDrop {
+  // ... existing fields
+  isVideo?: boolean;  // True if this NFT only has video content (no image)
+}
+```
+
+### 3. Update DropCard to Handle Video NFTs
+
+In `src/components/drops/DropCard.tsx`, detect video NFTs and show appropriate UI:
+
+```typescript
+// In the image section of the card
+{drop.isVideo ? (
+  // Show video placeholder with play icon instead of Retry button
+  <div className="flex h-full w-full flex-col items-center justify-center bg-muted/30">
+    <Film className="h-12 w-12 text-muted-foreground/50" />
+    <span className="mt-2 text-xs text-muted-foreground">Video NFT</span>
+  </div>
+) : imageError ? (
+  // Existing retry UI
+  <div className="flex h-full w-full flex-col items-center justify-center gap-2">
+    <ImageOff className="h-12 w-12 text-muted-foreground/50" />
+    <Button variant="ghost" size="sm" onClick={handleRetry}>
+      <RotateCw className="mr-1 h-3 w-3" />
+      Retry
+    </Button>
+  </div>
+) : (
+  // Normal image loading
+  <img src={displayImageUrl} ... />
+)}
+```
+
+### 4. Update Enrichment Functions
+
+Update all places that call `getImageUrl(data.img || data.image)` to use the new `getMediaUrl` helper:
+
+| File | Lines to Update |
+|------|-----------------|
+| `src/services/atomicApi.ts` | Lines 167, 253, 302, 628, 671, 1008 |
+| `src/hooks/useUserNFTs.ts` | Lines 153, 202, 265 |
+
+---
+
+## File Changes Summary
 
 | File | Changes |
 |------|---------|
-| `src/services/atomicApi.ts` | Add global preload tracker (`preloadImage`, `isImageLoaded`, `isImagePreloading`) |
-| `src/components/drops/DropCard.tsx` | Increase timeout, check preload status, use progressive backoff |
-
----
-
-## Technical Implementation
-
-### atomicApi.ts - Add Preload Tracking
-
-```typescript
-// Global preload tracking to coordinate between enrichment and card components
-const preloadingImages = new Map<string, Promise<boolean>>();
-const loadedImages = new Set<string>();
-
-/**
- * Preload an image and track its status globally.
- * Returns a promise that resolves to true if loaded successfully.
- */
-export function preloadImage(url: string): Promise<boolean> {
-  if (!url || url.includes('placeholder')) return Promise.resolve(false);
-  if (loadedImages.has(url)) return Promise.resolve(true);
-  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
-  
-  const promise = new Promise<boolean>((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      if (img.naturalWidth > 0) {
-        loadedImages.add(url);
-        preloadingImages.delete(url);
-        resolve(true);
-      } else {
-        preloadingImages.delete(url);
-        resolve(false);
-      }
-    };
-    img.onerror = () => {
-      preloadingImages.delete(url);
-      resolve(false);
-    };
-    img.src = url;
-  });
-  
-  preloadingImages.set(url, promise);
-  return promise;
-}
-
-/**
- * Check if an image has already been loaded successfully.
- */
-export function isImageLoaded(url: string): boolean {
-  return loadedImages.has(url);
-}
-
-/**
- * Check if an image is currently being preloaded.
- */
-export function isImagePreloading(url: string): boolean {
-  return preloadingImages.has(url);
-}
-
-/**
- * Wait for an in-progress preload to complete.
- */
-export function waitForPreload(url: string): Promise<boolean> {
-  if (loadedImages.has(url)) return Promise.resolve(true);
-  if (preloadingImages.has(url)) return preloadingImages.get(url)!;
-  return Promise.resolve(false);
-}
-
-// Update enrichDropTemplates to use the new preloadImage function
-// In the enrichedDrops.map section:
-if (cached.image && !cached.image.includes('placeholder')) {
-  preloadImage(cached.image); // Use tracked preloading
-}
-```
-
-### DropCard.tsx - Smarter Timeout Logic
-
-```typescript
-import { isImageLoaded, isImagePreloading, waitForPreload } from '@/services/atomicApi';
-
-// More generous timeouts
-const BASE_TIMEOUT = 6000; // 6 seconds base
-const RETRY_TIMEOUT_INCREMENT = 3000; // Add 3s per gateway retry
-const MAX_TIMEOUT = 15000; // 15 seconds max
-
-// In the timeout useEffect:
-useEffect(() => {
-  if (imageError || imageLoaded || isImageCached) {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    return;
-  }
-
-  // Check if image is already fully loaded globally
-  if (isImageLoaded(currentImageUrl)) {
-    setImageLoaded(true);
-    return;
-  }
-  
-  // Check if image is currently being preloaded by enrichment
-  if (isImagePreloading(currentImageUrl)) {
-    // Wait for the existing preload instead of timing out
-    waitForPreload(currentImageUrl).then(success => {
-      if (success) {
-        setImageLoaded(true);
-      }
-      // If preload failed, the img onError will handle it
-    });
-    return; // Don't start our own timeout
-  }
-
-  // Calculate timeout with progressive backoff for retries
-  const timeout = Math.min(BASE_TIMEOUT + (gatewayIndex * RETRY_TIMEOUT_INCREMENT), MAX_TIMEOUT);
-
-  timeoutRef.current = setTimeout(() => {
-    if (!imageLoaded && !imageError) {
-      handleImageError();
-    }
-  }, timeout);
-
-  return () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  };
-}, [currentImageUrl, imageLoaded, imageError, isImageCached, gatewayIndex]);
-```
+| `src/services/atomicApi.ts` | Add `getMediaUrl()` helper, update batch and individual template fetching to detect video NFTs |
+| `src/types/drop.ts` | Add `isVideo?: boolean` to `NFTDrop` interface |
+| `src/components/drops/DropCard.tsx` | Add video NFT detection and show Film icon placeholder instead of Retry |
+| `src/hooks/useEnrichDrops.ts` | Pass `isVideo` flag through enrichment cache |
 
 ---
 
 ## Expected Results
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Timeout duration | 3 seconds (fixed) | 6-15 seconds (progressive) |
-| Cards timing out unnecessarily | Many | Near zero |
-| Preload coordination | None | Full tracking |
-| Need to click Retry | Frequent | Rare |
+| Before | After |
+|--------|-------|
+| Video NFTs show "Retry" button that never works | Video NFTs show "Video NFT" placeholder with film icon |
+| Same drops always fail on every page load | Proper detection - no wasted network requests |
+| Confusing UX for users | Clear indication that this is intentional (video content) |
 
 ---
 
-## Summary
+## Technical Notes
 
-The fix coordinates image loading between the batch enrichment and individual cards:
-
-1. **Longer base timeout** - 6 seconds instead of 3 gives IPFS time to respond
-2. **Progressive backoff** - Each retry attempt gets more time
-3. **Global preload tracking** - Cards know when an image is already loading
-4. **Wait for preload** - Instead of timing out, cards wait for in-progress preloads
-
-This eliminates the race condition where cards timeout while the enrichment system is still preloading their images.
+- **No video playback in grid view** - Like NFTHive, we show a placeholder in grid view. Video can be played in detail view if needed later.
+- **Minimal performance impact** - Detection happens during batch fetch, not per-card rendering
+- **IPFS video hashes work as images for some videos** - MP4 files won't display, but video thumbnails stored as IPFS might. The code tries to load them and falls back gracefully.
 

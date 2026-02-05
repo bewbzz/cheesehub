@@ -73,6 +73,7 @@ const DropDetail = () => {
   const { isConnected, accountName, login } = useWax();
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [mediaType, setMediaType] = useState<'loading' | 'image' | 'video' | 'error'>('loading');
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -99,6 +100,7 @@ const DropDetail = () => {
     if (drop?.image) {
       setImageError(false);
       setImageLoaded(false);
+      setMediaType('loading');
       setCurrentImageUrl(drop.image);
       setGatewayIndex(0);
       setRetryCount(0);
@@ -160,9 +162,15 @@ const DropDetail = () => {
       setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
       setImageLoaded(false);
     } else {
-      setImageError(true);
+      // All gateways exhausted - if from video field, try as video
+      if (drop?.isVideo) {
+        setMediaType('video');
+      } else {
+        setImageError(true);
+        setMediaType('error');
+      }
     }
-  }, [imageUrl, gatewayIndex]);
+  }, [imageUrl, gatewayIndex, drop?.isVideo]);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -171,13 +179,20 @@ const DropDetail = () => {
       handleImageError();
     } else {
       setImageLoaded(true);
+      setMediaType('image');
     }
   }, [handleImageError]);
+
+  const handleVideoError = useCallback(() => {
+    setMediaType('error');
+    setImageError(true);
+  }, []);
 
   const handleRetry = useCallback(() => {
     if (!drop?.image) return;
     setImageError(false);
     setImageLoaded(false);
+    setMediaType('loading');
     setGatewayIndex(0);
     setRetryCount(prev => prev + 1);
     setCurrentImageUrl(drop.image);
@@ -297,32 +312,19 @@ const DropDetail = () => {
 
         <div className="grid gap-10 lg:grid-cols-2">
           <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/50 flex items-center justify-center min-h-[400px]">
-            {drop.isVideo ? (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/30 py-12">
-                <Film className="h-20 w-20 text-muted-foreground/50" />
-                <div className="text-center">
-                  <span className="text-lg font-medium text-muted-foreground">Video NFT</span>
-                  <p className="text-sm text-muted-foreground/70 mt-1">
-                    This NFT contains video content
-                  </p>
-                </div>
-                {displayImageUrl && (
-                  <video
-                    src={displayImageUrl}
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="max-w-full max-h-[500px] w-auto h-auto rounded-lg mt-4"
-                    onError={() => {
-                      // Video failed to load - keep showing the placeholder
-                      console.log('[DropDetail] Video failed to load');
-                    }}
-                  />
-                )}
-              </div>
-            ) : imageError ? (
+            {mediaType === 'video' ? (
+              // Show video player - image failed and this is from a video field
+              <video
+                src={displayImageUrl}
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="max-w-full max-h-[600px] w-auto h-auto rounded-lg"
+                onError={handleVideoError}
+              />
+            ) : mediaType === 'error' || imageError ? (
               <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-muted/50 py-12">
                 <ImageOff className="h-16 w-16 text-muted-foreground/50" />
                 <Button

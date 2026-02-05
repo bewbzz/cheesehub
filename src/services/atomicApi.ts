@@ -762,6 +762,7 @@ export async function fetchDropById(dropId: string): Promise<NFTDrop | null> {
             ...baseDrop,
             image: templateData.image || baseDrop.image,
             name: templateData.name || baseDrop.name,
+            isVideo: templateData.isVideo,
           };
         }
       }
@@ -1009,7 +1010,7 @@ export async function fetchUserCollections(account: string): Promise<string[]> {
 export async function fetchTemplateById(
   templateId: string,
   collectionName?: string
-): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number } | null> {
+): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number; isVideo?: boolean } | null> {
   try {
     const path = collectionName 
       ? `${ATOMIC_API.paths.templates}/${collectionName}/${templateId}`
@@ -1025,9 +1026,12 @@ export async function fetchTemplateById(
     const template = json.data;
     const data = template.immutable_data || {};
 
+    const media = getMediaUrl(data);
+
     return {
       name: data.name || template.name || `Template #${templateId}`,
-      image: getImageUrl(data.img || data.image),
+      image: media.url,
+      isVideo: media.isVideo,
       maxSupply: parseInt(template.max_supply) || 0,
       issuedSupply: parseInt(template.issued_supply) || 0,
     };

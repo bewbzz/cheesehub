@@ -111,6 +111,24 @@ function getImageUrl(img: string | undefined): string {
   return img || '/placeholder.svg';
 }
 
+// Helper to extract media URL from NFT data, with video fallback for video-only NFTs
+function getMediaUrl(data: Record<string, string>): { url: string; isVideo: boolean } {
+  // Try standard image fields first
+  const imageField = data.img || data.image;
+  if (imageField) {
+    return { url: getImageUrl(imageField), isVideo: false };
+  }
+  
+  // Fallback to video field (common in video-only NFTs)
+  const videoField = data.video;
+  if (videoField) {
+    // Mark as video NFT - card will show placeholder instead of trying to load
+    return { url: getImageUrl(videoField), isVideo: true };
+  }
+  
+  return { url: '/placeholder.svg', isVideo: false };
+}
+
 // Helper to split array into chunks
 function chunkArray<T>(array: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -128,7 +146,7 @@ function chunkArray<T>(array: T[], size: number): T[][] {
  */
 export async function fetchTemplatesBatch(
   requests: { templateId: string; collectionName: string }[]
-): Promise<Map<string, { name: string; image: string }>> {
+): Promise<Map<string, { name: string; image: string; isVideo?: boolean }>> {
   // Deduplicate by templateId (keep collection for fallback lookup)
   const uniqueRequests = new Map<string, { templateId: string; collectionName: string }>();
   for (const req of requests) {
@@ -138,7 +156,7 @@ export async function fetchTemplatesBatch(
     }
   }
 
-  const results = new Map<string, { name: string; image: string }>();
+  const results = new Map<string, { name: string; image: string; isVideo?: boolean }>();
   const allIds = Array.from(uniqueRequests.keys());
   
   console.log(`[NFTHive Batch] Fetching ${allIds.length} unique templates (no collection filter)`);
@@ -162,9 +180,11 @@ export async function fetchTemplatesBatch(
           // Get collection from response (not from grouping)
           const collectionName = template.collection?.collection_name || '';
           const key = `${collectionName}:${template.template_id}`;
+          const media = getMediaUrl(data);
           results.set(key, {
             name: data.name || template.name || `Template #${template.template_id}`,
-            image: getImageUrl(data.img || data.image),
+            image: media.url,
+            isVideo: media.isVideo,
           });
         }
       }
@@ -553,13 +573,15 @@ export async function enrichDropTemplates(
       const cached = templateCache.get(key);
       if (cached) {
         // Preload image in background for faster rendering
-        if (cached.image && !cached.image.includes('placeholder')) {
+        // Skip preloading for video NFTs - they won't load as images
+        if (cached.image && !cached.image.includes('placeholder') && !cached.isVideo) {
           preloadImage(cached.image); // Use tracked preloading
         }
         return {
           ...drop,
           image: cached.image || drop.image,
           name: cached.name && drop.name.startsWith('Drop #') ? cached.name : drop.name,
+          isVideo: cached.isVideo,
         };
       }
       return drop;

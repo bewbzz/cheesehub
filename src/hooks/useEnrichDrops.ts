@@ -109,16 +109,15 @@ export function useEnrichDrops(drops: NFTDrop[]): {
     const keyChanged = fullKey !== lastDropsKeyRef.current;
     lastDropsKeyRef.current = fullKey;
 
-    // If already enriching the same set, don't restart
-    if (isEnrichingRef.current && !keyChanged) {
+    // If already enriching and drops haven't changed, let it continue (don't restart)
+    if (isEnrichingRef.current && !keyChanged && dropsNeedingEnrichment.length > 0) {
       return;
     }
 
-    // Cancel previous enrichment only if key changed
+    // Only abort if starting enrichment for a DIFFERENT set of drops
     if (keyChanged && abortRef.current) {
       abortRef.current.abort();
     }
-    
     abortRef.current = new AbortController();
     const controller = abortRef.current;
 
@@ -168,7 +167,7 @@ export function useEnrichDrops(drops: NFTDrop[]): {
 
     // Don't abort on cleanup - let enrichment complete
     // Only abort when dropsKey changes (handled above)
-  }, [dropsKey, dropsNeedingEnrichment.length, drops, dropsWithCache, retryTrigger]);
+  }, [dropsKey, retryTrigger]); // Removed dropsNeedingEnrichment.length to prevent re-triggers
 
   // Always return something - cache-applied drops or original
   const result = enrichedDrops.length > 0 ? enrichedDrops : dropsWithCache;

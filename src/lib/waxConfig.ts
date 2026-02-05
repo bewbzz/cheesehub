@@ -31,10 +31,10 @@ export const NFTHIVE_CONFIG = {
 export const ATOMIC_API = {
   // Multiple endpoints for fallback when primary is down
   baseUrls: [
-    'https://wax.api.atomicassets.io',
-    'https://aa.wax.blacklusion.io',
     'https://wax-aa.eu.eosamsterdam.net',
+    'https://wax.api.atomicassets.io',
     'https://atomic.wax.eosrio.io',
+    'https://aa.wax.blacklusion.io',
   ],
   // Keep legacy baseUrl for backward compatibility
   baseUrl: 'https://wax.api.atomicassets.io',

@@ -7,6 +7,7 @@ import type { NFTDrop } from "@/types/drop";
 import { useCart } from "@/context/CartContext";
 import { Link } from "react-router-dom";
 import { markDropAsFailed } from "@/hooks/useEnrichDrops";
+import { isImageLoaded, isImagePreloading, waitForPreload } from "@/services/atomicApi";
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 const CURRENCY_LOGOS: Record<string, string> = {
@@ -22,7 +23,10 @@ const IPFS_GATEWAYS = [
   'https://ipfs.io/ipfs/',
 ];
 
-const IMAGE_LOAD_TIMEOUT = 3000; // 3 seconds - much faster retry
+// More generous timeouts to accommodate IPFS latency with 50 images loading
+const BASE_TIMEOUT = 6000; // 6 seconds base (was 3)
+const RETRY_TIMEOUT_INCREMENT = 3000; // Add 3s per gateway retry
+const MAX_TIMEOUT = 15000; // 15 seconds max
 
 function extractIpfsHash(url: string): string | null {
   if (!url) return null;
@@ -106,11 +110,33 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
       return;
     }
 
+    // Check if image is already fully loaded globally (from enrichment preload)
+    if (isImageLoaded(currentImageUrl)) {
+      setImageLoaded(true);
+      return;
+    }
+    
+    // Check if image is currently being preloaded by enrichment
+    if (isImagePreloading(currentImageUrl)) {
+      // Wait for the existing preload instead of timing out
+      let cancelled = false;
+      waitForPreload(currentImageUrl).then(success => {
+        if (!cancelled && success) {
+          setImageLoaded(true);
+        }
+        // If preload failed, the img onError will handle it
+      });
+      return () => { cancelled = true; }; // Cleanup
+    }
+
+    // Calculate timeout with progressive backoff for retries
+    const timeout = Math.min(BASE_TIMEOUT + (gatewayIndex * RETRY_TIMEOUT_INCREMENT), MAX_TIMEOUT);
+
     timeoutRef.current = setTimeout(() => {
       if (!imageLoaded && !imageError) {
         handleImageError();
       }
-    }, IMAGE_LOAD_TIMEOUT);
+    }, timeout);
 
     return () => {
       if (timeoutRef.current) {
@@ -118,7 +144,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
         timeoutRef.current = null;
       }
     };
-  }, [currentImageUrl, imageLoaded, imageError, isImageCached]);
+  }, [currentImageUrl, imageLoaded, imageError, isImageCached, gatewayIndex]);
 
   const handleImageError = useCallback(() => {
     const hash = extractIpfsHash(currentImageUrl);

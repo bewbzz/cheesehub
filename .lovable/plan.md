@@ -1,147 +1,106 @@
 
-
-# Fix Image-in-Video-Field Detection
+# Fix: DropDetail Page Missing `isVideo` Flag
 
 ## Problem Identified
 
-The "AlienSkullMa SKG1VK4" NFT has its image stored in the `video` field instead of `img`:
+The **detail page** (`DropDetail.tsx`) fetches drops using `fetchDropById()`, which internally calls `fetchTemplateById()`. However, `fetchTemplateById()` does **NOT** use the same `getMediaUrl()` helper as the batch enrichment.
 
-```json
-{
-  "immutable_data": {
-    "name": "AlienSkullMa SKG1VK4",
-    "video": "QmPxz55p4ZP4o5LAQrdKpwxNWAUxnZQnB6gstdm9P8odVE",  // This is actually a PNG!
-    "rarity": "Extra Mystery",
-    "back_img": "QmZjy7P8cysjrsKQUsHMT37P65aqYsYumUrzpxhb6aXPp2",
-    "generation": "V4"
-    // NO img field!
-  }
-}
+**Current `fetchTemplateById` code (line 1030):**
+```typescript
+image: getImageUrl(data.img || data.image), // ❌ No video fallback!
 ```
 
-The IPFS hash in the `video` field is actually an **image file**, not a video. Our current code incorrectly assumes anything in a `video` field is video content and shows a video placeholder/player.
-
----
-
-## Solution: Try Image First, Fall Back to Video
-
-Since we can't know the content type from the field name alone, we should:
-
-1. **Always try to load the content as an image first** in the UI
-2. **If the `<img>` tag loads successfully**, display it as an image
-3. **If the `<img>` tag fails** and the content came from a video field, try as video
-
-This is better than trying to detect content type beforehand because:
-- No extra network requests needed
-- The browser's native handling tells us what works
-- Same behavior as NFTHive (they load images from video fields)
-
----
-
-## Implementation
-
-### 1. Change `isVideo` to `fromVideoField`
-
-Rename the flag to indicate source, not content type:
-
+**What it should do (like `fetchTemplatesBatch`):**
 ```typescript
-// src/services/atomicApi.ts
-function getMediaUrl(data: Record<string, string>): { url: string; fromVideoField: boolean } {
-  const imageField = data.img || data.image;
-  if (imageField) {
-    return { url: getImageUrl(imageField), fromVideoField: false };
-  }
-  
-  const videoField = data.video;
-  if (videoField) {
-    return { url: getImageUrl(videoField), fromVideoField: true }; // Might be image OR video
-  }
-  
-  return { url: '/placeholder.svg', fromVideoField: false };
-}
-```
-
-### 2. Update DropCard - Try Image First
-
-In grid view, always try loading as `<img>` first:
-
-```typescript
-// src/components/drops/DropCard.tsx
-// Remove the video placeholder - always try image first
-// Only show Film icon if image load fails AND it's from a video field
-{imageError && drop.isVideo ? (
-  // Only show video placeholder if image failed and came from video field
-  <div className="flex h-full w-full flex-col items-center justify-center bg-muted/30">
-    <Film className="h-12 w-12 text-muted-foreground/50" />
-    <span className="mt-2 text-xs text-muted-foreground">Video NFT</span>
-  </div>
-) : imageError ? (
-  // Regular image error - show retry
-  <div className="...">...</div>
-) : (
-  // Normal image loading - works for images stored in video field too!
-  <img src={displayImageUrl} ... />
-)}
-```
-
-### 3. Update DropDetail - Image First with Video Fallback
-
-On detail page, try image first. If it fails and source is video field, try video player:
-
-```typescript
-// src/pages/DropDetail.tsx
-const [mediaType, setMediaType] = useState<'loading' | 'image' | 'video' | 'error'>('loading');
-
-const handleImageLoad = () => setMediaType('image');
-const handleImageError = () => {
-  if (drop.isVideo) {
-    setMediaType('video'); // Try video player as fallback
-  } else {
-    setMediaType('error');
-  }
+const media = getMediaUrl(data);
+return {
+  image: media.url,
+  isVideo: media.isVideo,  // ✅ Include video flag
 };
-const handleVideoError = () => setMediaType('error');
+```
 
-// Render logic:
-{mediaType === 'loading' && <LoadingSpinner />}
-{mediaType === 'image' && <img src={url} ... />}
-{mediaType === 'video' && (
-  <video src={url} controls autoPlay muted playsInline ... />
-)}
-{mediaType === 'error' && <RetryButton />}
+This means:
+- **Grid view** (uses `enrichDropTemplates` → `fetchTemplatesBatch`): Gets `isVideo` flag ✅
+- **Detail page** (uses `fetchDropById` → `fetchTemplateById`): Missing `isVideo` flag ❌
+
+---
+
+## Solution
+
+### 1. Update `fetchTemplateById` Return Type
+
+Add `isVideo` to the return type:
+
+```typescript
+export async function fetchTemplateById(
+  templateId: string,
+  collectionName?: string
+): Promise<{ name: string; image: string; maxSupply: number; issuedSupply: number; isVideo?: boolean } | null>
+```
+
+### 2. Use `getMediaUrl` Helper in `fetchTemplateById`
+
+Replace the hardcoded image extraction with the helper that checks video fields:
+
+```typescript
+// Before (line 1030):
+image: getImageUrl(data.img || data.image),
+
+// After:
+const media = getMediaUrl(data);
+return {
+  name: data.name || template.name || `Template #${templateId}`,
+  image: media.url,
+  isVideo: media.isVideo,
+  maxSupply: parseInt(template.max_supply) || 0,
+  issuedSupply: parseInt(template.issued_supply) || 0,
+};
+```
+
+### 3. Pass `isVideo` Through in `fetchDropById`
+
+Update the return statement to include the flag:
+
+```typescript
+// In fetchDropById (around line 761-766):
+if (templateData) {
+  return {
+    ...baseDrop,
+    image: templateData.image || baseDrop.image,
+    name: templateData.name || baseDrop.name,
+    isVideo: templateData.isVideo,  // ✅ Add this
+  };
+}
 ```
 
 ---
 
 ## File Changes
 
-| File | Changes |
-|------|---------|
-| `src/types/drop.ts` | Keep `isVideo` field (means "from video field", not "is video content") |
-| `src/services/atomicApi.ts` | No changes needed - `getMediaUrl` logic is correct |
-| `src/components/drops/DropCard.tsx` | Try image first, only show video placeholder if image fails |
-| `src/pages/DropDetail.tsx` | Try image first, fall back to video player if fails |
+| File | Lines | Changes |
+|------|-------|---------|
+| `src/services/atomicApi.ts` | 1012 | Update return type to include `isVideo?: boolean` |
+| `src/services/atomicApi.ts` | 1028-1033 | Use `getMediaUrl(data)` instead of `getImageUrl(data.img \|\| data.image)` |
+| `src/services/atomicApi.ts` | 761-766 | Pass `isVideo` from templateData to returned drop |
 
 ---
 
 ## Expected Results
 
-| NFT Type | Before | After |
+| Scenario | Before | After |
 |----------|--------|-------|
-| Image in `img` field | ✅ Works | ✅ Works |
-| Image in `video` field (like AlienSkullMa) | ❌ White square | ✅ Shows image |
-| Actual video in `video` field | ⚠️ Video placeholder | ✅ Tries image, falls back to video |
-| No media at all | Placeholder | Placeholder |
+| AlienSkullMa in grid | Shows "Video NFT" placeholder or image | Shows image (via img tag) |
+| AlienSkullMa detail page | White square (no isVideo flag) | Shows image correctly |
+| Actual video NFT in grid | Shows placeholder | Shows placeholder, clicking shows video |
+| Actual video NFT detail | White square | Tries image, falls back to video player |
 
 ---
 
-## Technical Details
+## Technical Summary
 
-The key insight is: **browsers know how to handle content types automatically**.
+The fix ensures both code paths (batch enrichment AND individual fetch) use the same `getMediaUrl()` helper to:
+1. Check for `img`/`image` fields first
+2. Fall back to `video` field if no image
+3. Return `isVideo: true` when content comes from video field
 
-- An `<img>` tag will fail to load a video file
-- A `<video>` tag will fail to play an image file
-- We can use these failures to detect the actual content type
-
-This is exactly what NFTHive does - they don't pre-detect content type, they just try to load and handle failures gracefully.
-
+This allows the UI to try loading as an image first, then fall back to video player if the image fails.

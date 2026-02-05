@@ -23,13 +23,34 @@ const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 const CACHE_KEY_PREFIX = 'cheesehub_nfts_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-function getImageUrl(img: string | undefined): string {
+function getImageUrl(img: string | undefined, isIpfsHash = false): string {
   if (!img) return '/placeholder.svg';
   if (img.startsWith('http')) return img;
-  if (img.startsWith('Qm') || img.startsWith('bafy')) {
+  if (img.startsWith('ipfs://')) {
+    const hash = img.replace('ipfs://', '');
+    return `${IPFS_GATEWAY}${hash}`;
+  }
+  if (img.startsWith('Qm') || img.startsWith('bafy') || img.startsWith('bafk')) {
     return `${IPFS_GATEWAY}${img}`;
   }
   return img || '/placeholder.svg';
+}
+
+// Helper to extract media URL from NFT data, with video fallback for video-only NFTs
+function getMediaUrl(data: Record<string, string | undefined>): { url: string; isVideo: boolean } {
+  // Try standard image fields first
+  const imageField = data.img || data.image;
+  if (imageField) {
+    return { url: getImageUrl(imageField), isVideo: false };
+  }
+  
+  // Fallback to video field (common in video-only NFTs)
+  const videoField = data.video;
+  if (videoField) {
+    return { url: getImageUrl(videoField), isVideo: true };
+  }
+  
+  return { url: '/placeholder.svg', isVideo: false };
 }
 
 // Get cached NFT data from localStorage
@@ -139,7 +160,7 @@ async function getOwnedAssets(owner: string): Promise<Map<string, OnChainAsset>>
 }
 
 // Fetch template metadata from API (templates are usually indexed even when assets aren't)
-async function fetchTemplateMetadata(templateId: number, collectionName: string): Promise<{ name: string; image: string } | null> {
+async function fetchTemplateMetadata(templateId: number, collectionName: string): Promise<{ name: string; image: string; isVideo?: boolean } | null> {
   try {
     const cacheBuster = `&_ts=${Date.now()}`;
     const path = `/atomicassets/v1/templates/${collectionName}/${templateId}?${cacheBuster}`;
@@ -148,9 +169,11 @@ async function fetchTemplateMetadata(templateId: number, collectionName: string)
     
     if (json.success && json.data) {
       const data = json.data.immutable_data || {};
+      const media = getMediaUrl(data);
       return {
         name: data.name || `Template #${templateId}`,
-        image: getImageUrl(data.img || data.image),
+        image: media.url,
+        isVideo: media.isVideo,
       };
     }
   } catch (error) {
@@ -196,10 +219,11 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
 
     const mappedAssets = assets.map((asset) => {
       const data = { ...asset.immutable_data, ...asset.data };
+      const media = getMediaUrl(data as Record<string, string | undefined>);
       return {
         asset_id: asset.asset_id,
         name: data.name || asset.name || `NFT #${asset.asset_id}`,
-        image: getImageUrl(data.img || data.image),
+        image: media.url,
         collection: asset.collection.collection_name,
         schema: asset.schema.schema_name,
         template_id: asset.template?.template_id || '',
@@ -259,10 +283,11 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<UserNFT[]> {
             
             return assets.map((asset) => {
               const data = { ...asset.immutable_data, ...asset.data };
+              const media = getMediaUrl(data as Record<string, string | undefined>);
               return {
                 asset_id: asset.asset_id,
                 name: data.name || asset.name || `NFT #${asset.asset_id}`,
-                image: getImageUrl(data.img || data.image),
+                image: media.url,
                 collection: asset.collection.collection_name,
                 schema: asset.schema.schema_name,
                 template_id: asset.template?.template_id || '',

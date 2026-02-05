@@ -45,6 +45,7 @@ import {
 } from "@/lib/farm";
 import { ATOMIC_API } from "@/lib/waxConfig";
 import { fetchWithFallback } from "@/lib/fetchWithFallback";
+import { batchGetOrFetch } from "@/lib/templateCache";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { cn } from "@/lib/utils";
 import { waxRpcCall } from "@/lib/waxRpcFallback";
@@ -91,10 +92,33 @@ function extractIpfsHash(url: string): string | null {
 function getImageUrl(img: string | undefined): string {
   if (!img) return "/placeholder.svg";
   if (img.startsWith("http")) return img;
-  if (img.startsWith("Qm") || img.startsWith("bafy")) {
+  if (img.startsWith('ipfs://')) {
+    const hash = img.replace('ipfs://', '');
+    return `${IPFS_GATEWAY}${hash}`;
+  }
+  if (img.startsWith("Qm") || img.startsWith("bafy") || img.startsWith("bafk")) {
     return `${IPFS_GATEWAY}${img}`;
   }
   return img || "/placeholder.svg";
+}
+
+// Helper to extract media URL from NFT data, with video fallback for video-only NFTs
+function getMediaUrl(data: Record<string, string | undefined> | undefined): { url: string; isVideo: boolean } {
+  if (!data) return { url: '/placeholder.svg', isVideo: false };
+  
+  // Try standard image fields first
+  const imageField = data.img || data.image;
+  if (imageField) {
+    return { url: getImageUrl(imageField), isVideo: false };
+  }
+  
+  // Fallback to video field (common in video-only NFTs)
+  const videoField = data.video;
+  if (videoField) {
+    return { url: getImageUrl(videoField), isVideo: true };
+  }
+  
+  return { url: '/placeholder.svg', isVideo: false };
 }
 
 // NFT Card with IPFS gateway fallback (matches wallet NFTSendManager)
@@ -575,10 +599,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           
           if (json.success && json.data) {
             for (const asset of json.data) {
+              const media = getMediaUrl(asset.data);
               assets.push({
                 asset_id: asset.asset_id,
                 name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-                image: getImageUrl(asset.data?.img || asset.data?.image),
+                image: media.url,
                 collection: asset.collection?.collection_name || "",
                 schema: asset.schema?.schema_name || "",
                 template_id: asset.template?.template_id || "",
@@ -608,46 +633,34 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           }
         }
         
-        // Fetch template metadata
+        // Build batch request for all templates (FAST - single API call)
+        const templateRequests = Array.from(templateGroups.entries()).map(([templateId, assetIds]) => {
+          const meta = assetMetadataMap.get(assetIds[0]);
+          return {
+            templateId: String(templateId),
+            collectionName: meta?.collection || '',
+          };
+        });
+        
+        // Batch fetch all templates at once using shared cache
+        const templateDataMap = await batchGetOrFetch(templateRequests);
+        console.log('[NFTStaking] Batch fetched', templateDataMap.size, 'templates');
+        
+        // Map template data back to assets
         for (const [templateId, assetIds] of templateGroups) {
           const meta = assetMetadataMap.get(assetIds[0]);
-          if (!meta) continue;
+          const key = `${meta?.collection}:${templateId}`;
+          const templateData = templateDataMap.get(key);
           
-          try {
-            const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
-            const templateResponse = await fetchWithFallback(ATOMIC_API.baseUrls, templatePath);
-            const templateJson = await templateResponse.json();
-            
-            if (templateJson.success && templateJson.data) {
-              const templateData = templateJson.data;
-              const templateImage = getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image);
-              const templateName = templateData.immutable_data?.name || `Template #${templateId}`;
-              
-              // Create entries for all assets with this template
-              for (const assetId of assetIds) {
-                assets.push({
-                  asset_id: assetId,
-                  name: templateName,
-                  image: templateImage,
-                  collection: meta.collection,
-                  schema: meta.schema,
-                  template_id: String(templateId),
-                });
-              }
-            }
-          } catch (error) {
-            console.error('[NFTStaking] Error fetching template', templateId, ':', error);
-            // Fall back to placeholder for these assets
-            for (const assetId of assetIds) {
-              assets.push({
-                asset_id: assetId,
-                name: `NFT #${assetId}`,
-                image: '',
-                collection: meta?.collection || 'Unknown',
-                schema: meta?.schema || '',
-                template_id: String(templateId),
-              });
-            }
+          for (const assetId of assetIds) {
+            assets.push({
+              asset_id: assetId,
+              name: templateData?.name || `NFT #${assetId}`,
+              image: templateData?.image || '/placeholder.svg',
+              collection: meta?.collection || 'Unknown',
+              schema: meta?.schema || '',
+              template_id: String(templateId),
+            });
           }
         }
         
@@ -698,10 +711,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         
         if (json.success && json.data) {
           for (const asset of json.data) {
+            const media = getMediaUrl(asset.data);
             assets.push({
               asset_id: asset.asset_id,
               name: asset.data?.name || asset.name || `NFT #${asset.asset_id}`,
-              image: getImageUrl(asset.data?.img || asset.data?.image),
+              image: media.url,
               collection: asset.collection?.collection_name || "",
               schema: asset.schema?.schema_name || "",
               template_id: asset.template?.template_id || "",
@@ -769,47 +783,34 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           }
         }
         
-        // Fetch template metadata for each group
+        // Build batch request for all templates (FAST - uses shared cache)
+        const templateRequests = Array.from(templateGroups.entries()).map(([templateId, assetIds]) => {
+          const meta = assetMetadataMap.get(assetIds[0]);
+          return {
+            templateId: String(templateId),
+            collectionName: meta?.collection || '',
+          };
+        });
+        
+        // Batch fetch all templates at once
+        const templateDataMap = await batchGetOrFetch(templateRequests);
+        console.log('[NFTStaking] Batch fetched', templateDataMap.size, 'staked NFT templates');
+        
+        // Map template data back to assets
         for (const [templateId, assetIds] of templateGroups) {
           const meta = assetMetadataMap.get(assetIds[0]);
-          if (!meta) continue;
+          const key = `${meta?.collection}:${templateId}`;
+          const templateData = templateDataMap.get(key);
           
-          try {
-            const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
-            const templateResponse = await fetchWithFallback(ATOMIC_API.baseUrls, templatePath);
-            const templateJson = await templateResponse.json();
-            
-            if (templateJson.success && templateJson.data) {
-              const templateData = templateJson.data;
-              const templateImage = getImageUrl(templateData.immutable_data?.img || templateData.immutable_data?.image);
-              const templateName = templateData.immutable_data?.name || `Template #${templateId}`;
-              
-              // Create entries for all assets with this template
-              for (const assetId of assetIds) {
-                assets.push({
-                  asset_id: assetId,
-                  name: templateName,
-                  image: templateImage,
-                  collection: meta.collection,
-                  schema: meta.schema,
-                  template_id: String(templateId),
-                });
-              }
-              console.log(`[NFTStaking] Fetched template ${templateId} for ${assetIds.length} staked NFTs`);
-            }
-          } catch (error) {
-            console.error('[NFTStaking] Error fetching template', templateId, ':', error);
-            // Fall back to placeholder for these assets
-            for (const assetId of assetIds) {
-              assets.push({
-                asset_id: assetId,
-                name: `NFT #${assetId}`,
-                image: '',
-                collection: meta?.collection || 'Unknown',
-                schema: meta?.schema || '',
-                template_id: String(templateId),
-              });
-            }
+          for (const assetId of assetIds) {
+            assets.push({
+              asset_id: assetId,
+              name: templateData?.name || `NFT #${assetId}`,
+              image: templateData?.image || '/placeholder.svg',
+              collection: meta?.collection || 'Unknown',
+              schema: meta?.schema || '',
+              template_id: String(templateId),
+            });
           }
         }
         

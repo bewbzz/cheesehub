@@ -31,6 +31,29 @@ export function MyDrops() {
     staleTime: 1000 * 60 * 2,
   });
 
+  // Move useMemo BEFORE any early returns - hooks must be called unconditionally
+  const now = Date.now();
+  
+  const { activeDrops, finishedDrops } = useMemo(() => {
+    const active: typeof drops = [];
+    const finished: typeof drops = [];
+    
+    drops.forEach((drop) => {
+      const endTime = drop.endTime * 1000;
+      const remaining = drop.maxClaimable - (drop.numClaimed || 0);
+      const isSoldOut = remaining <= 0 && drop.maxClaimable > 0;
+      const isEnded = now >= endTime;
+      
+      if (isEnded || isSoldOut) {
+        finished.push(drop);
+      } else {
+        active.push(drop);
+      }
+    });
+    
+    return { activeDrops: active, finishedDrops: finished };
+  }, [drops, now]);
+
   if (!isConnected) {
     return (
       <Card className="max-w-2xl mx-auto bg-card/50 border-border/50">
@@ -63,29 +86,6 @@ export function MyDrops() {
       </div>
     );
   }
-
-  // Separate active/upcoming and finished drops
-  const now = Date.now();
-  
-  const { activeDrops, finishedDrops } = useMemo(() => {
-    const active: typeof drops = [];
-    const finished: typeof drops = [];
-    
-    drops.forEach((drop) => {
-      const endTime = drop.endTime * 1000;
-      const remaining = drop.maxClaimable - (drop.numClaimed || 0);
-      const isSoldOut = remaining <= 0 && drop.maxClaimable > 0;
-      const isEnded = now >= endTime;
-      
-      if (isEnded || isSoldOut) {
-        finished.push(drop);
-      } else {
-        active.push(drop);
-      }
-    });
-    
-    return { activeDrops: active, finishedDrops: finished };
-  }, [drops, now]);
 
   const renderDropCard = (drop: typeof drops[0]) => {
     const startTime = drop.startTime * 1000;

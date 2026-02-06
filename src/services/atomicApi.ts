@@ -64,19 +64,7 @@ export function waitForPreload(url: string): Promise<boolean> {
   return Promise.resolve(false);
 }
 
-// Optimized IPFS gateways - CDN-backed first for speed
-const IPFS_GATEWAYS = [
-  'https://gateway.pinata.cloud/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
-  'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/',
-  'https://ipfs.io/ipfs/',
-];
-
-// Get the primary IPFS gateway URL
-function getIpfsUrl(hash: string): string {
-  return `${IPFS_GATEWAYS[0]}${hash}`;
-}
+import { IPFS_GATEWAYS, getIpfsUrl } from '@/lib/ipfsGateways';
 
 function getImageUrl(img: string | undefined): string {
   if (!img) return '/placeholder.svg';

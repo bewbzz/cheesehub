@@ -17,55 +17,11 @@ import cheeseLogo from "@/assets/cheese-logo.png";
 import type { NFTDrop, DropAuthRequirement, DropPrice, SelectedPrice } from "@/types/drop";
 import { getTokenConfig } from "@/lib/tokenRegistry";
 import { TokenLogo } from "@/components/TokenLogo";
+import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT, extractIpfsHash, isVideoUrl } from "@/lib/ipfsGateways";
 
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
 };
-
-// IPFS gateway fallbacks for image loading
-const IPFS_GATEWAYS = [
-  'https://ipfs.io/ipfs/',
-  'https://gateway.pinata.cloud/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
-  'https://dweb.link/ipfs/',
-];
-
-const IMAGE_LOAD_TIMEOUT = 10000; // 10 seconds for detail page
-
-// Helper to check if URL is likely a video file by extension
-function isVideoUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.m4v'];
-  const lowerUrl = url.toLowerCase();
-  return videoExtensions.some(ext => lowerUrl.includes(ext));
-}
-
-function extractIpfsHash(url: string): string | null {
-  if (!url) return null;
-  // Handle ipfs:// protocol
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', '').split('/')[0];
-  }
-  // Handle /ipfs/ paths - capture hash and any path after it
-  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/);
-  if (ipfsMatch) return ipfsMatch[1];
-  // Handle bare CID (Qm... or bafy...)
-  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
-    return url;
-  }
-  // Original patterns for URLs
-  const patterns = [
-    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /dweb\.link\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
 
 function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: string } {
   const currency = drop.currency || (drop.listingPrice?.split(' ')[1]) || 'WAX';
@@ -137,30 +93,6 @@ const DropDetail = () => {
   // Initialize currentImageUrl when drop loads
   const imageUrl = currentImageUrl ?? drop?.image;
 
-  // Timeout fallback - if image doesn't load in time, try next gateway
-  useEffect(() => {
-    if (imageError || imageLoaded || !imageUrl) {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      return;
-    }
-
-    timeoutRef.current = setTimeout(() => {
-      if (!imageLoaded && !imageError) {
-        handleImageError();
-      }
-    }, IMAGE_LOAD_TIMEOUT);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, [imageUrl, imageLoaded, imageError]);
-
   const handleImageError = useCallback(() => {
     if (!imageUrl) return;
     const hash = extractIpfsHash(imageUrl);
@@ -180,6 +112,30 @@ const DropDetail = () => {
       }
     }
   }, [imageUrl, gatewayIndex, drop?.isVideo]);
+
+  // Timeout fallback - if image doesn't load in time, try next gateway
+  useEffect(() => {
+    if (imageError || imageLoaded || !imageUrl) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      if (!imageLoaded && !imageError) {
+        handleImageError();
+      }
+    }, IMAGE_LOAD_TIMEOUT.detail);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [imageUrl, imageLoaded, imageError, handleImageError]);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;

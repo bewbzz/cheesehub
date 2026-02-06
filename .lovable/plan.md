@@ -1,89 +1,67 @@
 
 
-# Fix: Enable Stakable Asset Editing for testfarm3
+# Fix: Increase Image Timeouts and Improve Page-Change Resilience
 
-## Root Cause Analysis
+## Problem
 
-After reviewing the code, the current condition at line 268 is:
+When changing pages, up to 50 new drop cards mount simultaneously. Each card has a **6-second timeout** before showing "Retry." With 50 images loading at once over IPFS gateways, many don't finish in time, causing a wave of "Retry" buttons. Refreshing works because it retries with less contention.
 
+## Solution
+
+Three targeted changes to reduce timeout failures on page change:
+
+### 1. Increase Base Timeouts (ipfsGateways.ts)
+
+| Setting | Current | New |
+|---------|---------|-----|
+| Card timeout | 6s | 12s |
+| Detail timeout | 10s | 15s |
+| Per-retry increment | 3s | 3s (unchanged) |
+| Max timeout | 15s | 25s |
+
+12 seconds gives IPFS gateways enough time even when 50 images are loading concurrently.
+
+### 2. Extend Preload Wait in DropCard (DropCard.tsx)
+
+Currently, the card sets its own timeout even while waiting for an enrichment preload. If the preload is in progress, the card should **skip its own timeout entirely** and let the preload finish (the preload has no timeout limit since it's a simple Image() load).
+
+### 3. Stagger Card Timeouts (DropCard.tsx)
+
+Add a small random jitter (0-3 seconds) to card timeouts so they don't all fire at exactly the same moment, reducing gateway contention.
+
+## Technical Details
+
+### File 1: `src/lib/ipfsGateways.ts`
+
+Update timeout constants:
 ```typescript
-canEdit={isClosed && !hasStakers && !isPermClosed}
+export const IMAGE_LOAD_TIMEOUT = {
+  card: 12000,       // 12 seconds (was 6s) - 50 cards load concurrently
+  detail: 15000,     // 15 seconds for detail page
+  increment: 3000,   // Add 3s per retry
+  max: 25000,        // Max 25 seconds
+};
 ```
 
-For testfarm3, if `status === 2` (Closed), the edit buttons should appear **unless** `staked_count > 0`.
+### File 2: `src/components/drops/DropCard.tsx`
 
-However, there's a secondary issue: the UI shows "Under Construction" badge even for closed farms if `expiration === 0` (line 179), which is confusing.
+**Change A** - When a preload is in progress, don't start the card's own timeout. Currently both run in parallel, causing premature "Retry." Instead, when `isImagePreloading` returns true, skip the timeout setup entirely and just wait for the preload promise.
 
-## Two-Part Fix
-
-### Part 1: Expand Edit Eligibility (Main Fix)
-
-Add "Under Construction" farms to the edit eligibility, since these haven't been opened yet and have no stakers by definition:
-
-| Status | Stakers | Current Behavior | New Behavior |
-|--------|---------|------------------|--------------|
-| Under Construction (status 0) | n/a | No edit | **Edit allowed** |
-| Closed (status 2) | 0 | Edit allowed | Edit allowed |
-| Closed (status 2) | >0 | No edit | No edit |
-| Active/Perm Closed | any | No edit | No edit |
-
-### Part 2: Fix Status Badge Display
-
-The current badge logic doesn't show "Closed" or "Permanently Closed" statuses. Update it to:
-
-```text
-Priority order for badge display:
-1. Permanently Closed (status 3) → Red "Permanently Closed" badge
-2. Closed (status 2) → Amber "Closed" badge  
-3. Under Construction (status 0 OR expiration 0) → Amber "Under Construction" badge
-4. Expired → Red "Expired" badge
-5. Active → Green "Active" badge
-```
-
-## Files to Modify
-
-### 1. src/components/farm/FarmDetail.tsx
-
-**Change 1 - Update canEdit condition (line 268):**
-
-From:
+**Change B** - Add random jitter to the timeout calculation:
 ```typescript
-canEdit={isClosed && !hasStakers && !isPermClosed}
+const jitter = Math.random() * 3000; // 0-3s random offset
+const timeout = Math.min(
+  IMAGE_LOAD_TIMEOUT.card + jitter + (gatewayIndex * IMAGE_LOAD_TIMEOUT.increment),
+  IMAGE_LOAD_TIMEOUT.max
+);
 ```
 
-To:
-```typescript
-canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
-```
+This spreads out timeout deadlines across cards, preventing a thundering herd of gateway switches.
 
-**Change 2 - Update status badge display (lines 240-249):**
+## Expected Impact
 
-From the current priority (Under Construction → Expired → Active) to include Closed states:
-
-```typescript
-{isPermClosed ? (
-  <Badge variant="destructive">Permanently Closed</Badge>
-) : isClosed ? (
-  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-    <XCircle className="h-3 w-3 mr-1" />
-    Closed
-  </Badge>
-) : isUnderConstruction ? (
-  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-    <Construction className="h-3 w-3 mr-1" />
-    Under Construction
-  </Badge>
-) : isExpired ? (
-  <Badge variant="destructive">Expired</Badge>
-) : (
-  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
-)}
-```
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `src/components/farm/FarmDetail.tsx` (line 268) | Expand `canEdit` to include `isUnderConstruction` |
-| `src/components/farm/FarmDetail.tsx` (lines 240-249) | Add "Closed" and "Permanently Closed" badges |
+- Cards that were timing out at 6s now have 12-15s to load
+- Cards waiting for enrichment preloads won't have a competing timeout
+- Staggered timeouts reduce simultaneous gateway fallback storms
+- The "Retry" button will only appear for genuinely unreachable images
 

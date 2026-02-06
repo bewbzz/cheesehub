@@ -87,8 +87,7 @@ export function PermCloseFarmDialog({ farm, onSuccess }: PermCloseFarmDialogProp
             <AlertDescription>
               <p className="font-medium">DANGER: Cannot be undone!</p>
               <p className="mt-1 text-sm">
-                This will permanently remove the farm from the contract. The farm
-                name cannot be reused or recovered.
+                This will permanently close the farm. You will no longer have the option to re-open or extend the farm. First you will need to kick any remaining users and then you will be able to withdraw any unused reward tokens.
               </p>
             </AlertDescription>
           </Alert>

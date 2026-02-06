@@ -237,7 +237,13 @@ export function FarmDetail() {
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
               V2
             </Badge>
-            {isUnderConstruction ? (
+            {isPermClosed ? (
+              <Badge variant="destructive">Permanently Closed</Badge>
+            ) : isClosed ? (
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                Closed
+              </Badge>
+            ) : isUnderConstruction ? (
               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                 <Construction className="h-3 w-3 mr-1" />
                 Under Construction
@@ -265,7 +271,7 @@ export function FarmDetail() {
             {isCreator && (
               <ManageStakableAssets 
                 farm={farm} 
-                canEdit={isClosed && !hasStakers && !isPermClosed}
+                canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
                 onSuccess={handleFarmUpdated} 
               />
             )}

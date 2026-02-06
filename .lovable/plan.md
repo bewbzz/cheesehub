@@ -1,42 +1,119 @@
 
-# Fix: Video NFT Detection and Display in CHEESEDrops
-
-## Status: COMPLETED ✅
+# Fix: NFT Image Loading Issues in Drop Detail Page
 
 ## Problem Summary
 
-Multiple NFTs were incorrectly marked as "Video NFTs" and displayed:
-- **Grid view**: Shows "Video NFT" placeholder with Film icon (no image)
-- **Detail view**: Shows empty white box (nothing renders)
+NFT images in the Drop Detail page are failing to display, showing either a blank gray square or a permanent loading spinner. This happens even when the same NFTs display correctly in the grid/card view.
 
-## Root Cause
+## Root Causes Identified
 
-The `getMediaUrl` function in `atomicApi.ts` marks NFTs as `isVideo: true` when they have no `img`/`image` field but have a `video` field. However, many NFT creators store **actual images** (PNGs, JPGs) in the `video` metadata field.
+### 1. Inconsistent IPFS Gateway Configuration
 
-## Solution Implemented
+The gateway lists between `DropCard.tsx` and `DropDetail.tsx` are different:
 
-### Changes Made
+| Component | Gateway Order |
+|-----------|--------------|
+| DropCard | Pinata, Cloudflare, NFT.storage, dweb.link, ipfs.io |
+| DropDetail | ipfs.io, Pinata, Cloudflare, dweb.link (missing NFT.storage) |
 
-1. **DropCard.tsx** - Added `isVideoUrl` helper function that checks for video file extensions (`.mp4`, `.webm`, `.mov`, `.avi`, `.m4v`). The "Video NFT" placeholder now only shows if:
-   - `imageError` is true (image failed to load)
-   - `drop.isVideo` is true (URL came from video field)  
-   - `isVideoUrl(currentImageUrl)` is true (URL actually looks like a video file)
+This inconsistency means an image that loads via Pinata in the card view will try ipfs.io first in the detail view, potentially timing out.
 
-2. **DropDetail.tsx** - Added same `isVideoUrl` helper. The video player now only shows if the URL actually looks like a video file.
+### 2. Missing Gateway in DropDetail
 
-3. **atomicApi.ts** - Updated enrichment to preload images even for `isVideo: true` drops, since many contain actual images.
+`DropDetail.tsx` is missing the `nftstorage.link` gateway, reducing its fallback options.
 
-### Expected Behavior After Fix
+### 3. Gateway Reliability Issues
+
+Based on network analysis, Cloudflare IPFS gateway is experiencing `ERR_TUNNEL_CONNECTION_FAILED` errors. The current gateway order prioritizes unreliable gateways.
+
+## Solution
+
+### Change 1: Unify IPFS Gateway Configuration
+
+Create a shared constant for IPFS gateways to ensure consistency across all components.
+
+**New file: `src/lib/ipfsGateways.ts`**
+```typescript
+// Unified IPFS gateway configuration
+// Ordered by reliability and speed (based on real-world testing)
+export const IPFS_GATEWAYS = [
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://dweb.link/ipfs/',
+  'https://nftstorage.link/ipfs/', 
+  'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/', // Moved to last - experiencing tunnel errors
+];
+
+// Timeout configuration
+export const IMAGE_LOAD_TIMEOUT = {
+  card: 6000,        // 6 seconds for cards (50 loading at once)
+  detail: 10000,     // 10 seconds for detail page
+  increment: 3000,   // Add 3s per retry
+  max: 15000,        // Max 15 seconds
+};
+```
+
+### Change 2: Update DropDetail.tsx
+
+Import from shared config and fix the gateway list:
+
+```typescript
+import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT } from '@/lib/ipfsGateways';
+
+// Remove local IPFS_GATEWAYS definition
+// Use IMAGE_LOAD_TIMEOUT.detail instead of hardcoded 10000
+```
+
+### Change 3: Update DropCard.tsx
+
+Import from shared config:
+
+```typescript
+import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT } from '@/lib/ipfsGateways';
+
+// Remove local IPFS_GATEWAYS and timeout definitions
+```
+
+### Change 4: Update atomicApi.ts
+
+The preload function also has its own gateway list - unify it:
+
+```typescript
+import { IPFS_GATEWAYS } from '@/lib/ipfsGateways';
+
+// Remove local IPFS_GATEWAYS definition (lines 68-74)
+```
+
+### Change 5: Add Better Error Recovery in DropDetail
+
+Fix the stale closure issue in the timeout effect:
+
+```typescript
+// Add handleImageError to dependency array
+}, [imageUrl, imageLoaded, imageError, handleImageError]);
+```
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/lib/ipfsGateways.ts` | New file - shared IPFS gateway configuration |
+| `src/pages/DropDetail.tsx` | Import shared config, fix dependency array |
+| `src/components/drops/DropCard.tsx` | Import shared config |
+| `src/services/atomicApi.ts` | Import shared config |
+
+## Expected Results
 
 | Scenario | Before | After |
 |----------|--------|-------|
-| NFT with image in `video` field | Shows "Video NFT" placeholder | Tries to load as image, shows Retry if fails |
-| NFT with image in `video` field (detail) | Empty white box | Tries to load as image |
-| Actual video NFT (.mp4 URL) | Shows "Video NFT" placeholder | Shows "Video NFT" placeholder (unchanged) |
-| Broken/unpinned IPFS content | Shows "Video NFT" placeholder | Shows "Retry" button |
+| Card shows image, detail blank | Gateway mismatch | Same gateway order used |
+| Cloudflare timeouts | First/second in fallback | Last in fallback order |
+| Missing NFT.storage in detail | Only 4 gateways | All 5 gateways available |
+| Stale closure bugs | Possible race conditions | Fixed dependency arrays |
 
-## Current Status
+## Technical Notes
 
-The fix is working correctly. NFTs that previously showed "Video NFT" placeholder now attempt to load their images. Those that show "Retry" have genuinely broken/unpinned IPFS content that cannot be loaded from any gateway.
-
-This is the expected behavior - the "Retry" button gives users a chance to try loading again, which may work if IPFS gateways become available.
+- Gateway order is based on observed reliability: Pinata and dweb.link are most reliable
+- Cloudflare IPFS is moved to last due to `ERR_TUNNEL_CONNECTION_FAILED` errors
+- NFT.storage added back to DropDetail for complete coverage
+- Shared configuration prevents future drift between components

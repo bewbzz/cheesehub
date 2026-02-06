@@ -1,273 +1,248 @@
 
 
-# Performance Optimization Plan: Apply Drops-Style NFT Loading Across CHEESEHub
+# Security Analysis: cheesefeefee Contract
 
-## Summary
+## Overview
 
-The CHEESEDrops marketplace recently received significant performance improvements including batch template fetching (~50x faster), progressive caching, and video-field detection. These optimizations should be applied to other NFT-viewing interfaces throughout CHEESEHub for a consistent, fast user experience.
-
----
-
-## Current State Analysis
-
-### What Drops Does Well (To Apply Elsewhere)
-
-| Optimization | Implementation |
-|-------------|----------------|
-| **Batch Template Fetching** | `fetchTemplatesBatch()` fetches up to 100 templates per API call vs 1 request per template |
-| **Progressive Enrichment** | `useEnrichDrops` shows data as it loads, updates UI progressively |
-| **Global In-Memory Cache** | `enrichedDropsCache` persists across component re-renders and navigation |
-| **Video Field Detection** | `getMediaUrl()` checks for `video` field when `img` is missing |
-| **Smart Retry System** | `retryFailedDrops()` clears cache for failed items and re-fetches |
-| **Prefetch Next Page** | `usePrefetchDrops()` loads upcoming pages in background |
-| **Abort Controllers** | Prevents stale requests when user navigates away |
-
-### Current NFT Viewers Needing Optimization
-
-| Component | Current Pattern | Issues |
-|-----------|-----------------|--------|
-| **NFTSendManager** (Wallet Send) | Uses `useUserNFTs` hook | Already optimized with batch fetching and template fallback |
-| **TreasuryNFTDeposit** (DAO) | Uses `useUserNFTs` hook | Same as above - shares the hook |
-| **NFTVotePicker** (DAO Voting) | Uses `fetchUserNFTsBySchema` | Has hybrid on-chain + API approach, but fetches templates sequentially |
-| **NFTStaking** (Farm) | Inline `useQuery` with custom logic | Sequential template fetches, no caching, re-fetches on every navigation |
-| **PremintNFTPicker** (Drops) | Uses `useUserNFTs` hook | Already shares optimizations |
+I analyzed the `cheesefeefee` smart contract for security vulnerabilities. The contract handles CHEESE-to-WAXDAO fee conversion for DAO/Farm creation with a 20% discount.
 
 ---
 
-## Optimization Opportunities
+## Security Assessment
 
-### Priority 1: NFTStaking.tsx (Farm) - Highest Impact
+### Existing Protections (Good)
 
-**Current Problems:**
-- Fetches templates **one at a time** in a loop (lines 612-651)
-- No caching - refetches every time user visits farm
-- Re-renders cause duplicate fetches
-- ~500ms per template = 5+ seconds for 10 unindexed NFTs
+| Protection | Implementation |
+|------------|----------------|
+| Atomic Transaction | All actions bundled - if any fails, entire tx reverts |
+| On-Chain Pricing | Uses Alcor pool reserves directly, not user-provided values |
+| Action Verification | `has_creation_action()` ensures bundled with actual creation |
+| Minimum Value Check | Requires 200 WAX worth of CHEESE minimum |
+| Symbol Validation | Only accepts CHEESE from `cheeseburger` contract |
 
-**Solution:**
-1. Replace sequential template loop with batch `fetchTemplatesBatch()` call
-2. Add localStorage cache for template metadata (like `useUserNFTs`)
-3. Use progressive loading pattern from `useEnrichDrops`
-
-### Priority 2: NFTVotePicker.tsx (DAO) - Medium Impact
-
-**Current Problems:**
-- `fetchUserNFTsBySchema` fetches templates sequentially (lines 934-950 in atomicApi.ts)
-- No persistent cache across component mounts
-
-**Solution:**
-1. Update `fetchUserNFTsBySchema` to batch missing templates using `fetchTemplatesBatch()`
-2. Add in-memory cache for template data during session
-
-### Priority 3: Create Shared NFT Template Cache
-
-**Goal:** Single source of truth for template metadata across all components
-
-**Implementation:**
-- Create `src/lib/templateCache.ts` with:
-  - `getTemplate(templateId, collectionName)` - checks cache first
-  - `setTemplate(templateId, collectionName, data)` - updates cache
-  - `batchGetOrFetch(requests[])` - checks cache, batch-fetches missing, returns all
-  - localStorage persistence with TTL
+### Identified Vulnerabilities
 
 ---
 
-## Detailed Implementation
+## CRITICAL: Price Manipulation Attack
 
-### Phase 1: Create Shared Template Cache
+### The Attack Vector
 
-**New File: `src/lib/templateCache.ts`**
+An attacker could:
+1. Flash-manipulate the CHEESE/WAXDAO pool (Pool 8017) by doing a large swap
+2. In the SAME transaction, call the cheesefeefee flow
+3. Get significantly MORE WAXDAO than they should for their CHEESE
+4. Profit = WAXDAO received - fair market value of CHEESE sent
 
-```typescript
-// In-memory + localStorage cache for NFT template metadata
-const CACHE_KEY = 'cheesehub_template_cache_v1';
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+### Technical Details
 
-interface TemplateData {
-  name: string;
-  image: string;
-  isVideo?: boolean;
-  timestamp: number;
+```text
+Normal state:
+  Pool 8017: 1,000,000 CHEESE / 50,000 WAXDAO
+  Rate: 0.05 WAXDAO per CHEESE
+
+Manipulated state (attacker adds 500k CHEESE to pool):
+  Pool 8017: 1,500,000 CHEESE / 33,333 WAXDAO (after swap)
+  Rate: 0.022 WAXDAO per CHEESE (attacker gets cheap WAXDAO)
+
+Then attacker sends CHEESE to cheesefeefee:
+  Contract reads manipulated rate
+  Sends WAXDAO at inflated CHEESE price
+```
+
+**Why this works**: The contract uses `get_price_from_pool()` which reads current reserves. An attacker can manipulate reserves in the same transaction before the contract reads them.
+
+### Impact
+
+- **Severity**: HIGH
+- **Contract WAXDAO could be drained** if attacker repeatedly exploits
+- **Estimated max loss**: Entire WAXDAO balance of contract per attack
+
+---
+
+## MEDIUM: Dust Attack Vector
+
+### The Attack
+
+Attacker sends tiny amounts of CHEESE that:
+1. Pass the minimum check (200 WAX worth after tolerance)
+2. Result in WAXDAO amounts that round down to near-zero
+3. But still execute inline actions, burning CPU/NET resources
+
+### Current Check (Insufficient)
+
+```cpp
+// Line 158-162 in .cpp
+double min_required = MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE);  // 195 WAX
+check(wax_value >= min_required, "Need at least 200 WAX worth...");
+```
+
+This only validates CHEESE value, not the resulting WAXDAO amount.
+
+### Impact
+
+- **Severity**: MEDIUM
+- Could waste contract's RAM/CPU for processing
+- Low financial impact per transaction but cumulative
+
+---
+
+## LOW: No WAXDAO Balance Check
+
+### The Issue
+
+Contract doesn't verify it has enough WAXDAO before sending inline transfer.
+
+```cpp
+// Line 47-53 - sends WAXDAO without checking balance
+action(
+    permission_level{get_self(), "active"_n},
+    WAXDAO_CONTRACT,
+    "transfer"_n,
+    make_tuple(get_self(), from, waxdao_amount, ...)
+).send();
+```
+
+If contract runs out of WAXDAO, the inline action will fail, but:
+- User loses CHEESE to burn (happens after WAXDAO transfer)
+- Wait... actually the WAXDAO transfer happens FIRST, so it would revert
+
+**Re-analysis**: Actually safe due to atomic nature - if WAXDAO transfer fails, nothing happens.
+
+---
+
+## Proposed Solutions
+
+### Fix 1: Add TWAP or Price Bounds (Prevents Flash Manipulation)
+
+Add a sanity check that the pool price hasn't deviated significantly from expected:
+
+```cpp
+// Add to .hpp
+static constexpr double MAX_PRICE_DEVIATION = 0.20;  // 20% max deviation
+static constexpr double EXPECTED_WAXDAO_PER_CHEESE = 0.05;  // ~baseline rate
+
+// Add to calculate_waxdao_amount()
+double waxdao_per_cheese = get_price_from_pool(CHEESE_WAXDAO_POOL_ID);
+
+// Sanity check - prevent manipulation
+double deviation = abs(waxdao_per_cheese - EXPECTED_WAXDAO_PER_CHEESE) / EXPECTED_WAXDAO_PER_CHEESE;
+check(deviation <= MAX_PRICE_DEVIATION,
+    "Pool price deviation too high. Possible manipulation detected.");
+```
+
+**Pros**: Simple, effective against flash manipulation
+**Cons**: Requires periodic admin updates to baseline, could block legitimate trades during high volatility
+
+### Fix 2: Fixed WAX-Value Exchange (Recommended)
+
+Instead of using Pool 8017 for conversion, use a fixed exchange principle:
+
+```cpp
+// The user is paying 200 WAX worth of CHEESE
+// They should receive 200 WAX worth of WAXDAO
+// Use ONLY Pool 1252 (CHEESE/WAX) and the WAXDAO/WAX price
+
+asset calculate_waxdao_amount(asset cheese_amount) {
+    // Get WAX per CHEESE from Pool 1252
+    double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID);
+    double cheese_units = static_cast<double>(cheese_amount.amount) / 10000.0;
+    double wax_value = cheese_units * wax_per_cheese;
+    
+    // Validate minimum
+    check(wax_value >= MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE), "...");
+    
+    // Get WAXDAO price in WAX (query WAXDAO/WAX pool instead)
+    double waxdao_per_wax = get_waxdao_price_in_wax();  // New function
+    
+    // Calculate: (WAX value of CHEESE) * (WAXDAO per WAX) = WAXDAO to send
+    double waxdao_amount = wax_value * waxdao_per_wax;
+    
+    return asset(static_cast<int64_t>(waxdao_amount * 100000000.0), WAXDAO_SYMBOL);
 }
+```
 
-const memoryCache = new Map<string, TemplateData>();
+**Why this is better**:
+- Attacker would need to manipulate TWO pools simultaneously
+- WAXDAO/WAX pool is likely higher liquidity than CHEESE/WAXDAO
+- Exchange is truly "value-neutral" - 200 WAX in, 200 WAX out (in WAXDAO)
 
-function makeKey(templateId: string, collectionName: string) {
-  return `${collectionName}:${templateId}`;
-}
+### Fix 3: Add Minimum WAXDAO Output Check
 
-export function getCachedTemplate(templateId: string, collectionName: string): TemplateData | null {
-  const key = makeKey(templateId, collectionName);
-  const cached = memoryCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached;
-  }
-  return null;
-}
+Prevent dust and rounding attacks:
 
-export function setCachedTemplate(templateId: string, collectionName: string, data: Omit<TemplateData, 'timestamp'>) {
-  const key = makeKey(templateId, collectionName);
-  memoryCache.set(key, { ...data, timestamp: Date.now() });
-}
+```cpp
+// Add to .hpp
+static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000;  // 5 WAXDAO minimum (8 decimals)
 
-export async function batchGetOrFetch(
-  requests: { templateId: string; collectionName: string }[]
-): Promise<Map<string, TemplateData>> {
-  const results = new Map<string, TemplateData>();
-  const toFetch: typeof requests = [];
+// Add after waxdao_units calculation
+check(waxdao_units >= MIN_WAXDAO_OUTPUT,
+    "Calculated WAXDAO amount below minimum. Send more CHEESE.");
+```
 
-  // Check cache first
-  for (const req of requests) {
-    const cached = getCachedTemplate(req.templateId, req.collectionName);
-    if (cached) {
-      results.set(makeKey(req.templateId, req.collectionName), cached);
-    } else {
-      toFetch.push(req);
+### Fix 4: Rate Limiting (Optional Defense in Depth)
+
+Add a table to track recent usage and limit frequency:
+
+```cpp
+// Simple rate limit: max 10 uses per hour per account
+TABLE usage_log {
+    name user;
+    uint64_t last_use_time;
+    uint32_t uses_this_hour;
+    
+    uint64_t primary_key() const { return user.value; }
+};
+
+// Check in on_cheese_transfer before processing
+auto user_usage = usage_table.find(from.value);
+if (user_usage != usage_table.end()) {
+    uint64_t current_time = current_time_point().sec_since_epoch();
+    if (current_time - user_usage->last_use_time < 3600) {
+        check(user_usage->uses_this_hour < 10, "Rate limit exceeded. Try again later.");
     }
-  }
-
-  // Batch fetch missing from API
-  if (toFetch.length > 0) {
-    const fetched = await fetchTemplatesBatch(toFetch);
-    for (const [key, data] of fetched) {
-      const withTimestamp = { ...data, timestamp: Date.now() };
-      memoryCache.set(key, withTimestamp);
-      results.set(key, withTimestamp);
-    }
-  }
-
-  return results;
 }
 ```
-
-### Phase 2: Update NFTStaking.tsx
-
-**Changes to make:**
-
-1. Import the template cache:
-```typescript
-import { batchGetOrFetch, getCachedTemplate, setCachedTemplate } from '@/lib/templateCache';
-```
-
-2. Replace the sequential template fetch loop (lines 612-668) with batch call:
-
-```typescript
-// Before (SLOW - sequential):
-for (const [templateId, assetIds] of templateGroups) {
-  const templatePath = `/atomicassets/v1/templates/${meta.collection}/${templateId}`;
-  const templateResponse = await fetchWithFallback(...);
-  // ... process one by one
-}
-
-// After (FAST - batch):
-const templateRequests = Array.from(templateGroups.entries()).map(([templateId, assetIds]) => ({
-  templateId: String(templateId),
-  collectionName: assetMetadataMap.get(assetIds[0])?.collection || '',
-}));
-
-const templateData = await batchGetOrFetch(templateRequests);
-
-for (const [templateId, assetIds] of templateGroups) {
-  const meta = assetMetadataMap.get(assetIds[0]);
-  const key = `${meta?.collection}:${templateId}`;
-  const template = templateData.get(key);
-  
-  for (const assetId of assetIds) {
-    assets.push({
-      asset_id: assetId,
-      name: template?.name || `NFT #${assetId}`,
-      image: template?.image || '/placeholder.svg',
-      collection: meta?.collection || 'Unknown',
-      schema: meta?.schema || '',
-      template_id: String(templateId),
-    });
-  }
-}
-```
-
-3. Apply same fix to staked NFT details fetch (lines 700-800)
-
-### Phase 3: Update fetchUserNFTsBySchema
-
-**File: `src/services/atomicApi.ts` (lines 920-970)**
-
-Replace sequential template fetch with batch:
-
-```typescript
-// Before (lines 934-950 - sequential):
-for (const [key, assets] of templateGroups) {
-  const templateData = await fetchTemplateById(templateId, collectionName);
-  // ...
-}
-
-// After (batch):
-const templateRequests = Array.from(templateGroups.entries()).map(([key]) => {
-  const [collectionName, templateId] = key.split(':');
-  return { templateId, collectionName };
-});
-
-const templates = await fetchTemplatesBatch(templateRequests);
-
-for (const [key, assets] of templateGroups) {
-  const template = templates.get(key);
-  for (const asset of assets) {
-    results.push({
-      asset_id: asset.asset_id,
-      name: template?.name || `NFT #${asset.asset_id}`,
-      image: template?.image || '/placeholder.svg',
-      // ...
-    });
-  }
-}
-```
-
-### Phase 4: Add Video Field Support to All Viewers
-
-Currently only Drops uses `getMediaUrl()` for video detection. Apply to:
-
-| File | Current | Update |
-|------|---------|--------|
-| `useUserNFTs.ts` line 265 | `getImageUrl(data.img \|\| data.image)` | Use `getMediaUrl(data)` |
-| `NFTStaking.tsx` line 581 | `getImageUrl(asset.data?.img)` | Use `getMediaUrl(asset.data)` |
-| `NFTVotePicker.tsx` line 188 | `getImageUrl(nft.image)` | Already receives processed URL |
 
 ---
 
-## Technical Summary
+## Recommended Implementation Priority
 
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/lib/templateCache.ts` | **New** - Shared template cache utility |
-| `src/services/atomicApi.ts` | Update `fetchUserNFTsBySchema` to use batch fetch |
-| `src/components/farm/NFTStaking.tsx` | Replace sequential template fetches with batch |
-| `src/hooks/useUserNFTs.ts` | Add video field detection |
-
-### Expected Performance Improvements
-
-| Scenario | Before | After |
-|----------|--------|-------|
-| Farm page with 10 unindexed NFTs | ~5-10 seconds | ~1 second |
-| DAO voting with 20 NFTs | ~10 seconds | ~1-2 seconds |
-| Returning to previously visited farm | Full refetch | Instant (cached) |
-| Video-only NFTs in Wallet/Farm | White squares | Proper placeholder |
-
-### Risks & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Cache becomes stale | 15-minute TTL, manual refresh button |
-| Memory usage | Limit cache size to 500 templates |
-| Breaking existing functionality | Apply changes incrementally, test each component |
+| Priority | Fix | Effort | Impact |
+|----------|-----|--------|--------|
+| 1 | Fix 2: Fixed WAX-Value Exchange | Medium | Eliminates flash manipulation |
+| 2 | Fix 3: Min WAXDAO Output | Low | Prevents dust attacks |
+| 3 | Fix 1: Price Bounds | Low | Backup protection |
+| 4 | Fix 4: Rate Limiting | Medium | Defense in depth |
 
 ---
 
-## Recommended Implementation Order
+## Summary of Changes Needed
 
-1. Create `templateCache.ts` utility (foundational)
-2. Update `NFTStaking.tsx` (highest impact - farms are heavily used)
-3. Update `fetchUserNFTsBySchema` (benefits DAO voting)
-4. Add video field support to remaining components
-5. Test all NFT viewers end-to-end
+### Header File (cheesefeefee.hpp)
+
+```cpp
+// Add new constants
+static constexpr uint64_t WAXDAO_WAX_POOL_ID = XXXX;  // Need to find this pool ID
+static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000;  // 5 WAXDAO minimum
+static constexpr double MAX_PRICE_DEVIATION = 0.25;  // 25% max deviation allowed
+
+// Add new private function
+double get_waxdao_wax_price();
+```
+
+### Implementation File (cheesefeefee.cpp)
+
+1. Replace Pool 8017 usage with WAX-value calculation
+2. Add minimum WAXDAO output check
+3. Add optional price deviation check
+
+---
+
+## Frontend Changes
+
+The frontend in `src/lib/cheeseFees.ts` and the hooks already handle the calculation correctly for display purposes. After contract updates:
+
+1. Update `useWaxdaoFeePricing.ts` to match new contract logic if needed
+2. Consider adding a "price protection" indicator in the UI
 

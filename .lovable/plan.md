@@ -1,136 +1,89 @@
 
-# Add Edit/Remove Stakable Assets Functionality
 
-## Overview
+# Fix: Enable Stakable Asset Editing for testfarm3
 
-Enhance the "Manage Stakable Assets" dialog to allow creators to edit reward values and remove stakable assets, but only when the farm is **closed (status 2)** and has **no stakers**.
+## Root Cause Analysis
 
-## User Flow
+After reviewing the code, the current condition at line 268 is:
 
-```text
-Farm Status Check
-     │
-     ├── Active/Under Construction/Perm Closed
-     │   └── Add only (current behavior)
-     │
-     └── Closed + No Stakers
-         └── Full editing enabled
-             ├── Edit existing asset (click to populate form)
-             ├── Remove existing asset (delete button)
-             └── Add new asset (current behavior)
+```typescript
+canEdit={isClosed && !hasStakers && !isPermClosed}
 ```
 
-## Why This Restriction?
+For testfarm3, if `status === 2` (Closed), the edit buttons should appear **unless** `staked_count > 0`.
 
-When a farm has active stakers, changing reward rates mid-stake could cause reward calculation issues. By requiring the farm to be closed with all users kicked, creators can safely reconfigure the farm before reopening.
+However, there's a secondary issue: the UI shows "Under Construction" badge even for closed farms if `expiration === 0` (line 179), which is confusing.
+
+## Two-Part Fix
+
+### Part 1: Expand Edit Eligibility (Main Fix)
+
+Add "Under Construction" farms to the edit eligibility, since these haven't been opened yet and have no stakers by definition:
+
+| Status | Stakers | Current Behavior | New Behavior |
+|--------|---------|------------------|--------------|
+| Under Construction (status 0) | n/a | No edit | **Edit allowed** |
+| Closed (status 2) | 0 | Edit allowed | Edit allowed |
+| Closed (status 2) | >0 | No edit | No edit |
+| Active/Perm Closed | any | No edit | No edit |
+
+### Part 2: Fix Status Badge Display
+
+The current badge logic doesn't show "Closed" or "Permanently Closed" statuses. Update it to:
+
+```text
+Priority order for badge display:
+1. Permanently Closed (status 3) → Red "Permanently Closed" badge
+2. Closed (status 2) → Amber "Closed" badge  
+3. Under Construction (status 0 OR expiration 0) → Amber "Under Construction" badge
+4. Expired → Red "Expired" badge
+5. Active → Green "Active" badge
+```
 
 ## Files to Modify
 
-### 1. src/lib/farm.ts
+### 1. src/components/farm/FarmDetail.tsx
 
-Add four new erase action builders for removing stakable assets:
+**Change 1 - Update canEdit condition (line 268):**
 
-| Function | Purpose | Contract Action |
-|----------|---------|-----------------|
-| `buildEraseTemplateValuesAction` | Remove a template from stakable assets | `erasetmpvalue` |
-| `buildEraseSchemaValuesAction` | Remove a schema from stakable assets | `eraseschvalue` |
-| `buildEraseCollectionValuesAction` | Remove a collection from stakable assets | `erasecolvalue` |
-| `buildEraseAttributeValuesAction` | Remove an attribute from stakable assets | `eraseattvalue` |
-
-### 2. src/components/farm/ManageStakableAssets.tsx
-
-Update the component to support editing mode:
-
-| Change | Description |
-|--------|-------------|
-| Add prop | `canEdit: boolean` - passed from FarmDetail based on status + staker count |
-| Edit mode | When `canEdit` is true, show Edit/Remove buttons on each existing asset |
-| Populate form | Clicking "Edit" on an asset fills the form with its current values |
-| Remove action | Clicking "Remove" triggers the appropriate erase action |
-| Visual indicator | Show a banner when in edit mode explaining why editing is allowed |
-
-### 3. src/components/farm/FarmDetail.tsx
-
-Pass the edit permission to ManageStakableAssets:
-
-| Change | Description |
-|--------|-------------|
-| Calculate `canEditAssets` | True when `isClosed && !hasStakers && !isPermClosed` |
-| Pass prop | `<ManageStakableAssets farm={farm} canEdit={canEditAssets} onSuccess={handleFarmUpdated} />` |
-
-## UI Changes in ManageStakableAssets
-
-### Current Assets Section (with editing enabled)
-
-```text
-┌─────────────────────────────────────────┐
-│ Current Stakable Assets                 │
-│ ℹ️ Editing enabled - farm is closed    │
-├─────────────────────────────────────────┤
-│ ┌─────────────────────────────────────┐ │
-│ │ Template #123456           [✏️] [🗑️] │ │
-│ │ (0.5000 CHEESE/hr + 0.1000 WAX/hr)  │ │
-│ └─────────────────────────────────────┘ │
-│ ┌─────────────────────────────────────┐ │
-│ │ Template #789012           [✏️] [🗑️] │ │
-│ │ (1.0000 CHEESE/hr)                  │ │
-│ └─────────────────────────────────────┘ │
-└─────────────────────────────────────────┘
+From:
+```typescript
+canEdit={isClosed && !hasStakers && !isPermClosed}
 ```
 
-### Edit Flow
+To:
+```typescript
+canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
+```
 
-1. User clicks Edit button on an existing asset
-2. Form is populated with the asset's current identifier and reward rates
-3. User modifies values and clicks "Update Stakable Asset"
-4. The set*values action is called (same action as add - it updates if exists)
+**Change 2 - Update status badge display (lines 240-249):**
 
-### Remove Flow
-
-1. User clicks Remove button on an existing asset
-2. Confirmation dialog appears
-3. User confirms, erase*value action is called
-4. Asset is removed from the list
-
-## Technical Details
-
-### Erase Action Builders
+From the current priority (Under Construction → Expired → Active) to include Closed states:
 
 ```typescript
-// Build action for erasing a template value
-export function buildEraseTemplateValuesAction(
-  user: string,
-  farmname: string,
-  templateId: number
-) {
-  return {
-    account: FARM_CONTRACT,
-    name: "erasetmpvalue",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname,
-      template_id: templateId,
-    },
-  };
-}
-
-// Similar pattern for schemas, collections, and attributes
+{isPermClosed ? (
+  <Badge variant="destructive">Permanently Closed</Badge>
+) : isClosed ? (
+  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+    <XCircle className="h-3 w-3 mr-1" />
+    Closed
+  </Badge>
+) : isUnderConstruction ? (
+  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+    <Construction className="h-3 w-3 mr-1" />
+    Under Construction
+  </Badge>
+) : isExpired ? (
+  <Badge variant="destructive">Expired</Badge>
+) : (
+  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
+)}
 ```
-
-### ManageStakableAssets Updates
-
-- New state: `editingAsset` to track which asset is being edited
-- New state: `isRemoving` for removal loading state
-- Updated `renderExistingAssets()` to include action buttons when `canEdit` is true
-- New function `handleEditAsset()` to populate form with existing values
-- New function `handleRemoveAsset()` to call erase action
-- Updated submit button text: "Add" vs "Update" based on editing state
 
 ## Summary
 
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/lib/farm.ts` | Add 4 erase action builders |
-| `src/components/farm/ManageStakableAssets.tsx` | Add edit/remove UI and logic |
-| `src/components/farm/FarmDetail.tsx` | Pass `canEdit` prop based on farm status |
+| `src/components/farm/FarmDetail.tsx` (line 268) | Expand `canEdit` to include `isUnderConstruction` |
+| `src/components/farm/FarmDetail.tsx` (lines 240-249) | Add "Closed" and "Permanently Closed" badges |
+

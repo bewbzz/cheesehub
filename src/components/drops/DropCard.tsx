@@ -78,7 +78,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
     
     // Check if image is currently being preloaded by enrichment
     if (isImagePreloading(currentImageUrl)) {
-      // Wait for the existing preload instead of timing out
+      // Wait for the existing preload instead of setting our own timeout
       let cancelled = false;
       waitForPreload(currentImageUrl).then(success => {
         if (!cancelled && success) {
@@ -86,11 +86,12 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
         }
         // If preload failed, the img onError will handle it
       });
-      return () => { cancelled = true; }; // Cleanup
+      return () => { cancelled = true; };
     }
 
-    // Calculate timeout with progressive backoff for retries
-    const timeout = Math.min(IMAGE_LOAD_TIMEOUT.card + (gatewayIndex * IMAGE_LOAD_TIMEOUT.increment), IMAGE_LOAD_TIMEOUT.max);
+    // Calculate timeout with progressive backoff + random jitter to stagger across cards
+    const jitter = Math.random() * 3000;
+    const timeout = Math.min(IMAGE_LOAD_TIMEOUT.card + jitter + (gatewayIndex * IMAGE_LOAD_TIMEOUT.increment), IMAGE_LOAD_TIMEOUT.max);
 
     timeoutRef.current = setTimeout(() => {
       if (!imageLoaded && !imageError) {

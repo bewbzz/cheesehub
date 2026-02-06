@@ -1,174 +1,136 @@
 
-
-# Add Kick Users and Empty Farm Features
+# Add Edit/Remove Stakable Assets Functionality
 
 ## Overview
 
-After a farm is closed or permanently closed, add the ability for creators to kick stakers and (if permanently closed) empty remaining reward tokens from the farm.
+Enhance the "Manage Stakable Assets" dialog to allow creators to edit reward values and remove stakable assets, but only when the farm is **closed (status 2)** and has **no stakers**.
 
 ## User Flow
 
 ```text
-Farm Expired
+Farm Status Check
      │
-     ├── [Close Farm] ─────┐
-     │                     │
-     └── [Perm Close] ─────┤
-                           │
-                           ▼
-                    [Kick Users]
-                    Enter count → kickmany action
-                           │
-     ┌─────────────────────┴────────────────────┐
-     │                                          │
-     ▼                                          ▼
-  If CLOSED                              If PERM CLOSED
-     │                                          │
-     ▼                                          ▼
-  Can modify                            [Empty Farm]
-  stakeable assets                      emptyfarm action
-  and reopen                            → retrieves tokens
+     ├── Active/Under Construction/Perm Closed
+     │   └── Add only (current behavior)
+     │
+     └── Closed + No Stakers
+         └── Full editing enabled
+             ├── Edit existing asset (click to populate form)
+             ├── Remove existing asset (delete button)
+             └── Add new asset (current behavior)
 ```
 
-## Files to Create
+## Why This Restriction?
 
-### 1. `src/components/farm/KickUsersDialog.tsx`
-
-A dialog component for kicking stakers from a farm:
-
-| Element | Description |
-|---------|-------------|
-| Trigger Button | "Kick Users" button (orange/warning style) |
-| Input | Number input for how many users to kick |
-| Action | Calls `kickmany` on `farms.waxdao` contract |
-| Callback | Takes `onKickComplete` prop to trigger next step |
-
-### 2. `src/components/farm/EmptyFarmDialog.tsx`
-
-A dialog component for emptying remaining reward tokens from a permanently closed farm:
-
-| Element | Description |
-|---------|-------------|
-| Trigger Button | "Empty Farm" button |
-| Warning | Explains this removes all remaining tokens |
-| Action | Calls `emptyfarm` on `farms.waxdao` contract |
+When a farm has active stakers, changing reward rates mid-stake could cause reward calculation issues. By requiring the farm to be closed with all users kicked, creators can safely reconfigure the farm before reopening.
 
 ## Files to Modify
 
-### 3. `src/lib/farm.ts`
+### 1. src/lib/farm.ts
 
-Add two new action builders after `buildPermCloseFarmAction`:
+Add four new erase action builders for removing stakable assets:
 
-| Function | Purpose |
-|----------|---------|
-| `buildKickManyAction(user, farmName, amount)` | Kicks multiple stakers from a farm |
-| `buildEmptyFarmAction(user, farmName)` | Empties remaining rewards from permanently closed farm |
+| Function | Purpose | Contract Action |
+|----------|---------|-----------------|
+| `buildEraseTemplateValuesAction` | Remove a template from stakable assets | `erasetmpvalue` |
+| `buildEraseSchemaValuesAction` | Remove a schema from stakable assets | `eraseschvalue` |
+| `buildEraseCollectionValuesAction` | Remove a collection from stakable assets | `erasecolvalue` |
+| `buildEraseAttributeValuesAction` | Remove an attribute from stakable assets | `eraseattvalue` |
 
-```typescript
-// Build action for kicking multiple stakers from a farm
-export function buildKickManyAction(user: string, farmName: string, amount: number) {
-  return {
-    account: FARM_CONTRACT,
-    name: "kickmany",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname: farmName,
-      amount,
-    },
-  };
-}
+### 2. src/components/farm/ManageStakableAssets.tsx
 
-// Build action for emptying reward tokens from a permanently closed farm
-export function buildEmptyFarmAction(user: string, farmName: string) {
-  return {
-    account: FARM_CONTRACT,
-    name: "emptyfarm",
-    authorization: [{ actor: user, permission: "active" }],
-    data: {
-      user,
-      farmname: farmName,
-    },
-  };
-}
-```
-
-### 4. `src/components/farm/FarmDetail.tsx`
-
-Update the farm detail page to show the new action flow:
+Update the component to support editing mode:
 
 | Change | Description |
 |--------|-------------|
-| Add imports | Import `KickUsersDialog` and `EmptyFarmDialog` |
-| Add state | Track farm closure state (closed vs perm closed) |
-| Conditional UI | Show Kick Users after close actions, show Empty Farm after kicks if perm closed |
+| Add prop | `canEdit: boolean` - passed from FarmDetail based on status + staker count |
+| Edit mode | When `canEdit` is true, show Edit/Remove buttons on each existing asset |
+| Populate form | Clicking "Edit" on an asset fills the form with its current values |
+| Remove action | Clicking "Remove" triggers the appropriate erase action |
+| Visual indicator | Show a banner when in edit mode explaining why editing is allowed |
 
-The UI will detect farm status:
-- Status 0 = Under Construction
-- Status 1 = Active
-- Status 2 = Closed (can be reopened after kicking users)
-- Status 3 = Permanently Closed (can only empty farm after kicking)
+### 3. src/components/farm/FarmDetail.tsx
 
-## Component Details
+Pass the edit permission to ManageStakableAssets:
 
-### KickUsersDialog
+| Change | Description |
+|--------|-------------|
+| Calculate `canEditAssets` | True when `isClosed && !hasStakers && !isPermClosed` |
+| Pass prop | `<ManageStakableAssets farm={farm} canEdit={canEditAssets} onSuccess={handleFarmUpdated} />` |
 
-```text
-┌─────────────────────────────────────────┐
-│ 👥 Kick Users from Farm                 │
-├─────────────────────────────────────────┤
-│ How many users do you want to kick?     │
-│                                         │
-│ Currently staked: 42 NFTs               │
-│                                         │
-│ ┌───────────────────────────────────┐   │
-│ │ Number of users to kick: [____]   │   │
-│ └───────────────────────────────────┘   │
-│                                         │
-│ Note: Each call kicks up to N users.    │
-│ You may need to call multiple times.    │
-│                                         │
-│              [Cancel] [Kick Users]      │
-└─────────────────────────────────────────┘
-```
+## UI Changes in ManageStakableAssets
 
-### EmptyFarmDialog
+### Current Assets Section (with editing enabled)
 
 ```text
 ┌─────────────────────────────────────────┐
-│ 💰 Empty Farm Rewards                   │
+│ Current Stakable Assets                 │
+│ ℹ️ Editing enabled - farm is closed    │
 ├─────────────────────────────────────────┤
-│ Retrieve remaining reward tokens?       │
-│                                         │
-│ Remaining balances:                     │
-│ • 1,000.00 CHEESE                       │
-│ • 50.00 WAX                             │
-│                                         │
-│ These tokens will be sent to your       │
-│ account.                                │
-│                                         │
-│              [Cancel] [Empty Farm]      │
+│ ┌─────────────────────────────────────┐ │
+│ │ Template #123456           [✏️] [🗑️] │ │
+│ │ (0.5000 CHEESE/hr + 0.1000 WAX/hr)  │ │
+│ └─────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────┐ │
+│ │ Template #789012           [✏️] [🗑️] │ │
+│ │ (1.0000 CHEESE/hr)                  │ │
+│ └─────────────────────────────────────┘ │
 └─────────────────────────────────────────┘
 ```
 
-## Visibility Logic
+### Edit Flow
 
-The buttons appear based on farm status and staked count:
+1. User clicks Edit button on an existing asset
+2. Form is populated with the asset's current identifier and reward rates
+3. User modifies values and clicks "Update Stakable Asset"
+4. The set*values action is called (same action as add - it updates if exists)
 
-| Farm Status | Staked Count | Shows |
-|-------------|--------------|-------|
-| Expired, not closed | N/A | Close + Perm Close buttons |
-| Closed (status 2) | > 0 | Kick Users button |
-| Closed (status 2) | 0 | Modify assets + Open Farm (existing) |
-| Perm Closed (status 3) | > 0 | Kick Users button |
-| Perm Closed (status 3) | 0 | Empty Farm button |
+### Remove Flow
+
+1. User clicks Remove button on an existing asset
+2. Confirmation dialog appears
+3. User confirms, erase*value action is called
+4. Asset is removed from the list
+
+## Technical Details
+
+### Erase Action Builders
+
+```typescript
+// Build action for erasing a template value
+export function buildEraseTemplateValuesAction(
+  user: string,
+  farmname: string,
+  templateId: number
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "erasetmpvalue",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      template_id: templateId,
+    },
+  };
+}
+
+// Similar pattern for schemas, collections, and attributes
+```
+
+### ManageStakableAssets Updates
+
+- New state: `editingAsset` to track which asset is being edited
+- New state: `isRemoving` for removal loading state
+- Updated `renderExistingAssets()` to include action buttons when `canEdit` is true
+- New function `handleEditAsset()` to populate form with existing values
+- New function `handleRemoveAsset()` to call erase action
+- Updated submit button text: "Add" vs "Update" based on editing state
 
 ## Summary
 
 | File | Action |
 |------|--------|
-| `src/lib/farm.ts` | Add `buildKickManyAction` and `buildEmptyFarmAction` |
-| `src/components/farm/KickUsersDialog.tsx` | Create kick users dialog |
-| `src/components/farm/EmptyFarmDialog.tsx` | Create empty farm dialog |
-| `src/components/farm/FarmDetail.tsx` | Add conditional rendering for new dialogs |
-
+| `src/lib/farm.ts` | Add 4 erase action builders |
+| `src/components/farm/ManageStakableAssets.tsx` | Add edit/remove UI and logic |
+| `src/components/farm/FarmDetail.tsx` | Pass `canEdit` prop based on farm status |

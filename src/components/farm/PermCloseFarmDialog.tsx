@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, XCircle } from "lucide-react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,21 +15,21 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useWax } from "@/context/WaxContext";
-import { buildCloseFarmAction, FarmInfo } from "@/lib/farm";
+import { buildPermCloseFarmAction, FarmInfo } from "@/lib/farm";
 import { getTransactPlugins } from "@/lib/wharfKit";
 
-interface CloseFarmDialogProps {
+interface PermCloseFarmDialogProps {
   farm: FarmInfo;
   onSuccess?: () => void;
 }
 
-export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
+export function PermCloseFarmDialog({ farm, onSuccess }: PermCloseFarmDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { session } = useWax();
 
-  const handleCloseFarm = async () => {
+  const handlePermCloseFarm = async () => {
     if (!session) {
       toast({ 
         title: "Wallet not connected", 
@@ -41,19 +41,19 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
 
     setIsSubmitting(true);
     try {
-      const action = buildCloseFarmAction(farm.creator, farm.farm_name);
+      const action = buildPermCloseFarmAction(farm.creator, farm.farm_name);
       await session.transact({ actions: [action] }, { transactPlugins: getTransactPlugins(session) });
 
       toast({ 
-        title: "Farm Closed!", 
-        description: `${farm.farm_name} has been permanently closed.` 
+        title: "Farm Permanently Closed!", 
+        description: `${farm.farm_name} has been permanently removed.` 
       });
       setOpen(false);
       onSuccess?.();
     } catch (error: unknown) {
-      console.error("Error closing farm:", error);
+      console.error("Error permanently closing farm:", error);
       toast({
-        title: "Failed to close farm",
+        title: "Failed to permanently close farm",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
@@ -66,18 +66,18 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button size="sm" variant="destructive" className="h-6 px-2 text-xs">
-          <XCircle className="h-3 w-3 mr-1" />
-          Close
+          <Trash2 className="h-3 w-3 mr-1" />
+          Perm Close
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Close Farm
+            Permanently Close Farm
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to permanently close this farm?
+            Are you sure you want to permanently delete this farm?
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -85,9 +85,10 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <p className="font-medium">This action cannot be undone.</p>
+              <p className="font-medium">DANGER: Cannot be undone!</p>
               <p className="mt-1 text-sm">
-                Closing the farm will permanently shut it down. Stakers will no longer be able to claim rewards.
+                This will permanently remove the farm from the contract. The farm
+                name cannot be reused or recovered.
               </p>
             </AlertDescription>
           </Alert>
@@ -96,11 +97,11 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleCloseFarm}
+            onClick={handlePermCloseFarm}
             disabled={isSubmitting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isSubmitting ? "Closing..." : "Close Farm"}
+            {isSubmitting ? "Closing..." : "Permanently Close"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

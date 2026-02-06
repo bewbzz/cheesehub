@@ -70,6 +70,7 @@ import { ManageStakableAssets } from "./ManageStakableAssets";
 import { OpenFarmDialog } from "./OpenFarmDialog";
 import { ExtendFarmDialog } from "./ExtendFarmDialog";
 import { CloseFarmDialog } from "./CloseFarmDialog";
+import { PermCloseFarmDialog } from "./PermCloseFarmDialog";
 import { DepositRewardsDialog } from "./DepositRewardsDialog";
 import { EditFarmProfile } from "./EditFarmProfile";
 import { useWax } from "@/context/WaxContext";
@@ -312,7 +313,10 @@ export function FarmDetail() {
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                   {isCreator && isExpired && (
-                    <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                    <>
+                      <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
+                    </>
                   )}
                 </div>
                 <div>

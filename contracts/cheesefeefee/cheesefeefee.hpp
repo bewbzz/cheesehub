@@ -36,13 +36,13 @@ static constexpr name FARM_CONTRACT = "farms.waxdao"_n;
 static constexpr name NULL_ACCOUNT = "eosio.null"_n;
 static constexpr name LIQUIDITY_STAKING = "xcheeseliqst"_n;
 
-// Fee Distribution (66% burn, 34% liquidity staking)
-static constexpr double BURN_PERCENT = 0.66;
+// Fee Distribution (80% burn, 20% liquidity staking)
+static constexpr double BURN_PERCENT = 0.80;
 
 // Alcor DEX integration - TWO-POOL PRICING (Security: requires manipulating both pools)
 static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
 static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;    // CHEESE/WAX pool - validates CHEESE value
-static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;    // WAXDAO/WAX pool - converts WAX to WAXDAO
+static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;    // WAX/WAXDAO pool (WAX=tokenA, WAXDAO=tokenB)
 
 // Security: Value-based exchange prevents Pool 8017 manipulation
 // User sends 200 WAX worth of CHEESE → receives 200 WAX worth of WAXDAO
@@ -143,7 +143,7 @@ private:
      * @brief Calculate WAXDAO amount using secure two-pool WAX-value exchange
      * 1. Get WAX value of CHEESE from Pool 1252
      * 2. Validate minimum 200 WAX value
-     * 3. Get WAXDAO per WAX from Pool 277
+     * 3. Get WAXDAO per WAX from Pool 1236
      * 4. Calculate WAXDAO amount
      * 5. Validate minimum output
      * @param cheese_amount - Amount of CHEESE received

@@ -10,10 +10,10 @@ export const IPFS_GATEWAYS = [
 
 // Timeout configuration for different contexts
 export const IMAGE_LOAD_TIMEOUT = {
-  card: 6000,        // 6 seconds for cards (50 loading at once)
-  detail: 10000,     // 10 seconds for detail page
+  card: 12000,       // 12 seconds for cards (50 loading at once)
+  detail: 15000,     // 15 seconds for detail page
   increment: 3000,   // Add 3s per retry
-  max: 15000,        // Max 15 seconds
+  max: 25000,        // Max 25 seconds
 };
 
 // Helper to get primary IPFS gateway URL

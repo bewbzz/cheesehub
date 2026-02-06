@@ -331,7 +331,7 @@ export function FarmDetail() {
                     <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                   {/* Show message if closed/perm closed with no stakers */}
-                  {isCreator && (isClosed || isPermClosed) && !hasStakers && !isPermClosed && (
+                  {isCreator && (isClosed || isPermClosed) && !hasStakers && (
                     <span className="text-xs text-muted-foreground">No stakers to kick</span>
                   )}
                   {/* Show Empty Farm if perm closed and no stakers left */}

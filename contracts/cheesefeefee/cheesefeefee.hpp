@@ -36,8 +36,8 @@ static constexpr name FARM_CONTRACT = "farms.waxdao"_n;
 static constexpr name NULL_ACCOUNT = "eosio.null"_n;
 static constexpr name LIQUIDITY_STAKING = "xcheeseliqst"_n;
 
-// Fee Distribution (80% burn, 20% liquidity staking)
-static constexpr double BURN_PERCENT = 0.80;
+// Fee Distribution (66% burn, 34% liquidity staking)
+static constexpr double BURN_PERCENT = 0.66;
 
 // Alcor DEX integration - TWO-POOL PRICING (Security: requires manipulating both pools)
 static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;

@@ -52,14 +52,14 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
             string("WAXDAO for ") + type_short + " creation fee")
     ).send();
     
-    // 2. Calculate fee distribution: 80% burn, 20% liquidity staking
+    // 2. Calculate fee distribution: 66% burn, 34% liquidity staking
     int64_t burn_amount = static_cast<int64_t>(quantity.amount * BURN_PERCENT);
     int64_t stake_amount = quantity.amount - burn_amount;  // Remainder ensures no loss
     
     asset burn_quantity = asset(burn_amount, CHEESE_SYMBOL);
     asset stake_quantity = asset(stake_amount, CHEESE_SYMBOL);
     
-    // 3. Burn 80% to eosio.null
+    // 3. Burn 66% to eosio.null
     if (burn_amount > 0) {
         action(
             permission_level{get_self(), "active"_n},
@@ -70,7 +70,7 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
         ).send();
     }
     
-    // 4. Send 20% to liquidity staking
+    // 4. Send 34% to liquidity staking
     if (stake_amount > 0) {
         action(
             permission_level{get_self(), "active"_n},

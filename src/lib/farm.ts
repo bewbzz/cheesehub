@@ -490,6 +490,82 @@ export function buildSetAttributeValuesAction(
   };
 }
 
+// Build action for erasing template values (remove stakable template)
+export function buildEraseTemplateValuesAction(
+  user: string,
+  farmname: string,
+  templateId: number
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "erasetmpvalue",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      template_id: templateId,
+    },
+  };
+}
+
+// Build action for erasing schema values (remove stakable schema)
+export function buildEraseSchemaValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string,
+  schemaName: string
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "eraseschvalue",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      collection_name: collectionName,
+      schema_name: schemaName,
+    },
+  };
+}
+
+// Build action for erasing collection values (remove stakable collection)
+export function buildEraseCollectionValuesAction(
+  user: string,
+  farmname: string,
+  collectionName: string
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "erasecolvalue",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      collection_name: collectionName,
+    },
+  };
+}
+
+// Build action for erasing attribute values (remove stakable attribute)
+export function buildEraseAttributeValuesAction(
+  user: string,
+  farmname: string,
+  attributeName: string,
+  attributeValue: string
+) {
+  return {
+    account: FARM_CONTRACT,
+    name: "eraseattvalue",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname,
+      attribute_name: attributeName,
+      attribute_value: attributeValue,
+    },
+  };
+}
+
 // Build action for closing an expired farm
 export function buildCloseFarmAction(user: string, farmName: string) {
   return {

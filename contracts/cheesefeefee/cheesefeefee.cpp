@@ -6,7 +6,7 @@
  * 
  * SECURITY: Uses two-pool pricing to prevent flash manipulation
  * 1. Pool 1252 (CHEESE/WAX): Validates CHEESE value >= 200 WAX
- * 2. Pool 277 (WAXDAO/WAX): Converts WAX value to WAXDAO
+ * 2. Pool 1236 (WAX/WAXDAO): Converts WAX value to WAXDAO
  * 
  * Attacker would need to manipulate BOTH pools simultaneously to exploit,
  * which is significantly more expensive/difficult than single-pool attacks.
@@ -52,14 +52,14 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
             string("WAXDAO for ") + type_short + " creation fee")
     ).send();
     
-    // 2. Calculate fee distribution: 66% burn, 34% liquidity staking
+    // 2. Calculate fee distribution: 80% burn, 20% liquidity staking
     int64_t burn_amount = static_cast<int64_t>(quantity.amount * BURN_PERCENT);
     int64_t stake_amount = quantity.amount - burn_amount;  // Remainder ensures no loss
     
     asset burn_quantity = asset(burn_amount, CHEESE_SYMBOL);
     asset stake_quantity = asset(stake_amount, CHEESE_SYMBOL);
     
-    // 3. Burn 66% to eosio.null
+    // 3. Burn 80% to eosio.null
     if (burn_amount > 0) {
         action(
             permission_level{get_self(), "active"_n},
@@ -70,7 +70,7 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
         ).send();
     }
     
-    // 4. Send 34% to liquidity staking
+    // 4. Send 20% to liquidity staking
     if (stake_amount > 0) {
         action(
             permission_level{get_self(), "active"_n},
@@ -216,7 +216,7 @@ void cheesefeefee::check_price_deviation(double actual, double baseline, const s
  * 
  * SECURITY: This approach requires manipulating TWO pools to exploit:
  * 1. CHEESE/WAX (Pool 1252) - high liquidity
- * 2. WAXDAO/WAX (Pool 277) - high liquidity
+ * 2. WAX/WAXDAO (Pool 1236) - high liquidity
  * 
  * Exchange principle: 200 WAX of CHEESE → 200 WAX of WAXDAO
  */
@@ -225,8 +225,8 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
     double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID, symbol_code("CHEESE"));
     check(wax_per_cheese > 0, "Invalid CHEESE/WAX price from Alcor");
     
-    // Step 2: Get WAXDAO per WAX from Pool 277
-    // Note: We want WAXDAO per WAX, so base_symbol is WAX
+    // Step 2: Get WAXDAO per WAX from Pool 1236
+    // Note: WAX is tokenA, WAXDAO is tokenB; base_symbol is WAX → returns WAXDAO per WAX
     double waxdao_per_wax = get_price_from_pool(WAXDAO_WAX_POOL_ID, symbol_code("WAX"));
     check(waxdao_per_wax > 0, "Invalid WAXDAO/WAX price from Alcor");
     
@@ -245,7 +245,7 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
         "Need at least 200 WAX worth of CHEESE. Sent: " + 
         to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
     
-    // Step 5: Convert WAX value to WAXDAO using Pool 277 rate
+    // Step 5: Convert WAX value to WAXDAO using Pool 1236 rate
     double waxdao_amount = wax_value * waxdao_per_wax;
     int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
     

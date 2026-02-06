@@ -1,20 +1,36 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Filter } from "lucide-react";
 import { FarmCard } from "./FarmCard";
-import { fetchAllFarms, FarmInfo } from "@/lib/farm";
+import { fetchAllFarms, fetchUserGlobalStakes, FarmInfo } from "@/lib/farm";
+import { useWax } from "@/context/WaxContext";
 
 type SortOption = "newest" | "staked" | "name";
 
 export function BrowseFarms() {
+  const { accountName, isConnected } = useWax();
   const [searchQuery, setSearchQuery] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [showStakedOnly, setShowStakedOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("name");
+
+  // Auto-uncheck staked only when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) setShowStakedOnly(false);
+  }, [isConnected]);
+
+  const { data: stakedFarms } = useQuery({
+    queryKey: ["userGlobalStakes", accountName],
+    queryFn: () => fetchUserGlobalStakes(accountName!),
+    enabled: showStakedOnly && isConnected && !!accountName,
+    staleTime: 30000,
+  });
 
   const { data: farms = [], isLoading, error } = useQuery({
     queryKey: ["v2farms"],
@@ -32,6 +48,12 @@ export function BrowseFarms() {
     // Filter by active status
     if (showActiveOnly) {
       result = result.filter(farm => farm.is_active);
+    }
+
+    // Filter by staked only
+    if (showStakedOnly && stakedFarms && stakedFarms.length > 0) {
+      const stakedNames = new Set(stakedFarms.map(s => s.farmName));
+      result = result.filter(farm => stakedNames.has(farm.farm_name));
     }
 
     // Filter by search query
@@ -61,7 +83,7 @@ export function BrowseFarms() {
     }
 
     return result;
-  }, [farms, searchQuery, showActiveOnly, sortBy]);
+  }, [farms, searchQuery, showActiveOnly, showStakedOnly, stakedFarms, sortBy]);
 
   if (isLoading) {
     return (
@@ -102,6 +124,18 @@ export function BrowseFarms() {
             />
             <Label htmlFor="active-only" className="text-sm whitespace-nowrap">
               Active only
+            </Label>
+          </div>
+
+          <div className={`flex items-center gap-2 ${!isConnected ? 'opacity-50' : ''}`}>
+            <Checkbox
+              id="staked-only"
+              checked={showStakedOnly}
+              onCheckedChange={(checked) => setShowStakedOnly(checked === true)}
+              disabled={!isConnected}
+            />
+            <Label htmlFor="staked-only" className="text-sm whitespace-nowrap">
+              Staked only
             </Label>
           </div>
 

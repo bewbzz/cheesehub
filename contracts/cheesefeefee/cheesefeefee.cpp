@@ -2,17 +2,14 @@
 #include <cmath>
 
 /**
- * @brief Handles incoming CHEESE transfers - Single Atomic Transaction Flow
+ * @brief Handles incoming CHEESE transfers - Secure Atomic Transaction Flow
  * 
- * When CHEESE is received:
- * 1. Parse memo to get fee type and entity name
- * 2. Query Alcor Pool 1252 (CHEESE/WAX) for value validation
- * 3. Query Alcor Pool 8017 (CHEESE/WAXDAO) for direct conversion at market rate
- * 4. Verify creation action exists in the same transaction (bundled)
- * 5. Send calculated WAXDAO to user via inline action
- * 6. Burn CHEESE to eosio.null via inline action
+ * SECURITY: Uses two-pool pricing to prevent flash manipulation
+ * 1. Pool 1252 (CHEESE/WAX): Validates CHEESE value >= 200 WAX
+ * 2. Pool 277 (WAXDAO/WAX): Converts WAX value to WAXDAO
  * 
- * If any step fails, entire transaction reverts atomically - no WAXDAO lost.
+ * Attacker would need to manipulate BOTH pools simultaneously to exploit,
+ * which is significantly more expensive/difficult than single-pool attacks.
  */
 void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string memo) {
     // Ignore transfers from this contract (our own inline actions)
@@ -39,9 +36,12 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
     check(has_creation_action(type_short, entity_name, from),
         "Must be bundled with createdao/createfarm action");
     
-    // SECURITY: Calculate WAXDAO from Alcor on-chain prices (not from memo!)
+    // SECURITY: Calculate WAXDAO using two-pool WAX-value exchange
     asset waxdao_amount = calculate_waxdao_amount(quantity);
-    check(waxdao_amount.amount > 0, "Calculated WAXDAO amount is zero - check pool prices");
+    
+    // SECURITY: Minimum output check prevents dust attacks
+    check(waxdao_amount.amount >= MIN_WAXDAO_OUTPUT, 
+        "Calculated WAXDAO below minimum (5 WAXDAO). Send more CHEESE.");
     
     // 1. Send calculated WAXDAO to user (inline - executes immediately)
     action(
@@ -52,14 +52,34 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
             string("WAXDAO for ") + type_short + " creation fee")
     ).send();
     
-    // 2. Burn CHEESE to eosio.null (inline - executes immediately)
-    action(
-        permission_level{get_self(), "active"_n},
-        CHEESE_CONTRACT,
-        "transfer"_n,
-        make_tuple(get_self(), NULL_ACCOUNT, quantity, 
-            string("CHEESE fee payment for ") + type_short + ": " + entity_name.to_string())
-    ).send();
+    // 2. Calculate fee distribution: 66% burn, 34% liquidity staking
+    int64_t burn_amount = static_cast<int64_t>(quantity.amount * BURN_PERCENT);
+    int64_t stake_amount = quantity.amount - burn_amount;  // Remainder ensures no loss
+    
+    asset burn_quantity = asset(burn_amount, CHEESE_SYMBOL);
+    asset stake_quantity = asset(stake_amount, CHEESE_SYMBOL);
+    
+    // 3. Burn 66% to eosio.null
+    if (burn_amount > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            CHEESE_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), NULL_ACCOUNT, burn_quantity, 
+                string("CHEESE burn for ") + type_short + ": " + entity_name.to_string())
+        ).send();
+    }
+    
+    // 4. Send 34% to liquidity staking
+    if (stake_amount > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            CHEESE_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), LIQUIDITY_STAKING, stake_quantity, 
+                string("CHEESE liquidity staking for ") + type_short + ": " + entity_name.to_string())
+        ).send();
+    }
 }
 
 /**
@@ -78,6 +98,32 @@ void cheesefeefee::withdraw(name token_contract, name to, asset quantity) {
         "transfer"_n,
         make_tuple(get_self(), to, quantity, string("Admin withdrawal"))
     ).send();
+}
+
+/**
+ * @brief Admin action to update baseline prices for deviation checks
+ */
+void cheesefeefee::setbaseline(double wax_per_cheese, double waxdao_per_wax) {
+    require_auth(get_self());
+    
+    check(wax_per_cheese > 0, "wax_per_cheese must be positive");
+    check(waxdao_per_wax > 0, "waxdao_per_wax must be positive");
+    
+    config_table configs(get_self(), get_self().value);
+    auto itr = configs.find(1);
+    
+    if (itr == configs.end()) {
+        configs.emplace(get_self(), [&](auto& c) {
+            c.id = 1;
+            c.wax_per_cheese_baseline = wax_per_cheese;
+            c.waxdao_per_wax_baseline = waxdao_per_wax;
+        });
+    } else {
+        configs.modify(itr, get_self(), [&](auto& c) {
+            c.wax_per_cheese_baseline = wax_per_cheese;
+            c.waxdao_per_wax_baseline = waxdao_per_wax;
+        });
+    }
 }
 
 /**
@@ -107,13 +153,12 @@ tuple<string, name> cheesefeefee::parse_memo(const string& memo) {
 }
 
 /**
- * @brief Get token price from Alcor pool using reserves (cheesepowerz approach)
- * Returns price of "other token per CHEESE" using simple reserves ratio
- * 
- * Pool 1252: CHEESE/WAX - returns WAX per CHEESE (~1.6)
- * Pool 8017: CHEESE/WAXDAO - returns WAXDAO per CHEESE
+ * @brief Get token price from Alcor pool using reserves
+ * @param pool_id - The Alcor pool ID
+ * @param base_symbol - Symbol of token to get price for
+ * @return Price as other_token per base_token
  */
-double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
+double cheesefeefee::get_price_from_pool(uint64_t pool_id, symbol_code base_symbol) {
     alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
     auto pool_itr = pools.find(pool_id);
     check(pool_itr != pools.end(), "Alcor swap pool not found");
@@ -129,44 +174,79 @@ double cheesefeefee::get_price_from_pool(uint64_t pool_id) {
     reserveA /= pow(10.0, precisionA);
     reserveB /= pow(10.0, precisionB);
     
-    // Determine which is CHEESE and return "other token per CHEESE"
+    // Determine which is the base token and return "other token per base"
     symbol_code symbolA = pool_itr->tokenA.quantity.symbol.code();
     
-    if (symbolA == symbol_code("CHEESE")) {
-        // CHEESE is tokenA, return tokenB per CHEESE
+    if (symbolA == base_symbol) {
+        // Base is tokenA, return tokenB per base
         return reserveB / reserveA;
     } else {
-        // CHEESE is tokenB, return tokenA per CHEESE
+        // Base is tokenB, return tokenA per base
         return reserveA / reserveB;
     }
 }
 
 /**
- * @brief Calculate WAXDAO amount from CHEESE using reserves-based pricing
- * Pool 1252: Validates minimum 200 WAX value
- * Pool 8017: Converts CHEESE to WAXDAO at market rate
+ * @brief Get current baseline prices from config table or use constants
+ */
+pair<double, double> cheesefeefee::get_baselines() {
+    config_table configs(get_self(), get_self().value);
+    auto itr = configs.find(1);
+    
+    if (itr != configs.end()) {
+        return make_pair(itr->wax_per_cheese_baseline, itr->waxdao_per_wax_baseline);
+    }
+    
+    // Use compiled-in defaults
+    return make_pair(BASELINE_WAX_PER_CHEESE, BASELINE_WAXDAO_PER_WAX);
+}
+
+/**
+ * @brief Validate price is within acceptable deviation from baseline
+ */
+void cheesefeefee::check_price_deviation(double actual, double baseline, const string& price_name) {
+    double deviation = fabs(actual - baseline) / baseline;
+    check(deviation <= MAX_PRICE_DEVIATION,
+        price_name + " deviation too high (" + to_string(static_cast<int>(deviation * 100)) + 
+        "%). Possible manipulation or high volatility. Try again later.");
+}
+
+/**
+ * @brief Calculate WAXDAO using secure two-pool WAX-value exchange
+ * 
+ * SECURITY: This approach requires manipulating TWO pools to exploit:
+ * 1. CHEESE/WAX (Pool 1252) - high liquidity
+ * 2. WAXDAO/WAX (Pool 277) - high liquidity
+ * 
+ * Exchange principle: 200 WAX of CHEESE → 200 WAX of WAXDAO
  */
 asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
-    // Get WAX per CHEESE from Pool 1252
-    double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID);
+    // Step 1: Get WAX per CHEESE from Pool 1252
+    double wax_per_cheese = get_price_from_pool(CHEESE_WAX_POOL_ID, symbol_code("CHEESE"));
     check(wax_per_cheese > 0, "Invalid CHEESE/WAX price from Alcor");
     
-    // Convert CHEESE amount to double (4 decimals)
-    double cheese_units = static_cast<double>(cheese_amount.amount) / 10000.0;
+    // Step 2: Get WAXDAO per WAX from Pool 277
+    // Note: We want WAXDAO per WAX, so base_symbol is WAX
+    double waxdao_per_wax = get_price_from_pool(WAXDAO_WAX_POOL_ID, symbol_code("WAX"));
+    check(waxdao_per_wax > 0, "Invalid WAXDAO/WAX price from Alcor");
+    
+    // SECURITY: Check price deviation from baselines
+    auto [baseline_cheese, baseline_waxdao] = get_baselines();
+    check_price_deviation(wax_per_cheese, baseline_cheese, "CHEESE/WAX price");
+    check_price_deviation(waxdao_per_wax, baseline_waxdao, "WAXDAO/WAX price");
+    
+    // Step 3: Calculate WAX value of CHEESE
+    double cheese_units = static_cast<double>(cheese_amount.amount) / 10000.0;  // 4 decimals
     double wax_value = cheese_units * wax_per_cheese;
     
-    // Validate minimum 200 WAX value (with 2.5% tolerance)
+    // Step 4: Validate minimum 200 WAX value (with 2.5% tolerance)
     double min_required = MIN_WAX_VALUE * (1.0 - WAX_VALUE_TOLERANCE);
     check(wax_value >= min_required, 
         "Need at least 200 WAX worth of CHEESE. Sent: " + 
         to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
     
-    // Get WAXDAO per CHEESE from Pool 8017
-    double waxdao_per_cheese = get_price_from_pool(CHEESE_WAXDAO_POOL_ID);
-    check(waxdao_per_cheese > 0, "Invalid CHEESE/WAXDAO price from Alcor");
-    
-    // Calculate WAXDAO amount
-    double waxdao_amount = cheese_units * waxdao_per_cheese;
+    // Step 5: Convert WAX value to WAXDAO using Pool 277 rate
+    double waxdao_amount = wax_value * waxdao_per_wax;
     int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
     
     check(waxdao_units > 0, "Calculated WAXDAO amount too small");

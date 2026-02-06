@@ -1,119 +1,85 @@
 
-# Fix: NFT Image Loading Issues in Drop Detail Page
 
-## Problem Summary
+# Add Permanent Close Farm Feature + Fix Close Farm Messaging
 
-NFT images in the Drop Detail page are failing to display, showing either a blank gray square or a permanent loading spinner. This happens even when the same NFTs display correctly in the grid/card view.
+## Overview
 
-## Root Causes Identified
+Two changes are needed:
+1. **Fix incorrect messaging** in `CloseFarmDialog` - it incorrectly states rewards will be returned
+2. **Add new `PermCloseFarmDialog`** for permanently removing farm records from the contract
 
-### 1. Inconsistent IPFS Gateway Configuration
+## Files to Create
 
-The gateway lists between `DropCard.tsx` and `DropDetail.tsx` are different:
+### `src/components/farm/PermCloseFarmDialog.tsx` (New File)
 
-| Component | Gateway Order |
-|-----------|--------------|
-| DropCard | Pinata, Cloudflare, NFT.storage, dweb.link, ipfs.io |
-| DropDetail | ipfs.io, Pinata, Cloudflare, dweb.link (missing NFT.storage) |
+A dialog component for permanently closing a farm using the `permclosefrm` action:
 
-This inconsistency means an image that loads via Pinata in the card view will try ipfs.io first in the detail view, potentially timing out.
-
-### 2. Missing Gateway in DropDetail
-
-`DropDetail.tsx` is missing the `nftstorage.link` gateway, reducing its fallback options.
-
-### 3. Gateway Reliability Issues
-
-Based on network analysis, Cloudflare IPFS gateway is experiencing `ERR_TUNNEL_CONNECTION_FAILED` errors. The current gateway order prioritizes unreliable gateways.
-
-## Solution
-
-### Change 1: Unify IPFS Gateway Configuration
-
-Create a shared constant for IPFS gateways to ensure consistency across all components.
-
-**New file: `src/lib/ipfsGateways.ts`**
-```typescript
-// Unified IPFS gateway configuration
-// Ordered by reliability and speed (based on real-world testing)
-export const IPFS_GATEWAYS = [
-  'https://gateway.pinata.cloud/ipfs/',
-  'https://dweb.link/ipfs/',
-  'https://nftstorage.link/ipfs/', 
-  'https://ipfs.io/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/', // Moved to last - experiencing tunnel errors
-];
-
-// Timeout configuration
-export const IMAGE_LOAD_TIMEOUT = {
-  card: 6000,        // 6 seconds for cards (50 loading at once)
-  detail: 10000,     // 10 seconds for detail page
-  increment: 3000,   // Add 3s per retry
-  max: 15000,        // Max 15 seconds
-};
-```
-
-### Change 2: Update DropDetail.tsx
-
-Import from shared config and fix the gateway list:
-
-```typescript
-import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT } from '@/lib/ipfsGateways';
-
-// Remove local IPFS_GATEWAYS definition
-// Use IMAGE_LOAD_TIMEOUT.detail instead of hardcoded 10000
-```
-
-### Change 3: Update DropCard.tsx
-
-Import from shared config:
-
-```typescript
-import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT } from '@/lib/ipfsGateways';
-
-// Remove local IPFS_GATEWAYS and timeout definitions
-```
-
-### Change 4: Update atomicApi.ts
-
-The preload function also has its own gateway list - unify it:
-
-```typescript
-import { IPFS_GATEWAYS } from '@/lib/ipfsGateways';
-
-// Remove local IPFS_GATEWAYS definition (lines 68-74)
-```
-
-### Change 5: Add Better Error Recovery in DropDetail
-
-Fix the stale closure issue in the timeout effect:
-
-```typescript
-// Add handleImageError to dependency array
-}, [imageUrl, imageLoaded, imageError, handleImageError]);
-```
+| Element | Description |
+|---------|-------------|
+| Trigger Button | Red "Perm Close" button with Trash2 icon |
+| Title | "Permanently Close Farm" with AlertTriangle icon |
+| Warning | Destructive alert explaining this is irreversible and removes the farm entirely |
+| Confirmation | Cancel / "Permanently Close" footer |
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/lib/ipfsGateways.ts` | New file - shared IPFS gateway configuration |
-| `src/pages/DropDetail.tsx` | Import shared config, fix dependency array |
-| `src/components/drops/DropCard.tsx` | Import shared config |
-| `src/services/atomicApi.ts` | Import shared config |
+### 1. `src/lib/farm.ts`
 
-## Expected Results
+Add a new action builder function after `buildCloseFarmAction` (after line 504):
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| Card shows image, detail blank | Gateway mismatch | Same gateway order used |
-| Cloudflare timeouts | First/second in fallback | Last in fallback order |
-| Missing NFT.storage in detail | Only 4 gateways | All 5 gateways available |
-| Stale closure bugs | Possible race conditions | Fixed dependency arrays |
+```typescript
+export function buildPermCloseFarmAction(user: string, farmName: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "permclosefrm",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+    },
+  };
+}
+```
 
-## Technical Notes
+### 2. `src/components/farm/CloseFarmDialog.tsx`
 
-- Gateway order is based on observed reliability: Pinata and dweb.link are most reliable
-- Cloudflare IPFS is moved to last due to `ERR_TUNNEL_CONNECTION_FAILED` errors
-- NFT.storage added back to DropDetail for complete coverage
-- Shared configuration prevents future drift between components
+Fix the incorrect reward return messaging:
+
+| Lines | Current | New |
+|-------|---------|-----|
+| 94-98 | "Closing the farm will permanently shut it down. Any remaining rewards in the pool will be returned to you." | "Closing the farm will permanently shut it down. Stakers will no longer be able to claim rewards." |
+| 102-119 | Section showing "Remaining Reward Balances" with "These tokens will be returned" | Remove this entire section |
+
+### 3. `src/components/farm/FarmDetail.tsx`
+
+| Line | Change |
+|------|--------|
+| 72 | Add import for `PermCloseFarmDialog` |
+| 314-316 | Display both buttons for expired farms |
+
+Current:
+```tsx
+{isCreator && isExpired && (
+  <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+)}
+```
+
+New:
+```tsx
+{isCreator && isExpired && (
+  <>
+    <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+    <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
+  </>
+)}
+```
+
+## Summary
+
+| File | Action |
+|------|--------|
+| `src/lib/farm.ts` | Add `buildPermCloseFarmAction` function |
+| `src/components/farm/CloseFarmDialog.tsx` | Remove incorrect reward return messaging |
+| `src/components/farm/PermCloseFarmDialog.tsx` | Create new dialog component |
+| `src/components/farm/FarmDetail.tsx` | Import and display `PermCloseFarmDialog` |
+

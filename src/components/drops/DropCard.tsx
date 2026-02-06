@@ -9,59 +9,11 @@ import { Link } from "react-router-dom";
 import { markDropAsFailed } from "@/hooks/useEnrichDrops";
 import { isImageLoaded, isImagePreloading, waitForPreload } from "@/services/atomicApi";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import { IPFS_GATEWAYS, IMAGE_LOAD_TIMEOUT, extractIpfsHash, isVideoUrl } from "@/lib/ipfsGateways";
 
 const CURRENCY_LOGOS: Record<string, string> = {
   CHEESE: cheeseLogo,
 };
-
-// Optimized IPFS gateways - CDN-backed first for speed
-const IPFS_GATEWAYS = [
-  'https://gateway.pinata.cloud/ipfs/',
-  'https://cloudflare-ipfs.com/ipfs/',
-  'https://nftstorage.link/ipfs/',
-  'https://dweb.link/ipfs/',
-  'https://ipfs.io/ipfs/',
-];
-
-// More generous timeouts to accommodate IPFS latency with 50 images loading
-const BASE_TIMEOUT = 6000; // 6 seconds base (was 3)
-const RETRY_TIMEOUT_INCREMENT = 3000; // Add 3s per gateway retry
-const MAX_TIMEOUT = 15000; // 15 seconds max
-
-// Helper to check if URL is likely a video file by extension
-function isVideoUrl(url: string): boolean {
-  if (!url) return false;
-  const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.m4v'];
-  const lowerUrl = url.toLowerCase();
-  return videoExtensions.some(ext => lowerUrl.includes(ext));
-}
-
-function extractIpfsHash(url: string): string | null {
-  if (!url) return null;
-  // Handle ipfs:// protocol
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', '').split('/')[0];
-  }
-  // Handle /ipfs/ paths - capture hash and any path after it
-  const ipfsMatch = url.match(/\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/);
-  if (ipfsMatch) return ipfsMatch[1];
-  // Handle bare CID (Qm... or bafy...)
-  if (/^Qm[a-zA-Z0-9]{44}/.test(url) || /^bafy[a-zA-Z0-9]+/.test(url)) {
-    return url;
-  }
-  // Original patterns for URLs
-  const patterns = [
-    /ipfs\.io\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /gateway\.pinata\.cloud\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /cloudflare-ipfs\.com\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-    /dweb\.link\/ipfs\/([a-zA-Z0-9]+(?:\/[^?#]*)?)/,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
 
 function getCurrencyDisplay(drop: NFTDrop): { logo: string | null; symbol: string } {
   const currency = drop.currency || (drop.listingPrice?.split(' ')[1]) || 'WAX';
@@ -138,7 +90,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
     }
 
     // Calculate timeout with progressive backoff for retries
-    const timeout = Math.min(BASE_TIMEOUT + (gatewayIndex * RETRY_TIMEOUT_INCREMENT), MAX_TIMEOUT);
+    const timeout = Math.min(IMAGE_LOAD_TIMEOUT.card + (gatewayIndex * IMAGE_LOAD_TIMEOUT.increment), IMAGE_LOAD_TIMEOUT.max);
 
     timeoutRef.current = setTimeout(() => {
       if (!imageLoaded && !imageError) {

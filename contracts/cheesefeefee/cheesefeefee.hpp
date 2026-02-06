@@ -42,7 +42,7 @@ static constexpr double BURN_PERCENT = 0.66;
 // Alcor DEX integration - TWO-POOL PRICING (Security: requires manipulating both pools)
 static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
 static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;    // CHEESE/WAX pool - validates CHEESE value
-static constexpr uint64_t WAXDAO_WAX_POOL_ID = 277;     // WAXDAO/WAX pool - converts WAX to WAXDAO
+static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;    // WAXDAO/WAX pool - converts WAX to WAXDAO
 
 // Security: Value-based exchange prevents Pool 8017 manipulation
 // User sends 200 WAX worth of CHEESE → receives 200 WAX worth of WAXDAO

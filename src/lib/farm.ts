@@ -503,6 +503,19 @@ export function buildCloseFarmAction(user: string, farmName: string) {
   };
 }
 
+// Build action for permanently closing a farm (removes from contract tables)
+export function buildPermCloseFarmAction(user: string, farmName: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "permclosefrm",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+    },
+  };
+}
+
 // Build action for depositing reward tokens
 export function buildAddRewardsAction(
   sender: string,

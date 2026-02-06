@@ -516,6 +516,33 @@ export function buildPermCloseFarmAction(user: string, farmName: string) {
   };
 }
 
+// Build action for kicking multiple stakers from a farm
+export function buildKickManyAction(user: string, farmName: string, amount: number) {
+  return {
+    account: FARM_CONTRACT,
+    name: "kickmany",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+      amount,
+    },
+  };
+}
+
+// Build action for emptying reward tokens from a permanently closed farm
+export function buildEmptyFarmAction(user: string, farmName: string) {
+  return {
+    account: FARM_CONTRACT,
+    name: "emptyfarm",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      user,
+      farmname: farmName,
+    },
+  };
+}
+
 // Build action for depositing reward tokens
 export function buildAddRewardsAction(
   sender: string,

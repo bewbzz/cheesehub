@@ -71,6 +71,8 @@ import { OpenFarmDialog } from "./OpenFarmDialog";
 import { ExtendFarmDialog } from "./ExtendFarmDialog";
 import { CloseFarmDialog } from "./CloseFarmDialog";
 import { PermCloseFarmDialog } from "./PermCloseFarmDialog";
+import { KickUsersDialog } from "./KickUsersDialog";
+import { EmptyFarmDialog } from "./EmptyFarmDialog";
 import { DepositRewardsDialog } from "./DepositRewardsDialog";
 import { EditFarmProfile } from "./EditFarmProfile";
 import { useWax } from "@/context/WaxContext";
@@ -179,6 +181,11 @@ export function FarmDetail() {
   const isExpired = !isUnderConstruction && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
+  
+  // Farm status codes: 0 = Under Construction, 1 = Active, 2 = Closed, 3 = Permanently Closed
+  const isClosed = farm.status === 2;
+  const isPermClosed = farm.status === 3;
+  const hasStakers = farm.staked_count > 0;
   const isCreator = accountName && accountName === farm.creator;
 
   const formatPayoutInterval = (seconds: number) => {
@@ -312,11 +319,20 @@ export function FarmDetail() {
                   {isCreator && !isUnderConstruction && !isExpired && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
-                  {isCreator && isExpired && (
+                  {/* Show Close/Perm Close buttons for expired farms that aren't already closed */}
+                  {isCreator && isExpired && !isClosed && !isPermClosed && (
                     <>
                       <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                       <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
                     </>
+                  )}
+                  {/* Show Kick Users if farm is closed/perm closed and has stakers */}
+                  {isCreator && (isClosed || isPermClosed) && hasStakers && (
+                    <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
+                  )}
+                  {/* Show Empty Farm if perm closed and no stakers left */}
+                  {isCreator && isPermClosed && !hasStakers && (
+                    <EmptyFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>
                 <div>

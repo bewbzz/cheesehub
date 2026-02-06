@@ -28,6 +28,14 @@ const BASE_TIMEOUT = 6000; // 6 seconds base (was 3)
 const RETRY_TIMEOUT_INCREMENT = 3000; // Add 3s per gateway retry
 const MAX_TIMEOUT = 15000; // 15 seconds max
 
+// Helper to check if URL is likely a video file by extension
+function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.m4v'];
+  const lowerUrl = url.toLowerCase();
+  return videoExtensions.some(ext => lowerUrl.includes(ext));
+}
+
 function extractIpfsHash(url: string): string | null {
   if (!url) return null;
   // Handle ipfs:// protocol
@@ -236,14 +244,14 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
     <Card className="group overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/50 hover-cheese-glow">
       <Link to={`/drops/${drop.id}`}>
         <div className="relative aspect-square overflow-hidden bg-muted/50">
-          {imageError && drop.isVideo ? (
-            // Image failed AND it's from a video field - show video placeholder
+          {imageError && drop.isVideo && isVideoUrl(currentImageUrl) ? (
+            // Image failed AND it's from a video field AND URL looks like video - show video placeholder
             <div className="flex h-full w-full flex-col items-center justify-center bg-muted/30">
               <Film className="h-12 w-12 text-muted-foreground/50" />
               <span className="mt-2 text-xs text-muted-foreground">Video NFT</span>
             </div>
           ) : imageError ? (
-            // Regular image error - show retry
+            // Image error (could be video field with image content) - show retry
             <div className="flex h-full w-full flex-col items-center justify-center gap-2">
               <ImageOff className="h-12 w-12 text-muted-foreground/50" />
               <Button

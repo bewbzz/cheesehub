@@ -32,6 +32,14 @@ const IPFS_GATEWAYS = [
 
 const IMAGE_LOAD_TIMEOUT = 10000; // 10 seconds for detail page
 
+// Helper to check if URL is likely a video file by extension
+function isVideoUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.m4v'];
+  const lowerUrl = url.toLowerCase();
+  return videoExtensions.some(ext => lowerUrl.includes(ext));
+}
+
 function extractIpfsHash(url: string): string | null {
   if (!url) return null;
   // Handle ipfs:// protocol
@@ -162,8 +170,9 @@ const DropDetail = () => {
       setCurrentImageUrl(`${IPFS_GATEWAYS[nextIndex]}${hash}`);
       setImageLoaded(false);
     } else {
-      // All gateways exhausted - if from video field, try as video
-      if (drop?.isVideo) {
+      // All gateways exhausted
+      // Only switch to video mode if URL actually looks like a video file
+      if (drop?.isVideo && isVideoUrl(imageUrl)) {
         setMediaType('video');
       } else {
         setImageError(true);

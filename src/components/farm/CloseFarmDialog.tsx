@@ -87,7 +87,7 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
             <AlertDescription>
               <p className="font-medium">This action cannot be undone.</p>
               <p className="mt-1 text-sm">
-                Closing the farm will permanently shut it down. Stakers will no longer be able to claim rewards.
+                After closing the farm you will have the option to kick all users and the option to re-open your farm.
               </p>
             </AlertDescription>
           </Alert>

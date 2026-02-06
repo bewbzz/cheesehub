@@ -573,8 +573,8 @@ export async function enrichDropTemplates(
       const cached = templateCache.get(key);
       if (cached) {
         // Preload image in background for faster rendering
-        // Skip preloading for video NFTs - they won't load as images
-        if (cached.image && !cached.image.includes('placeholder') && !cached.isVideo) {
+        // Try preloading even for "video" flagged NFTs - many have images in the video field
+        if (cached.image && !cached.image.includes('placeholder')) {
           preloadImage(cached.image); // Use tracked preloading
         }
         return {

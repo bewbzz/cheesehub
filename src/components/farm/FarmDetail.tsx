@@ -263,7 +263,11 @@ export function FarmDetail() {
               </Button>
             )}
             {isCreator && (
-              <ManageStakableAssets farm={farm} onSuccess={handleFarmUpdated} />
+              <ManageStakableAssets 
+                farm={farm} 
+                canEdit={isClosed && !hasStakers && !isPermClosed}
+                onSuccess={handleFarmUpdated} 
+              />
             )}
             {isCreator && isUnderConstruction && (
               <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />

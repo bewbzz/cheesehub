@@ -241,6 +241,7 @@ export interface RewardPool {
   precision: number;
   total_funds?: string;
   total_hourly_reward?: string;
+  total_claimed?: string;
 }
 
 export interface EffectiveBalanceInfo {
@@ -843,6 +844,7 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
         total_funds?: string;
         contract?: string;
         total_hourly_reward?: string;
+        total_claimed?: string;
       }> || [];
       
       const rewardPools: RewardPool[] = rawPools.map(pool => {
@@ -859,6 +861,7 @@ export async function fetchAllFarms(): Promise<FarmInfo[]> {
           precision,
           total_funds: pool.total_funds,
           total_hourly_reward: pool.total_hourly_reward,
+          total_claimed: pool.total_claimed,
         };
       });
       
@@ -943,6 +946,7 @@ export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | nul
         total_funds?: string;
         contract?: string;
         total_hourly_reward?: string;
+        total_claimed?: string;
       }> || [];
       
       const rewardPools: RewardPool[] = rawPools.map(pool => {
@@ -959,6 +963,7 @@ export async function fetchFarmDetails(farmName: string): Promise<FarmInfo | nul
           precision,
           total_funds: pool.total_funds,
           total_hourly_reward: pool.total_hourly_reward,
+          total_claimed: pool.total_claimed,
         };
       });
       

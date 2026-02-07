@@ -243,6 +243,37 @@ export interface RewardPool {
   total_hourly_reward?: string;
 }
 
+export interface EffectiveBalanceInfo {
+  effectiveBalance: number;
+  hourlyRate: number;
+  hoursRemaining: number | null; // null if rate is 0
+}
+
+/**
+ * Calculate the effective (estimated remaining) balance of a reward pool
+ * by subtracting accrued rewards since the last state change.
+ */
+export function calculateEffectiveBalance(
+  pool: RewardPool,
+  lastPayout: number,
+  nowSeconds: number
+): EffectiveBalanceInfo {
+  const rawBalance = parseFloat(pool.balance) || 0;
+  const hourlyRateStr = pool.total_hourly_reward || "0";
+  const hourlyRate = parseFloat(hourlyRateStr.split(" ")[0]) || 0;
+
+  if (hourlyRate <= 0 || lastPayout <= 0) {
+    return { effectiveBalance: rawBalance, hourlyRate: 0, hoursRemaining: null };
+  }
+
+  const hoursSinceLastPayout = Math.max(0, (nowSeconds - lastPayout) / 3600);
+  const accrued = hourlyRate * hoursSinceLastPayout;
+  const effectiveBalance = Math.max(0, rawBalance - accrued);
+  const hoursRemaining = hourlyRate > 0 ? effectiveBalance / hourlyRate : null;
+
+  return { effectiveBalance, hourlyRate, hoursRemaining };
+}
+
 export interface UserStake {
   asset_id: string;
   staker: string;

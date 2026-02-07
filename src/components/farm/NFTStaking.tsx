@@ -40,6 +40,7 @@ import {
   fetchUserStakes,
   fetchFarmStakableConfig,
   fetchUserGlobalStakes,
+  calculateEffectiveBalance,
   FarmInfo,
   PendingReward,
 } from "@/lib/farm";
@@ -431,9 +432,20 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
 
         // Claimable = base + (rate * hours from completed periods since user's last state change)
-        const claimableAmount = baseAmount + (rateAmount * claimableHours);
+        let claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-        return { symbol, amount: claimableAmount, precision, contract };
+        // Cap at the pool's effective balance to prevent overdrawn balance errors
+        let isCapped = false;
+        const matchingPool = farm.reward_pools?.find(p => p.symbol === symbol);
+        if (matchingPool) {
+          const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
+          if (claimableAmount > effectiveBalance) {
+            claimableAmount = Math.max(0, effectiveBalance);
+            isCapped = true;
+          }
+        }
+
+        return { symbol, amount: claimableAmount, precision, contract, isCapped };
       });
 
       // Calculate pending rewards (one full payout period worth)
@@ -1622,6 +1634,12 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             {/* Claimable Now */}
             <div className="rounded-lg border border-border/50 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground mb-2 font-medium">Claimable Now</p>
+              {pendingRewards.some(r => (r as any).isCapped) && (
+                <p className="text-xs text-yellow-500 mb-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Pool running low
+                </p>
+              )}
               {pendingRewards.length > 0 ? (
                 <div className="space-y-1.5">
                   {pendingRewards.map((reward, i) => (

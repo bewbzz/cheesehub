@@ -1,58 +1,47 @@
 
 
-# Improve "Your Rewards" Section Layout in Farm Detail
+# Fix "Overdrawn Balance" Error on Reward Claims
 
-## Overview
-Redesign the rewards section at the bottom of the farm detail page to spread data across the full width (instead of cramming everything on the left) and add a "Total Claimed" metric. The layout will use a 3-column grid: Claimable Now | Pending | Total Claimed, with the Claim button prominently placed below or to the right.
+## Problem
+The live reward calculator in `NFTStaking.tsx` computes claimable rewards purely from math: `baseAmount + (ratePerHour * completedHours)`. It never checks if the farm's reward pool actually has enough tokens to cover that amount. When a pool is running low, the UI shows inflated claimable amounts that the on-chain contract cannot fulfill, resulting in an "overdrawn balance" error when you try to claim.
 
-## Important Note on "Total Claimed"
-The WaxDAO farms contract does **not** store a "total claimed" value on-chain per user. To provide this metric, we have two options:
-
-1. **Track claims locally** in browser storage (localStorage) -- accumulate each successful claim amount. This is per-device and resets if the user clears storage, but provides an immediate working solution.
-2. **Show "Total Claimed" as a session-only counter** that tracks claims made during the current session.
-
-Option 1 (localStorage) is recommended as it persists across sessions and gives the best user experience, with a small note like "tracked locally" to set expectations.
+## Solution
+Cap the displayed claimable rewards at the farm's actual available (effective) reward pool balance per token. This way, the UI will never show more than what the contract can actually pay out, and claims will succeed.
 
 ## Changes
 
-### 1. `src/components/farm/NFTStaking.tsx` -- Redesign rewards layout
+### 1. `src/components/farm/NFTStaking.tsx` -- Cap claimable rewards at pool balance
 
-**Current layout**: A left-aligned stack of "Claimable Now" and "Pending" with the Claim button floated right.
+In the `calculateLiveRewards` function (around line 404), after computing the raw claimable amount per token, look up the matching reward pool from `farm.reward_pools` and cap the amount at the pool's effective balance (using the existing `calculateEffectiveBalance` utility).
 
-**New layout**: A responsive grid with 3 metric columns plus the claim button:
-
+**Before (line ~434):**
 ```
-+-------------------+-------------------+-------------------+
-|  Claimable Now    |     Pending       |   Total Claimed   |
-|  1234.5678 CHEESE |  +12.3456 CHEESE  |  5000.0000 CHEESE |
-|                   |  (in 2:34)        |  (tracked locally)|
-+-------------------+-------------------+-------------------+
-|              [ Claim Rewards Button ]                     |
-+-----------------------------------------------------------+
+const claimableAmount = baseAmount + (rateAmount * claimableHours);
 ```
 
-- Each column shows the token logo, amount badge, and label
-- On mobile, the grid collapses to a single column with clear spacing
-- The Claim button spans full width below the metrics
-- NFT count ("3 NFTs staked") moves to the card header area next to "Your Rewards"
+**After:**
+```
+let claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-### 2. `src/components/farm/NFTStaking.tsx` -- Add Total Claimed tracking
+// Cap at the pool's effective balance to prevent overdrawn balance errors
+const matchingPool = farm.reward_pools.find(p => p.symbol === symbol);
+if (matchingPool) {
+  const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
+  claimableAmount = Math.min(claimableAmount, Math.max(0, effectiveBalance));
+}
+```
 
-- Add state for `totalClaimed` loaded from localStorage on mount
-- Key format: `farm_claimed_{farmName}_{account}` to track per-farm per-user
-- On successful claim, add the claimed amounts to the stored totals
-- Display with a subtle "(tracked locally)" label so users understand the data source
+### 2. `src/components/farm/NFTStaking.tsx` -- Add import
 
-### 3. `src/components/farm/NFTStaking.tsx` -- Update claim handler
+Add `calculateEffectiveBalance` to the existing imports from `@/lib/farm`.
 
-- After a successful claim transaction, read the current `pendingRewards` values and add them to the localStorage totals
-- Refresh the `totalClaimed` state
+### 3. `src/components/farm/NFTStaking.tsx` -- Add pool-low warning
 
-## Technical Details
+When the claimable amount is being capped (i.e., pool balance is less than the calculated reward), show a subtle warning near the "Claimable Now" section indicating the reward pool is running low. This gives users transparency about why their displayed rewards might be lower than expected.
 
-- **localStorage key**: `cheese_farm_claimed_{farmName}_{accountName}` storing a JSON object like `{ "CHEESE": 1234.5678, "WAX": 0.5 }`
-- **Grid classes**: `grid grid-cols-1 sm:grid-cols-3 gap-4` for the 3-column responsive layout
-- **Claim button**: Moves below the grid as a full-width button with `w-full` class
-- **NFT count badge**: Moves to header row: "Your Rewards -- 3 NFTs staked"
-- No new dependencies needed
+## Technical Notes
+
+- The cap uses `calculateEffectiveBalance` (already in `src/lib/farm.ts`) which accounts for rewards accrued by ALL stakers, not just the current user -- this gives a conservative but safe estimate
+- The effective balance is itself an estimate (it can't know exactly what other stakers have accrued), so this is a best-effort cap that should prevent most overdrawn errors
+- The cap only affects the UI display -- the actual claim transaction still sends the contract's `claim` action which pays whatever the contract determines is owed
 

@@ -1,47 +1,42 @@
 
 
-# Fix "Overdrawn Balance" Error on Reward Claims
+# Fix: Cap Rewards Against Raw Pool Balance, Not Effective Balance
 
 ## Problem
-The live reward calculator in `NFTStaking.tsx` computes claimable rewards purely from math: `baseAmount + (ratePerHour * completedHours)`. It never checks if the farm's reward pool actually has enough tokens to cover that amount. When a pool is running low, the UI shows inflated claimable amounts that the on-chain contract cannot fulfill, resulting in an "overdrawn balance" error when you try to claim.
+The current cap uses `calculateEffectiveBalance`, which estimates the pool balance **after subtracting all stakers' accrued rewards**. For example, with 0.56 WAX on-chain and ~0.27 accrued across all stakers, it reports ~0.29 as "effective". If your personal claimable is 0.27, that passes the check — but the estimate can be overly aggressive and block valid claims.
 
-## Solution
-Cap the displayed claimable rewards at the farm's actual available (effective) reward pool balance per token. This way, the UI will never show more than what the contract can actually pay out, and claims will succeed.
+The real issue: the contract pays from the **raw on-chain balance** (0.56), not from some "effective" number. Your 0.27 claim against a 0.56 balance should always succeed. The cap should only prevent claims that exceed the **actual on-chain token balance** in the pool.
 
-## Changes
+## Fix
 
-### 1. `src/components/farm/NFTStaking.tsx` -- Cap claimable rewards at pool balance
+### `src/components/farm/NFTStaking.tsx` (~line 439-445)
 
-In the `calculateLiveRewards` function (around line 404), after computing the raw claimable amount per token, look up the matching reward pool from `farm.reward_pools` and cap the amount at the pool's effective balance (using the existing `calculateEffectiveBalance` utility).
+Change the cap logic to use the **raw pool balance** instead of the effective balance:
 
-**Before (line ~434):**
-```
-const claimableAmount = baseAmount + (rateAmount * claimableHours);
-```
-
-**After:**
-```
-let claimableAmount = baseAmount + (rateAmount * claimableHours);
-
-// Cap at the pool's effective balance to prevent overdrawn balance errors
-const matchingPool = farm.reward_pools.find(p => p.symbol === symbol);
-if (matchingPool) {
-  const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
-  claimableAmount = Math.min(claimableAmount, Math.max(0, effectiveBalance));
+**Before:**
+```typescript
+const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
+if (claimableAmount > effectiveBalance) {
+  claimableAmount = Math.max(0, effectiveBalance);
+  isCapped = true;
 }
 ```
 
-### 2. `src/components/farm/NFTStaking.tsx` -- Add import
+**After:**
+```typescript
+const rawBalance = parseFloat(matchingPool.balance) || 0;
+if (claimableAmount > rawBalance) {
+  claimableAmount = Math.max(0, rawBalance);
+  isCapped = true;
+}
+```
 
-Add `calculateEffectiveBalance` to the existing imports from `@/lib/farm`.
+This means:
+- A 0.27 claim against a 0.56 pool balance passes (no cap)
+- A 0.70 claim against a 0.56 pool balance gets capped to 0.56 (prevents overdrawn error)
+- The "Pool running low" warning only appears when the pool genuinely cannot cover your personal rewards
 
-### 3. `src/components/farm/NFTStaking.tsx` -- Add pool-low warning
+### `src/components/farm/NFTStaking.tsx` -- Remove unused import
 
-When the claimable amount is being capped (i.e., pool balance is less than the calculated reward), show a subtle warning near the "Claimable Now" section indicating the reward pool is running low. This gives users transparency about why their displayed rewards might be lower than expected.
-
-## Technical Notes
-
-- The cap uses `calculateEffectiveBalance` (already in `src/lib/farm.ts`) which accounts for rewards accrued by ALL stakers, not just the current user -- this gives a conservative but safe estimate
-- The effective balance is itself an estimate (it can't know exactly what other stakers have accrued), so this is a best-effort cap that should prevent most overdrawn errors
-- The cap only affects the UI display -- the actual claim transaction still sends the contract's `claim` action which pays whatever the contract determines is owed
+Remove `calculateEffectiveBalance` from the import if it's no longer used elsewhere in this file (it may still be used in FarmDetail — only remove from the NFTStaking import line).
 

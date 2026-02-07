@@ -62,7 +62,7 @@ const TelegramIcon = ({ className }: { className?: string }) => (
     <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635z" />
   </svg>
 );
-import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool, calculateEffectiveBalance } from "@/lib/farm";
+import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool } from "@/lib/farm";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
@@ -216,8 +216,6 @@ export function FarmDetail() {
     return `~${(days / 365).toFixed(1)}y remaining`;
   };
 
-  // Whether to show effective balance (only for active farms with stakers)
-  const showEffective = farm.status === 1 && farm.staked_count > 0;
 
   return (
     <div className="space-y-6">
@@ -500,13 +498,7 @@ export function FarmDetail() {
           <CardContent>
             {farm.reward_pools.length > 0 ? (
               <div className="space-y-3">
-                {farm.reward_pools.map((pool, index) => {
-                  const ebInfo = showEffective
-                    ? calculateEffectiveBalance(pool, farm.last_payout, now)
-                    : null;
-                  const timeLeft = ebInfo ? formatTimeRemaining(ebInfo.hoursRemaining) : null;
-
-                  return (
+                  {farm.reward_pools.map((pool, index) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
@@ -526,32 +518,12 @@ export function FarmDetail() {
                         </div>
                       </div>
                       <div className="text-right">
-                        {ebInfo ? (
-                          <>
-                            <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                              ~{formatAmount(ebInfo.effectiveBalance, pool.symbol, pool.precision)}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              On-chain: {formatRewardPool(pool)}
-                            </p>
-                            {ebInfo.hourlyRate > 0 && (
-                              <p className="text-xs text-muted-foreground">
-                                Drain: {formatAmount(ebInfo.hourlyRate, pool.symbol, pool.precision)}/hr
-                              </p>
-                            )}
-                            {timeLeft && (
-                              <p className="text-xs text-primary/80">{timeLeft}</p>
-                            )}
-                          </>
-                        ) : (
-                          <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                            {formatRewardPool(pool)}
-                          </Badge>
-                        )}
+                        <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                          {formatRewardPool(pool)}
+                        </Badge>
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-4">

@@ -313,10 +313,22 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [totalClaimed, setTotalClaimed] = useState<Record<string, number>>({});
   
   // Refs for virtualized lists
   const stakeParentRef = useRef<HTMLDivElement>(null);
   const unstakeParentRef = useRef<HTMLDivElement>(null);
+
+  // Load total claimed from localStorage
+  const claimedStorageKey = `cheese_farm_claimed_${farm.farm_name}_${accountName || ''}`;
+  useEffect(() => {
+    if (!accountName) return;
+    try {
+      const stored = localStorage.getItem(claimedStorageKey);
+      if (stored) setTotalClaimed(JSON.parse(stored));
+      else setTotalClaimed({});
+    } catch { setTotalClaimed({}); }
+  }, [claimedStorageKey, accountName]);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -944,11 +956,28 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const handleClaim = async () => {
     if (!session) return;
     
+    // Snapshot claimable amounts before the claim
+    const claimableSnapshot = pendingRewards.map(r => ({ symbol: r.symbol, amount: r.amount }));
+    
     setIsClaiming(true);
     try {
       const action = buildClaimRewardsAction(session.actor.toString(), farm.farm_name);
       
       await session.transact({ actions: [action] });
+      
+      // Update total claimed in localStorage
+      try {
+        const updated = { ...totalClaimed };
+        for (const r of claimableSnapshot) {
+          if (r.amount > 0) {
+            updated[r.symbol] = (updated[r.symbol] || 0) + r.amount;
+          }
+        }
+        setTotalClaimed(updated);
+        localStorage.setItem(claimedStorageKey, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save claimed totals:', e);
+      }
       
       toast({
         title: "Rewards Claimed!",
@@ -1536,6 +1565,11 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             <div className="flex items-center gap-2">
               <Coins className="h-5 w-5 text-cheese" />
               Your Rewards
+              {stakedNfts.length > 0 && (
+                <Badge variant="outline" className="text-xs font-normal ml-1">
+                  {stakedNfts.length} NFT{stakedNfts.length !== 1 ? 's' : ''} staked
+                </Badge>
+              )}
             </div>
             <Button
               variant="ghost"
@@ -1550,80 +1584,115 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-3">
-              {/* Claimable Now */}
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Claimable Now</p>
-                {pendingRewards.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {pendingRewards.map((reward, i) => (
-                      <div key={i} className="flex items-center gap-2">
+          {/* 3-column rewards grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            {/* Claimable Now */}
+            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Claimable Now</p>
+              {pendingRewards.length > 0 ? (
+                <div className="space-y-1.5">
+                  {pendingRewards.map((reward, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <img
+                        src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
+                        alt={reward.symbol}
+                        className="w-5 h-5 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                        }}
+                      />
+                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">No claimable rewards</p>
+              )}
+            </div>
+
+            {/* Pending */}
+            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">
+                Pending
+                {nextPayoutIn > 0 && (
+                  <span className="text-muted-foreground/70 ml-1">
+                    (in {Math.floor(nextPayoutIn / 60)}:{(nextPayoutIn % 60).toString().padStart(2, '0')})
+                  </span>
+                )}
+              </p>
+              {pendingNextPayout.length > 0 && pendingNextPayout.some(r => r.amount > 0) ? (
+                <div className="space-y-1.5">
+                  {pendingNextPayout.map((reward, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <img
+                        src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
+                        alt={reward.symbol}
+                        className="w-4 h-4 rounded-full opacity-70"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                        }}
+                      />
+                      <Badge variant="outline" className="text-muted-foreground border-border/50 text-xs">
+                        +{reward.amount.toFixed(reward.precision)} {reward.symbol}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">—</p>
+              )}
+            </div>
+
+            {/* Total Claimed */}
+            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">
+                Total Claimed
+                <span className="text-muted-foreground/50 ml-1 font-normal">(tracked locally)</span>
+              </p>
+              {Object.keys(totalClaimed).length > 0 ? (
+                <div className="space-y-1.5">
+                  {Object.entries(totalClaimed).map(([symbol, amount]) => {
+                    const matchingReward = pendingRewards.find(r => r.symbol === symbol) || pendingNextPayout.find(r => r.symbol === symbol);
+                    const precision = matchingReward?.precision ?? 4;
+                    const contract = matchingReward?.contract;
+                    return (
+                      <div key={symbol} className="flex items-center gap-2">
                         <img
-                          src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
-                          alt={reward.symbol}
+                          src={contract ? getTokenLogoUrl(contract, symbol) : TOKEN_LOGO_PLACEHOLDER}
+                          alt={symbol}
                           className="w-5 h-5 rounded-full"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
                           }}
                         />
-                        <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                          {reward.amount.toFixed(reward.precision)} {reward.symbol}
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                          {amount.toFixed(precision)} {symbol}
                         </Badge>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">No claimable rewards</p>
-                )}
-              </div>
-              
-              {/* Pending (next payout) */}
-              {pendingNextPayout.length > 0 && pendingNextPayout.some(r => r.amount > 0) && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Pending 
-                    <span className="text-muted-foreground/70 ml-1">
-                      (in {Math.floor(nextPayoutIn / 60)}:{(nextPayoutIn % 60).toString().padStart(2, '0')})
-                    </span>
-                  </p>
-                  <div className="space-y-1.5">
-                    {pendingNextPayout.map((reward, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <img
-                          src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
-                          alt={reward.symbol}
-                          className="w-4 h-4 rounded-full opacity-70"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
-                          }}
-                        />
-                        <Badge variant="outline" className="text-muted-foreground border-border/50 text-xs">
-                          +{reward.amount.toFixed(reward.precision)} {reward.symbol}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
-              
-              <p className="text-xs text-muted-foreground">
-                {stakedNfts.length} NFT(s) staked in this farm
-              </p>
-            </div>
-            <Button
-              onClick={handleClaim}
-              disabled={isClaiming || !hasRewards}
-              className="bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-            >
-              {isClaiming ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Coins className="h-4 w-4 mr-2" />
+                <p className="text-muted-foreground text-sm">No claims yet</p>
               )}
-              Claim Rewards
-            </Button>
+            </div>
           </div>
+
+          {/* Claim button - full width */}
+          <Button
+            onClick={handleClaim}
+            disabled={isClaiming || !hasRewards}
+            className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+          >
+            {isClaiming ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Coins className="h-4 w-4 mr-2" />
+            )}
+            Claim Rewards
+          </Button>
         </CardContent>
       </Card>
     </div>

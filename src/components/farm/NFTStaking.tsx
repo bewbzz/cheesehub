@@ -40,8 +40,6 @@ import {
   fetchUserStakes,
   fetchFarmStakableConfig,
   fetchUserGlobalStakes,
-  fetchFarmContractBalance,
-  
   FarmInfo,
   PendingReward,
 } from "@/lib/farm";
@@ -316,8 +314,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [totalClaimed, setTotalClaimed] = useState<Record<string, number>>({});
-  // Real on-chain contract balances (symbol -> actual tokens held)
-  const [contractBalances, setContractBalances] = useState<Record<string, number>>({});
   
   // Refs for virtualized lists
   const stakeParentRef = useRef<HTMLDivElement>(null);
@@ -333,29 +329,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       else setTotalClaimed({});
     } catch { setTotalClaimed({}); }
   }, [claimedStorageKey, accountName]);
-
-  // Fetch real on-chain contract balances for each reward pool token
-  useEffect(() => {
-    const fetchBalances = async () => {
-      if (!farm.reward_pools?.length) return;
-      const balances: Record<string, number> = {};
-      await Promise.all(
-        farm.reward_pools.map(async (pool) => {
-          try {
-            const bal = await fetchFarmContractBalance(pool.contract, pool.symbol);
-            balances[pool.symbol] = bal;
-          } catch (e) {
-            console.warn(`[NFTStaking] Failed to fetch contract balance for ${pool.symbol}:`, e);
-          }
-        })
-      );
-      setContractBalances(balances);
-    };
-
-    fetchBalances();
-    const interval = setInterval(fetchBalances, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, [farm.reward_pools]);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -458,17 +431,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         const rateAmount = rate ? parseFloat(rate.quantity.split(" ")[0]) : 0;
 
         // Claimable = base + (rate * hours from completed periods since user's last state change)
-        let claimableAmount = baseAmount + (rateAmount * claimableHours);
+        const claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-        // Cap at real on-chain contract balance to prevent overdrawn balance errors
-        let isCapped = false;
-        const realBalance = contractBalances[symbol];
-        if (realBalance !== undefined && claimableAmount > realBalance) {
-          claimableAmount = Math.max(0, realBalance);
-          isCapped = true;
-        }
-
-        return { symbol, amount: claimableAmount, precision, contract, isCapped };
+        return { symbol, amount: claimableAmount, precision, contract };
       });
 
       // Calculate pending rewards (one full payout period worth)
@@ -494,7 +459,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     const interval = setInterval(calculateLiveRewards, 1000); // Update countdown every second
 
     return () => clearInterval(interval);
-  }, [stakerData, farm.payout_interval, contractBalances]);
+  }, [stakerData, farm.payout_interval]);
 
   // Fallback to static rewards if live calculation not available
   const pendingRewards: PendingReward[] = useMemo(() => {
@@ -992,25 +957,10 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     if (!session) return;
     
     // Snapshot claimable amounts before the claim
-    const claimableSnapshot = pendingRewards.map(r => ({ symbol: r.symbol, amount: r.amount, contract: r.contract }));
+    const claimableSnapshot = pendingRewards.map(r => ({ symbol: r.symbol, amount: r.amount }));
     
     setIsClaiming(true);
     try {
-      // Pre-claim check: verify the farm contract actually has enough tokens on-chain
-      for (const reward of claimableSnapshot) {
-        if (reward.amount <= 0 || !reward.contract) continue;
-        const contractBalance = await fetchFarmContractBalance(reward.contract, reward.symbol);
-        if (reward.amount > contractBalance) {
-          toast({
-            title: "Insufficient Pool Balance",
-            description: `The farm only has ${contractBalance.toFixed(4)} ${reward.symbol} on-chain but you need ${reward.amount.toFixed(4)}. The pool needs more deposits.`,
-            variant: "destructive",
-          });
-          setIsClaiming(false);
-          return;
-        }
-      }
-
       const action = buildClaimRewardsAction(session.actor.toString(), farm.farm_name);
       
       await session.transact({ actions: [action] });
@@ -1672,12 +1622,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             {/* Claimable Now */}
             <div className="rounded-lg border border-border/50 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground mb-2 font-medium">Claimable Now</p>
-              {pendingRewards.some(r => (r as any).isCapped) && (
-                <p className="text-xs text-yellow-500 mb-2 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Pool running low
-                </p>
-              )}
               {pendingRewards.length > 0 ? (
                 <div className="space-y-1.5">
                   {pendingRewards.map((reward, i) => (

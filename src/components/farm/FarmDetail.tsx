@@ -62,7 +62,7 @@ const TelegramIcon = ({ className }: { className?: string }) => (
     <path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635z" />
   </svg>
 );
-import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool, calculateEffectiveBalance, fetchFarmContractBalance } from "@/lib/farm";
+import { fetchFarmDetails, getIpfsUrl, FarmInfo, RewardPool, calculateEffectiveBalance } from "@/lib/farm";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { useToast } from "@/hooks/use-toast";
 import { NFTStaking } from "./NFTStaking";
@@ -104,28 +104,6 @@ export function FarmDetail() {
     queryFn: () => fetchFarmDetails(farmName!),
     enabled: !!farmName,
     staleTime: 30000,
-  });
-
-  // Fetch real on-chain contract balances for reward pool tokens
-  const { data: contractBalances = {} } = useQuery({
-    queryKey: ["farmContractBalances", farmName, farm?.reward_pools?.map(p => p.symbol).join(",")],
-    queryFn: async () => {
-      if (!farm?.reward_pools?.length) return {};
-      const balances: Record<string, number> = {};
-      await Promise.all(
-        farm.reward_pools.map(async (pool) => {
-          try {
-            balances[pool.symbol] = await fetchFarmContractBalance(pool.contract, pool.symbol);
-          } catch (e) {
-            console.warn(`[FarmDetail] Failed to fetch balance for ${pool.symbol}:`, e);
-          }
-        })
-      );
-      return balances;
-    },
-    enabled: !!farm?.reward_pools?.length,
-    staleTime: 15000,
-    refetchInterval: 30000,
   });
 
   const handleFarmUpdated = async () => {
@@ -551,13 +529,10 @@ export function FarmDetail() {
                         {ebInfo ? (
                           <>
                             <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                              {contractBalances[pool.symbol] !== undefined 
-                                ? formatAmount(contractBalances[pool.symbol], pool.symbol, pool.precision)
-                                : `~${formatAmount(ebInfo.effectiveBalance, pool.symbol, pool.precision)}`
-                              }
+                              ~{formatAmount(ebInfo.effectiveBalance, pool.symbol, pool.precision)}
                             </Badge>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Deposited: {formatRewardPool(pool)}
+                              On-chain: {formatRewardPool(pool)}
                             </p>
                             {ebInfo.hourlyRate > 0 && (
                               <p className="text-xs text-muted-foreground">

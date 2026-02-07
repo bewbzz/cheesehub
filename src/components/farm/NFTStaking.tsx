@@ -40,7 +40,7 @@ import {
   fetchUserStakes,
   fetchFarmStakableConfig,
   fetchUserGlobalStakes,
-  calculateEffectiveBalance,
+  
   FarmInfo,
   PendingReward,
 } from "@/lib/farm";
@@ -438,9 +438,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         let isCapped = false;
         const matchingPool = farm.reward_pools?.find(p => p.symbol === symbol);
         if (matchingPool) {
-          const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
-          if (claimableAmount > effectiveBalance) {
-            claimableAmount = Math.max(0, effectiveBalance);
+          const rawBalance = parseFloat(matchingPool.balance) || 0;
+          if (claimableAmount > rawBalance) {
+            claimableAmount = Math.max(0, rawBalance);
             isCapped = true;
           }
         }

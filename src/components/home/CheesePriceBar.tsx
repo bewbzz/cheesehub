@@ -84,7 +84,7 @@ export function CheesePriceBar() {
               </span>
             )}
           </div>
-          <span className="text-xs text-cheese opacity-0 group-hover:opacity-100 transition-opacity">Trade</span>
+          <span className="text-xs text-cheese">Trade</span>
         </button>
 
         {/* CHEESE/USD Price - Click to open swap */}
@@ -103,7 +103,7 @@ export function CheesePriceBar() {
               </span>
             )}
           </div>
-          <span className="text-xs text-cheese opacity-0 group-hover:opacity-100 transition-opacity">Trade</span>
+          <span className="text-xs text-cheese">Trade</span>
         </button>
 
       {/* Market Cap */}

@@ -1586,32 +1586,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         <CardContent>
           {/* 3-column rewards grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            {/* Claimable Now */}
-            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">Claimable Now</p>
-              {pendingRewards.length > 0 ? (
-                <div className="space-y-1.5">
-                  {pendingRewards.map((reward, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <img
-                        src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
-                        alt={reward.symbol}
-                        className="w-5 h-5 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
-                        }}
-                      />
-                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
-                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No claimable rewards</p>
-              )}
-            </div>
-
             {/* Pending */}
             <div className="rounded-lg border border-border/50 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground mb-2 font-medium">
@@ -1642,6 +1616,32 @@ export function NFTStaking({ farm }: NFTStakingProps) {
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">—</p>
+              )}
+            </div>
+
+            {/* Claimable Now */}
+            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Claimable Now</p>
+              {pendingRewards.length > 0 ? (
+                <div className="space-y-1.5">
+                  {pendingRewards.map((reward, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <img
+                        src={reward.contract ? getTokenLogoUrl(reward.contract, reward.symbol) : TOKEN_LOGO_PLACEHOLDER}
+                        alt={reward.symbol}
+                        className="w-5 h-5 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
+                        }}
+                      />
+                      <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                        {reward.amount.toFixed(reward.precision)} {reward.symbol}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">No claimable rewards</p>
               )}
             </div>
 
@@ -1680,19 +1680,21 @@ export function NFTStaking({ farm }: NFTStakingProps) {
             </div>
           </div>
 
-          {/* Claim button - full width */}
-          <Button
-            onClick={handleClaim}
-            disabled={isClaiming || !hasRewards}
-            className="w-full bg-cheese hover:bg-cheese/90 text-cheese-foreground"
-          >
-            {isClaiming ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Coins className="h-4 w-4 mr-2" />
-            )}
-            Claim Rewards
-          </Button>
+          {/* Claim button - 1/3 width, centered */}
+          <div className="flex justify-center">
+            <Button
+              onClick={handleClaim}
+              disabled={isClaiming || !hasRewards}
+              className="w-full sm:w-1/3 bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+            >
+              {isClaiming ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Coins className="h-4 w-4 mr-2" />
+              )}
+              Claim Rewards
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

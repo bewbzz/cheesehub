@@ -499,21 +499,18 @@ export function FarmDetail() {
           </CardHeader>
           <CardContent>
             {farm.reward_pools.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {farm.reward_pools.map((pool, index) => {
                   const ebInfo = showEffective
                     ? calculateEffectiveBalance(pool, farm.last_payout, now)
                     : null;
                   const timeLeft = ebInfo ? formatTimeRemaining(ebInfo.hoursRemaining) : null;
-                  const totalClaimedStr = pool.total_claimed || "0";
-                  const totalClaimed = parseFloat(totalClaimedStr.split(" ")[0]) || 0;
 
                   return (
                     <div
                       key={index}
-                      className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-3"
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50"
                     >
-                      {/* Token header */}
                       <div className="flex items-center gap-3">
                         <img
                           src={getTokenLogoUrl(pool.contract, pool.symbol)}
@@ -527,46 +524,30 @@ export function FarmDetail() {
                           <p className="font-medium">{pool.symbol}</p>
                           <p className="text-xs text-muted-foreground">{pool.contract}</p>
                         </div>
-                        {timeLeft && (
-                          <Badge variant="outline" className="ml-auto text-xs text-primary/80 border-primary/20">
-                            {timeLeft}
+                      </div>
+                      <div className="text-right">
+                        {ebInfo ? (
+                          <>
+                            <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                              ~{formatAmount(ebInfo.effectiveBalance, pool.symbol, pool.precision)}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              On-chain: {formatRewardPool(pool)}
+                            </p>
+                            {ebInfo.hourlyRate > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Drain: {formatAmount(ebInfo.hourlyRate, pool.symbol, pool.precision)}/hr
+                              </p>
+                            )}
+                            {timeLeft && (
+                              <p className="text-xs text-primary/80">{timeLeft}</p>
+                            )}
+                          </>
+                        ) : (
+                          <Badge variant="secondary" className="bg-cheese/10 text-cheese border-cheese/20">
+                            {formatRewardPool(pool)}
                           </Badge>
                         )}
-                      </div>
-
-                      {/* 3-column metrics */}
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">
-                            {ebInfo ? "Est. Balance" : "Balance"}
-                          </p>
-                          <p className="text-sm font-semibold text-cheese">
-                            {ebInfo
-                              ? `~${formatAmount(ebInfo.effectiveBalance, '', pool.precision)}`
-                              : formatAmount(parseFloat(pool.balance) || 0, '', pool.precision)}
-                          </p>
-                          {ebInfo && (
-                            <p className="text-[10px] text-muted-foreground">
-                              On-chain: {formatAmount(parseFloat(pool.balance) || 0, '', pool.precision)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">Drain Rate</p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {ebInfo && ebInfo.hourlyRate > 0
-                              ? `${formatAmount(ebInfo.hourlyRate, '', pool.precision)}/hr`
-                              : "—"}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">Total Claimed</p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {totalClaimed > 0
-                              ? formatAmount(totalClaimed, '', pool.precision)
-                              : "0"}
-                          </p>
-                        </div>
                       </div>
                     </div>
                   );

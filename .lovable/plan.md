@@ -1,63 +1,41 @@
 
 
-# Fix: Query Actual On-Chain Contract Balance Before Claiming
+# Fix: Display Shows Wrong Pool Balance (0.56 vs Actual 0.18)
 
-## Root Cause
+## What's Actually Happening
 
-The "overdrawn balance" error comes from the **on-chain contract itself**, not from our frontend code. When you click "Claim," the contract calculates your rewards independently and tries to transfer tokens from its account. If the contract account doesn't have enough tokens, the blockchain rejects the transfer.
+The pre-claim check is **working correctly**. The console logs confirm:
 
-The previous fix (capping displayed rewards at `matchingPool.balance`) doesn't help because:
-1. `matchingPool.balance` comes from `total_funds` in the contract table -- this is the **total ever deposited**, not the current available balance
-2. Even if the display is capped correctly, `handleClaim` sends a generic `claim` action and the contract decides the payout amount -- our UI has no control over what the contract tries to pay
-
-## Solution
-
-Before sending the claim transaction, query the **actual on-chain token balance** of the farm contract account for each reward token. If the balance is too low, block the claim and show a warning.
-
-### Changes
-
-#### 1. `src/components/farm/NFTStaking.tsx` -- Add pre-claim balance check in `handleClaim`
-
-Before calling `session.transact`, fetch the real token balance of the farm contract account (e.g., `waxdaofarmer` or whatever `FARM_CONTRACT` is) for each reward token using the `/v1/chain/get_currency_balance` RPC endpoint. Compare against the user's expected claimable amounts. If any token balance is insufficient, abort the claim and show a descriptive error toast.
-
-#### 2. `src/components/farm/NFTStaking.tsx` -- Fix display cap to use real balance too
-
-Update `calculateLiveRewards` to also use the fetched on-chain contract balance (or at minimum, use `calculateEffectiveBalance` as a better estimate than `total_funds`). Since we can't easily do an async fetch inside the synchronous calculation, we'll store the fetched contract balances in state and use them for capping.
-
-#### 3. `src/lib/farm.ts` -- Add helper to fetch farm contract token balance
-
-Add a utility function `fetchFarmContractBalance(tokenContract, tokenSymbol)` that queries the real on-chain balance of the farm contract account for a specific token. This will be reused in both the pre-claim check and the display cap.
-
-### Implementation Details
-
-**New helper in `src/lib/farm.ts`:**
-```typescript
-export async function fetchFarmContractBalance(
-  tokenContract: string,
-  tokenSymbol: string
-): Promise<number> {
-  // Query /v1/chain/get_currency_balance for FARM_CONTRACT
-  // Returns the actual tokens held by the farm contract
-}
+```
+[RPC] CHEESE@cheeseburger response: ["0.1800 CHEESE"]
 ```
 
-**Pre-claim check in `handleClaim`:**
-```typescript
-// Before transacting, verify the contract has enough tokens
-for (const reward of claimableSnapshot) {
-  const contractBalance = await fetchFarmContractBalance(
-    reward.contract, reward.symbol
-  );
-  if (reward.amount > contractBalance) {
-    toast({ title: "Pool Insufficient", description: "..." });
-    return; // Don't attempt the claim
-  }
-}
-```
+The `farms.waxdao` contract only holds **0.18 CHEESE** on-chain. Your claimable is ~0.27, which exceeds 0.18, so the claim would indeed fail with "overdrawn balance." The pre-claim check is catching this and showing the toast instead of letting the transaction fail.
 
-**Periodic balance fetch for display capping:**
-- Fetch contract balances alongside farm data refresh
-- Store in component state
-- Use in `calculateLiveRewards` for accurate capping
+The real problem is the **misleading display**: the "On-chain: 0.56 CHEESE" shown at the top comes from `pool.balance` in the contract's reward pool table, which represents **total funds ever deposited**, not the actual tokens currently held. Some rewards have already been paid out, leaving only 0.18 CHEESE.
 
-This approach catches the problem **before** sending the transaction, giving the user a clear message instead of a cryptic contract error.
+## What Needs to Change
+
+### 1. `src/components/farm/NFTStaking.tsx` -- Cap claimable at real on-chain balance
+
+The `calculateLiveRewards` cap currently uses `pool.balance` (0.56), which is wrong. We need to periodically fetch the real contract balances and use those for capping.
+
+- Add a state variable `contractBalances` (a map of symbol to real balance)
+- Fetch real balances via `fetchFarmContractBalance` when farm data loads and on an interval
+- Use those balances in `calculateLiveRewards` instead of `pool.balance`
+
+### 2. `src/components/farm/FarmDetail.tsx` -- Show accurate pool balance
+
+Update the "On-chain" display in the reward pools section to fetch and show the **actual** token balance held by the farm contract, not just `pool.balance` (total deposited).
+
+- Add a query to fetch real contract balances for each reward pool token
+- Display both: "Deposited: 0.56" and "Available: 0.18" (or just the available amount)
+
+### 3. Toast message improvement
+
+The toast currently says "The farm only has 0.1800 CHEESE on-chain but you need 0.2700" -- this is accurate! But the user was confused because the UI showed 0.56. Once the display is fixed to show 0.18, it will be consistent and make sense.
+
+## Summary
+
+The pre-claim check is doing its job -- the pool genuinely doesn't have enough CHEESE. The fix is to make the **display** show the real on-chain balance (0.18) instead of total deposited (0.56), so users understand the pool needs more deposits before they can claim.
+

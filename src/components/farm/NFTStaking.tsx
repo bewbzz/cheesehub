@@ -316,6 +316,8 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [totalClaimed, setTotalClaimed] = useState<Record<string, number>>({});
+  // Real on-chain contract balances (symbol -> actual tokens held)
+  const [contractBalances, setContractBalances] = useState<Record<string, number>>({});
   
   // Refs for virtualized lists
   const stakeParentRef = useRef<HTMLDivElement>(null);
@@ -331,6 +333,29 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       else setTotalClaimed({});
     } catch { setTotalClaimed({}); }
   }, [claimedStorageKey, accountName]);
+
+  // Fetch real on-chain contract balances for each reward pool token
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (!farm.reward_pools?.length) return;
+      const balances: Record<string, number> = {};
+      await Promise.all(
+        farm.reward_pools.map(async (pool) => {
+          try {
+            const bal = await fetchFarmContractBalance(pool.contract, pool.symbol);
+            balances[pool.symbol] = bal;
+          } catch (e) {
+            console.warn(`[NFTStaking] Failed to fetch contract balance for ${pool.symbol}:`, e);
+          }
+        })
+      );
+      setContractBalances(balances);
+    };
+
+    fetchBalances();
+    const interval = setInterval(fetchBalances, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [farm.reward_pools]);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -435,15 +460,12 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         // Claimable = base + (rate * hours from completed periods since user's last state change)
         let claimableAmount = baseAmount + (rateAmount * claimableHours);
 
-        // Cap at the pool's effective balance to prevent overdrawn balance errors
+        // Cap at real on-chain contract balance to prevent overdrawn balance errors
         let isCapped = false;
-        const matchingPool = farm.reward_pools?.find(p => p.symbol === symbol);
-        if (matchingPool) {
-          const rawBalance = parseFloat(matchingPool.balance) || 0;
-          if (claimableAmount > rawBalance) {
-            claimableAmount = Math.max(0, rawBalance);
-            isCapped = true;
-          }
+        const realBalance = contractBalances[symbol];
+        if (realBalance !== undefined && claimableAmount > realBalance) {
+          claimableAmount = Math.max(0, realBalance);
+          isCapped = true;
         }
 
         return { symbol, amount: claimableAmount, precision, contract, isCapped };
@@ -472,7 +494,7 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     const interval = setInterval(calculateLiveRewards, 1000); // Update countdown every second
 
     return () => clearInterval(interval);
-  }, [stakerData, farm.payout_interval]);
+  }, [stakerData, farm.payout_interval, contractBalances]);
 
   // Fallback to static rewards if live calculation not available
   const pendingRewards: PendingReward[] = useMemo(() => {

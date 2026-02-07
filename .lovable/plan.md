@@ -1,42 +1,63 @@
 
 
-# Fix: Cap Rewards Against Raw Pool Balance, Not Effective Balance
+# Fix: Query Actual On-Chain Contract Balance Before Claiming
 
-## Problem
-The current cap uses `calculateEffectiveBalance`, which estimates the pool balance **after subtracting all stakers' accrued rewards**. For example, with 0.56 WAX on-chain and ~0.27 accrued across all stakers, it reports ~0.29 as "effective". If your personal claimable is 0.27, that passes the check — but the estimate can be overly aggressive and block valid claims.
+## Root Cause
 
-The real issue: the contract pays from the **raw on-chain balance** (0.56), not from some "effective" number. Your 0.27 claim against a 0.56 balance should always succeed. The cap should only prevent claims that exceed the **actual on-chain token balance** in the pool.
+The "overdrawn balance" error comes from the **on-chain contract itself**, not from our frontend code. When you click "Claim," the contract calculates your rewards independently and tries to transfer tokens from its account. If the contract account doesn't have enough tokens, the blockchain rejects the transfer.
 
-## Fix
+The previous fix (capping displayed rewards at `matchingPool.balance`) doesn't help because:
+1. `matchingPool.balance` comes from `total_funds` in the contract table -- this is the **total ever deposited**, not the current available balance
+2. Even if the display is capped correctly, `handleClaim` sends a generic `claim` action and the contract decides the payout amount -- our UI has no control over what the contract tries to pay
 
-### `src/components/farm/NFTStaking.tsx` (~line 439-445)
+## Solution
 
-Change the cap logic to use the **raw pool balance** instead of the effective balance:
+Before sending the claim transaction, query the **actual on-chain token balance** of the farm contract account for each reward token. If the balance is too low, block the claim and show a warning.
 
-**Before:**
+### Changes
+
+#### 1. `src/components/farm/NFTStaking.tsx` -- Add pre-claim balance check in `handleClaim`
+
+Before calling `session.transact`, fetch the real token balance of the farm contract account (e.g., `waxdaofarmer` or whatever `FARM_CONTRACT` is) for each reward token using the `/v1/chain/get_currency_balance` RPC endpoint. Compare against the user's expected claimable amounts. If any token balance is insufficient, abort the claim and show a descriptive error toast.
+
+#### 2. `src/components/farm/NFTStaking.tsx` -- Fix display cap to use real balance too
+
+Update `calculateLiveRewards` to also use the fetched on-chain contract balance (or at minimum, use `calculateEffectiveBalance` as a better estimate than `total_funds`). Since we can't easily do an async fetch inside the synchronous calculation, we'll store the fetched contract balances in state and use them for capping.
+
+#### 3. `src/lib/farm.ts` -- Add helper to fetch farm contract token balance
+
+Add a utility function `fetchFarmContractBalance(tokenContract, tokenSymbol)` that queries the real on-chain balance of the farm contract account for a specific token. This will be reused in both the pre-claim check and the display cap.
+
+### Implementation Details
+
+**New helper in `src/lib/farm.ts`:**
 ```typescript
-const { effectiveBalance } = calculateEffectiveBalance(matchingPool, farm.last_payout, now);
-if (claimableAmount > effectiveBalance) {
-  claimableAmount = Math.max(0, effectiveBalance);
-  isCapped = true;
+export async function fetchFarmContractBalance(
+  tokenContract: string,
+  tokenSymbol: string
+): Promise<number> {
+  // Query /v1/chain/get_currency_balance for FARM_CONTRACT
+  // Returns the actual tokens held by the farm contract
 }
 ```
 
-**After:**
+**Pre-claim check in `handleClaim`:**
 ```typescript
-const rawBalance = parseFloat(matchingPool.balance) || 0;
-if (claimableAmount > rawBalance) {
-  claimableAmount = Math.max(0, rawBalance);
-  isCapped = true;
+// Before transacting, verify the contract has enough tokens
+for (const reward of claimableSnapshot) {
+  const contractBalance = await fetchFarmContractBalance(
+    reward.contract, reward.symbol
+  );
+  if (reward.amount > contractBalance) {
+    toast({ title: "Pool Insufficient", description: "..." });
+    return; // Don't attempt the claim
+  }
 }
 ```
 
-This means:
-- A 0.27 claim against a 0.56 pool balance passes (no cap)
-- A 0.70 claim against a 0.56 pool balance gets capped to 0.56 (prevents overdrawn error)
-- The "Pool running low" warning only appears when the pool genuinely cannot cover your personal rewards
+**Periodic balance fetch for display capping:**
+- Fetch contract balances alongside farm data refresh
+- Store in component state
+- Use in `calculateLiveRewards` for accurate capping
 
-### `src/components/farm/NFTStaking.tsx` -- Remove unused import
-
-Remove `calculateEffectiveBalance` from the import if it's no longer used elsewhere in this file (it may still be used in FarmDetail — only remove from the NFTStaking import line).
-
+This approach catches the problem **before** sending the transaction, giving the user a clear message instead of a cryptic contract error.

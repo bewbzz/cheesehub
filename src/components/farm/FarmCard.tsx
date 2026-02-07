@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sprout, Users, Clock, ArrowRight } from "lucide-react";
-import { FarmInfo, getIpfsUrl } from "@/lib/farm";
+import { FarmInfo, getIpfsUrl, calculateEffectiveBalance } from "@/lib/farm";
 
 // Farm type labels matching contract values
 const FARM_TYPE_DISPLAY: Record<number, string> = {
@@ -25,15 +25,29 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
 
+  const showEffective = farm.status === 1 && farm.staked_count > 0;
+
   // Format reward pools for display
-  const formatRewardPool = (pool: { symbol: string; balance: string }) => {
-    const amount = parseFloat(pool.balance) || 0;
-    if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(2)}M ${pool.symbol}`;
-    } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(2)}K ${pool.symbol}`;
+  const formatRewardPool = (pool: { symbol: string; balance: string; total_hourly_reward?: string; precision?: number }) => {
+    let amount = parseFloat(pool.balance) || 0;
+    let prefix = "";
+
+    if (showEffective) {
+      const ebInfo = calculateEffectiveBalance(
+        pool as any,
+        farm.last_payout,
+        now
+      );
+      amount = ebInfo.effectiveBalance;
+      prefix = "~";
     }
-    return `${amount.toFixed(2)} ${pool.symbol}`;
+
+    if (amount >= 1000000) {
+      return `${prefix}${(amount / 1000000).toFixed(2)}M ${pool.symbol}`;
+    } else if (amount >= 1000) {
+      return `${prefix}${(amount / 1000).toFixed(2)}K ${pool.symbol}`;
+    }
+    return `${prefix}${amount.toFixed(2)} ${pool.symbol}`;
   };
 
   const handleViewFarm = () => {

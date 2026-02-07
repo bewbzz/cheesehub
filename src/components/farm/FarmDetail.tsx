@@ -297,6 +297,36 @@ export function FarmDetail() {
         </div>
       </div>
 
+      {/* Creator Status Info Box */}
+      {isCreator && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 px-5">
+            <div className="flex gap-3 items-start">
+              <Construction className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="text-sm text-foreground space-y-1">
+                {isPermClosed ? (
+                  <p>Kick all users, then use the <strong>Empty Farm</strong> option to retrieve any leftover reward tokens. This farm is permanently closed and cannot be opened or extended.</p>
+                ) : isClosed ? (
+                  <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
+                ) : isUnderConstruction ? (
+                  <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
+                ) : isExpired ? (
+                  <div className="space-y-2">
+                    <p>You have 2 choices:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                      <li>Close the farm, kick all users, update stakeable assets and values (optional) then open the farm again.</li>
+                      <li>Permanently close the farm, kick all users, then use the <strong>Empty Farm</strong> option to retrieve any leftover reward tokens. Once a farm is permanently closed it cannot be opened or extended.</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <p>Extend your farm by pressing the <strong>Extend</strong> button. However, before doing so you will need to deposit enough rewards to cover the current NFTs staked for the planned added time. Extending a farm is much easier while the farm is still active and not expired.</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Farm Info & Reward Pools */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Farm Info */}

@@ -40,6 +40,7 @@ import {
   fetchUserStakes,
   fetchFarmStakableConfig,
   fetchUserGlobalStakes,
+  fetchFarmContractBalance,
   
   FarmInfo,
   PendingReward,
@@ -969,10 +970,25 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     if (!session) return;
     
     // Snapshot claimable amounts before the claim
-    const claimableSnapshot = pendingRewards.map(r => ({ symbol: r.symbol, amount: r.amount }));
+    const claimableSnapshot = pendingRewards.map(r => ({ symbol: r.symbol, amount: r.amount, contract: r.contract }));
     
     setIsClaiming(true);
     try {
+      // Pre-claim check: verify the farm contract actually has enough tokens on-chain
+      for (const reward of claimableSnapshot) {
+        if (reward.amount <= 0 || !reward.contract) continue;
+        const contractBalance = await fetchFarmContractBalance(reward.contract, reward.symbol);
+        if (reward.amount > contractBalance) {
+          toast({
+            title: "Insufficient Pool Balance",
+            description: `The farm only has ${contractBalance.toFixed(4)} ${reward.symbol} on-chain but you need ${reward.amount.toFixed(4)}. The pool needs more deposits.`,
+            variant: "destructive",
+          });
+          setIsClaiming(false);
+          return;
+        }
+      }
+
       const action = buildClaimRewardsAction(session.actor.toString(), farm.farm_name);
       
       await session.transact({ actions: [action] });

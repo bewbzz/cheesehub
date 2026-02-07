@@ -1,9 +1,21 @@
 // WaxDAO V2 Farm Contract Interface
 // Contract: farms.waxdao
 
-import { fetchTableRows, waxRpcCall } from "./waxRpcFallback";
+import { fetchTableRows, waxRpcCall, fetchSingleTokenBalance } from "./waxRpcFallback";
 
 export const FARM_CONTRACT = "farms.waxdao";
+
+/**
+ * Fetch the actual on-chain token balance held by the farm contract account.
+ * This queries get_currency_balance for the real tokens available, not the
+ * "total_funds" field in the contract table (which is total ever deposited).
+ */
+export async function fetchFarmContractBalance(
+  tokenContract: string,
+  tokenSymbol: string
+): Promise<number> {
+  return fetchSingleTokenBalance(FARM_CONTRACT, tokenContract, tokenSymbol);
+}
 
 // Global staking info for cross-farm detection
 export interface GlobalStakeInfo {

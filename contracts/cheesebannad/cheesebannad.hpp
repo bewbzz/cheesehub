@@ -42,7 +42,7 @@ static constexpr double BURN_PERCENT = 0.66;
 // Pricing
 static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
-static constexpr double   MAX_PRICE_DEVIATION   = 0.30;        // 30%
+static constexpr double   MAX_PRICE_DEVIATION   = 0.10;        // 10%
 static constexpr double   DEFAULT_WAX_PER_CHEESE = 1.50;       // baseline
 
 // Input limits

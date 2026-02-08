@@ -53,7 +53,7 @@ static constexpr double WAX_VALUE_TOLERANCE = 0.025;    // 2.5% tolerance for pr
 static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000; // 5 WAXDAO minimum (8 decimals)
 
 // Security: Price deviation bounds catch extreme manipulation
-static constexpr double MAX_PRICE_DEVIATION = 0.30;     // 30% max deviation from baseline
+static constexpr double MAX_PRICE_DEVIATION = 0.10;     // 10% max deviation from baseline
 static constexpr double BASELINE_WAX_PER_CHEESE = 1.50; // ~expected CHEESE price
 static constexpr double BASELINE_WAXDAO_PER_WAX = 32.0; // ~expected WAXDAO price
 

@@ -70,6 +70,8 @@ const IPFS_GATEWAYS = [
   'https://dweb.link/ipfs/',
 ];
 
+export const CHEESEAMP_GLOBAL_ACCOUNT = 'cheeseamphub';
+
 const CACHE_KEY_PREFIX = 'cheesehub_music_nfts_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -374,8 +376,9 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
   }
 }
 
-export function useMusicNFTs() {
-  const { accountName } = useWax();
+export function useMusicNFTs(overrideAccount?: string) {
+  const { accountName: walletAccount } = useWax();
+  const owner = overrideAccount || walletAccount;
   const [nfts, setNfts] = useState<MusicNFT[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -383,7 +386,7 @@ export function useMusicNFTs() {
   const abortRef = useRef(false);
 
   const fetchMusicNFTs = useCallback(async (skipCache = false) => {
-    if (!accountName || fetchingRef.current) return;
+    if (!owner || fetchingRef.current) return;
     
     fetchingRef.current = true;
     abortRef.current = false;
@@ -393,7 +396,7 @@ export function useMusicNFTs() {
     try {
       // Check cache first
       if (!skipCache) {
-        const cached = getCachedMusicNFTs(accountName);
+        const cached = getCachedMusicNFTs(owner);
         if (cached) {
           console.log(`[useMusicNFTs] Using cached data: ${cached.nfts.length} music NFTs`);
           setNfts(cached.nfts);
@@ -405,25 +408,25 @@ export function useMusicNFTs() {
 
       // Phase 1: Parallel fetch - on-chain assets and first API pages
       const [ownedAssetsMap, firstPages] = await Promise.all([
-        getOwnedAssets(accountName),
+        getOwnedAssets(owner),
         Promise.all([
-          fetchApiPage(accountName, 1, 100),
-          fetchApiPage(accountName, 2, 100),
-          fetchApiPage(accountName, 3, 100),
-          fetchApiPage(accountName, 4, 100),
-          fetchApiPage(accountName, 5, 100),
+          fetchApiPage(owner, 1, 100),
+          fetchApiPage(owner, 2, 100),
+          fetchApiPage(owner, 3, 100),
+          fetchApiPage(owner, 4, 100),
+          fetchApiPage(owner, 5, 100),
         ]),
       ]);
 
       if (abortRef.current) return;
 
       const ownedAssetIds = new Set(ownedAssetsMap.keys());
-      console.log(`[useMusicNFTs] On-chain found ${ownedAssetIds.size} total assets for ${accountName}`);
+      console.log(`[useMusicNFTs] On-chain found ${ownedAssetIds.size} total assets for ${owner}`);
 
       if (ownedAssetIds.size === 0) {
         setNfts([]);
         setIsLoading(false);
-        setCachedMusicNFTs(accountName, [], []);
+        setCachedMusicNFTs(owner, [], []);
         fetchingRef.current = false;
         return;
       }
@@ -458,7 +461,7 @@ export function useMusicNFTs() {
         while (page <= maxPage) {
           const pagePromises = [];
           for (let i = 0; i < 5 && page + i <= maxPage; i++) {
-            pagePromises.push(fetchApiPage(accountName, page + i, 100));
+            pagePromises.push(fetchApiPage(owner, page + i, 100));
           }
           
           const results = await Promise.all(pagePromises);
@@ -506,7 +509,7 @@ export function useMusicNFTs() {
 
       console.log(`[useMusicNFTs] Found ${allMusicNfts.length} music NFTs`);
       setCachedMusicNFTs(
-        accountName,
+        owner,
         allMusicNfts,
         allMusicNfts.map(n => n.asset_id)
       );
@@ -517,15 +520,15 @@ export function useMusicNFTs() {
       setIsLoading(false);
       fetchingRef.current = false;
     }
-  }, [accountName]);
+  }, [owner]);
 
   useEffect(() => {
-    if (accountName) {
+    if (owner) {
       fetchMusicNFTs();
     } else {
       setNfts([]);
     }
-  }, [accountName, fetchMusicNFTs]);
+  }, [owner, fetchMusicNFTs]);
 
   useEffect(() => {
     return () => {

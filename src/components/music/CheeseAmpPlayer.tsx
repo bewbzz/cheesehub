@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWax } from '@/context/WaxContext';
-import { useMusicNFTs, type StackedMusicNFT } from '@/hooks/useMusicNFTs';
+import { useMusicNFTs, CHEESEAMP_GLOBAL_ACCOUNT, type StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import { useCheeseAmpPlaylist } from '@/hooks/useCheeseAmpPlaylist';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ import {
   Plus,
   ListMusic,
   Trash2,
+  Globe,
 } from 'lucide-react';
 import { MediaDisplay, VideoIndicator } from './MediaDisplay';
 
@@ -119,7 +120,12 @@ function CoverArt({ src, alt, isPlaying }: CoverArtProps) {
 export function CheeseAmpPlayer() {
   const { accountName } = useWax();
   const { nfts, stackedNfts, isLoading: isLoadingNfts, refetch } = useMusicNFTs();
-  const playlist = useCheeseAmpPlaylist(accountName, stackedNfts);
+  const { stackedNfts: globalStackedNfts, isLoading: isLoadingGlobal, refetch: refetchGlobal } = useMusicNFTs(CHEESEAMP_GLOBAL_ACCOUNT);
+  const [viewMode, setViewMode] = useState<'library' | 'playlists' | 'global'>('library');
+
+  // Determine which tracks to feed to playlist system based on view mode
+  const activeTracks = viewMode === 'global' ? globalStackedNfts : stackedNfts;
+  const playlist = useCheeseAmpPlaylist(accountName, activeTracks);
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     isPlaying: false,
     currentTime: 0,
@@ -132,7 +138,6 @@ export function CheeseAmpPlayer() {
     hasVideo: false,
   });
   const [showPlaylist, setShowPlaylist] = useState(true);
-  const [viewMode, setViewMode] = useState<'library' | 'playlists'>('library');
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isTheaterMode, setIsTheaterMode] = useState(false);
@@ -262,17 +267,21 @@ export function CheeseAmpPlayer() {
     ? (playbackState.currentTime / playbackState.duration) * 100 
     : 0;
 
+  const isActiveLoading = viewMode === 'global' ? isLoadingGlobal : isLoadingNfts;
+
   // Early returns AFTER all hooks are defined (React hooks rule)
-  if (isLoadingNfts) {
+  if (isActiveLoading && activeTracks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-cheese mb-3" />
-        <p className="text-muted-foreground text-sm">Loading music NFTs...</p>
+        <p className="text-muted-foreground text-sm">
+          Loading {viewMode === 'global' ? 'global' : 'music'} NFTs...
+        </p>
       </div>
     );
   }
 
-  if (stackedNfts.length === 0) {
+  if (stackedNfts.length === 0 && viewMode !== 'global') {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Music2 className="h-12 w-12 text-muted-foreground mb-3" />
@@ -280,15 +289,26 @@ export function CheeseAmpPlayer() {
         <p className="text-xs text-muted-foreground mt-1 text-center">
           Collect music NFTs on WAX to play them here
         </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={refetch}
-          className="mt-4 text-cheese hover:text-cheese"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2 mt-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refetch}
+            className="text-cheese hover:text-cheese"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setViewMode('global')}
+            className="text-cheese hover:text-cheese"
+          >
+            <Globe className="h-4 w-4 mr-2" />
+            Browse Global Library
+          </Button>
+        </div>
       </div>
     );
   }
@@ -306,8 +326,8 @@ export function CheeseAmpPlayer() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            {stackedNfts.length} track{stackedNfts.length !== 1 ? 's' : ''}
-            {nfts.length !== stackedNfts.length && ` (${nfts.length} total)`}
+            {activeTracks.length} track{activeTracks.length !== 1 ? 's' : ''}
+            {viewMode === 'global' && ' (Global)'}
           </span>
           <Button
             variant="ghost"
@@ -321,7 +341,7 @@ export function CheeseAmpPlayer() {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={refetch}
+            onClick={viewMode === 'global' ? refetchGlobal : refetch}
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -494,6 +514,15 @@ export function CheeseAmpPlayer() {
                 <ListMusic className="h-3 w-3 mr-1" />
                 Playlists
               </Button>
+              <Button
+                variant={viewMode === 'global' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setViewMode('global')}
+              >
+                <Globe className="h-3 w-3 mr-1" />
+                Global{globalStackedNfts.length > 0 ? ` (${globalStackedNfts.length})` : ''}
+              </Button>
               
               {/* Spacer */}
               <div className="flex-1" />
@@ -588,7 +617,7 @@ export function CheeseAmpPlayer() {
                 </ScrollArea>
               </div>
             ) : (
-              /* Library/Tracks View */
+              /* Library/Global Tracks View */
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-muted-foreground">
@@ -640,6 +669,9 @@ export function CheeseAmpPlayer() {
                                 </p>
                               </div>
                               <VideoIndicator hasVideo={track.hasVideo} />
+                              {viewMode === 'global' && (
+                                <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
+                              )}
                               {track.copies > 1 && (
                                 <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full shrink-0">
                                   x{track.copies}

@@ -1,58 +1,115 @@
 
 
-# Improve "Your Rewards" Section Layout in Farm Detail
+# CHEESEHub Banner Ad Smart Contract
 
 ## Overview
-Redesign the rewards section at the bottom of the farm detail page to spread data across the full width (instead of cramming everything on the left) and add a "Total Claimed" metric. The layout will use a 3-column grid: Claimable Now | Pending | Total Claimed, with the Claim button prominently placed below or to the right.
+A new EOSIO/WAX smart contract (deployed to a new account) that manages paid banner advertising slots for CHEESEHub. The contract owner initializes time slots, and any user can rent and customize a slot by paying in either WAX (100 WAX per day) or CHEESE (equivalent value at current Alcor pool price).
 
-## Important Note on "Total Claimed"
-The WaxDAO farms contract does **not** store a "total claimed" value on-chain per user. To provide this metric, we have two options:
+## Contract Design
 
-1. **Track claims locally** in browser storage (localStorage) -- accumulate each successful claim amount. This is per-device and resets if the user clears storage, but provides an immediate working solution.
-2. **Show "Total Claimed" as a session-only counter** that tracks claims made during the current session.
+### Account & Deployment
+- Deploy to a new WAX account (e.g. `cheeseadshub` or similar -- you choose the name and create the account)
+- The account will need `eosio.code` permission added to its `active` authority for inline token transfers (burn + stake)
 
-Option 1 (localStorage) is recommended as it persists across sessions and gives the best user experience, with a small note like "tracked locally" to set expectations.
+### Data Model
 
-## Changes
+**`bannerads` table** (scope: contract, primary key: `time`)
+| Field | Type | Description |
+|-------|------|-------------|
+| `time` | uint64 | Slot start timestamp (primary key, each slot = 24 hours) |
+| `user` | name | Account that rented this slot |
+| `ipfs_hash` | string | IPFS hash of banner image |
+| `website_url` | string | Click-through URL |
 
-### 1. `src/components/farm/NFTStaking.tsx` -- Redesign rewards layout
+**`config` table** (singleton)
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | uint64 | Always 1 |
+| `wax_price_per_day` | asset | Price in WAX (default: "100.00000000 WAX") |
+| `wax_per_cheese_baseline` | double | For deviation checks |
 
-**Current layout**: A left-aligned stack of "Claimable Now" and "Pending" with the Claim button floated right.
+### Actions
 
-**New layout**: A responsive grid with 3 metric columns plus the claim button:
+**`initbannerad`** (admin only -- `require_auth(get_self())`)
+- Parameters: `start_time` (uint64), `amount_of_slots` (uint64)
+- Creates empty banner ad rows in the table, each 24 hours apart starting from `start_time`
+- Sets `user` to the contract account and blank `ipfs_hash`/`website_url`
+
+**`editadbanner`** (user action)
+- Parameters: `user` (name), `start_time` (uint64), `ipfs_hash` (string), `website_url` (string)
+- Requires `require_auth(user)`
+- Finds the slot by `start_time` in the table
+- Validates the user has already paid (slot `user` field matches)
+- Updates `ipfs_hash` and `website_url`
+
+**`setconfig`** (admin only)
+- Parameters: `wax_price_per_day` (asset), `wax_per_cheese_baseline` (double)
+- Updates pricing config
+
+**`withdraw`** (admin only)
+- Same pattern as cheesefeefee -- withdraw any token from the contract
+
+### Payment Flow
+
+Payment happens via token transfer notifications. The contract listens for both WAX and CHEESE transfers:
+
+**WAX Payment** (`eosio.token::transfer` notification):
+1. User transfers WAX to the contract with memo: `banner|{start_time}|{num_days}`
+2. Contract validates: 100 WAX per day (amount >= num_days * 100 WAX)
+3. Contract assigns the slot(s) to the user
+4. WAX stays in the contract for the owner to withdraw
+
+**CHEESE Payment** (`cheeseburger::transfer` notification):
+1. User transfers CHEESE with memo: `banner|{start_time}|{num_days}`
+2. Contract reads Alcor Pool 1252 (CHEESE/WAX) to get current WAX-per-CHEESE price
+3. Validates CHEESE value >= num_days * 100 WAX worth
+4. Applies price deviation check (reuses same logic as cheesefeefee)
+5. Distributes CHEESE: 66% burned to `eosio.null`, 34% to `xcheeseliqst`
+
+### Security Features
+- Same two-pool pricing approach and deviation checks from cheesefeefee for CHEESE valuation
+- Slot validation: cannot rent already-rented slots (user != contract account means taken)
+- Cannot rent slots in the past
+- Input validation on IPFS hash length and URL length
+- Only slot renter can edit their own banner content
+
+## Contract File Structure
 
 ```
-+-------------------+-------------------+-------------------+
-|  Claimable Now    |     Pending       |   Total Claimed   |
-|  1234.5678 CHEESE |  +12.3456 CHEESE  |  5000.0000 CHEESE |
-|                   |  (in 2:34)        |  (tracked locally)|
-+-------------------+-------------------+-------------------+
-|              [ Claim Rewards Button ]                     |
-+-----------------------------------------------------------+
+contracts/cheesebannad/
+  cheesebannad.hpp    -- Header with tables, constants, action declarations
+  cheesebannad.cpp    -- Implementation
+  Makefile            -- Build rules (same pattern as cheesefeefee)
+  README.md           -- Deployment and usage instructions
 ```
-
-- Each column shows the token logo, amount badge, and label
-- On mobile, the grid collapses to a single column with clear spacing
-- The Claim button spans full width below the metrics
-- NFT count ("3 NFTs staked") moves to the card header area next to "Your Rewards"
-
-### 2. `src/components/farm/NFTStaking.tsx` -- Add Total Claimed tracking
-
-- Add state for `totalClaimed` loaded from localStorage on mount
-- Key format: `farm_claimed_{farmName}_{account}` to track per-farm per-user
-- On successful claim, add the claimed amounts to the stored totals
-- Display with a subtle "(tracked locally)" label so users understand the data source
-
-### 3. `src/components/farm/NFTStaking.tsx` -- Update claim handler
-
-- After a successful claim transaction, read the current `pendingRewards` values and add them to the localStorage totals
-- Refresh the `totalClaimed` state
 
 ## Technical Details
 
-- **localStorage key**: `cheese_farm_claimed_{farmName}_{accountName}` storing a JSON object like `{ "CHEESE": 1234.5678, "WAX": 0.5 }`
-- **Grid classes**: `grid grid-cols-1 sm:grid-cols-3 gap-4` for the 3-column responsive layout
-- **Claim button**: Moves below the grid as a full-width button with `w-full` class
-- **NFT count badge**: Moves to header row: "Your Rewards -- 3 NFTs staked"
-- No new dependencies needed
+### Constants
+```cpp
+static constexpr name WAX_CONTRACT = "eosio.token"_n;
+static constexpr symbol WAX_SYMBOL = symbol("WAX", 8);
+static constexpr name CHEESE_CONTRACT = "cheeseburger"_n;
+static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 4);
+static constexpr name NULL_ACCOUNT = "eosio.null"_n;
+static constexpr name LIQUIDITY_STAKING = "xcheeseliqst"_n;
+static constexpr name ALCOR_CONTRACT = "swap.alcor"_n;
+static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;
+static constexpr double BURN_PERCENT = 0.66;
+static constexpr uint64_t SECONDS_PER_DAY = 86400;
+static constexpr int64_t DEFAULT_WAX_PRICE = 10000000000; // 100 WAX (8 decimals)
+```
 
+### Alcor Pool Table
+Reuses the same `alcor_pool` struct from cheesefeefee for reading pool reserves and calculating CHEESE-to-WAX price.
+
+### Compilation
+Same CDT toolchain as cheesefeefee. The Makefile will follow the same pattern.
+
+### Post-Deployment Steps
+1. Create WAX account
+2. Deploy contract
+3. Add `eosio.code` to active permission: `cleos set account permission <account> active --add-code`
+4. Fund contract with enough RAM
+5. Call `setconfig` to set pricing
+6. Call `initbannerad` to create initial ad slots

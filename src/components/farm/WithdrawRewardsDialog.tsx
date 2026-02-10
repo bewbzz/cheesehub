@@ -42,7 +42,8 @@ export function WithdrawRewardsDialog({ farm, onSuccess }: WithdrawRewardsDialog
 
     setIsLoading(true);
     try {
-      const quantities: string[] = [];
+      const actions: any[] = [];
+      const withdrawnTokens: string[] = [];
 
       for (const [indexStr, value] of Object.entries(amounts)) {
         const numAmount = parseFloat(value);
@@ -51,29 +52,32 @@ export function WithdrawRewardsDialog({ farm, onSuccess }: WithdrawRewardsDialog
         const index = parseInt(indexStr);
         const pool = farm.reward_pools[index];
         const formattedAmount = numAmount.toFixed(pool.precision);
-        quantities.push(`${formattedAmount} ${pool.symbol}`);
-      }
+        const quantity = `${formattedAmount} ${pool.symbol}`;
 
-      if (quantities.length === 0) {
-        toast.error("Please enter at least one valid amount");
-        return;
-      }
-
-      const actions = [
-        {
+        actions.push({
           account: "farms.waxdao",
           name: "withdraw",
           authorization: [{ actor: accountName, permission: "active" }],
           data: {
             user: accountName,
             farm_name: farm.farm_name,
-            quantities,
+            amount: {
+              quantity,
+              contract: pool.contract,
+            },
           },
-        },
-      ];
+        });
+
+        withdrawnTokens.push(quantity);
+      }
+
+      if (actions.length === 0) {
+        toast.error("Please enter at least one valid amount");
+        return;
+      }
 
       await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
-      toast.success(`Successfully withdrew ${quantities.join(", ")} from ${farm.farm_name}`);
+      toast.success(`Successfully withdrew ${withdrawnTokens.join(", ")} from ${farm.farm_name}`);
       setOpen(false);
       setAmounts({});
       onSuccess?.();

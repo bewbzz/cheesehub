@@ -175,8 +175,8 @@ export function FarmDetail() {
   const now = Math.floor(Date.now() / 1000);
   const createdDate = new Date(farm.time_created * 1000);
   
-  // Farm is "under construction" if it hasn't been opened yet (status 0 or expiration is 0)
-  const isUnderConstruction = (farm.status === 0 || farm.expiration === 0) && farm.status !== 2 && farm.status !== 3;
+  // Farm is "under construction" only if it has never been opened (status 0 AND expiration 0)
+  const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
   // Farm is "expired" only if it's been opened and has passed its expiration date
   const isExpired = !isUnderConstruction && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);

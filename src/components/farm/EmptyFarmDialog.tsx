@@ -93,7 +93,10 @@ export function EmptyFarmDialog({ farm, onSuccess }: EmptyFarmDialogProps) {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleEmpty}
+            onClick={(e) => {
+              e.preventDefault();
+              handleEmpty();
+            }}
             disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90"
           >

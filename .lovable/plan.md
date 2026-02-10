@@ -1,77 +1,78 @@
 
 
-# Fix: Kick Users Button Missing and Open Farm Button Incorrectly Showing
+# Fix: Close Farm Transaction Not Broadcasting + isUnderConstruction Logic
 
-## Root Cause
+## Problem 1: AlertDialogAction auto-closes before transaction sends
 
-The `isUnderConstruction` flag on line 179 of `FarmDetail.tsx` is defined as:
+The Radix UI `AlertDialogAction` component automatically closes the dialog on click. Since `handleCloseFarm` is async (it needs to wait for wallet signing and broadcast), the dialog unmounts before the transaction completes. The toast fires from the `try` block but the `session.transact()` call gets interrupted.
 
-```text
-const isUnderConstruction = farm.status === 0 || farm.expiration === 0;
+## Problem 2: isUnderConstruction uses OR instead of AND
+
+The current logic `(farm.status === 0 || farm.expiration === 0)` means any farm with status 0 is "under construction" even if it was opened and expired. The WaxDAO contract keeps status at 0 for active/expired farms. It should use AND -- a farm is only under construction if it has never been opened (status 0 AND expiration 0).
+
+## Changes
+
+### File: `src/components/farm/CloseFarmDialog.tsx` (line 98-101)
+
+Add `e.preventDefault()` to stop the AlertDialogAction from auto-closing:
+
+```
+<AlertDialogAction
+  onClick={(e) => {
+    e.preventDefault();
+    handleCloseFarm();
+  }}
+  disabled={isSubmitting}
+  ...
 ```
 
-When the WaxDAO contract closes a farm (status 2), it likely resets or zeroes the expiration field. This causes `farm.expiration === 0` to be true, making `isUnderConstruction` true **even though the farm is closed**. This has two effects:
+### File: `src/components/farm/PermCloseFarmDialog.tsx` (line 98-101)
 
-- The "Open Farm" button appears (it renders when `isUnderConstruction` is true)
-- The "Kick Users" button is hidden because the Farm Status display area doesn't show closed/permclosed states, and `isClosed` conditions are evaluated separately but the UI flow is broken by the incorrect status cascade
+Same fix -- add `e.preventDefault()`:
 
-Additionally, the Farm Status text display (lines 347-355) only shows "Under Construction", "Expired", or "Active" -- it never shows "Closed" or "Permanently Closed", making it confusing for creators.
-
-## The Fix
-
-### File: `src/components/farm/FarmDetail.tsx`
-
-**Change 1: Fix `isUnderConstruction` to exclude closed/permclosed farms**
-
-Update line 179 to:
-```text
-const isUnderConstruction = (farm.status === 0 || farm.expiration === 0) 
-  && farm.status !== 2 && farm.status !== 3;
+```
+<AlertDialogAction
+  onClick={(e) => {
+    e.preventDefault();
+    handlePermCloseFarm();
+  }}
+  disabled={isSubmitting}
+  ...
 ```
 
-This ensures that closed (status 2) and permanently closed (status 3) farms are never treated as "under construction", even if their expiration is 0.
+### File: `src/components/farm/EmptyFarmDialog.tsx` (line 95-98)
 
-**Change 2: Fix the Farm Status text display**
+Same fix -- add `e.preventDefault()`:
 
-Update lines 347-355 to include Closed and Permanently Closed states:
-```text
-{isPermClosed ? (
-  <span className="text-red-400">Permanently Closed</span>
-) : isClosed ? (
-  <span className="text-amber-400">Closed</span>
-) : isUnderConstruction ? (
-  <span className="text-amber-400">Under Construction</span>
-) : isExpired ? (
-  <span className="text-red-400">Expired</span>
-) : (
-  <span className="text-green-400">Active</span>
-)}
+```
+<AlertDialogAction
+  onClick={(e) => {
+    e.preventDefault();
+    handleEmpty();
+  }}
+  disabled={isSubmitting}
+  ...
 ```
 
-**Change 3: Ensure Open Farm button also checks closed status explicitly**
+### File: `src/components/farm/FarmDetail.tsx` (line 179)
 
-Update lines 291-293 and 343-345 to add explicit guards:
-```text
-{isCreator && isUnderConstruction && !isClosed && !isPermClosed && (
-  <OpenFarmDialog ... />
-)}
+Change OR to AND:
+
+```
+const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
 ```
 
-This is a belt-and-suspenders safeguard in case other code paths set `isUnderConstruction` incorrectly.
+This means:
+- `status: 0, expiration: 0` = genuinely never opened = "Under Construction" with Open Farm button
+- `status: 0, expiration: non-zero` = was opened, now expired = "Expired"
+- `status: 2` = closed = "Closed" with Kick Users / Open Farm (if no stakers)
+- `status: 3` = permanently closed
 
-**Change 4: Show Open Farm button for closed farms with no stakers**
-
-Per the existing memory context, closed farms (not permclosed) can be reopened. Add the "Open Farm" button alongside the "No stakers to kick" message for closed farms:
-```text
-{isCreator && isClosed && !hasStakers && (
-  <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
-)}
-```
+The existing Change 4 from the previous edit (showing Open Farm for closed farms with no stakers) remains correct and is already in place.
 
 ## Result
 
-After these changes:
-- Closing a farm will correctly show the "Closed" badge and status text
-- The "Kick Users" button will appear when the farm is closed and has stakers
-- The "Open Farm" button will only appear for genuinely under-construction farms, or for closed farms with no stakers remaining
-- The status display will correctly show all 5 states: Under Construction, Active, Expired, Closed, Permanently Closed
+- Close/PermClose/Empty dialogs will stay open while the wallet signs and broadcasts
+- Farm status displays correctly after closure
+- Kick Users button appears for closed farms with stakers
+- Open Farm button appears for: (1) never-opened farms, and (2) closed farms after all stakers are kicked

@@ -176,7 +176,7 @@ export function FarmDetail() {
   const createdDate = new Date(farm.time_created * 1000);
   
   // Farm is "under construction" if it hasn't been opened yet (status 0 or expiration is 0)
-  const isUnderConstruction = farm.status === 0 || farm.expiration === 0;
+  const isUnderConstruction = (farm.status === 0 || farm.expiration === 0) && farm.status !== 2 && farm.status !== 3;
   // Farm is "expired" only if it's been opened and has passed its expiration date
   const isExpired = !isUnderConstruction && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
@@ -288,7 +288,7 @@ export function FarmDetail() {
                 onSuccess={handleFarmUpdated} 
               />
             )}
-            {isCreator && isUnderConstruction && (
+            {isCreator && isUnderConstruction && !isClosed && !isPermClosed && (
               <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
             )}
           </div>
@@ -340,12 +340,16 @@ export function FarmDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground">Farm Status</p>
-                  {isCreator && isUnderConstruction && (
+                  {isCreator && isUnderConstruction && !isClosed && !isPermClosed && (
                     <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
                 </div>
                 <p className="font-medium">
-                  {isUnderConstruction ? (
+                  {isPermClosed ? (
+                    <span className="text-red-400">Permanently Closed</span>
+                  ) : isClosed ? (
+                    <span className="text-amber-400">Closed</span>
+                  ) : isUnderConstruction ? (
                     <span className="text-amber-400">Under Construction</span>
                   ) : isExpired ? (
                     <span className="text-red-400">Expired</span>
@@ -385,7 +389,12 @@ export function FarmDetail() {
                   )}
                   {/* Show message if closed/perm closed with no stakers */}
                   {isCreator && (isClosed || isPermClosed) && !hasStakers && (
-                    <span className="text-xs text-muted-foreground">No stakers to kick</span>
+                    <>
+                      <span className="text-xs text-muted-foreground">No stakers to kick</span>
+                      {isClosed && !isPermClosed && (
+                        <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      )}
+                    </>
                   )}
                   {/* Show Empty Farm if perm closed and no stakers left */}
                   {isCreator && isPermClosed && !hasStakers && (

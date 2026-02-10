@@ -405,27 +405,18 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       const now = Math.floor(Date.now() / 1000);
       const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
       
-      // Cap at farm expiration -- rewards stop accruing once farm expires
-      const isExpired = farm.expiration > 0 && now > farm.expiration;
-      const effectiveNow = isExpired ? farm.expiration : now;
-      
       // Use USER's last_state_change, not farm's last_payout
-      const userLastStateChange = stakerData.lastStateChange || effectiveNow;
+      const userLastStateChange = stakerData.lastStateChange || now;
       
       // Calculate completed payout periods since USER's last state change
-      const timeSinceUserStateChange = Math.max(0, effectiveNow - userLastStateChange);
+      const timeSinceUserStateChange = now - userLastStateChange;
       const completedPeriods = Math.floor(timeSinceUserStateChange / payoutInterval);
       const claimableHours = (completedPeriods * payoutInterval) / 3600;
       
       // Time remaining in current incomplete period (for countdown)
-      // If expired, no next payout
-      if (isExpired) {
-        setNextPayoutIn(0);
-      } else {
-        const elapsedInCurrentPeriod = timeSinceUserStateChange % payoutInterval;
-        const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
-        setNextPayoutIn(secondsUntilNextPayout);
-      }
+      const elapsedInCurrentPeriod = timeSinceUserStateChange % payoutInterval;
+      const secondsUntilNextPayout = payoutInterval - elapsedInCurrentPeriod;
+      setNextPayoutIn(secondsUntilNextPayout);
 
       // Calculate claimable rewards (base + accumulated from completed periods)
       const claimable = stakerData.claimableBalances.map((balance) => {
@@ -908,13 +899,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       ]);
     } catch (error) {
       console.error("Stake failed:", error);
-      const errMsg = error instanceof Error ? error.message : "Failed to stake NFTs";
-      const isInsufficientRewards = /needs \d+ but has \d+/.test(errMsg);
       toast({
-        title: isInsufficientRewards ? "Insufficient Reward Pool" : "Staking Failed",
-        description: isInsufficientRewards
-          ? "There are not enough rewards deposited in the reward pool to cover the earning capacity of this NFT. Ask the farm creator to deposit more funds."
-          : errMsg,
+        title: "Staking Failed",
+        description: error instanceof Error ? error.message : "Failed to stake NFTs",
         variant: "destructive",
       });
     } finally {
@@ -976,15 +963,9 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     try {
       const action = buildClaimRewardsAction(session.actor.toString(), farm.farm_name);
       
-      const result = await session.transact({ actions: [action] });
+      await session.transact({ actions: [action] });
       
-      // Validate the transaction was actually successful on-chain
-      const txId = result?.response?.transaction_id || (result as any)?.transaction_id;
-      if (!txId) {
-        throw new Error('Transaction was broadcast but no transaction ID was returned. The claim may not have succeeded.');
-      }
-      
-      // Update total claimed in localStorage only after confirmed txId
+      // Update total claimed in localStorage
       try {
         const updated = { ...totalClaimed };
         for (const r of claimableSnapshot) {
@@ -1603,15 +1584,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Expiration warning */}
-          {farm.expiration > 0 && Math.floor(Date.now() / 1000) > farm.expiration && stakedNfts.length > 0 && (
-            <Alert className="mb-4 border-destructive/50 bg-destructive/10">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              <AlertDescription className="text-sm text-destructive">
-                This farm has expired. Rewards are no longer accruing. Speak to the farm owner about opening it again and claim any remaining rewards.
-              </AlertDescription>
-            </Alert>
-          )}
           {/* 3-column rewards grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             {/* Pending */}

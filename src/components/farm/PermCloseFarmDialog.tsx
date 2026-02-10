@@ -96,10 +96,7 @@ export function PermCloseFarmDialog({ farm, onSuccess }: PermCloseFarmDialogProp
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              handlePermCloseFarm();
-            }}
+            onClick={handlePermCloseFarm}
             disabled={isSubmitting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >

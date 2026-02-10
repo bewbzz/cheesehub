@@ -1,71 +1,46 @@
 
-# Fix: Replace Close Farm with Working Actions for Expired Farms
+# CHEESEAmp Global Library
 
-## What's Actually Happening
+## Summary
+Add a "Global Library" tab to CHEESEAmp that fetches music NFTs from a dedicated WAX account (e.g., `cheeseamphub`). This allows anyone — even users with zero music NFTs — to browse and play tracks curated by the CHEESEAmp team. No smart contract required; it reuses the existing AtomicAssets fetching logic.
 
-The farm testfarm3 **is genuinely expired** (status 0, past expiration). It was never closed -- the `closefarm` contract action only works on **active** farms that haven't expired yet. The "farm is not open" error is the contract rejecting the action because the farm already expired naturally.
-
-For expired farms with no stakers, you don't need to "close" them first. You can directly:
-- **Open Farm** again (set a new expiration and reactivate)
-- **Perm Close** (permanently shut down and retrieve leftover rewards)
+## How It Works
+1. A dedicated WAX account (you create and fund it, e.g., `cheeseamphub`) holds curated music NFTs
+2. CHEESEAmp fetches that account's music NFTs using the same `useMusicNFTs` logic
+3. Users see a new "Global" tab alongside "Library" and "Playlists"
+4. When "Global" is selected, the tracklist shows the shared collection instead of the user's own NFTs
+5. All playback features (play, shuffle, repeat, playlists) work identically with global tracks
 
 ## Changes
 
-### File: `src/components/farm/FarmDetail.tsx`
+### 1. Make `useMusicNFTs` accept an optional account parameter
+**File: `src/hooks/useMusicNFTs.ts`**
+- Add a new exported hook `useGlobalMusicNFTs(accountName: string)` or refactor `useMusicNFTs` to accept an optional `owner` parameter override
+- Simplest approach: extract the core fetching logic into a reusable internal function, then expose two hooks:
+  - `useMusicNFTs()` -- existing behavior, uses logged-in user
+  - `useMusicNFTs(overrideAccount)` -- fetches for a specific account
+- The global account name will be a constant: `const CHEESEAMP_GLOBAL_ACCOUNT = 'cheeseamphub';`
 
-**Button visibility for expired farms (lines 379-385)**
+### 2. Add Global Library tab to CheeseAmpPlayer
+**File: `src/components/music/CheeseAmpPlayer.tsx`**
+- Add a third tab button "Global" next to "Library" and "Playlists" in the tab bar (around line 479)
+- Add a new view mode: `'library' | 'playlists' | 'global'`
+- When `viewMode === 'global'`, call the global music NFTs hook and display those tracks in the same tracklist component
+- The "no music NFTs" empty state (line 275-294) should change: instead of showing nothing, offer a button to switch to the Global Library
 
-Replace the Close Farm + Perm Close button pair for expired farms with:
-- **Open Farm** button (to reopen with new expiration) -- only when no stakers
-- **Perm Close** button (to permanently shut down) -- always available for expired
-- **Kick Users** button -- only when there are stakers
-- Remove the **Close Farm** button from the expired state entirely since the contract does not support closing an already-expired farm
+### 3. Integrate global tracks with playlist system
+**File: `src/components/music/CheeseAmpPlayer.tsx`**
+- When viewing global tracks, pass them to `useCheeseAmpPlaylist` as the active track list so shuffle/repeat/next/previous all work
+- Users can add global tracks to their personal playlists (the playlist stores asset IDs which remain valid regardless of source)
 
-**Updated guidance text for expired farms (lines 311-318)**
+### 4. Visual distinction
+- Global tracks get a small globe or "G" badge in the tracklist to distinguish them from owned tracks
+- The tab shows track count: "Global (24)"
 
-Update the creator info box to reflect the actual available options:
-- If stakers remain: kick all users first, then choose to reopen or permanently close
-- If no stakers: directly reopen or permanently close
+## What You Need To Do (Outside Lovable)
+- Create a WAX account (e.g., `cheeseamphub`)
+- Transfer curated music NFTs to that account
+- That is it -- the frontend handles the rest automatically
 
-### Updated Button Logic
-
-| Farm State | Stakers? | Buttons Shown |
-|---|---|---|
-| Active (status 0, future expiry) | Any | Close Farm, Extend |
-| Expired (status 0, past expiry) | Yes | Kick Users, Perm Close |
-| Expired (status 0, past expiry) | No | Open Farm, Perm Close |
-| Closed (status 2) | Yes | Kick Users |
-| Closed (status 2) | No | Open Farm |
-| Perm Closed (status 3) | Yes | Kick Users |
-| Perm Closed (status 3) | No | Empty Farm |
-| Under Construction | No | Open Farm |
-
-### Technical Detail
-
-The expired-farm button section (lines 379-385) changes from:
-
-```typescript
-{isCreator && isExpired && !isClosed && !isPermClosed && (
-  <>
-    <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
-    <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
-  </>
-)}
-```
-
-To:
-
-```typescript
-{isCreator && isExpired && !isClosed && !isPermClosed && (
-  <>
-    {hasStakers ? (
-      <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
-    ) : (
-      <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
-    )}
-    <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
-  </>
-)}
-```
-
-The guidance text in the info box will also update to match these options.
+## No Smart Contract Needed
+The music NFTs are standard AtomicAssets. The frontend just reads them from a different account. No on-chain logic, no permissions, no fees. The dedicated account simply holds the NFTs as a curated collection.

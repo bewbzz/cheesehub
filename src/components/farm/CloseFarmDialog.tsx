@@ -96,10 +96,7 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              handleCloseFarm();
-            }}
+            onClick={handleCloseFarm}
             disabled={isSubmitting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >

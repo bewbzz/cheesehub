@@ -310,11 +310,11 @@ export function FarmDetail() {
                   <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
                 ) : isExpired ? (
                   <div className="space-y-2">
-                    <p>You have 2 choices:</p>
-                    <ol className="list-decimal list-inside space-y-1 ml-1">
-                      <li>Close the farm, kick all users, update stakeable assets and values (optional) then open the farm again.</li>
-                      <li>Permanently close the farm, kick all users, then use the <strong>Empty Farm</strong> option to retrieve any leftover reward tokens. Once a farm is permanently closed it cannot be opened or extended.</li>
-                    </ol>
+                    {hasStakers ? (
+                      <p>Your farm has expired. Kick all stakers first, then you can <strong>Open Farm</strong> again with a new expiration or <strong>Perm Close</strong> to permanently shut down and retrieve leftover rewards.</p>
+                    ) : (
+                      <p>Your farm has expired. You can <strong>Open Farm</strong> again with a new expiration, or <strong>Perm Close</strong> to permanently shut down and retrieve leftover rewards.</p>
+                    )}
                   </div>
                 ) : (
                   <p>Extend your farm by pressing the <strong>Extend</strong> button. However, before doing so you will need to deposit enough rewards to cover the current NFTs staked for the planned added time. Extending a farm is much easier while the farm is still active and not expired.</p>
@@ -376,10 +376,14 @@ export function FarmDetail() {
                   {isCreator && !isUnderConstruction && !isExpired && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
-                  {/* Show Close/Perm Close buttons for expired farms that aren't already closed */}
+                  {/* Show appropriate buttons for expired farms */}
                   {isCreator && isExpired && !isClosed && !isPermClosed && (
                     <>
-                      <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      {hasStakers ? (
+                        <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      ) : (
+                        <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      )}
                       <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
                     </>
                   )}

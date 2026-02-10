@@ -236,7 +236,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
       onOpenChange(isOpen);
     }}>
       <DialogContent 
-        className="sm:max-w-[1000px] max-h-[90vh] overflow-hidden"
+        className="sm:max-w-[1000px] max-h-[90vh] flex flex-col overflow-hidden"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
@@ -248,7 +248,7 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
           <DialogDescription className="sr-only">Manage your wallet tokens, staking, and RAM</DialogDescription>
         </DialogHeader>
         
-        <div className="flex gap-4 h-[810px]">
+        <div className="flex gap-4 h-[810px] min-h-0">
           {/* Left Sidebar Menu */}
           <div className="w-40 shrink-0 border-r border-border pr-4 flex flex-col">
             {/* Main menu items - takes available space */}

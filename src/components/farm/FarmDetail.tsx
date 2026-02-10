@@ -178,13 +178,13 @@ export function FarmDetail() {
   // Farm is "under construction" only if it has never been opened (status 0 AND expiration 0)
   const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
   // Farm is "expired" only if it's been opened and has passed its expiration date
-  const isExpired = !isUnderConstruction && farm.expiration < now;
-  const expirationDate = new Date(farm.expiration * 1000);
-  const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
-  
   // Farm status codes: 0 = Under Construction, 1 = Active, 2 = Closed, 3 = Permanently Closed
   const isClosed = farm.status === 2;
   const isPermClosed = farm.status === 3;
+  // Farm is "expired" only if it's been opened, not closed/permclosed, and has passed its expiration date
+  const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
+  const expirationDate = new Date(farm.expiration * 1000);
+  const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
   const hasStakers = farm.staked_count > 0;
   const isCreator = accountName && accountName === farm.creator;
 

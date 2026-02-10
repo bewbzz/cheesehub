@@ -373,8 +373,11 @@ export function FarmDetail() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-muted-foreground">Expires</p>
-                  {isCreator && !isUnderConstruction && !isExpired && (
-                    <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                  {isCreator && !isUnderConstruction && !isExpired && !isClosed && !isPermClosed && (
+                    <>
+                      <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                      <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+                    </>
                   )}
                   {/* Show appropriate buttons for expired farms */}
                   {isCreator && isExpired && !isClosed && !isPermClosed && (

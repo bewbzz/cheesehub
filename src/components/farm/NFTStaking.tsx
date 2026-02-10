@@ -898,9 +898,13 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       ]);
     } catch (error) {
       console.error("Stake failed:", error);
+      const errMsg = error instanceof Error ? error.message : "Failed to stake NFTs";
+      const isInsufficientRewards = /needs\s+\d+.*but\s+has\s+\d+/i.test(errMsg);
       toast({
         title: "Staking Failed",
-        description: error instanceof Error ? error.message : "Failed to stake NFTs",
+        description: isInsufficientRewards
+          ? "There are not enough rewards in the pool to support the earning power of this NFT. Please ask the farm owner to deposit more."
+          : errMsg,
         variant: "destructive",
       });
     } finally {

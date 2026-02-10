@@ -1,36 +1,71 @@
 
+# Fix: Replace Close Farm with Working Actions for Expired Farms
 
-# Fix: isExpired Must Exclude Closed/PermClosed Farms
+## What's Actually Happening
 
-## Problem
+The farm testfarm3 **is genuinely expired** (status 0, past expiration). It was never closed -- the `closefarm` contract action only works on **active** farms that haven't expired yet. The "farm is not open" error is the contract rejecting the action because the farm already expired naturally.
 
-Line 181 in `FarmDetail.tsx`:
-```
-const isExpired = !isUnderConstruction && farm.expiration < now;
-```
+For expired farms with no stakers, you don't need to "close" them first. You can directly:
+- **Open Farm** again (set a new expiration and reactivate)
+- **Perm Close** (permanently shut down and retrieve leftover rewards)
 
-This evaluates to `true` for closed farms (status 2) that have a past expiration -- which is almost always the case. So testfarm3 shows "Expired" with a "Close Farm" button instead of "Closed" with "Kick Users" / "Open Farm" buttons.
+## Changes
 
-## Fix
+### File: `src/components/farm/FarmDetail.tsx`
 
-**File: `src/components/farm/FarmDetail.tsx`** (line 181)
+**Button visibility for expired farms (lines 379-385)**
 
-Exclude closed and permanently closed farms from the expired check:
+Replace the Close Farm + Perm Close button pair for expired farms with:
+- **Open Farm** button (to reopen with new expiration) -- only when no stakers
+- **Perm Close** button (to permanently shut down) -- always available for expired
+- **Kick Users** button -- only when there are stakers
+- Remove the **Close Farm** button from the expired state entirely since the contract does not support closing an already-expired farm
 
-```
-const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
-```
+**Updated guidance text for expired farms (lines 311-318)**
 
-This requires reordering the declarations so `isClosed` and `isPermClosed` are defined before `isExpired`. Move lines 186-187 above line 181.
+Update the creator info box to reflect the actual available options:
+- If stakers remain: kick all users first, then choose to reopen or permanently close
+- If no stakers: directly reopen or permanently close
 
-## Resulting Status Logic
+### Updated Button Logic
 
-| On-chain state | UI Status | Buttons (creator) |
+| Farm State | Stakers? | Buttons Shown |
 |---|---|---|
-| status 0, expiration 0 | Under Construction | Open Farm |
-| status 0, expiration > now | Active | Close Farm, Extend, etc. |
-| status 0, expiration < now | Expired | Close Farm |
-| status 2, stakers > 0 | Closed | Kick Users |
-| status 2, stakers = 0 | Closed | Open Farm |
-| status 3 | Permanently Closed | Empty Farm (if rewards remain) |
+| Active (status 0, future expiry) | Any | Close Farm, Extend |
+| Expired (status 0, past expiry) | Yes | Kick Users, Perm Close |
+| Expired (status 0, past expiry) | No | Open Farm, Perm Close |
+| Closed (status 2) | Yes | Kick Users |
+| Closed (status 2) | No | Open Farm |
+| Perm Closed (status 3) | Yes | Kick Users |
+| Perm Closed (status 3) | No | Empty Farm |
+| Under Construction | No | Open Farm |
 
+### Technical Detail
+
+The expired-farm button section (lines 379-385) changes from:
+
+```typescript
+{isCreator && isExpired && !isClosed && !isPermClosed && (
+  <>
+    <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+    <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
+  </>
+)}
+```
+
+To:
+
+```typescript
+{isCreator && isExpired && !isClosed && !isPermClosed && (
+  <>
+    {hasStakers ? (
+      <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
+    ) : (
+      <OpenFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+    )}
+    <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
+  </>
+)}
+```
+
+The guidance text in the info box will also update to match these options.

@@ -313,22 +313,12 @@ export function NFTStaking({ farm }: NFTStakingProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [totalClaimed, setTotalClaimed] = useState<Record<string, number>>({});
+  
   
   // Refs for virtualized lists
   const stakeParentRef = useRef<HTMLDivElement>(null);
   const unstakeParentRef = useRef<HTMLDivElement>(null);
 
-  // Load total claimed from localStorage
-  const claimedStorageKey = `cheese_farm_claimed_${farm.farm_name}_${accountName || ''}`;
-  useEffect(() => {
-    if (!accountName) return;
-    try {
-      const stored = localStorage.getItem(claimedStorageKey);
-      if (stored) setTotalClaimed(JSON.parse(stored));
-      else setTotalClaimed({});
-    } catch { setTotalClaimed({}); }
-  }, [claimedStorageKey, accountName]);
 
   // Fetch stakable config
   const { data: stakableConfig } = useQuery({
@@ -980,20 +970,6 @@ export function NFTStaking({ farm }: NFTStakingProps) {
         throw new Error('Transaction was broadcast but no transaction ID was returned. The claim may not have succeeded.');
       }
       
-      // Update total claimed in localStorage only after confirmed txId
-      try {
-        const updated = { ...totalClaimed };
-        for (const r of claimableSnapshot) {
-          if (r.amount > 0) {
-            updated[r.symbol] = (updated[r.symbol] || 0) + r.amount;
-          }
-        }
-        setTotalClaimed(updated);
-        localStorage.setItem(claimedStorageKey, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save claimed totals:', e);
-      }
-      
       toast({
         title: "Rewards Claimed!",
         description: `Successfully claimed rewards from ${farm.farm_name}`,
@@ -1608,8 +1584,8 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               </AlertDescription>
             </Alert>
           )}
-          {/* 3-column rewards grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          {/* 2-column rewards grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             {/* Pending */}
             <div className="rounded-lg border border-border/50 bg-background/50 p-3">
               <p className="text-xs text-muted-foreground mb-2 font-medium">
@@ -1669,47 +1645,14 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               )}
             </div>
 
-            {/* Total Claimed */}
-            <div className="rounded-lg border border-border/50 bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">
-                Total Claimed
-                <span className="text-muted-foreground/50 ml-1 font-normal">(tracked locally)</span>
-              </p>
-              {Object.keys(totalClaimed).length > 0 ? (
-                <div className="space-y-1.5">
-                  {Object.entries(totalClaimed).map(([symbol, amount]) => {
-                    const matchingReward = pendingRewards.find(r => r.symbol === symbol) || pendingNextPayout.find(r => r.symbol === symbol);
-                    const precision = matchingReward?.precision ?? 4;
-                    const contract = matchingReward?.contract;
-                    return (
-                      <div key={symbol} className="flex items-center gap-2">
-                        <img
-                          src={contract ? getTokenLogoUrl(contract, symbol) : TOKEN_LOGO_PLACEHOLDER}
-                          alt={symbol}
-                          className="w-5 h-5 rounded-full"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = TOKEN_LOGO_PLACEHOLDER;
-                          }}
-                        />
-                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                          {amount.toFixed(precision)} {symbol}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No claims yet</p>
-              )}
-            </div>
           </div>
 
-          {/* Claim button - 1/3 width, centered */}
+          {/* Claim button */}
           <div className="flex justify-center">
             <Button
               onClick={handleClaim}
               disabled={isClaiming || !hasRewards}
-              className="w-full sm:w-1/3 bg-cheese hover:bg-cheese/90 text-cheese-foreground"
+              className="w-full sm:w-1/2 bg-cheese hover:bg-cheese/90 text-cheese-foreground"
             >
               {isClaiming ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

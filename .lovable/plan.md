@@ -1,78 +1,36 @@
 
 
-# Fix: Close Farm Transaction Not Broadcasting + isUnderConstruction Logic
+# Fix: isExpired Must Exclude Closed/PermClosed Farms
 
-## Problem 1: AlertDialogAction auto-closes before transaction sends
+## Problem
 
-The Radix UI `AlertDialogAction` component automatically closes the dialog on click. Since `handleCloseFarm` is async (it needs to wait for wallet signing and broadcast), the dialog unmounts before the transaction completes. The toast fires from the `try` block but the `session.transact()` call gets interrupted.
-
-## Problem 2: isUnderConstruction uses OR instead of AND
-
-The current logic `(farm.status === 0 || farm.expiration === 0)` means any farm with status 0 is "under construction" even if it was opened and expired. The WaxDAO contract keeps status at 0 for active/expired farms. It should use AND -- a farm is only under construction if it has never been opened (status 0 AND expiration 0).
-
-## Changes
-
-### File: `src/components/farm/CloseFarmDialog.tsx` (line 98-101)
-
-Add `e.preventDefault()` to stop the AlertDialogAction from auto-closing:
-
+Line 181 in `FarmDetail.tsx`:
 ```
-<AlertDialogAction
-  onClick={(e) => {
-    e.preventDefault();
-    handleCloseFarm();
-  }}
-  disabled={isSubmitting}
-  ...
+const isExpired = !isUnderConstruction && farm.expiration < now;
 ```
 
-### File: `src/components/farm/PermCloseFarmDialog.tsx` (line 98-101)
+This evaluates to `true` for closed farms (status 2) that have a past expiration -- which is almost always the case. So testfarm3 shows "Expired" with a "Close Farm" button instead of "Closed" with "Kick Users" / "Open Farm" buttons.
 
-Same fix -- add `e.preventDefault()`:
+## Fix
 
-```
-<AlertDialogAction
-  onClick={(e) => {
-    e.preventDefault();
-    handlePermCloseFarm();
-  }}
-  disabled={isSubmitting}
-  ...
-```
+**File: `src/components/farm/FarmDetail.tsx`** (line 181)
 
-### File: `src/components/farm/EmptyFarmDialog.tsx` (line 95-98)
-
-Same fix -- add `e.preventDefault()`:
+Exclude closed and permanently closed farms from the expired check:
 
 ```
-<AlertDialogAction
-  onClick={(e) => {
-    e.preventDefault();
-    handleEmpty();
-  }}
-  disabled={isSubmitting}
-  ...
+const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
 ```
 
-### File: `src/components/farm/FarmDetail.tsx` (line 179)
+This requires reordering the declarations so `isClosed` and `isPermClosed` are defined before `isExpired`. Move lines 186-187 above line 181.
 
-Change OR to AND:
+## Resulting Status Logic
 
-```
-const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
-```
+| On-chain state | UI Status | Buttons (creator) |
+|---|---|---|
+| status 0, expiration 0 | Under Construction | Open Farm |
+| status 0, expiration > now | Active | Close Farm, Extend, etc. |
+| status 0, expiration < now | Expired | Close Farm |
+| status 2, stakers > 0 | Closed | Kick Users |
+| status 2, stakers = 0 | Closed | Open Farm |
+| status 3 | Permanently Closed | Empty Farm (if rewards remain) |
 
-This means:
-- `status: 0, expiration: 0` = genuinely never opened = "Under Construction" with Open Farm button
-- `status: 0, expiration: non-zero` = was opened, now expired = "Expired"
-- `status: 2` = closed = "Closed" with Kick Users / Open Farm (if no stakers)
-- `status: 3` = permanently closed
-
-The existing Change 4 from the previous edit (showing Open Farm for closed farms with no stakers) remains correct and is already in place.
-
-## Result
-
-- Close/PermClose/Empty dialogs will stay open while the wallet signs and broadcasts
-- Farm status displays correctly after closure
-- Kick Users button appears for closed farms with stakers
-- Open Farm button appears for: (1) never-opened farms, and (2) closed farms after all stakers are kicked

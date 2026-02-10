@@ -66,7 +66,7 @@ export function WithdrawRewardsDialog({ farm, onSuccess }: WithdrawRewardsDialog
           authorization: [{ actor: accountName, permission: "active" }],
           data: {
             user: accountName,
-            farmname: farm.farm_name,
+            farm_name: farm.farm_name,
             quantities,
           },
         },

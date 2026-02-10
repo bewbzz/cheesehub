@@ -74,6 +74,7 @@ import { PermCloseFarmDialog } from "./PermCloseFarmDialog";
 import { KickUsersDialog } from "./KickUsersDialog";
 import { EmptyFarmDialog } from "./EmptyFarmDialog";
 import { DepositRewardsDialog } from "./DepositRewardsDialog";
+import { WithdrawRewardsDialog } from "./WithdrawRewardsDialog";
 import { EditFarmProfile } from "./EditFarmProfile";
 import { useWax } from "@/context/WaxContext";
 import { Pencil } from "lucide-react";
@@ -492,7 +493,12 @@ export function FarmDetail() {
                 <Coins className="h-5 w-5 text-cheese" />
                 Reward Pools
               </CardTitle>
-              <DepositRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
+              <div className="flex items-center gap-2">
+                <DepositRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
+                {isCreator && !isUnderConstruction && !isExpired && !isClosed && !isPermClosed && (
+                  <WithdrawRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

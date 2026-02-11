@@ -48,6 +48,7 @@ import { fetchWithFallback } from "@/lib/fetchWithFallback";
 import { batchGetOrFetch } from "@/lib/templateCache";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
 import { cn } from "@/lib/utils";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { waxRpcCall } from "@/lib/waxRpcFallback";
 
 interface NFTAsset {
@@ -966,7 +967,10 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     try {
       const action = buildClaimRewardsAction(session.actor.toString(), farm.farm_name);
       
-      const result = await session.transact({ actions: [action] });
+      const result = await session.transact(
+        { actions: [action] },
+        { transactPlugins: getTransactPlugins(session) }
+      );
       
       // Validate the transaction was actually successful on-chain
       const txId = result?.response?.transaction_id || (result as any)?.transaction_id;
@@ -982,13 +986,18 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       await refetchStaked();
     } catch (error) {
       console.error("Claim failed:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to claim rewards";
+      const isOverdrawn = errorMsg.toLowerCase().includes("overdrawn");
       toast({
-        title: "Claim Failed",
-        description: error instanceof Error ? error.message : "Failed to claim rewards",
+        title: isOverdrawn ? "Insufficient Reward Pool" : "Claim Failed",
+        description: isOverdrawn
+          ? "The reward pool does not have enough tokens to cover your claim. Please ask the farm owner to deposit more rewards."
+          : errorMsg,
         variant: "destructive",
       });
     } finally {
       setIsClaiming(false);
+      closeWharfkitModals();
     }
   };
 

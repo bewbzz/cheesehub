@@ -11,6 +11,7 @@ import Locker from "./pages/Locker";
 import Drops from "./pages/Drops";
 import DropDetail from "./pages/DropDetail";
 import Dao from "./pages/Dao";
+import DaoDetailPage from "./pages/DaoDetail";
 import Farm from "./pages/Farm";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => {
                 <Route path="/drops" element={<Drops />} />
                 <Route path="/drops/:id" element={<DropDetail />} />
                 <Route path="/dao" element={<Dao />} />
+                <Route path="/dao/:daoName" element={<DaoDetailPage />} />
                 <Route path="/farm" element={<Farm />} />
                 <Route path="/farm/:farmName" element={<Farm />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

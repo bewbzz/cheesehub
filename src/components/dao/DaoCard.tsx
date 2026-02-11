@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, ExternalLink, Clock, Coins, Vote } from "lucide-react";
 import { useState } from "react";
-import { DaoDetail } from "./DaoDetail";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 // IPFS gateway fallback list for reliable image loading
@@ -37,7 +37,7 @@ interface DaoCardProps {
 }
 
 export function DaoCard({ dao }: DaoCardProps) {
-  const [showDetail, setShowDetail] = useState(false);
+  const navigate = useNavigate();
   const [logoGatewayIndex, setLogoGatewayIndex] = useState(0);
 
   // Parse token symbol (format: "8,CHEESE" -> "CHEESE")
@@ -138,7 +138,7 @@ export function DaoCard({ dao }: DaoCardProps) {
 
           {/* View Button */}
           <Button
-            onClick={() => setShowDetail(true)}
+            onClick={() => navigate(`/dao/${dao.dao_name}`)}
             className="w-full bg-[hsl(30_100%_50%)] text-black border-[hsl(30_100%_50%)] hover:bg-background hover:text-foreground hover:border-border"
             variant="outline"
           >
@@ -147,13 +147,6 @@ export function DaoCard({ dao }: DaoCardProps) {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Detail Modal */}
-      <DaoDetail
-        dao={dao}
-        open={showDetail}
-        onClose={() => setShowDetail(false)}
-      />
     </>
   );
 }

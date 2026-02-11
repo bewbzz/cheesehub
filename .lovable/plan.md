@@ -1,33 +1,44 @@
 
 
-# Add Withdraw Excess Rewards for Active Farms
+# Add Shareable DAO URLs (`/dao/:daoName`)
 
 ## Summary
-Add a "Withdraw" button next to "Deposit" in the Reward Pools section, visible only to the farm creator while the farm is active. This calls the `farms.waxdao::withdraw` action, which the contract limits to only excess rewards (beyond what is needed to cover current stakers until expiry).
+Add a `/dao/:daoName` route so each DAO gets a unique, shareable URL (e.g., `cheesehub.com/dao/cheesedao`). This mirrors how farms already work with `/farm/:farmName`.
 
 ## Changes
 
-### 1. Create `WithdrawRewardsDialog` component
-**New file: `src/components/farm/WithdrawRewardsDialog.tsx`**
+### 1. Create a new `DaoDetailPage` component
+**New file: `src/pages/DaoDetail.tsx`**
 
-Modeled after `DepositRewardsDialog`:
-- Dialog with inputs for each reward pool token
-- Calls the `farms.waxdao::withdraw` action with parameters: `user` (creator), `farmname`, and `quantities` (array of asset strings like `"100.0000 CHEESE"`)
-- Shows a caveat warning inside the dialog: "The contract will only allow you to withdraw rewards in excess of what is needed to pay stakers until the farm expires. If you over-request, the transaction will fail."
-- Only shown to the farm creator when the farm is active (not expired, not under construction, not closed)
+A route-level page that:
+- Reads `daoName` from the URL params (`useParams`)
+- Fetches the DAO data using `fetchDaoDetails(daoName)`
+- Renders the DAO detail view in a full-page layout (not a dialog) using `Layout`
+- Shows loading/error/not-found states
+- Includes a "Back to DAOs" button linking to `/dao`
 
-### 2. Add Withdraw button to FarmDetail Reward Pools section
-**File: `src/components/farm/FarmDetail.tsx`**
+This will reuse the existing `DaoDetail` component's internal logic but rendered as a page instead of a dialog. The simplest approach is to refactor `DaoDetail` to support both modes (dialog and inline), or create a wrapper that passes `open={true}` and renders it within a page layout.
 
-- Import `WithdrawRewardsDialog`
-- Place it next to the existing `DepositRewardsDialog` button (line 495), conditionally rendered when `isCreator` and the farm is active (`!isUnderConstruction && !isExpired && !isClosed && !isPermClosed`)
+### 2. Add route to `App.tsx`
+Add a new route: `<Route path="/dao/:daoName" element={<DaoDetail />} />`
 
-## Technical Details
+### 3. Update `DaoCard` to use navigation links
+**File: `src/components/dao/DaoCard.tsx`**
 
-The `farms.waxdao::withdraw` action expects:
-- `user`: the farm creator's account name
-- `farmname`: the farm name string
-- `quantities`: an array of quantity strings (e.g., `["100.00000000 WAX", "500.0000 CHEESE"]`)
+Change the "View DAO" button from opening a dialog (`setShowDetail(true)`) to navigating to `/dao/${dao.dao_name}` using `useNavigate` from react-router-dom. Remove the inline `DaoDetail` dialog rendering.
 
-The contract enforces the excess limit on-chain, so the UI just needs to send the request and handle errors gracefully.
+### 4. Update `DaoDetail` to support page mode
+**File: `src/components/dao/DaoDetail.tsx`**
 
+Refactor so it can render either as a dialog (for backward compatibility) or as a full-page component when accessed via URL. When used as a page:
+- Skip the `Dialog` wrapper
+- Use `useParams` to get the DAO name and fetch data
+- Show a back button to `/dao`
+- Render the same sidebar + content layout directly in the page
+
+## Technical Notes
+
+- The existing `fetchDaoDetails` function in `src/lib/dao.ts` already supports fetching a single DAO by name
+- The pattern follows exactly how `FarmDetail` works: `useParams` to get the name, fetch data, render full page with back navigation
+- Links shared externally (e.g., `cheesehub.com/dao/mydao`) will load the DAO directly
+- The Browse DAOs grid cards will navigate to the URL instead of opening a dialog

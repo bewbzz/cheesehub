@@ -1,44 +1,49 @@
 
 
-# Add Shareable DAO URLs (`/dao/:daoName`)
+# Fix: Claim Rewards "Overdrawn Balance" Error
 
-## Summary
-Add a `/dao/:daoName` route so each DAO gets a unique, shareable URL (e.g., `cheesehub.com/dao/cheesedao`). This mirrors how farms already work with `/farm/:farmName`.
+## Problem
+The claim transaction at line 969 of `NFTStaking.tsx` is:
+```
+await session.transact({ actions: [action] });
+```
 
-## Changes
+This is **missing the `transactPlugins` parameter** that every other transaction in the app includes. Without it, the Greymass Fuel resource provider is not attached to the transaction. This can cause the transaction to fail with misleading contract errors like "overdrawn balance" because the transaction is malformed or resource-starved.
 
-### 1. Create a new `DaoDetailPage` component
-**New file: `src/pages/DaoDetail.tsx`**
+The reward pool balance display (0.56 CHEESE/WAX) is correct -- it shows the raw `total_funds` from the contract. The reward calculation logic is also correct. The issue is purely in how the claim transaction is submitted.
 
-A route-level page that:
-- Reads `daoName` from the URL params (`useParams`)
-- Fetches the DAO data using `fetchDaoDetails(daoName)`
-- Renders the DAO detail view in a full-page layout (not a dialog) using `Layout`
-- Shows loading/error/not-found states
-- Includes a "Back to DAOs" button linking to `/dao`
+## Fix
 
-This will reuse the existing `DaoDetail` component's internal logic but rendered as a page instead of a dialog. The simplest approach is to refactor `DaoDetail` to support both modes (dialog and inline), or create a wrapper that passes `open={true}` and renders it within a page layout.
+### File: `src/components/farm/NFTStaking.tsx`
 
-### 2. Add route to `App.tsx`
-Add a new route: `<Route path="/dao/:daoName" element={<DaoDetail />} />`
+**1. Add missing import** for `getTransactPlugins` and `closeWharfkitModals` (if not already imported).
 
-### 3. Update `DaoCard` to use navigation links
-**File: `src/components/dao/DaoCard.tsx`**
+**2. Fix the claim transaction call** (~line 969):
+Change:
+```
+const result = await session.transact({ actions: [action] });
+```
+To:
+```
+const result = await session.transact(
+  { actions: [action] },
+  { transactPlugins: getTransactPlugins(session) }
+);
+```
 
-Change the "View DAO" button from opening a dialog (`setShowDetail(true)`) to navigating to `/dao/${dao.dao_name}` using `useNavigate` from react-router-dom. Remove the inline `DaoDetail` dialog rendering.
+**3. Add `closeWharfkitModals()` cleanup** in the `finally` block of `handleClaim` (~line 991) for consistency with all other transaction handlers:
+```
+finally {
+  setIsClaiming(false);
+  closeWharfkitModals();
+}
+```
 
-### 4. Update `DaoDetail` to support page mode
-**File: `src/components/dao/DaoDetail.tsx`**
+**4. Improve "overdrawn balance" error detection** in the catch block (~line 983-989):
+If the error message contains "overdrawn", show a more specific message explaining that the reward pool may not have enough tokens and to contact the farm owner.
 
-Refactor so it can render either as a dialog (for backward compatibility) or as a full-page component when accessed via URL. When used as a page:
-- Skip the `Dialog` wrapper
-- Use `useParams` to get the DAO name and fetch data
-- Show a back button to `/dao`
-- Render the same sidebar + content layout directly in the page
+## Why This Should Fix It
+- The `transactPlugins` includes the `TransactPluginResourceProvider` (Greymass Fuel) which sponsors CPU/NET resources
+- Without it, the raw transaction may fail or behave unexpectedly
+- Every other transaction in the codebase (staking, unstaking, deposits, withdrawals, DAO actions) includes this parameter -- the claim handler is the only one missing it
 
-## Technical Notes
-
-- The existing `fetchDaoDetails` function in `src/lib/dao.ts` already supports fetching a single DAO by name
-- The pattern follows exactly how `FarmDetail` works: `useParams` to get the name, fetch data, render full page with back navigation
-- Links shared externally (e.g., `cheesehub.com/dao/mydao`) will load the DAO directly
-- The Browse DAOs grid cards will navigate to the URL instead of opening a dialog

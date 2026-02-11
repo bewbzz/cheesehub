@@ -103,14 +103,14 @@ export function DaoDetail({ dao: initialDao, open = false, onClose, pageMode = f
 
   // Load votes from localStorage when account changes
   useEffect(() => {
-    if (accountName) {
+    if (accountName && dao?.dao_name) {
       const storedVotes = getVotesForDao(accountName, dao.dao_name);
       console.log("Loaded votes from localStorage:", storedVotes);
       setVotedProposals(storedVotes);
     } else {
       setVotedProposals({});
     }
-  }, [accountName, dao.dao_name]);
+  }, [accountName, dao?.dao_name]);
 
   // Function to record a vote and update UI immediately (optimistic update)
   const handleVote = async (proposalId: number, vote: UserVote) => {

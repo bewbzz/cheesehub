@@ -31,10 +31,13 @@ static constexpr name CHEESE_CONTRACT = "cheeseburger"_n;
 static constexpr symbol CHEESE_SYMBOL = symbol("CHEESE", 4);
 static constexpr name WAXDAO_CONTRACT = "token.waxdao"_n;
 static constexpr symbol WAXDAO_SYMBOL = symbol("WAXDAO", 8);
+static constexpr name WAX_CONTRACT = "eosio.token"_n;
+static constexpr symbol WAX_SYMBOL = symbol("WAX", 8);
 static constexpr name DAO_CONTRACT = "dao.waxdao"_n;
 static constexpr name FARM_CONTRACT = "farms.waxdao"_n;
 static constexpr name NULL_ACCOUNT = "eosio.null"_n;
 static constexpr name LIQUIDITY_STAKING = "xcheeseliqst"_n;
+static constexpr name CHEESEBURNER = "cheeseburner"_n;
 
 // Fee Distribution (66% burn, 34% liquidity staking)
 static constexpr double BURN_PERCENT = 0.66;
@@ -48,6 +51,11 @@ static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;    // WAX/WAXDAO pool (WAX=
 // User sends 200 WAX worth of CHEESE → receives 200 WAX worth of WAXDAO
 static constexpr double MIN_WAX_VALUE = 200.0;          // Minimum WAX value required
 static constexpr double WAX_VALUE_TOLERANCE = 0.025;    // 2.5% tolerance for price fluctuations
+
+// WAX payment routing: 205 WAX → WAXDAO for user, 45 WAX → cheeseburner
+static constexpr int64_t WAX_FEE_REQUIRED = 25000000000;  // 250 WAX (8 decimals)
+static constexpr double WAX_TO_WAXDAO = 205.0;            // WAX used to calculate WAXDAO
+static constexpr double WAX_TO_BURNER = 45.0;             // WAX sent to cheeseburner
 
 // Security: Minimum output prevents dust attacks
 static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000; // 5 WAXDAO minimum (8 decimals)
@@ -71,6 +79,17 @@ public:
      */
     [[eosio::on_notify("cheeseburger::transfer")]]
     void on_cheese_transfer(name from, name to, asset quantity, string memo);
+
+    /**
+     * @brief Called when user sends WAX to this contract for fee payment
+     * Routes 205 WAX worth of WAXDAO to user, sends 45 WAX to cheeseburner
+     * @param from - Sender
+     * @param to - Receiver (this contract)
+     * @param quantity - Amount of WAX (must be exactly 250 WAX)
+     * @param memo - Format: "waxdaofee|entityname" or "waxfarmfee|entityname"
+     */
+    [[eosio::on_notify("eosio.token::transfer")]]
+    void on_wax_transfer(name from, name to, asset quantity, string memo);
 
     /**
      * @brief Admin action to withdraw any token from the contract
@@ -155,4 +174,11 @@ private:
      * @brief Check if a specific action exists in the current transaction
      */
     bool has_creation_action(const string& fee_type, name entity_name, name user);
+    
+    /**
+     * @brief Calculate WAXDAO amount from WAX using Pool 1236 only
+     * @param wax_amount - Amount of WAX to convert
+     * @return WAXDAO amount based on Pool 1236 rate
+     */
+    asset calculate_waxdao_from_wax(double wax_value);
 };

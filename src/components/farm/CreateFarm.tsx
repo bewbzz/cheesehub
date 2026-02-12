@@ -21,7 +21,6 @@ import {
   RewardToken,
   validateFarmName,
   buildAssertPointAction,
-  buildFarmCreationFeeWaxAction,
   buildCreateFarmAction,
 } from "@/lib/farm";
 import { FeePaymentSelector } from "@/components/shared/FeePaymentSelector";
@@ -30,6 +29,7 @@ import {
   PaymentMethod,
   buildCheesePaymentAction,
   buildWaxdaoFeeAction,
+  buildWaxPaymentAction,
   WAX_FEE_AMOUNT,
   CHEESE_DISCOUNT,
 } from "@/lib/cheeseFees";
@@ -252,9 +252,37 @@ export function CreateFarm() {
           createAction,     // 4. Create Farm
         ];
       } else {
-        // Standard WAX payment
-        const feeAction = buildFarmCreationFeeWaxAction(accountName);
-        actions = [assertAction, feeAction, createAction];
+        // WAX payment routed through cheesefeefee
+        // 1. Send 250 WAX → contract sends WAXDAO to user + 45 WAX to cheeseburner (inline)
+        // 2. Assert point
+        // 3. User pays WAXDAO to farms.waxdao
+        // 4. Create Farm
+        
+        if (!waxdaoPricing.isAvailable) {
+          toast.error("WAXDAO pricing data not available. Please try again.");
+          setLoading(false);
+          return;
+        }
+        
+        const waxPayAction = buildWaxPaymentAction(
+          accountName,
+          "farm",
+          formData.farmName
+        );
+        
+        const waxdaoFeeAction = buildWaxdaoFeeAction(
+          accountName,
+          "farms.waxdao",
+          waxdaoAmount || waxdaoPricing.formattedForTx,
+          "|create_farm|"
+        );
+        
+        actions = [
+          waxPayAction,     // 1. Send WAX to cheesefeefee, contract sends WAXDAO + burns WAX
+          assertAction,     // 2. Assert point
+          waxdaoFeeAction,  // 3. User pays WAXDAO to farms.waxdao
+          createAction,     // 4. Create Farm
+        ];
       }
       
       await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });

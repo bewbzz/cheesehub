@@ -83,6 +83,69 @@ void cheesefeefee::on_cheese_transfer(name from, name to, asset quantity, string
 }
 
 /**
+ * @brief Handles incoming WAX transfers - Routes WAX through cheesefeefee
+ * 
+ * Instead of 250 WAX going directly to WaxDAO (no benefit to CHEESE),
+ * this routes WAX through the contract:
+ * 1. 205 WAX worth of WAXDAO is calculated via Pool 1236 and sent to user
+ * 2. 45 WAX is sent to cheeseburner (benefits CHEESE ecosystem)
+ * 3. User's bundled transaction pays WAXDAO to WaxDAO and creates farm/dao
+ */
+void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string memo) {
+    // Ignore transfers from this contract (our own inline actions)
+    if (from == get_self()) return;
+    
+    // Only handle transfers TO this contract
+    if (to != get_self()) return;
+    
+    // Validate token
+    check(quantity.symbol == WAX_SYMBOL, "Only WAX token accepted");
+    check(quantity.amount == WAX_FEE_REQUIRED, "Must send exactly 250 WAX");
+    
+    // Parse memo: "waxdaofee|entityname" or "waxfarmfee|entityname"
+    auto [fee_type, entity_name] = parse_memo(memo);
+    
+    check(fee_type == "waxdaofee" || fee_type == "waxfarmfee", 
+        "Invalid fee type. Use 'waxdaofee|name' or 'waxfarmfee|name'");
+    check(entity_name.value != 0, "Entity name cannot be empty");
+    
+    // Extract "dao" or "farm" for action checking
+    string type_short = (fee_type == "waxdaofee") ? "dao" : "farm";
+    
+    // SECURITY: Verify the creation action exists in this transaction
+    check(has_creation_action(type_short, entity_name, from),
+        "Must be bundled with createdao/createfarm action");
+    
+    // Calculate WAXDAO from 205 WAX using Pool 1236
+    asset waxdao_amount = calculate_waxdao_from_wax(WAX_TO_WAXDAO);
+    
+    // SECURITY: Minimum output check prevents dust attacks
+    check(waxdao_amount.amount >= MIN_WAXDAO_OUTPUT, 
+        "Calculated WAXDAO below minimum (5 WAXDAO). Pool may be depleted.");
+    
+    // 1. Send calculated WAXDAO to user (inline)
+    action(
+        permission_level{get_self(), "active"_n},
+        WAXDAO_CONTRACT,
+        "transfer"_n,
+        make_tuple(get_self(), from, waxdao_amount, 
+            string("WAXDAO for ") + type_short + " creation fee (WAX payment)")
+    ).send();
+    
+    // 2. Send 45 WAX to cheeseburner (inline)
+    int64_t burner_amount = static_cast<int64_t>(WAX_TO_BURNER * 100000000.0); // 8 decimals
+    asset burner_quantity = asset(burner_amount, WAX_SYMBOL);
+    
+    action(
+        permission_level{get_self(), "active"_n},
+        WAX_CONTRACT,
+        "transfer"_n,
+        make_tuple(get_self(), CHEESEBURNER, burner_quantity, 
+            string("WAX for CHEESE burn via ") + type_short + " creation: " + entity_name.to_string())
+    ).send();
+}
+
+/**
  * @brief Admin action to withdraw any token from the contract
  */
 void cheesefeefee::withdraw(name token_contract, name to, asset quantity) {
@@ -246,6 +309,31 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
         to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
     
     // Step 5: Convert WAX value to WAXDAO using Pool 1236 rate
+    double waxdao_amount = wax_value * waxdao_per_wax;
+    int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
+    
+    check(waxdao_units > 0, "Calculated WAXDAO amount too small");
+    
+    return asset(waxdao_units, WAXDAO_SYMBOL);
+}
+
+/**
+ * @brief Calculate WAXDAO amount from WAX using Pool 1236 only
+ * Used for WAX payment routing - simpler than CHEESE flow since input is already WAX
+ * 
+ * @param wax_value - WAX amount to convert (e.g., 205.0)
+ * @return WAXDAO asset amount
+ */
+asset cheesefeefee::calculate_waxdao_from_wax(double wax_value) {
+    // Get WAXDAO per WAX from Pool 1236
+    double waxdao_per_wax = get_price_from_pool(WAXDAO_WAX_POOL_ID, symbol_code("WAX"));
+    check(waxdao_per_wax > 0, "Invalid WAXDAO/WAX price from Alcor");
+    
+    // SECURITY: Check price deviation from baseline
+    auto [baseline_cheese, baseline_waxdao] = get_baselines();
+    check_price_deviation(waxdao_per_wax, baseline_waxdao, "WAXDAO/WAX price");
+    
+    // Convert WAX value to WAXDAO
     double waxdao_amount = wax_value * waxdao_per_wax;
     int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
     

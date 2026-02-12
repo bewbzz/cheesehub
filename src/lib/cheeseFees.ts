@@ -42,6 +42,10 @@ export const WAX_EQUIVALENT_FEE = 250; // 250 WAX equivalent (standard fee)
 export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
 export const CHEESE_SAFETY_BUFFER = 0.025; // 2.5% buffer for price drift
 
+// WAX payment routing through cheesefeefee
+export const WAX_TO_WAXDAO = 205; // WAX used to calculate WAXDAO for user
+export const WAX_TO_BURNER = 45; // WAX sent to cheeseburner
+
 // Security: Minimum WAXDAO output (must match contract)
 export const MIN_WAXDAO_OUTPUT = 5.0; // 5 WAXDAO minimum
 
@@ -140,6 +144,36 @@ export function buildWaxdaoFeeAction(
       from: sender,
       to: targetContract,
       quantity: waxdaoAmount,
+      memo,
+    },
+  };
+}
+
+/**
+ * Build WAX payment action that routes through cheesefeefee
+ * Instead of sending 250 WAX directly to WaxDAO, routes through contract:
+ * - 205 WAX → converted to WAXDAO and sent to user (inline)
+ * - 45 WAX → sent to cheeseburner (inline)
+ * 
+ * @param user - User sending WAX
+ * @param feeType - "dao" or "farm"
+ * @param entityName - Name of the entity being created
+ */
+export function buildWaxPaymentAction(
+  user: string,
+  feeType: FeeType,
+  entityName: string
+) {
+  const memo = `wax${feeType}fee|${entityName}`;
+  
+  return {
+    account: "eosio.token",
+    name: "transfer",
+    authorization: [{ actor: user, permission: "active" }],
+    data: {
+      from: user,
+      to: CHEESE_FEE_CONTRACT,
+      quantity: `${WAX_EQUIVALENT_FEE}.00000000 WAX`,
       memo,
     },
   };

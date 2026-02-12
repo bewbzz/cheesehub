@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useWax } from "@/context/WaxContext";
-import { buildCreateDaoAction, buildDaoCreationFeeAction, buildAssertPointAction, buildSetProfileActionWithSocials, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
+import { buildCreateDaoAction, buildAssertPointAction, buildSetProfileActionWithSocials, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen } from "lucide-react";
@@ -23,6 +23,7 @@ import {
   PaymentMethod,
   buildCheesePaymentAction,
   buildWaxdaoFeeAction,
+  buildWaxPaymentAction,
   WAX_FEE_AMOUNT,
   CHEESE_DISCOUNT,
 } from "@/lib/cheeseFees";
@@ -250,9 +251,39 @@ export function CreateDao() {
           setProfileAction, // 5. Set DAO profile
         ];
       } else {
-        // Standard WAX payment
-        const feeAction = buildDaoCreationFeeAction(accountName);
-        actions = [assertAction, feeAction, createAction, setProfileAction];
+        // WAX payment routed through cheesefeefee
+        // 1. Send 250 WAX → contract sends WAXDAO to user + 45 WAX to cheeseburner (inline)
+        // 2. Assert point
+        // 3. User pays WAXDAO to dao.waxdao
+        // 4. Create DAO
+        // 5. Set profile
+        
+        if (!waxdaoPricing.isAvailable) {
+          toast.error("WAXDAO pricing data not available. Please try again.");
+          setLoading(false);
+          return;
+        }
+        
+        const waxPayAction = buildWaxPaymentAction(
+          accountName,
+          "dao",
+          formData.daoName
+        );
+        
+        const waxdaoFeeAction = buildWaxdaoFeeAction(
+          accountName,
+          DAO_CONTRACT,
+          waxdaoAmount || waxdaoPricing.formattedForTx,
+          "|dao_payment|"
+        );
+        
+        actions = [
+          waxPayAction,     // 1. Send WAX to cheesefeefee, contract sends WAXDAO + burns WAX
+          assertAction,     // 2. Assert point
+          waxdaoFeeAction,  // 3. User pays WAXDAO to dao.waxdao
+          createAction,     // 4. Create DAO
+          setProfileAction, // 5. Set DAO profile
+        ];
       }
       
       await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });

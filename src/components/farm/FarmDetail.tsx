@@ -176,16 +176,15 @@ export function FarmDetail() {
   const now = Math.floor(Date.now() / 1000);
   const createdDate = new Date(farm.time_created * 1000);
   
-  // Farm is "under construction" if it hasn't been opened yet (status 0 or expiration is 0)
-  const isUnderConstruction = farm.status === 0 || farm.expiration === 0;
+  // Farm is "under construction" only if never opened (status 0 AND expiration 0)
+  const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
+  // Farm status codes: 0 = Under Construction, 1 = Active, 2 = Permanently Closed, 3 = Closed
+  const isClosed = farm.status === 3;
+  const isPermClosed = farm.status === 2;
   // Farm is "expired" only if it's been opened and has passed its expiration date
-  const isExpired = !isUnderConstruction && farm.expiration < now;
+  const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
-  
-  // Farm status codes: 0 = Under Construction, 1 = Active, 2 = Closed, 3 = Permanently Closed
-  const isClosed = farm.status === 2;
-  const isPermClosed = farm.status === 3;
   const hasStakers = farm.staked_count > 0;
   const isCreator = accountName && accountName === farm.creator;
 
@@ -346,7 +345,11 @@ export function FarmDetail() {
                   )}
                 </div>
                 <p className="font-medium">
-                  {isUnderConstruction ? (
+                  {isPermClosed ? (
+                    <span className="text-red-400">Permanently Closed</span>
+                  ) : isClosed ? (
+                    <span className="text-amber-400">Closed</span>
+                  ) : isUnderConstruction ? (
                     <span className="text-amber-400">Under Construction</span>
                   ) : isExpired ? (
                     <span className="text-red-400">Expired</span>

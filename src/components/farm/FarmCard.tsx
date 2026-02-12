@@ -72,7 +72,17 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
               <Badge variant="outline" className="bg-secondary/50 text-secondary-foreground border-border text-xs">
                 {FARM_TYPE_DISPLAY[farm.farm_type] || "Unknown"}
               </Badge>
-              {isExpired && (
+              {farm.status === 2 && (
+                <Badge variant="destructive" className="text-xs">
+                  Permanently Closed
+                </Badge>
+              )}
+              {farm.status === 3 && (
+                <Badge className="text-xs bg-amber-500/80 text-white border-amber-500">
+                  Closed
+                </Badge>
+              )}
+              {farm.status !== 2 && farm.status !== 3 && isExpired && (
                 <Badge variant="destructive" className="text-xs">
                   Expired
                 </Badge>

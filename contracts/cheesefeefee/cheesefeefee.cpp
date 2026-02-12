@@ -123,13 +123,20 @@ void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string me
     check(waxdao_amount.amount >= MIN_WAXDAO_OUTPUT, 
         "Calculated WAXDAO below minimum (5 WAXDAO). Pool may be depleted.");
     
-    // 1. Send calculated WAXDAO to user (inline)
+    // 1. Swap 205 WAX for WAXDAO via Alcor Pool 1236 (sent directly to user)
+    int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0); // 8 decimals
+    asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
+    
+    string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
+        + "#" + from.to_string()
+        + "#" + waxdao_amount.to_string()
+        + "#0";
+    
     action(
         permission_level{get_self(), "active"_n},
-        WAXDAO_CONTRACT,
+        WAX_CONTRACT,
         "transfer"_n,
-        make_tuple(get_self(), from, waxdao_amount, 
-            string("WAXDAO for ") + type_short + " creation fee (WAX payment)")
+        make_tuple(get_self(), ALCOR_CONTRACT, wax_swap_quantity, alcor_memo)
     ).send();
     
     // 2. Send 45 WAX to cheeseburner (inline)

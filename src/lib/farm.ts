@@ -632,7 +632,7 @@ export function buildKickManyAction(user: string, farmName: string, amount: numb
     data: {
       user,
       farmname: farmName,
-      amount,
+      quantity_of_users: amount,
     },
   };
 }

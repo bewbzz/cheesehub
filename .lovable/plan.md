@@ -1,44 +1,62 @@
 
 
-# Fix Farm Status Display Bugs
+# Fix WAX Fallback: Buy WAXDAO via Alcor Swap
 
 ## Problem
-Farm statuses are displaying incorrectly in multiple places:
-- Badge next to farm name shows "Closed" (amber) instead of "Permanently Closed" (red)
-- Farm Information section shows "Expired" instead of "Permanently Closed"
-- Kick Users button not appearing because wrong status code is being checked
+The current `on_wax_transfer` handler tries to send WAXDAO from the contract's own balance (line 127-133). But the WAX fallback exists precisely because the contract has no WAXDAO. It needs to **buy** WAXDAO from Alcor instead.
 
-## Root Cause
-The status code mapping is swapped, and the Farm Info section is missing closed/perm closed states entirely.
+## Solution
+Replace the direct WAXDAO transfer with an Alcor swap, following the proven pattern from the `cheeseburner` contract.
 
-## Changes
+## What Changes
 
-### 1. Fix status code mapping in FarmDetail.tsx (line 187-188)
-Swap the values:
-- `isClosed = farm.status === 3` (was 2)
-- `isPermClosed = farm.status === 2` (was 3)
+### Contract: `contracts/cheesefeefee/cheesefeefee.cpp`
 
-### 2. Fix `isUnderConstruction` logic in FarmDetail.tsx (line 180)
-Change from `||` to `&&`:
-- `const isUnderConstruction = farm.status === 0 && farm.expiration === 0`
+In the `on_wax_transfer` handler (lines 126-133), replace the manual WAXDAO transfer with an Alcor `swapexactin` call:
 
-This ensures a farm that was opened (has non-zero expiration) but still has status 0 is treated as Active/Expired, not Under Construction.
+- Send 205 WAX to `swap.alcor` with memo: `swapexactin#1236#<user>#<min_output> WAXDAO@token.waxdao#0`
+- Alcor executes the swap and sends the purchased WAXDAO directly to the user (specified as recipient in the memo)
+- The calculated `waxdao_amount` (already computed on line 120) is used as the minimum output for slippage protection
+- The 45 WAX to cheeseburner remains unchanged
 
-### 3. Add Closed/Permanently Closed to Farm Info section (lines 348-355)
-The Farm Status display only handles Under Construction, Expired, and Active. Add:
-- Permanently Closed (red) 
-- Closed (amber)
+### No other file changes needed
+- The `.hpp` file already has `ALCOR_CONTRACT`, `WAX_CONTRACT`, `WAXDAO_WAX_POOL_ID` defined
+- The frontend code (`CreateFarm.tsx`, `CreateDao.tsx`, `cheeseFees.ts`) is already wired correctly from the previous implementation
+- `calculate_waxdao_from_wax` stays as-is since it's still needed for the minimum output calculation
 
-These should be checked before Expired/Active since they take priority.
+## Updated Flow
 
-### 4. Update FarmCard.tsx to show closed/perm closed badges
-Currently only shows "Expired". Add status badges for Closed and Permanently Closed farms in the browse view.
+```text
+[250 WAX from user] --> cheesefeefee
+                         |-- [205 WAX] --> swap.alcor (Pool 1236)
+                         |                  |-- [WAXDAO] --> user (via memo recipient)
+                         |-- [45 WAX] --> cheeseburner
+```
 
-### 5. Update status comment
-Fix the comment on line 186 to reflect the correct mapping:
-`0 = Under Construction, 1 = Active, 2 = Permanently Closed, 3 = Closed`
+## Technical Detail
 
-## Files Modified
-- `src/components/farm/FarmDetail.tsx` - Status code swap, isUnderConstruction fix, Farm Info display
-- `src/components/farm/FarmCard.tsx` - Add closed/perm closed badges
+The single line change replaces:
+```cpp
+// OLD: Transfer WAXDAO we don't have
+action(..., WAXDAO_CONTRACT, "transfer"_n,
+    make_tuple(get_self(), from, waxdao_amount, ...)).send();
+```
+With:
+```cpp
+// NEW: Buy WAXDAO from Alcor, sent directly to user
+int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0);
+asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
+
+string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
+    + "#" + from.to_string()
+    + "#" + waxdao_amount.to_string()
+    + "#0";
+
+action(permission_level{get_self(), "active"_n},
+    WAX_CONTRACT, "transfer"_n,
+    make_tuple(get_self(), ALCOR_CONTRACT, wax_swap_quantity, alcor_memo)
+).send();
+```
+
+This follows the exact same Alcor interaction pattern used in `cheeseburner`.
 

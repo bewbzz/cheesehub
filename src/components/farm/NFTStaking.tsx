@@ -1576,14 +1576,14 @@ export function NFTStaking({ farm }: NFTStakingProps) {
               )}
             </div>
             <Button
-              variant="ghost"
               size="sm"
+              variant="outline"
               onClick={() => refetchStaked()}
               disabled={isLoadingStaked}
-              className="h-7 px-2"
-              title="Refresh rewards"
+              className="gap-2"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoadingStaked ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${isLoadingStaked ? 'animate-spin' : ''}`} />
+              {isLoadingStaked ? "Refreshing..." : "Refresh"}
             </Button>
           </CardTitle>
         </CardHeader>

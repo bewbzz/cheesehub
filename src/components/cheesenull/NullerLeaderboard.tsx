@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Flame, Zap, Gift, Trophy } from 'lucide-react';
+import { Flame, Zap, TrendingUp, Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -11,8 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { sortNullers, type NullerStats, type SortMode, type LogburnAction, aggregateNullerStats } from '@/lib/fetchLeaderboard';
-import { formatCheeseAmount } from '@/lib/cheeseNullApi';
+import { type NullerStats, type SortMode, type LogburnAction, aggregateNullerStats } from '@/lib/fetchLeaderboard';
+import { formatCheeseAmount, formatWaxAmount } from '@/lib/cheeseNullApi';
 
 interface NullerLeaderboardProps {
   rawActions: LogburnAction[];
@@ -23,7 +23,7 @@ interface NullerLeaderboardProps {
 const SORT_OPTIONS: { mode: SortMode; label: string; icon: React.ReactNode }[] = [
   { mode: 'cheese', label: 'CHEESE Nulled', icon: <Flame className="w-3.5 h-3.5" /> },
   { mode: 'burns', label: 'Burns', icon: <Zap className="w-3.5 h-3.5" /> },
-  { mode: 'rewards', label: 'Rewards', icon: <Gift className="w-3.5 h-3.5" /> },
+  { mode: 'wax', label: 'WAX Claimed', icon: <TrendingUp className="w-3.5 h-3.5" /> },
 ];
 
 export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLeaderboardProps) {
@@ -31,15 +31,13 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
 
   const leaderboard = useMemo(() => {
     if (!rawActions.length) return [];
-    // Aggregate all stats then sort by selected mode
-    const allStats = aggregateNullerStats(rawActions, sortBy);
-    return allStats;
+    return aggregateNullerStats(rawActions, sortBy);
   }, [rawActions, sortBy]);
 
   const getPrimaryValue = (entry: NullerStats) => {
     switch (sortBy) {
       case 'burns': return entry.burns.toLocaleString();
-      case 'rewards': return formatCheeseAmount(entry.rewardsEarned);
+      case 'wax': return formatWaxAmount(entry.waxClaimed);
       default: return formatCheeseAmount(entry.cheeseNulled);
     }
   };
@@ -47,7 +45,7 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
   const getPrimaryUnit = () => {
     switch (sortBy) {
       case 'burns': return 'burns';
-      case 'rewards': return 'CHEESE';
+      case 'wax': return 'WAX';
       default: return 'CHEESE';
     }
   };
@@ -55,7 +53,7 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
   const getSecondaryText = (entry: NullerStats) => {
     switch (sortBy) {
       case 'burns': return `${formatCheeseAmount(entry.cheeseNulled)} nulled`;
-      case 'rewards': return `${entry.burns} burns`;
+      case 'wax': return `${entry.burns} burns`;
       default: return `${entry.burns} burns`;
     }
   };
@@ -111,7 +109,7 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
                 <TableHead className="h-8 text-xs text-muted-foreground w-10">#</TableHead>
                 <TableHead className="h-8 text-xs text-muted-foreground">Account</TableHead>
                 <TableHead className="h-8 text-xs text-muted-foreground text-right">
-                  {sortBy === 'burns' ? 'Burns' : sortBy === 'rewards' ? 'Rewards' : 'Nulled'}
+                  {sortBy === 'burns' ? 'Burns' : sortBy === 'wax' ? 'WAX Claimed' : 'Nulled'}
                 </TableHead>
               </TableRow>
             </TableHeader>

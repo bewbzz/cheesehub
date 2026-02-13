@@ -681,8 +681,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
       </div>
 
       {/* Farm position cards - unified list sorted by USD value */}
-      <ScrollArea className="h-[500px]">
-        <div className="space-y-3 pr-2">
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-4">
           {allPositionsSorted.map((item) => {
             if (item.type === 'staked') {
               const position = item.data;

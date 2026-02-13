@@ -49,6 +49,19 @@ export function Header() {
               <Zap className="h-4 w-4" />
               CHEESEUp
             </Link>
+            {/* CHEESENull */}
+            <Link
+              to="/cheesenull"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/cheesenull"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Flame className="h-4 w-4" />
+              CHEESENull
+            </Link>
             {/* CHEESEFaucet (external) */}
             <a
               href="https://cheeseonwax.github.io/tools/cheesefaucet.html"
@@ -59,18 +72,31 @@ export function Header() {
               <Droplets className="h-4 w-4" />
               CHEESEFaucet
             </a>
-            {/* CHEESELock */}
+            {/* CHEESEFarm */}
             <Link
-              to="/locker"
+              to="/farm"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/locker"
+                location.pathname === "/farm"
                   ? "bg-cheese/20 text-cheese"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Lock className="h-4 w-4" />
-              CHEESELock
+              <Sprout className="h-4 w-4" />
+              CHEESEFarm
+            </Link>
+            {/* CHEESEDao */}
+            <Link
+              to="/dao"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/dao"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              CHEESEDao
             </Link>
             {/* CHEESEDrop */}
             <Link
@@ -85,18 +111,18 @@ export function Header() {
               <ShoppingBag className="h-4 w-4" />
               CHEESEDrop
             </Link>
-            {/* CHEESEDao */}
+            {/* CHEESELock */}
             <Link
-              to="/dao"
+              to="/locker"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/dao"
+                location.pathname === "/locker"
                   ? "bg-cheese/20 text-cheese"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Users className="h-4 w-4" />
-              CHEESEDao
+              <Lock className="h-4 w-4" />
+              CHEESELock
             </Link>
           </nav>
         </div>
@@ -118,37 +144,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Row 2: Secondary Nav */}
-      <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
-        <nav className="flex items-center gap-1">
-          {/* CHEESEFarm */}
-          <Link
-            to="/farm"
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/farm"
-                ? "bg-cheese/20 text-cheese"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <Sprout className="h-4 w-4" />
-            CHEESEFarm
-          </Link>
-          {/* CHEESENull */}
-          <Link
-            to="/cheesenull"
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/cheesenull"
-                ? "bg-cheese/20 text-cheese"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <Flame className="h-4 w-4" />
-            CHEESENull
-          </Link>
-        </nav>
-      </div>
+      {/* Row 2: Secondary Nav - Empty (consolidated to Row 1) */}
     </header>
   );
 }

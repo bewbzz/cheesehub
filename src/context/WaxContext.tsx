@@ -23,6 +23,7 @@ interface WaxContextType {
     memo: string
   ) => Promise<string | null>;
   transferNFTs: (to: string, assetIds: string[], memo: string) => Promise<string | null>;
+  burnNFTs: (assetIds: string[]) => Promise<string | null>;
   claimDrop: (
     dropId: string, 
     quantity: number, 
@@ -529,6 +530,45 @@ export function WaxProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const burnNFTs = async (assetIds: string[]): Promise<string | null> => {
+    if (!session) {
+      toast({
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet first',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    try {
+      const actions = assetIds.map((asset_id) => ({
+        account: 'atomicassets',
+        name: 'burnasset',
+        authorization: [session.permissionLevel],
+        data: {
+          asset_owner: session.actor.toString(),
+          asset_id,
+        },
+      }));
+
+      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
+      const txId = result.resolved?.transaction.id?.toString() || null;
+
+      return txId;
+    } catch (error) {
+      console.error('NFT burn failed:', error);
+      closeWharfkitModals();
+      toast({
+        title: 'Burn Failed',
+        description: error instanceof Error ? error.message : 'Failed to burn NFTs',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setTimeout(() => closeWharfkitModals(), 100);
+    }
+  };
+
   const joinDao = async (daoName: string): Promise<string | null> => {
     if (!session) {
       toast({
@@ -644,6 +684,7 @@ export function WaxProvider({ children }: { children: ReactNode }) {
         transferCheese,
         transferToken,
         transferNFTs,
+        burnNFTs,
         claimDrop,
         claimFreeDrop,
         joinDao,

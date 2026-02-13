@@ -10,10 +10,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useWax } from '@/context/WaxContext';
 import { useUserNFTs, UserNFT } from '@/hooks/useUserNFTs';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Check, X, Loader2, Search, Image, Send, RefreshCw } from 'lucide-react';
+import { Check, X, Loader2, Search, Image, Send, RefreshCw, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import { toast } from 'sonner';
@@ -30,7 +40,7 @@ function isValidWaxAccount(account: string): boolean {
 }
 
 export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
-  const { accountName, transferNFTs } = useWax();
+  const { accountName, transferNFTs, burnNFTs } = useWax();
   const { nfts, isLoading, loadingProgress, refetch, collections } = useUserNFTs(accountName);
 
   const [recipient, setRecipient] = useState('');
@@ -40,7 +50,10 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
   const [selectedNFTs, setSelectedNFTs] = useState<Set<string>>(new Set());
   const [memo, setMemo] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isBurning, setIsBurning] = useState(false);
+  const [showBurnConfirm, setShowBurnConfirm] = useState(false);
 
+  const isValidRecipient = recipient.length > 0 && isValidWaxAccount(recipient);
   const debouncedSearch = useDebounce(searchQuery, 300);
   const parentRef = useRef<HTMLDivElement>(null);
   const loadedImagesRef = useRef<Set<string>>(new Set());
@@ -49,8 +62,8 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
     loadedImagesRef.current.add(assetId);
   }, []);
 
-  const isValidRecipient = recipient.length > 0 && isValidWaxAccount(recipient);
-  const canSend = isValidRecipient && selectedNFTs.size > 0 && !isSending;
+  const canSend = isValidRecipient && selectedNFTs.size > 0 && !isSending && !isBurning;
+  const canBurn = selectedNFTs.size > 0 && !isBurning && !isSending;
 
   // Filter and sort NFTs
   const filteredNFTs = useMemo(() => {
@@ -170,6 +183,49 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
     } finally {
       setIsSending(false);
       // Always try to clean up modals after transaction attempt
+      setTimeout(() => closeWharfkitModals(), 100);
+    }
+  };
+
+  const handleBurn = async () => {
+    if (!canBurn) return;
+    setShowBurnConfirm(false);
+    setIsBurning(true);
+    try {
+      const assetIds = Array.from(selectedNFTs);
+      const txId = await burnNFTs(assetIds);
+
+      if (txId) {
+        onTransactionSuccess(
+          'NFTs Burned Successfully! 🔥',
+          `Burned ${assetIds.length} NFT(s) permanently`,
+          txId
+        );
+        setSelectedNFTs(new Set());
+        refetch();
+      }
+    } catch (error) {
+      console.error('NFT burn failed:', error);
+      closeWharfkitModals();
+
+      const errorMessage = error instanceof Error ? error.message : 'Burn failed';
+      const isCpuError = errorMessage.toLowerCase().includes('cpu') ||
+                         errorMessage.toLowerCase().includes('billed') ||
+                         errorMessage.toLowerCase().includes('net usage') ||
+                         errorMessage.toLowerCase().includes('deadline exceeded');
+
+      if (isCpuError) {
+        toast.error('Transaction failed - insufficient resources', {
+          description: 'Enable Greymass Fuel in Anchor settings, or use the CHEESEUp page to rent CPU.',
+          duration: 8000,
+        });
+      } else if (!errorMessage.toLowerCase().includes('cancel')) {
+        toast.error('NFT burn failed', {
+          description: errorMessage,
+        });
+      }
+    } finally {
+      setIsBurning(false);
       setTimeout(() => closeWharfkitModals(), 100);
     }
   };
@@ -378,24 +434,71 @@ export function NFTSendManager({ onTransactionSuccess }: NFTSendManagerProps) {
         />
       </div>
 
-      {/* Send Button */}
-      <Button
-        onClick={handleSend}
-        disabled={!canSend}
-        className="w-full bg-cheese hover:bg-cheese-dark text-primary-foreground"
-      >
-        {isSending ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Sending {selectedNFTs.size} NFT(s)...
-          </>
-        ) : (
-          <>
-            <Send className="mr-2 h-4 w-4" />
-            Send {selectedNFTs.size > 0 ? `${selectedNFTs.size} NFT(s)` : 'NFTs'}
-          </>
-        )}
-      </Button>
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <Button
+          onClick={handleSend}
+          disabled={!canSend}
+          className="flex-1 bg-cheese hover:bg-cheese-dark text-primary-foreground"
+        >
+          {isSending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sending {selectedNFTs.size} NFT(s)...
+            </>
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              Send {selectedNFTs.size > 0 ? `${selectedNFTs.size} NFT(s)` : 'NFTs'}
+            </>
+          )}
+        </Button>
+        <Button
+          onClick={() => setShowBurnConfirm(true)}
+          disabled={!canBurn}
+          variant="destructive"
+          className="flex-1"
+        >
+          {isBurning ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Burning {selectedNFTs.size} NFT(s)...
+            </>
+          ) : (
+            <>
+              <Flame className="mr-2 h-4 w-4" />
+              Burn {selectedNFTs.size > 0 ? `${selectedNFTs.size} NFT(s)` : 'NFTs'}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Burn Confirmation Dialog */}
+      <AlertDialog open={showBurnConfirm} onOpenChange={setShowBurnConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Burn NFTs Permanently?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                You are about to burn <strong>{selectedNFTs.size} NFT(s)</strong>. This action is <strong>irreversible</strong>.
+              </span>
+              <span className="block">
+                Any tokens backed inside these NFTs will be returned to your wallet.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBurn}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <Flame className="mr-2 h-4 w-4" />
+              Burn Forever
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

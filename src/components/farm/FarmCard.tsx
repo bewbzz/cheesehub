@@ -21,7 +21,8 @@ interface FarmCardProps {
 export function FarmCard({ farm, onSelect }: FarmCardProps) {
   const navigate = useNavigate();
   const now = Math.floor(Date.now() / 1000);
-  const isExpired = farm.expiration < now;
+  const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
+  const isExpired = !isUnderConstruction && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
 
@@ -82,7 +83,12 @@ export function FarmCard({ farm, onSelect }: FarmCardProps) {
                   Closed
                 </Badge>
               )}
-              {farm.status !== 2 && farm.status !== 3 && isExpired && (
+              {isUnderConstruction && (
+                <Badge className="text-xs bg-amber-500/80 text-white border-amber-500">
+                  Under Construction
+                </Badge>
+              )}
+              {farm.status !== 2 && farm.status !== 3 && !isUnderConstruction && isExpired && (
                 <Badge variant="destructive" className="text-xs">
                   Expired
                 </Badge>

@@ -1,36 +1,59 @@
 
 
-# Fix Farm "Under Construction" Detection
+# Bundle Claim with Unstake to Prevent Lost Rewards
 
 ## Problem
-The farm `testfarm4` has `status: 0` and `expiration: 1` from the contract. Our code assumes `expiration === 0` means "under construction", but the WaxDAO contract actually uses `expiration: 1` as the sentinel value for "never opened." Since `1 < now` is true, the farm incorrectly displays as "Expired" instead of "Under Construction."
+When unstaking NFTs, the contract resets/removes the user's staking record. Any unclaimed pending rewards are lost because the frontend only sends the `unstake` action without first claiming. The WaxDAO contract does not auto-claim on unstake.
 
 ## Solution
-Change the under-construction check from `expiration === 0` to `expiration <= 1` to account for the contract's actual sentinel value.
+Bundle a `claim` action before the `unstake` action in the same transaction. This ensures rewards are collected atomically -- if either action fails, the whole transaction rolls back safely.
 
-## Changes
+## Technical Changes
 
-### `src/components/farm/FarmDetail.tsx` (line 180)
+### `src/components/farm/NFTStaking.tsx` -- `handleUnstake` function (~line 917-958)
 
-Change:
-```js
-const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
+1. **Add a `claim` action before the `unstake` action** in the transaction:
+   - Build claim action via `buildClaimRewardsAction(user, farmName)`
+   - Build unstake action via `buildUnstakeNftsAction(user, farmName, assetIds)`
+   - Send both as `actions: [claimAction, unstakeAction]`
+
+2. **Add `transactPlugins: getTransactPlugins(session)`** to the transact call (currently missing -- needed for Greymass Fuel sponsorship)
+
+3. **Update the success toast** to mention rewards were also claimed
+
+Updated logic:
+```typescript
+const handleUnstake = async () => {
+  if (!session || selectedToUnstake.size === 0) return;
+  setIsUnstaking(true);
+  try {
+    const assetIds = Array.from(selectedToUnstake);
+    const claimAction = buildClaimRewardsAction(
+      session.actor.toString(),
+      farm.farm_name
+    );
+    const unstakeAction = buildUnstakeNftsAction(
+      session.actor.toString(),
+      farm.farm_name,
+      assetIds
+    );
+    
+    await session.transact(
+      { actions: [claimAction, unstakeAction] },
+      { transactPlugins: getTransactPlugins(session) }
+    );
+    
+    toast({
+      title: "NFTs Unstaked!",
+      description: `Claimed rewards and unstaked ${assetIds.length} NFT(s) from ${farm.farm_name}`,
+    });
+    // ... rest stays the same
+  }
+};
 ```
-To:
-```js
-const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
-```
-
-### `src/components/farm/BrowseFarms.tsx` and `src/components/farm/MyFarms.tsx`
-
-Search for any other `expiration === 0` checks used for under-construction detection and update them to `expiration <= 1` as well.
-
-### `src/components/farm/NFTStaking.tsx`
-
-Same fix for the reward accrual capping logic -- if it checks expiration for "never opened" state, update it too.
 
 ## Impact
-- Farm `testfarm4` (and any new farm) will correctly show "Under Construction" with the "Open Farm" button
-- The "Close" and "Perm Close" buttons will no longer appear on under-construction farms
-- The creator guidance box will show the correct "Add stakeable assets... then press Open Farm" message
+- Users will never lose pending rewards when unstaking -- claim happens atomically in the same transaction
+- If the claim fails (e.g., empty reward pool), the entire transaction rolls back and the user keeps their staked NFTs
+- Greymass Fuel sponsorship is also added to the unstake flow (was missing)
 

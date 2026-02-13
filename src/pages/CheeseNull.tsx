@@ -14,8 +14,8 @@ export default function CheeseNull() {
       <section className="container py-12 md:py-20">
         <div className="flex flex-col items-center gap-8">
           {/* Floating Cheese Orb */}
-          <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
-            <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
+          <div className="h-40 w-40 md:h-48 md:w-48 animate-float cheese-glow rounded-full flex items-center justify-center">
+            <img src={cheeseCoin} alt="CHEESE Coin" className="w-32 md:w-40 object-contain" />
           </div>
 
           {/* Title */}

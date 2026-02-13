@@ -920,17 +920,24 @@ export function NFTStaking({ farm }: NFTStakingProps) {
     setIsUnstaking(true);
     try {
       const assetIds = Array.from(selectedToUnstake);
-      const action = buildUnstakeNftsAction(
+      const claimAction = buildClaimRewardsAction(
+        session.actor.toString(),
+        farm.farm_name
+      );
+      const unstakeAction = buildUnstakeNftsAction(
         session.actor.toString(),
         farm.farm_name,
         assetIds
       );
       
-      await session.transact({ actions: [action] });
+      await session.transact(
+        { actions: [claimAction, unstakeAction] },
+        { transactPlugins: getTransactPlugins(session) }
+      );
       
       toast({
         title: "NFTs Unstaked!",
-        description: `Successfully unstaked ${assetIds.length} NFT(s) from ${farm.farm_name}`,
+        description: `Claimed rewards and unstaked ${assetIds.length} NFT(s) from ${farm.farm_name}`,
       });
       
       setSelectedToUnstake(new Set());

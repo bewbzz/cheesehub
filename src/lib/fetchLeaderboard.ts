@@ -16,10 +16,9 @@ export interface NullerStats {
   account: string;
   burns: number;
   cheeseNulled: number;
-  waxClaimed: number;
 }
 
-export type SortMode = 'cheese' | 'burns' | 'wax';
+export type SortMode = 'cheese' | 'burns';
 
 interface HyperionAction {
   act: {
@@ -77,13 +76,12 @@ function parseAsset(str: string): number {
 }
 
 export function aggregateNullerStats(actions: LogburnAction[], sortBy: SortMode = 'cheese'): NullerStats[] {
-  const map = new Map<string, { burns: number; cheeseNulled: number; waxClaimed: number }>();
+  const map = new Map<string, { burns: number; cheeseNulled: number }>();
 
   for (const action of actions) {
-    const existing = map.get(action.caller) || { burns: 0, cheeseNulled: 0, waxClaimed: 0 };
+    const existing = map.get(action.caller) || { burns: 0, cheeseNulled: 0 };
     existing.burns += 1;
     existing.cheeseNulled += parseAsset(action.cheese_burned);
-    existing.waxClaimed += parseAsset(action.wax_claimed);
     map.set(action.caller, existing);
   }
 
@@ -99,9 +97,7 @@ export function aggregateNullerStats(actions: LogburnAction[], sortBy: SortMode 
 export function sortNullers(entries: NullerStats[], sortBy: SortMode): NullerStats[] {
   const sortFn = sortBy === 'burns'
     ? (a: NullerStats, b: NullerStats) => b.burns - a.burns
-    : sortBy === 'wax'
-      ? (a: NullerStats, b: NullerStats) => b.waxClaimed - a.waxClaimed
-      : (a: NullerStats, b: NullerStats) => b.cheeseNulled - a.cheeseNulled;
+    : (a: NullerStats, b: NullerStats) => b.cheeseNulled - a.cheeseNulled;
 
   const sorted = [...entries].sort(sortFn).slice(0, 10);
   return sorted.map((entry, i) => ({ ...entry, rank: i + 1 }));

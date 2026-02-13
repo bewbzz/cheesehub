@@ -1,58 +1,31 @@
 
 
-# Import CHEESENull into CHEESEHub
+## Burn NFTs Feature
 
-## Overview
-CHEESENull is a token burning dApp powered by the `cheeseburner` smart contract. Users click a "NULL" button to claim vote rewards, swap 80% to CHEESE (burning 63%, rewarding 10% to caller, sending 7% to xCHEESE), and compound-staking the remaining 20% WAX. It has a 24-hour cooldown between burns.
+Add the ability to burn NFTs from the wallet's Send NFTs section, using the `atomicassets::burnasset` action. The existing NFT selector grid will be reused. A red "Burn NFTs" button will appear alongside the existing "Send" button. Clicking it shows an irreversibility warning dialog before executing.
 
-## What Gets Added
+### Changes
 
-### New Files (6 files)
+**1. WaxContext.tsx -- Add `burnNFTs` function**
+- Add `burnNFTs: (assetIds: string[]) => Promise<string | null>` to the context interface
+- Implement it using the `atomicassets::burnasset` action (one action per asset ID, batched in a single transaction)
+- Each action: `{ account: 'atomicassets', name: 'burnasset', data: { asset_owner: session.actor, asset_id } }`
+- Follow the same error handling pattern as `transferNFTs`
 
-1. **`src/lib/cheeseNullApi.ts`** -- All WAX blockchain API utilities from the original `waxApi.ts`, adapted to use CHEESEHub's existing `fetchWithFallback` for RPC endpoint rotation. Includes functions for fetching voter info, global state, Alcor pool prices, contract stats, and all formatting/calculation helpers.
+**2. NFTSendManager.tsx -- Add burn button and confirmation dialog**
+- Import `AlertDialog` components and `Flame` icon
+- Add a `[isBurning, setIsBurning]` state and `[showBurnConfirm, setShowBurnConfirm]` state
+- Add a red "Burn NFTs" button next to the existing Send button (only enabled when NFTs are selected, no recipient needed)
+- Clicking the burn button opens an `AlertDialog` with:
+  - Title: "Burn NFTs Permanently?"
+  - Description warning that this is irreversible, any backed tokens will be returned, and listing the count of NFTs selected
+  - "Cancel" and "Burn Forever" (red/destructive) action buttons
+- On confirm, call `burnNFTs(assetIds)`, handle success/error the same way as send, clear selection and refetch on success
 
-2. **`src/hooks/useCheeseNullData.ts`** -- Real-time data hook (from `useWaxData.ts`) that calculates estimated burn amounts, reward breakdowns, cooldown timers, and claimability status. Uses react-query with 30s refresh intervals.
+### Technical Details
 
-3. **`src/hooks/useCheeseNullStats.ts`** -- Lifetime statistics hook (from `useContractStats.ts`) that fetches total burns, total CHEESE nulled, total rewards distributed, etc.
-
-4. **`src/components/cheesenull/NullButton.tsx`** -- The big "NULL" button component adapted from `BurnButton.tsx`. Uses `useWax()` context instead of the standalone WalletContext. Sends the `cheeseburner::burn` action via the unified session with Greymass Fuel sponsorship.
-
-5. **`src/components/cheesenull/NullStats.tsx`** -- Current estimated burn display with distribution breakdown (Your Reward, xCHEESE, Compound) and cooldown timer. Adapted from `BurnStats.tsx`.
-
-6. **`src/components/cheesenull/NullTotalStats.tsx`** -- Lifetime statistics card showing total CHEESE nulled, rewards distributed, xCHEESE sent, WAX compounded, and total null count. Adapted from `TotalStats.tsx`.
-
-7. **`src/pages/CheeseNull.tsx`** -- Main page wrapped in the shared `Layout` component (providing CHEESEHub background, header, and footer). Contains the NullStats, NullButton, and NullTotalStats components arranged vertically.
-
-### Modified Files (2 files)
-
-1. **`src/components/Header.tsx`** -- Add "CHEESENull" link to the secondary navigation row (Row 2, alongside CHEESEFarm). Uses the `Flame` icon from lucide-react. Highlights when on `/cheesenull` route.
-
-2. **`src/App.tsx`** -- Add route: `<Route path="/cheesenull" element={<CheeseNull />} />`
-
-### Home Page Update (1 file)
-
-3. **`src/pages/Index.tsx`** -- Add a CHEESENull card to the CHEESETools grid section, with the flame emoji, description of the burn mechanism, and a "Go to CHEESENull" button linking to `/cheesenull`.
-
-## Key Adaptation: Wallet Integration
-
-The original CHEESENull uses its own `WalletContext`. In CHEESEHub, all components use the unified `useWax()` context. The NullButton will be adapted to:
-
-```text
-Original:  const { session, transact } = useWallet();
-Adapted:   const { session } = useWax();
-           // Build action and call session.transact() directly
-           // with getTransactPlugins(session) for Greymass Fuel
-```
-
-## No New Dependencies Required
-
-All libraries needed (react-query, lucide-react, wharfkit, shadcn/ui) are already installed in CHEESEHub.
-
-## Technical Details
-
-- The `waxApi.ts` functions will be placed in `src/lib/cheeseNullApi.ts` to avoid conflicts with existing CHEESEHub API utilities
-- BigInt-based voteshare calculations are preserved exactly as-is for precision
-- The Alcor pool price fetch uses the public Alcor API (no RPC needed)
-- The cooldown timer updates every second via `setInterval` in the hook
-- All components use existing CHEESEHub CSS classes (`text-cheese`, `cheese-glow`, `bg-cheese/20`, etc.) for consistent styling
+- The `burnasset` action signature: `asset_owner` (Name), `asset_id` (uint64)
+- Multiple burns are batched as multiple actions in one transaction (same pattern as multi-NFT transfers but one action per asset)
+- The burn button does NOT require a recipient, so it works independently of the recipient input validation
+- `canBurn = selectedNFTs.size > 0 && !isBurning && !isSending`
 

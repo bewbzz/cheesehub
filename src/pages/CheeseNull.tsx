@@ -3,11 +3,18 @@ import { Layout } from '@/components/Layout';
 import { NullStats } from '@/components/cheesenull/NullStats';
 import { NullButton } from '@/components/cheesenull/NullButton';
 import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
+import { NullerLeaderboard } from '@/components/cheesenull/NullerLeaderboard';
+import { useNullerLeaderboard } from '@/hooks/useNullerLeaderboard';
 import { Flame } from 'lucide-react';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 export default function CheeseNull() {
   const [canClaim, setCanClaim] = useState(false);
+  const { rawActions, isLoading: lbLoading, isError: lbError, refetch: refetchLeaderboard } = useNullerLeaderboard();
+
+  const handleBurnSuccess = () => {
+    refetchLeaderboard();
+  };
 
   return (
     <Layout>
@@ -37,10 +44,13 @@ export default function CheeseNull() {
           <NullStats onCanClaimChange={setCanClaim} />
 
           {/* Button */}
-          <NullButton disabled={!canClaim} onBurnSuccess={() => {}} />
+          <NullButton disabled={!canClaim} onBurnSuccess={handleBurnSuccess} />
 
           {/* Total Stats */}
           <NullTotalStats />
+
+          {/* Leaderboard */}
+          <NullerLeaderboard rawActions={rawActions} isLoading={lbLoading} isError={lbError} />
 
           {/* Powered by */}
           <div className="text-center text-sm text-muted-foreground">

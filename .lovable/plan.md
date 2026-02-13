@@ -1,62 +1,36 @@
 
 
-# Fix WAX Fallback: Buy WAXDAO via Alcor Swap
+# Fix Farm "Under Construction" Detection
 
 ## Problem
-The current `on_wax_transfer` handler tries to send WAXDAO from the contract's own balance (line 127-133). But the WAX fallback exists precisely because the contract has no WAXDAO. It needs to **buy** WAXDAO from Alcor instead.
+The farm `testfarm4` has `status: 0` and `expiration: 1` from the contract. Our code assumes `expiration === 0` means "under construction", but the WaxDAO contract actually uses `expiration: 1` as the sentinel value for "never opened." Since `1 < now` is true, the farm incorrectly displays as "Expired" instead of "Under Construction."
 
 ## Solution
-Replace the direct WAXDAO transfer with an Alcor swap, following the proven pattern from the `cheeseburner` contract.
+Change the under-construction check from `expiration === 0` to `expiration <= 1` to account for the contract's actual sentinel value.
 
-## What Changes
+## Changes
 
-### Contract: `contracts/cheesefeefee/cheesefeefee.cpp`
+### `src/components/farm/FarmDetail.tsx` (line 180)
 
-In the `on_wax_transfer` handler (lines 126-133), replace the manual WAXDAO transfer with an Alcor `swapexactin` call:
-
-- Send 205 WAX to `swap.alcor` with memo: `swapexactin#1236#<user>#<min_output> WAXDAO@token.waxdao#0`
-- Alcor executes the swap and sends the purchased WAXDAO directly to the user (specified as recipient in the memo)
-- The calculated `waxdao_amount` (already computed on line 120) is used as the minimum output for slippage protection
-- The 45 WAX to cheeseburner remains unchanged
-
-### No other file changes needed
-- The `.hpp` file already has `ALCOR_CONTRACT`, `WAX_CONTRACT`, `WAXDAO_WAX_POOL_ID` defined
-- The frontend code (`CreateFarm.tsx`, `CreateDao.tsx`, `cheeseFees.ts`) is already wired correctly from the previous implementation
-- `calculate_waxdao_from_wax` stays as-is since it's still needed for the minimum output calculation
-
-## Updated Flow
-
-```text
-[250 WAX from user] --> cheesefeefee
-                         |-- [205 WAX] --> swap.alcor (Pool 1236)
-                         |                  |-- [WAXDAO] --> user (via memo recipient)
-                         |-- [45 WAX] --> cheeseburner
+Change:
+```js
+const isUnderConstruction = farm.status === 0 && farm.expiration === 0;
+```
+To:
+```js
+const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
 ```
 
-## Technical Detail
+### `src/components/farm/BrowseFarms.tsx` and `src/components/farm/MyFarms.tsx`
 
-The single line change replaces:
-```cpp
-// OLD: Transfer WAXDAO we don't have
-action(..., WAXDAO_CONTRACT, "transfer"_n,
-    make_tuple(get_self(), from, waxdao_amount, ...)).send();
-```
-With:
-```cpp
-// NEW: Buy WAXDAO from Alcor, sent directly to user
-int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0);
-asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
+Search for any other `expiration === 0` checks used for under-construction detection and update them to `expiration <= 1` as well.
 
-string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
-    + "#" + from.to_string()
-    + "#" + waxdao_amount.to_string()
-    + "#0";
+### `src/components/farm/NFTStaking.tsx`
 
-action(permission_level{get_self(), "active"_n},
-    WAX_CONTRACT, "transfer"_n,
-    make_tuple(get_self(), ALCOR_CONTRACT, wax_swap_quantity, alcor_memo)
-).send();
-```
+Same fix for the reward accrual capping logic -- if it checks expiration for "never opened" state, update it too.
 
-This follows the exact same Alcor interaction pattern used in `cheeseburner`.
+## Impact
+- Farm `testfarm4` (and any new farm) will correctly show "Under Construction" with the "Open Farm" button
+- The "Close" and "Perm Close" buttons will no longer appear on under-construction farms
+- The creator guidance box will show the correct "Add stakeable assets... then press Open Farm" message
 

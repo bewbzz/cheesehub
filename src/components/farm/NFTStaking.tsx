@@ -397,7 +397,8 @@ export function NFTStaking({ farm }: NFTStakingProps) {
       const payoutInterval = farm.payout_interval || 3600; // Default 1 hour
       
       // Cap at farm expiration -- rewards stop accruing once farm expires
-      const isExpired = farm.expiration > 0 && now > farm.expiration;
+      // expiration <= 1 means "never opened" (under construction), not expired
+      const isExpired = farm.expiration > 1 && now > farm.expiration;
       const effectiveNow = isExpired ? farm.expiration : now;
       
       // Use USER's last_state_change, not farm's last_payout

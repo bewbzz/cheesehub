@@ -1247,8 +1247,7 @@ export function AlcorFarmManager({ onTransactionComplete, onTransactionSuccess }
               );
             }
           })}
-        </div>
-      </ScrollArea>
+      </div>
 
       {/* Increase Liquidity Dialog */}
       <IncreaseLiquidityDialog

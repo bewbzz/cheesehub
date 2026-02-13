@@ -65,7 +65,7 @@ const Index = () => {
 
         {/* Grid of tools - 4x2 layout */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Row 1: CHEESEUp + CHEESEFaucet */}
+          {/* Row 1: CHEESEUp + CHEESENull */}
           {/* CHEESEUp CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -85,6 +85,26 @@ const Index = () => {
             </CardContent>
           </Card>
 
+          {/* CHEESENull CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔥</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Null</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the CHEESEBURNER smart contract. Perpetually NULLS $CHEESE. Anyone can call the NULL action and earn $CHEESE as a reward
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/cheesenull">
+                  Go to CHEESENull
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Row 2: CHEESEFaucet + CHEESEDao */}
           {/* CHEESEFaucet CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -104,8 +124,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 2: CHEESEDao + CHEESEFarm */}
-          {/* CHEESE DAO CTA */}
+          {/* CHEESEDao CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -124,6 +143,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
+          {/* Row 3: CHEESEFarm + CHEESELock */}
           {/* CHEESEFarm CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -143,7 +163,6 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 3: CHEESELock + CHEESEDrop */}
           {/* CHEESELock CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -163,7 +182,8 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESEDrops CTA */}
+          {/* Row 4: CHEESEDrop */}
+          {/* CHEESEDrop CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -176,25 +196,6 @@ const Index = () => {
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">
                   Go to CHEESEDrop
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* CHEESENull CTA */}
-          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-            <CardContent className="py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔥</span>
-              </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Null</span></h2>
-              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the CHEESEBURNER smart contract. Claims vote rewards, swaps 80% to CHEESE (burning 63%, rewarding 10% to caller, 7% to xCHEESE), and compounds 20% WAX back to staking
-              </p>
-              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                <Link to="/cheesenull">
-                  Go to CHEESENull
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

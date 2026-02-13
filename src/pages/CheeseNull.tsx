@@ -36,7 +36,7 @@ export default function CheeseNull() {
               <Flame className="h-8 w-8 text-cheese" />
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Earn $CHEESE by nulling $CHEESE. Press the NULL button when active to NULL $CHEESE and receive the $CHEESE amount under the reward heading as a gift
+              Earn $CHEESE by nulling $CHEESE. Pressing the NULL button when active rewards the caller with $CHEESE by triggering the smart contract to buy $CHEESE and split it as per the table
             </p>
           </div>
 

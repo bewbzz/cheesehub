@@ -85,6 +85,19 @@ export function Header() {
               <Sprout className="h-4 w-4" />
               CHEESEFarm
             </Link>
+            {/* CHEESEDao */}
+            <Link
+              to="/dao"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/dao"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Users className="h-4 w-4" />
+              CHEESEDao
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">
@@ -108,19 +121,6 @@ export function Header() {
       {/* Row 2: Secondary Nav */}
       <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
         <nav className="flex items-center gap-1">
-          {/* CHEESEDao */}
-          <Link
-            to="/dao"
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/dao"
-                ? "bg-cheese/20 text-cheese"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <Users className="h-4 w-4" />
-            CHEESEDao
-          </Link>
           {/* CHEESEDrop */}
           <Link
             to="/drops"

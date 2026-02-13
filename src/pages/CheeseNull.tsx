@@ -47,8 +47,8 @@ export default function CheeseNull() {
             <p>
               Powered by the{" "}
               <a 
-                href="https://wax.bloks.io/account/cheeseburner?loadContract=true&tab=Tables&account=cheeseburner&scope=cheeseburner&limit=100" 
-                target="_blank" 
+                href="https://waxblock.io/account/cheeseburner" 
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-cheese hover:text-cheese-dark underline transition-colors"
               >

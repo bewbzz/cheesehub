@@ -41,6 +41,22 @@ export default function CheeseNull() {
 
           {/* Total Stats */}
           <NullTotalStats />
+
+          {/* Powered by */}
+          <div className="text-center text-sm text-muted-foreground">
+            <p>
+              Powered by the{" "}
+              <a 
+                href="https://wax.bloks.io/account/cheeseburner?loadContract=true&tab=Tables&account=cheeseburner&scope=cheeseburner&limit=100" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-cheese hover:text-cheese-dark underline transition-colors"
+              >
+                CHEESEBURNER
+              </a>{" "}
+              smart contract.
+            </p>
+          </div>
         </div>
       </section>
     </Layout>

@@ -68,7 +68,7 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
           <div className="flex items-center justify-center gap-2">
             <Trophy className="w-4 h-4 text-cheese" />
             <h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-              Nullers Scoreboard
+              CHEESEBoard
             </h3>
             <Trophy className="w-4 h-4 text-cheese" />
           </div>

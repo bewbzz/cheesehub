@@ -4,6 +4,7 @@ import { NullStats } from '@/components/cheesenull/NullStats';
 import { NullButton } from '@/components/cheesenull/NullButton';
 import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
 import { Flame } from 'lucide-react';
+import cheeseCoin from '@/assets/cheese-coin.png';
 
 export default function CheeseNull() {
   const [canClaim, setCanClaim] = useState(false);
@@ -12,6 +13,11 @@ export default function CheeseNull() {
     <Layout>
       <section className="container py-12 md:py-20">
         <div className="flex flex-col items-center gap-8">
+          {/* Floating Cheese Orb */}
+          <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
+            <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
+          </div>
+
           {/* Title */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
@@ -23,7 +29,7 @@ export default function CheeseNull() {
               <Flame className="h-8 w-8 text-cheese" />
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Claim vote rewards, burn CHEESE, and compound WAX — all in one click. Anyone can call it once every 24 hours.
+              Earn $CHEESE by nulling $CHEESE. Press the NULL button when active to NULL $CHEESE and receive the $CHEESE amount under the reward heading as a gift
             </p>
           </div>
 

@@ -49,6 +49,19 @@ export function Header() {
               <Zap className="h-4 w-4" />
               CHEESEUp
             </Link>
+            {/* CHEESENull */}
+            <Link
+              to="/cheesenull"
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                location.pathname === "/cheesenull"
+                  ? "bg-cheese/20 text-cheese"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Flame className="h-4 w-4" />
+              CHEESENull
+            </Link>
             {/* CHEESEFaucet (external) */}
             <a
               href="https://cheeseonwax.github.io/tools/cheesefaucet.html"
@@ -59,44 +72,18 @@ export function Header() {
               <Droplets className="h-4 w-4" />
               CHEESEFaucet
             </a>
-            {/* CHEESELock */}
+            {/* CHEESEFarm */}
             <Link
-              to="/locker"
+              to="/farm"
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/locker"
+                location.pathname === "/farm"
                   ? "bg-cheese/20 text-cheese"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Lock className="h-4 w-4" />
-              CHEESELock
-            </Link>
-            {/* CHEESEDrop */}
-            <Link
-              to="/drops"
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/drops"
-                  ? "bg-cheese/20 text-cheese"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              CHEESEDrop
-            </Link>
-            {/* CHEESEDao */}
-            <Link
-              to="/dao"
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === "/dao"
-                  ? "bg-cheese/20 text-cheese"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Users className="h-4 w-4" />
-              CHEESEDao
+              <Sprout className="h-4 w-4" />
+              CHEESEFarm
             </Link>
           </nav>
         </div>
@@ -121,31 +108,44 @@ export function Header() {
       {/* Row 2: Secondary Nav */}
       <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
         <nav className="flex items-center gap-1">
-          {/* CHEESEFarm */}
+          {/* CHEESEDao */}
           <Link
-            to="/farm"
+            to="/dao"
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/farm"
+              location.pathname === "/dao"
                 ? "bg-cheese/20 text-cheese"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <Sprout className="h-4 w-4" />
-            CHEESEFarm
+            <Users className="h-4 w-4" />
+            CHEESEDao
           </Link>
-          {/* CHEESENull */}
+          {/* CHEESEDrop */}
           <Link
-            to="/cheesenull"
+            to="/drops"
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/cheesenull"
+              location.pathname === "/drops"
                 ? "bg-cheese/20 text-cheese"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <Flame className="h-4 w-4" />
-            CHEESENull
+            <ShoppingBag className="h-4 w-4" />
+            CHEESEDrop
+          </Link>
+          {/* CHEESELock */}
+          <Link
+            to="/locker"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+              location.pathname === "/locker"
+                ? "bg-cheese/20 text-cheese"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            <Lock className="h-4 w-4" />
+            CHEESELock
           </Link>
         </nav>
       </div>

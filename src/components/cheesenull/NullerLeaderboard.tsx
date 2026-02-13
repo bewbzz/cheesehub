@@ -117,14 +117,9 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
                   </TableCell>
                   <TableCell className="py-2">
                     <div>
-                      <a
-                        href={`https://waxblock.io/account/${entry.account}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-foreground hover:text-cheese transition-colors"
-                      >
+                      <span className="text-sm font-medium text-foreground">
                         {entry.account}
-                      </a>
+                      </span>
                       <p className="text-[10px] text-muted-foreground">{getSecondaryText(entry)}</p>
                     </div>
                   </TableCell>

@@ -336,17 +336,6 @@ export function CheeseAmpPlayer() {
             {activeTracks.length} track{activeTracks.length !== 1 ? 's' : ''}
             {viewMode === 'global' && ' (Global)'}
           </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "h-7 w-7",
-              playlist.shuffle && "text-cheese"
-            )}
-            onClick={playlist.toggleShuffle}
-          >
-            <Shuffle className="h-3.5 w-3.5" />
-          </Button>
           {/* Buffered plays indicator for Cloud Wallet users */}
           {accountName && session && !isAnchorSession(session) && getBufferedPlayCount(accountName) > 0 && (
             <TooltipProvider>
@@ -440,6 +429,17 @@ export function CheeseAmpPlayer() {
 
           {/* Transport Controls */}
           <div className="flex items-center justify-center gap-2 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-8 w-8",
+                playlist.shuffle && "text-cheese"
+              )}
+              onClick={playlist.toggleShuffle}
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"

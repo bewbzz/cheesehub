@@ -60,6 +60,9 @@ static constexpr double WAX_TO_BURNER = 45.0;             // WAX sent to cheeseb
 // Security: Minimum output prevents dust attacks
 static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000; // 5 WAXDAO minimum (8 decimals)
 
+// Security: Slippage tolerance for Alcor AMM swaps (fees + price impact)
+static constexpr double SWAP_SLIPPAGE_TOLERANCE = 0.02; // 2% for AMM fee + price impact
+
 // Security: Price deviation bounds catch extreme manipulation
 static constexpr double MAX_PRICE_DEVIATION = 0.10;     // 10% max deviation from baseline
 static constexpr double BASELINE_WAX_PER_CHEESE = 1.50; // ~expected CHEESE price

@@ -90,7 +90,7 @@ const Index = () => {
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔥</span>
+                <span className="text-4xl">⛔</span>
               </div>
               <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Null</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">

@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { Wallet, LogOut, ChevronDown, Send, Music2, UserPlus, Users, Check, X } from "lucide-react";
+import { LogOut, ChevronDown, Send, Music2, UserPlus, Users, Check, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -152,7 +152,7 @@ export function WalletConnect() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="border-cheese/30 hover:border-cheese hover:bg-cheese/10">
-            <Wallet className="mr-2 h-4 w-4 text-cheese" />
+            <span className="mr-2 text-base leading-none">👛</span>
             <span className="max-w-[120px] truncate">{accountName}</span>
             <span className="ml-2 text-cheese font-semibold flex items-center gap-1">
               <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
@@ -257,7 +257,7 @@ export function WalletConnect() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-          <Wallet className="mr-2 h-4 w-4" />
+          <span className="mr-2 text-base leading-none">👛</span>
           Connect Wallet
         </Button>
       </DialogTrigger>
@@ -274,7 +274,7 @@ export function WalletConnect() {
             disabled={isLoading}
             className="h-14 bg-cheese hover:bg-cheese-dark text-primary-foreground"
           >
-            <Wallet className="mr-2 h-5 w-5" />
+            <span className="mr-2 text-lg leading-none">👛</span>
             {isLoading ? "Connecting..." : "Connect Wallet"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">

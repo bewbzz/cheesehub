@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchTable } from "@/lib/wax";
+import { fetchTableRows, WAX_RPC_ENDPOINTS } from "@/lib/waxRpcFallback";
+import { logger } from "@/lib/logger";
 
 const BANNER_CONTRACT = "cheesebannad";
 
@@ -34,23 +35,55 @@ export interface BannerSlotGroup {
 }
 
 export interface BannerPricing {
-  waxPerDay: number; // e.g. 100
+  waxPerDay: number;
   waxPerCheeseBaseline: number;
+}
+
+const DEFAULT_PRICING: BannerPricing = { waxPerDay: 100, waxPerCheeseBaseline: 1.5 };
+
+/**
+ * Detect "account doesn't exist" errors to avoid retrying hopelessly.
+ * These come back as 400/500 with account_query_exception.
+ */
+function isAccountMissingError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes("account_query_exception") || msg.includes("fail to retrieve account");
+  }
+  return false;
+}
+
+/**
+ * Fast table fetch with 5s timeout and early bail on missing account.
+ */
+async function fetchBannerTable<T>(table: string, limit: number): Promise<T[]> {
+  try {
+    const result = await fetchTableRows<T>(
+      { code: BANNER_CONTRACT, scope: BANNER_CONTRACT, table, limit },
+      5000
+    );
+    return result.rows;
+  } catch (error) {
+    if (isAccountMissingError(error)) {
+      logger.warn(`[BannerAds] Contract account "${BANNER_CONTRACT}" not found on-chain — returning empty`);
+    } else {
+      logger.warn(`[BannerAds] Failed to fetch ${table}:`, error);
+    }
+    return [];
+  }
 }
 
 /**
  * Fetches all banner ad slots and config for the marketplace view.
+ * Gracefully returns empty data if the contract isn't deployed yet.
  */
 export function useBannerSlots() {
   const slotsQuery = useQuery({
     queryKey: ["bannerSlots", "all"],
     queryFn: async (): Promise<BannerSlotGroup[]> => {
-      const rows = await fetchTable<BannerAdRow>(
-        BANNER_CONTRACT,
-        BANNER_CONTRACT,
-        "bannerads",
-        { limit: 1000 }
-      );
+      const rows = await fetchBannerTable<BannerAdRow>("bannerads", 1000);
+
+      if (rows.length === 0) return [];
 
       // Group by time
       const grouped = new Map<number, BannerSlot[]>();
@@ -70,7 +103,6 @@ export function useBannerSlots() {
         grouped.set(row.time, existing);
       }
 
-      // Convert to array sorted by time
       return Array.from(grouped.entries())
         .sort(([a], [b]) => a - b)
         .map(([time, slots]) => ({
@@ -79,21 +111,21 @@ export function useBannerSlots() {
           slots: slots.sort((a, b) => a.position - b.position),
         }));
     },
-    staleTime: 15000,
+    staleTime: 30_000,
+    gcTime: 120_000,
+    retry: (failureCount, error) => {
+      // Don't retry if the account simply doesn't exist
+      if (isAccountMissingError(error)) return false;
+      return failureCount < 1;
+    },
   });
 
   const configQuery = useQuery({
     queryKey: ["bannerConfig"],
     queryFn: async (): Promise<BannerPricing> => {
-      const rows = await fetchTable<BannerConfig>(
-        BANNER_CONTRACT,
-        BANNER_CONTRACT,
-        "config",
-        { limit: 1 }
-      );
+      const rows = await fetchBannerTable<BannerConfig>("config", 1);
 
       if (rows.length > 0) {
-        // Parse "100.00000000 WAX" format
         const amount = parseFloat(rows[0].wax_price_per_day.split(" ")[0]);
         return {
           waxPerDay: amount,
@@ -101,15 +133,19 @@ export function useBannerSlots() {
         };
       }
 
-      // Defaults matching contract
-      return { waxPerDay: 100, waxPerCheeseBaseline: 1.5 };
+      return DEFAULT_PRICING;
     },
-    staleTime: 60000,
+    staleTime: 120_000,
+    gcTime: 300_000,
+    retry: (failureCount, error) => {
+      if (isAccountMissingError(error)) return false;
+      return failureCount < 1;
+    },
   });
 
   return {
     slotGroups: slotsQuery.data ?? [],
-    pricing: configQuery.data ?? { waxPerDay: 100, waxPerCheeseBaseline: 1.5 },
+    pricing: configQuery.data ?? DEFAULT_PRICING,
     isLoading: slotsQuery.isLoading || configQuery.isLoading,
     refetch: () => {
       slotsQuery.refetch();

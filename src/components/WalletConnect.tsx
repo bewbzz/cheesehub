@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWax } from "@/context/WaxContext";
-import { LogOut, ChevronDown, Send, Music2, UserPlus, Users, Check, X } from "lucide-react";
+import { ChevronDown, Check, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -173,11 +173,11 @@ export function WalletConnect() {
             }} 
             className="cursor-pointer"
           >
-            <Music2 className="mr-2 h-4 w-4" />
+            <span className="mr-2 text-base leading-none">🎧</span>
             <span><span className="text-cheese">CHEESE</span>Amp</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setWalletOpen(true)} className="cursor-pointer">
-            <Send className="mr-2 h-4 w-4" />
+            <img src={walletIcon} alt="Wallet" className="mr-2 h-4 w-4 object-contain" />
             <span><span className="text-cheese">CHEESE</span>Wallet</span>
           </DropdownMenuItem>
           
@@ -187,7 +187,7 @@ export function WalletConnect() {
               <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="cursor-pointer">
-                  <Users className="mr-2 h-4 w-4" />
+                  <span className="mr-2 text-sm leading-none">👥</span>
                   Switch Account
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
@@ -222,7 +222,7 @@ export function WalletConnect() {
                     
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleAddAccount} className="cursor-pointer">
-                      <UserPlus className="mr-2 h-4 w-4" />
+                      <span className="mr-2 text-sm leading-none">➕</span>
                       Add Account
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
@@ -233,7 +233,7 @@ export function WalletConnect() {
           
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="cursor-pointer">
-            <LogOut className="mr-2 h-4 w-4" />
+            <span className="mr-2 text-sm leading-none">🔌</span>
             Disconnect
           </DropdownMenuItem>
         </DropdownMenuContent>

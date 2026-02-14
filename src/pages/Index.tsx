@@ -214,7 +214,8 @@ const Index = () => {
                 A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Rent CPU and NET. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards.
               </p>
               <p className="text-cheese font-semibold max-w-sm mx-auto mb-6">
-                + Manage Alcor LP Farm Positions
+                + Manage Alcor LP Farm Positions<br />
+                + Burn NFTs
               </p>
               <Button 
                 size="lg" 

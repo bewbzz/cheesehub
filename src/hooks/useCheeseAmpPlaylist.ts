@@ -63,43 +63,41 @@ function saveState(accountName: string, state: CheeseAmpState): void {
 }
 
 export function useCheeseAmpPlaylist(accountName: string | null, allTracks: StackedMusicNFT[]) {
+  const accountRef = useRef<string | null>(accountName);
+  
   const [state, setState] = useState<CheeseAmpState>(() => 
     accountName ? loadState(accountName) : getDefaultState()
   );
   
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
-  
-  // Use refs to prevent race condition between load and save
-  // Refs update synchronously and don't trigger re-renders
-  const hasInitialLoadCompleted = useRef<boolean>(false);
-  const lastLoadedAccount = useRef<string | null>(null);
 
-  // Load state when account changes - MUST complete before saves are allowed
-  useEffect(() => {
-    if (accountName) {
-      // Reset flag when switching accounts to prevent cross-account data leaks
-      if (lastLoadedAccount.current !== accountName) {
-        hasInitialLoadCompleted.current = false;
+  // Wrapper that updates state AND immediately saves to localStorage
+  // This eliminates all race conditions between load/save effects
+  const updateState = useCallback((updater: (prev: CheeseAmpState) => CheeseAmpState) => {
+    setState(prev => {
+      const next = updater(prev);
+      // Save synchronously inside setState to guarantee consistency
+      if (accountRef.current) {
+        saveState(accountRef.current, next);
       }
-      
+      return next;
+    });
+  }, []);
+
+  // Load state when account changes
+  useEffect(() => {
+    accountRef.current = accountName;
+    if (accountName) {
       const loadedState = loadState(accountName);
       setState(loadedState);
-      
-      // Mark as loaded AFTER setState - ref updates synchronously
-      lastLoadedAccount.current = accountName;
-      hasInitialLoadCompleted.current = true;
-      
       console.log('[CHEESEAmp] Load complete for', accountName, '- playlists:', loadedState.playlists.length);
     } else {
-      // No account - reset everything
-      hasInitialLoadCompleted.current = false;
-      lastLoadedAccount.current = null;
+      setState(getDefaultState());
     }
   }, [accountName]);
 
   // Sync with audio player's current track on mount/reopen
-  // This ensures the UI reflects the currently playing track when dialog reopens
   useEffect(() => {
     if (allTracks.length === 0) return;
     
@@ -112,18 +110,7 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
         setCurrentIndex(index);
       }
     }
-  }, [allTracks]); // Only run when tracks load, not on currentIndex changes
-
-  // Save state ONLY after initial load has completed for this account
-  // This prevents saving empty state before localStorage data is restored
-  useEffect(() => {
-    if (!accountName) return;
-    if (!hasInitialLoadCompleted.current) return;
-    if (lastLoadedAccount.current !== accountName) return;
-    
-    console.log('[CHEESEAmp] Saving state for', accountName, '- playlists:', state.playlists.length);
-    saveState(accountName, state);
-  }, [accountName, state]);
+  }, [allTracks]);
 
   // Get current playlist tracks
   const currentPlaylistTracks = useMemo(() => {
@@ -163,15 +150,13 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
   const playTrack = useCallback((track: StackedMusicNFT) => {
     const index = currentPlaylistTracks.findIndex(t => t.asset_id === track.asset_id);
     if (index !== -1) {
-      // If shuffle is on, find the position in shuffle order
       if (state.shuffle && shuffleOrder.length > 0) {
         const shuffleIndex = shuffleOrder.indexOf(index);
         setCurrentIndex(shuffleIndex !== -1 ? shuffleIndex : 0);
       } else {
         setCurrentIndex(index);
       }
-      // Add to recently played
-      setState(prev => ({
+      updateState(prev => ({
         ...prev,
         recentlyPlayed: [
           track.asset_id,
@@ -179,7 +164,7 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
         ].slice(0, 50),
       }));
     }
-  }, [currentPlaylistTracks, state.shuffle, shuffleOrder]);
+  }, [currentPlaylistTracks, state.shuffle, shuffleOrder, updateState]);
 
   const playNext = useCallback(() => {
     if (currentPlaylistTracks.length === 0) return null;
@@ -228,25 +213,25 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
   }, [currentIndex, currentPlaylistTracks, state.repeat, state.shuffle, shuffleOrder]);
 
   const toggleShuffle = useCallback(() => {
-    setState(prev => ({ ...prev, shuffle: !prev.shuffle }));
-  }, []);
+    updateState(prev => ({ ...prev, shuffle: !prev.shuffle }));
+  }, [updateState]);
 
   const setRepeat = useCallback((mode: RepeatMode) => {
-    setState(prev => ({ ...prev, repeat: mode }));
-  }, []);
+    updateState(prev => ({ ...prev, repeat: mode }));
+  }, [updateState]);
 
   const cycleRepeat = useCallback(() => {
-    setState(prev => {
+    updateState(prev => {
       const modes: RepeatMode[] = ['none', 'all', 'one'];
       const currentModeIndex = modes.indexOf(prev.repeat);
       const nextMode = modes[(currentModeIndex + 1) % modes.length];
       return { ...prev, repeat: nextMode };
     });
-  }, []);
+  }, [updateState]);
 
   const setVolume = useCallback((volume: number) => {
-    setState(prev => ({ ...prev, volume: Math.max(0, Math.min(1, volume)) }));
-  }, []);
+    updateState(prev => ({ ...prev, volume: Math.max(0, Math.min(1, volume)) }));
+  }, [updateState]);
 
   // Playlist management
   const createPlaylist = useCallback((name: string, trackIds: string[] = []) => {
@@ -258,25 +243,25 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    setState(prev => ({
+    updateState(prev => ({
       ...prev,
       playlists: [...prev.playlists, newPlaylist],
     }));
     return id;
-  }, []);
+  }, [updateState]);
 
   const deletePlaylist = useCallback((playlistId: string) => {
-    setState(prev => ({
+    updateState(prev => ({
       ...prev,
       playlists: prev.playlists.filter(p => p.id !== playlistId),
       currentPlaylistId: prev.currentPlaylistId === playlistId 
         ? DEFAULT_PLAYLIST_ID 
         : prev.currentPlaylistId,
     }));
-  }, []);
+  }, [updateState]);
 
   const addToPlaylist = useCallback((playlistId: string, trackId: string) => {
-    setState(prev => ({
+    updateState(prev => ({
       ...prev,
       playlists: prev.playlists.map(p => 
         p.id === playlistId
@@ -284,10 +269,10 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
           : p
       ),
     }));
-  }, []);
+  }, [updateState]);
 
   const removeFromPlaylist = useCallback((playlistId: string, trackId: string) => {
-    setState(prev => ({
+    updateState(prev => ({
       ...prev,
       playlists: prev.playlists.map(p => 
         p.id === playlistId
@@ -295,12 +280,12 @@ export function useCheeseAmpPlaylist(accountName: string | null, allTracks: Stac
           : p
       ),
     }));
-  }, []);
+  }, [updateState]);
 
   const selectPlaylist = useCallback((playlistId: string) => {
-    setState(prev => ({ ...prev, currentPlaylistId: playlistId }));
+    updateState(prev => ({ ...prev, currentPlaylistId: playlistId }));
     setCurrentIndex(-1);
-  }, []);
+  }, [updateState]);
 
   return {
     // Current playback

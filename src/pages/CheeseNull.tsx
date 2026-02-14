@@ -5,7 +5,6 @@ import { NullButton } from '@/components/cheesenull/NullButton';
 import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
 import { NullerLeaderboard } from '@/components/cheesenull/NullerLeaderboard';
 import { useNullerLeaderboard } from '@/hooks/useNullerLeaderboard';
-import { Flame } from 'lucide-react';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
 export default function CheeseNull() {
@@ -28,12 +27,12 @@ export default function CheeseNull() {
           {/* Title */}
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
-              <Flame className="h-8 w-8 text-cheese" />
+              <span className="text-2xl">⛔</span>
               <h1 className="text-3xl md:text-4xl font-bold">
                 <span className="text-cheese">CHEESE</span>
                 <span className="text-foreground">Null</span>
               </h1>
-              <Flame className="h-8 w-8 text-cheese" />
+              <span className="text-2xl">⛔</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Earn $CHEESE by nulling $CHEESE. Pressing the NULL button when active rewards the caller with $CHEESE by triggering the smart contract to buy $CHEESE and split it as per the table

@@ -7,10 +7,10 @@ const ALCOR_SWAP_CONTRACT = 'swap.alcor';
 const ALCOR_API_BASE = 'https://wax.alcor.exchange/api/v2';
 const API_TIMEOUT_MS = 5000; // 5 second timeout for API calls
 
-// Track data source for UI feedback
-let lastDataSource: 'api' | 'blockchain' = 'api';
+// Track data source for UI feedback - per-function tracking to avoid race conditions
+let stakedFarmsDataSource: 'api' | 'blockchain' = 'api';
 export function getAlcorDataSource(): 'api' | 'blockchain' {
-  return lastDataSource;
+  return stakedFarmsDataSource;
 }
 
 // ============= Pool Types =============
@@ -377,6 +377,9 @@ async function buildFarmPositionsFromOnChain(
  */
 export async function fetchUserStakedFarms(accountName: string): Promise<AlcorApiFarmPosition[]> {
   // Try API first with timeout
+  let apiData: AlcorApiFarmPosition[] | null = null;
+  let apiSucceeded = false;
+  
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -388,13 +391,14 @@ export async function fetchUserStakedFarms(accountName: string): Promise<AlcorAp
     
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        lastDataSource = 'api';
-        console.log('[Alcor] Farm positions from API');
-        return data;
+      if (Array.isArray(data)) {
+        apiSucceeded = true;
+        apiData = data;
       }
     }
-    console.warn(`[Alcor] Farms API returned ${response.status}, trying blockchain...`);
+    if (!apiSucceeded) {
+      console.warn(`[Alcor] Farms API returned ${response.status}, trying blockchain...`);
+    }
   } catch (error: any) {
     if (error.name === 'AbortError') {
       console.warn('[Alcor] Farms API timeout, falling back to blockchain...');
@@ -403,9 +407,41 @@ export async function fetchUserStakedFarms(accountName: string): Promise<AlcorAp
     }
   }
 
-  // Fallback to blockchain
+  // If API returned data with items, use it directly
+  if (apiSucceeded && apiData && apiData.length > 0) {
+    stakedFarmsDataSource = 'api';
+    console.log('[Alcor] Farm positions from API:', apiData.length);
+    return apiData;
+  }
+
+  // If API returned empty [], cross-validate with blockchain before trusting it
+  if (apiSucceeded && apiData && apiData.length === 0) {
+    console.log('[Alcor] API returned empty farms, cross-validating with blockchain...');
+    try {
+      const stakes = await fetchUserStakesOnChain(accountName);
+      if (stakes.length > 0) {
+        // API was stale/wrong - blockchain has stakes, use blockchain data
+        console.warn('[Alcor] API returned empty but blockchain has', stakes.length, 'stakes - using blockchain data');
+        stakedFarmsDataSource = 'blockchain';
+        const positions = await fetchUserPositionsOnChain(accountName);
+        return buildFarmPositionsFromOnChain(accountName, stakes, positions);
+      } else {
+        // Both agree: genuinely no stakes
+        stakedFarmsDataSource = 'api';
+        console.log('[Alcor] Confirmed: user has no staked farms');
+        return [];
+      }
+    } catch (validationError) {
+      // Cross-validation failed, trust API empty result
+      console.warn('[Alcor] Cross-validation failed, trusting API empty result');
+      stakedFarmsDataSource = 'api';
+      return [];
+    }
+  }
+
+  // API failed entirely - use blockchain fallback
   try {
-    lastDataSource = 'blockchain';
+    stakedFarmsDataSource = 'blockchain';
     console.log('[Alcor] Fetching farm data from blockchain...');
     
     const [stakes, positions] = await Promise.all([
@@ -441,7 +477,6 @@ export async function fetchUserPositions(accountName: string): Promise<AlcorApiP
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data)) {
-        lastDataSource = 'api';
         console.log('[Alcor] Positions from API:', data.length);
         return data;
       }
@@ -457,7 +492,6 @@ export async function fetchUserPositions(accountName: string): Promise<AlcorApiP
 
   // Fallback to blockchain
   try {
-    lastDataSource = 'blockchain';
     return fetchUserPositionsOnChain(accountName);
   } catch (blockchainError) {
     console.error('[Alcor] Blockchain fallback also failed:', blockchainError);
@@ -480,7 +514,6 @@ export async function fetchPoolDetails(poolId: number): Promise<any | null> {
     clearTimeout(timeoutId);
     
     if (response.ok) {
-      lastDataSource = 'api';
       return await response.json();
     }
   } catch (error: any) {
@@ -489,7 +522,6 @@ export async function fetchPoolDetails(poolId: number): Promise<any | null> {
 
   // Fallback to blockchain
   try {
-    lastDataSource = 'blockchain';
     return fetchPoolDetailsOnChain(poolId);
   } catch (blockchainError) {
     console.error(`[Alcor] Failed to fetch pool ${poolId}:`, blockchainError);

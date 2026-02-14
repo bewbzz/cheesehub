@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBannerAds, ActiveBanner } from "@/hooks/useBannerAds";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { Badge } from "@/components/ui/badge";
 
-function BannerImage({ banner }: { banner: ActiveBanner }) {
+function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isShared?: boolean }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
 
   const imgUrl = banner.ipfsHash.startsWith("http")
@@ -26,7 +26,7 @@ function BannerImage({ banner }: { banner: ActiveBanner }) {
       <img
         src={imgUrl}
         alt="Banner Ad"
-        className="w-full h-auto object-cover"
+        className="w-full h-auto object-cover opacity-100 transition-opacity duration-1000"
         onError={handleError}
         loading="lazy"
       />
@@ -34,9 +34,40 @@ function BannerImage({ banner }: { banner: ActiveBanner }) {
         variant="outline"
         className="absolute top-2 right-2 bg-background/80 text-muted-foreground text-[10px] px-1.5 py-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
       >
-        Ad
+        {isShared ? "Ad (Shared)" : "Ad"}
       </Badge>
     </a>
+  );
+}
+
+function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const primaryBanner = banners[0];
+  const secondaryBanner = banners[1];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIdx((prev) => (prev === 0 ? 1 : 0));
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const displayBanner = activeIdx === 0 ? primaryBanner : secondaryBanner;
+
+  return (
+    <div className="relative">
+      <BannerImage banner={displayBanner} isShared={true} />
+      <div className="absolute bottom-2 left-2 flex gap-1">
+        <div
+          className="w-2 h-2 rounded-full bg-white/60 transition-all"
+          style={{ opacity: activeIdx === 0 ? 1 : 0.3 }}
+        />
+        <div
+          className="w-2 h-2 rounded-full bg-white/60 transition-all"
+          style={{ opacity: activeIdx === 1 ? 1 : 0.3 }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -45,22 +76,59 @@ export function BannerAd() {
 
   if (isLoading || !banners || banners.length === 0) return null;
 
-  // 2 banners: side by side; 1 banner: centered at half width
-  if (banners.length >= 2) {
+  // Separate by display mode
+  const fullBanners = banners.filter((b) => b.displayMode === "full");
+  const sharedBannerPairs = banners.filter((b) => b.displayMode === "shared");
+
+  // Pair shared banners by position (only show one per position, rotating)
+  const sharedByPosition = new Map<number, ActiveBanner[]>();
+  for (const banner of sharedBannerPairs) {
+    const key = banner.position;
+    if (!sharedByPosition.has(key)) {
+      sharedByPosition.set(key, []);
+    }
+    sharedByPosition.get(key)!.push(banner);
+  }
+
+  const allDisplayBanners = [
+    ...fullBanners,
+    ...[...sharedByPosition.values()].filter((pair) => pair.length === 2).map((pair) => pair[0]),
+  ];
+
+  if (allDisplayBanners.length === 0) return null;
+
+  // 2+ banners: side by side; 1 banner: centered
+  if (allDisplayBanners.length >= 2) {
+    const displayPair = allDisplayBanners.slice(0, 2);
     return (
       <div className="container py-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <BannerImage banner={banners[0]} />
-          <BannerImage banner={banners[1]} />
+          {displayPair[0].displayMode === "shared" && sharedByPosition.has(displayPair[0].position) ? (
+            <SharedBannerRotator banners={sharedByPosition.get(displayPair[0].position)!} />
+          ) : (
+            <BannerImage banner={displayPair[0]} />
+          )}
+          {displayPair[1] ? (
+            displayPair[1].displayMode === "shared" && sharedByPosition.has(displayPair[1].position) ? (
+              <SharedBannerRotator banners={sharedByPosition.get(displayPair[1].position)!} />
+            ) : (
+              <BannerImage banner={displayPair[1]} />
+            )
+          ) : null}
         </div>
       </div>
     );
   }
 
+  const banner = allDisplayBanners[0];
   return (
     <div className="container py-4">
       <div className="max-w-[50%] mx-auto max-md:max-w-full">
-        <BannerImage banner={banners[0]} />
+        {banner.displayMode === "shared" && sharedByPosition.has(banner.position) ? (
+          <SharedBannerRotator banners={sharedByPosition.get(banner.position)!} />
+        ) : (
+          <BannerImage banner={banner} />
+        )}
       </div>
     </div>
   );

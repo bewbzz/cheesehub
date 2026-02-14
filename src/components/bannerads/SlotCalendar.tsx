@@ -14,13 +14,42 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   if (!slot.isOnChain) {
     return <Badge variant="secondary" className="text-xs">Not Live</Badge>;
   }
-  if (slot.isAvailable) {
-    return <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">Available</Badge>;
-  }
-  if (slot.user === accountName) {
+  
+  // Exclusive slot, rented by current user
+  if (slot.rentalType === "exclusive" && slot.user === accountName) {
     return <Badge className="bg-cheese/20 text-cheese border-cheese/30 text-xs">Yours</Badge>;
   }
-  return <Badge variant="outline" className="text-muted-foreground text-xs">Rented</Badge>;
+  
+  // Exclusive slot, rented by someone else
+  if (slot.rentalType === "exclusive" && slot.user !== slot.user) {
+    return <Badge variant="outline" className="text-muted-foreground text-xs">Rented</Badge>;
+  }
+  
+  // Shared slot, primary renter is current user
+  if (slot.rentalType === "shared" && slot.user === accountName) {
+    if (slot.sharedUser) {
+      return <Badge className="bg-cheese/20 text-cheese border-cheese/30 text-xs">Yours (Shared)</Badge>;
+    }
+    return <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 text-xs">Yours (Open)</Badge>;
+  }
+  
+  // Shared slot, secondary renter is current user
+  if (slot.rentalType === "shared" && slot.sharedUser === accountName) {
+    return <Badge className="bg-cheese/20 text-cheese border-cheese/30 text-xs">Yours (Shared)</Badge>;
+  }
+  
+  // Shared slot, open for joining
+  if (slot.rentalType === "shared" && !slot.sharedUser) {
+    return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Shared - Open</Badge>;
+  }
+  
+  // Shared slot, both filled
+  if (slot.rentalType === "shared" && slot.sharedUser) {
+    return <Badge variant="outline" className="text-muted-foreground text-xs">Shared - Full</Badge>;
+  }
+  
+  // Default: available
+  return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
 /** Generate 30 days of placeholder groups starting from today's UTC midnight */
@@ -40,6 +69,7 @@ function generatePlaceholderGroups(): BannerSlotGroup[] {
         user: "",
         ipfsHash: "",
         websiteUrl: "",
+        rentalType: "exclusive" as const,
         isAvailable: true,
         isOnChain: false,
       })),
@@ -69,7 +99,7 @@ function mergeGroups(placeholders: BannerSlotGroup[], onChain: BannerSlotGroup[]
 export function SlotCalendar() {
   const { slotGroups, pricing, isLoading, refetch } = useBannerSlots();
   const { accountName } = useWax();
-  const [rentTarget, setRentTarget] = useState<{ time: number; position: number } | null>(null);
+  const [rentTarget, setRentTarget] = useState<{ time: number; position: number; isJoining?: boolean } | null>(null);
   const [editTarget, setEditTarget] = useState<BannerSlot | null>(null);
 
   const placeholders = useMemo(() => generatePlaceholderGroups(), []);
@@ -116,42 +146,51 @@ export function SlotCalendar() {
                         <SlotBadge slot={slot} accountName={accountName} />
                       </div>
                       <div>
-                        {slot.isOnChain && slot.isAvailable && (
-                          <Button
-                            size="sm"
-                            className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
-                            onClick={() => setRentTarget({ time: slot.time, position: slot.position })}
-                          >
-                            Rent
-                          </Button>
-                        )}
-                        {!slot.isOnChain && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                <Button
-                                  size="sm"
-                                  className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7 opacity-50 cursor-not-allowed"
-                                  disabled
-                                >
-                                  Rent
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>Contract not yet initialized</TooltipContent>
-                          </Tooltip>
-                        )}
-                        {slot.isOnChain && slot.user === accountName && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-cheese/30 text-cheese text-xs h-7"
-                            onClick={() => setEditTarget(slot)}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                      </div>
+                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive" && (
+                           <Button
+                             size="sm"
+                             className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
+                             onClick={() => setRentTarget({ time: slot.time, position: slot.position })}
+                           >
+                             Rent
+                           </Button>
+                         )}
+                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && (
+                           <Button
+                             size="sm"
+                             className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
+                             onClick={() => setRentTarget({ time: slot.time, position: slot.position, isJoining: true })}
+                           >
+                             Join
+                           </Button>
+                         )}
+                         {!slot.isOnChain && (
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <span>
+                                 <Button
+                                   size="sm"
+                                   className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7 opacity-50 cursor-not-allowed"
+                                   disabled
+                                 >
+                                   Rent
+                                 </Button>
+                               </span>
+                             </TooltipTrigger>
+                             <TooltipContent>Contract not yet initialized</TooltipContent>
+                           </Tooltip>
+                         )}
+                         {slot.isOnChain && (slot.user === accountName || slot.sharedUser === accountName) && (
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             className="border-cheese/30 text-cheese text-xs h-7"
+                             onClick={() => setEditTarget(slot)}
+                           >
+                             Edit
+                           </Button>
+                         )}
+                       </div>
                     </div>
                   ))}
                 </div>
@@ -168,6 +207,7 @@ export function SlotCalendar() {
           startTime={rentTarget.time}
           position={rentTarget.position}
           waxPricePerDay={pricing.waxPerDay}
+          isJoining={rentTarget.isJoining || false}
           onSuccess={refetch}
         />
       )}

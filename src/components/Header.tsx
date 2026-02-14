@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { Lock, Home, ShoppingBag, ShoppingCart, Droplets, Users, Zap, Sprout, Flame, Megaphone } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -33,7 +33,7 @@ export function Header() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Home className="h-4 w-4" />
+              <span className="text-base leading-none">🏠</span>
               Home
             </Link>
             {/* CHEESEUp */}
@@ -46,7 +46,7 @@ export function Header() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Zap className="h-4 w-4" />
+              <span className="text-base leading-none">⚡</span>
               CHEESEUp
             </Link>
             {/* CHEESENull */}
@@ -59,7 +59,7 @@ export function Header() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Flame className="h-4 w-4" />
+              <span className="text-base leading-none">⛔</span>
               CHEESENull
             </Link>
             {/* CHEESEFaucet (external) */}
@@ -69,7 +69,7 @@ export function Header() {
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
             >
-              <Droplets className="h-4 w-4" />
+              <span className="text-base leading-none">🧀</span>
               CHEESEFaucet
             </a>
             {/* CHEESEFarm */}
@@ -82,7 +82,7 @@ export function Header() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Sprout className="h-4 w-4" />
+              <span className="text-base leading-none">🌱</span>
               CHEESEFarm
             </Link>
             {/* CHEESEDao */}
@@ -95,7 +95,7 @@ export function Header() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Users className="h-4 w-4" />
+              <span className="text-base leading-none">🏛️</span>
               CHEESEDao
             </Link>
           </nav>
@@ -131,7 +131,7 @@ export function Header() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <ShoppingBag className="h-4 w-4" />
+            <span className="text-base leading-none">💧</span>
             CHEESEDrop
           </Link>
           {/* CHEESELock */}
@@ -144,7 +144,7 @@ export function Header() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <Lock className="h-4 w-4" />
+            <span className="text-base leading-none">🔐</span>
             CHEESELock
           </Link>
         </nav>

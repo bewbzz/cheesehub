@@ -147,19 +147,6 @@ export function Header() {
             <Lock className="h-4 w-4" />
             CHEESELock
           </Link>
-          {/* BannerAds */}
-          <Link
-            to="/bannerads"
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              location.pathname === "/bannerads"
-                ? "bg-cheese/20 text-cheese"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
-            )}
-          >
-            <Megaphone className="h-4 w-4" />
-            BannerAds
-          </Link>
         </nav>
       </div>
     </header>

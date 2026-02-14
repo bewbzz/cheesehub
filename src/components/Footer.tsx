@@ -1,4 +1,5 @@
 import { XLogo, TelegramLogo } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
@@ -25,6 +26,11 @@ export function Footer() {
         <p>
           <span className="text-cheese">CHEESE</span>
           <span className="text-foreground">Hub</span> • Built on WAX • Powered by $CHEESE, WaxDAO and NFTHive Smart Contracts
+        </p>
+        <p className="mt-4">
+          <Link to="/bannerads" className="text-cheese hover:text-cheese-dark transition-colors">
+            Advertise on CHEESEHub
+          </Link>
         </p>
       </div>
     </footer>

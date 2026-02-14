@@ -9,10 +9,11 @@ using namespace std;
 
 /**
  * @title cheesebannad
- * @dev Smart contract for CHEESEHub banner ad slots
+ * @dev Smart contract for CHEESEHub banner ad slots (dual-position)
  * 
- * Admin initializes 24-hour ad slots. Users rent slots by paying either:
- *   - WAX (100 WAX per day) via eosio.token transfer
+ * Admin initializes 24-hour ad slots with 2 positions each. Users rent
+ * individual positions by paying either:
+ *   - WAX (100 WAX per position per day) via eosio.token transfer
  *   - CHEESE (equivalent to 100 WAX at current Alcor pool price) via cheeseburger transfer
  * 
  * CHEESE payments: 66% burned to eosio.null, 34% sent to xcheeseliqst
@@ -22,6 +23,10 @@ using namespace std;
  *   - Alcor Pool 1252 reserves-based pricing (same model as cheesefeefee)
  *   - Price deviation check against admin-set baseline
  *   - Cannot rent already-rented or past slots
+ *
+ * PRIMARY KEY ENCODING:
+ *   pk = time * 10 + position (position is 1 or 2)
+ *   Decode: time = pk / 10, position = pk % 10
  */
 
 // Token constants
@@ -54,14 +59,14 @@ public:
     using contract::contract;
 
     /**
-     * @brief Admin creates empty banner ad slots (24h each)
+     * @brief Admin creates empty banner ad slots (24h each, both positions)
      */
     ACTION initbannerad(uint64_t start_time, uint64_t amount_of_slots);
 
     /**
      * @brief User edits their rented banner (IPFS hash + URL)
      */
-    ACTION editadbanner(name user, uint64_t start_time, string ipfs_hash, string website_url);
+    ACTION editadbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
 
     /**
      * @brief Admin sets pricing config
@@ -84,12 +89,13 @@ public:
     // ---- Tables ----
 
     TABLE bannerad {
-        uint64_t time;        // slot start timestamp (primary key)
+        uint64_t time;        // slot start timestamp
+        uint8_t  position;    // 1 or 2
         name     user;        // renter (contract account = available)
         string   ipfs_hash;
         string   website_url;
 
-        uint64_t primary_key() const { return time; }
+        uint64_t primary_key() const { return time * 10 + position; }
     };
     typedef multi_index<"bannerads"_n, bannerad> bannerads_table;
 
@@ -118,8 +124,8 @@ public:
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:
-    // Parse memo "banner|start_time|num_days"
-    tuple<uint64_t, uint64_t> parse_banner_memo(const string& memo);
+    // Parse memo "banner|start_time|num_days|position"
+    tuple<uint64_t, uint64_t, uint8_t> parse_banner_memo(const string& memo);
 
     // Get WAX-per-CHEESE price from Alcor Pool 1252
     double get_cheese_wax_price();
@@ -130,8 +136,8 @@ private:
     // Validate price deviation
     void check_price_deviation(double actual, double baseline);
 
-    // Assign consecutive slots to user
-    void assign_slots(name user, uint64_t start_time, uint64_t num_days);
+    // Assign consecutive slots to user for a specific position
+    void assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position);
 
     // Distribute CHEESE: 66% burn, 34% liquidity staking
     void distribute_cheese(asset quantity);

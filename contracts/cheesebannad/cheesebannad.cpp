@@ -15,27 +15,33 @@ void cheesebannad::initbannerad(uint64_t start_time, uint64_t amount_of_slots) {
     for (uint64_t i = 0; i < amount_of_slots; i++) {
         uint64_t slot_time = start_time + (i * SECONDS_PER_DAY);
 
-        // Skip if slot already exists
-        auto itr = ads.find(slot_time);
-        if (itr != ads.end()) continue;
+        // Create both positions (1 and 2) for each day
+        for (uint8_t pos = 1; pos <= 2; pos++) {
+            uint64_t pk = slot_time * 10 + pos;
+            auto itr = ads.find(pk);
+            if (itr != ads.end()) continue; // Skip if already exists
 
-        ads.emplace(get_self(), [&](auto& row) {
-            row.time        = slot_time;
-            row.user        = get_self();  // available = owned by contract
-            row.ipfs_hash   = "";
-            row.website_url = "";
-        });
+            ads.emplace(get_self(), [&](auto& row) {
+                row.time        = slot_time;
+                row.position    = pos;
+                row.user        = get_self();  // available = owned by contract
+                row.ipfs_hash   = "";
+                row.website_url = "";
+            });
+        }
     }
 }
 
-void cheesebannad::editadbanner(name user, uint64_t start_time, string ipfs_hash, string website_url) {
+void cheesebannad::editadbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url) {
     require_auth(user);
 
+    check(position == 1 || position == 2, "Position must be 1 or 2");
     check(ipfs_hash.length() <= MAX_IPFS_HASH_LEN, "IPFS hash too long");
     check(website_url.length() <= MAX_URL_LEN, "URL too long");
 
     bannerads_table ads(get_self(), get_self().value);
-    auto itr = ads.find(start_time);
+    uint64_t pk = start_time * 10 + position;
+    auto itr = ads.find(pk);
     check(itr != ads.end(), "Slot not found");
     check(itr->user == user, "You do not own this slot");
 
@@ -97,7 +103,7 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
 
     check(quantity.amount > 0, "Amount must be positive");
 
-    auto [start_time, num_days] = parse_banner_memo(memo);
+    auto [start_time, num_days, position] = parse_banner_memo(memo);
     auto [price_per_day, baseline] = get_config();
 
     // Validate payment: num_days * price_per_day
@@ -105,7 +111,7 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
     check(quantity.amount >= required,
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
 
-    assign_slots(from, start_time, num_days);
+    assign_slots(from, start_time, num_days, position);
 }
 
 void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string memo) {
@@ -117,7 +123,7 @@ void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string
     // Only process banner memos
     if (memo.substr(0, 7) != "banner|") return;
 
-    auto [start_time, num_days] = parse_banner_memo(memo);
+    auto [start_time, num_days, position] = parse_banner_memo(memo);
     auto [price_per_day, baseline] = get_config();
 
     // Get CHEESE→WAX price from Alcor
@@ -135,7 +141,7 @@ void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string
         "Insufficient CHEESE value. Need " + to_string(static_cast<int64_t>(required_wax)) +
         " WAX worth. Sent: " + to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
 
-    assign_slots(from, start_time, num_days);
+    assign_slots(from, start_time, num_days, position);
     distribute_cheese(quantity);
 }
 
@@ -143,24 +149,30 @@ void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string
 // Private Helpers
 // ============================================================================
 
-tuple<uint64_t, uint64_t> cheesebannad::parse_banner_memo(const string& memo) {
-    // Format: "banner|start_time|num_days"
+tuple<uint64_t, uint64_t, uint8_t> cheesebannad::parse_banner_memo(const string& memo) {
+    // Format: "banner|start_time|num_days|position"
     size_t first = memo.find('|');
-    check(first != string::npos, "Invalid memo. Use: banner|start_time|num_days");
+    check(first != string::npos, "Invalid memo. Use: banner|start_time|num_days|position");
 
     size_t second = memo.find('|', first + 1);
-    check(second != string::npos, "Invalid memo. Use: banner|start_time|num_days");
+    check(second != string::npos, "Invalid memo. Use: banner|start_time|num_days|position");
 
-    string start_str = memo.substr(first + 1, second - first - 1);
-    string days_str  = memo.substr(second + 1);
+    size_t third = memo.find('|', second + 1);
+    check(third != string::npos, "Invalid memo. Use: banner|start_time|num_days|position");
+
+    string start_str    = memo.substr(first + 1, second - first - 1);
+    string days_str     = memo.substr(second + 1, third - second - 1);
+    string position_str = memo.substr(third + 1);
 
     uint64_t start_time = stoull(start_str);
     uint64_t num_days   = stoull(days_str);
+    uint8_t  position   = static_cast<uint8_t>(stoul(position_str));
 
     check(start_time > 0, "Invalid start time");
     check(num_days > 0 && num_days <= 365, "Days must be 1-365");
+    check(position == 1 || position == 2, "Position must be 1 or 2");
 
-    return make_tuple(start_time, num_days);
+    return make_tuple(start_time, num_days, position);
 }
 
 double cheesebannad::get_cheese_wax_price() {
@@ -205,7 +217,7 @@ void cheesebannad::check_price_deviation(double actual, double baseline) {
         "%). Possible manipulation. Try again later.");
 }
 
-void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_days) {
+void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position) {
     bannerads_table ads(get_self(), get_self().value);
     uint32_t now = current_time_point().sec_since_epoch();
 
@@ -215,9 +227,10 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
         // Cannot rent past slots
         check(slot_time + SECONDS_PER_DAY > now, "Cannot rent expired slot at " + to_string(slot_time));
 
-        auto itr = ads.find(slot_time);
-        check(itr != ads.end(), "Slot at " + to_string(slot_time) + " does not exist. Admin must init first.");
-        check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " is already rented");
+        uint64_t pk = slot_time * 10 + position;
+        auto itr = ads.find(pk);
+        check(itr != ads.end(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " does not exist. Admin must init first.");
+        check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " is already rented");
 
         ads.modify(itr, get_self(), [&](auto& row) {
             row.user = user;

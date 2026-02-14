@@ -127,9 +127,13 @@ void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string me
     int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0); // 8 decimals
     asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
     
+    // Apply 2% slippage buffer to minTokenOut (reserves price != swap price due to fees)
+    int64_t min_output = static_cast<int64_t>(waxdao_amount.amount * (1.0 - SWAP_SLIPPAGE_TOLERANCE));
+    asset min_waxdao_out = asset(min_output, WAXDAO_SYMBOL);
+    
     string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
         + "#" + from.to_string()
-        + "#" + waxdao_amount.to_string() + "@" + WAXDAO_CONTRACT.to_string()
+        + "#" + min_waxdao_out.to_string() + "@" + WAXDAO_CONTRACT.to_string()
         + "#0";
     
     action(

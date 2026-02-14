@@ -1,37 +1,34 @@
 
-## Add "Advertise on CHEESEHub" Link to Footer & Remove BannerAds from Header
 
-### What changes
+## Always Show Upcoming Slots (Frontend-Generated)
 
-1. **Remove BannerAds from Header** (`src/components/Header.tsx`)
-   - Delete lines 150-162 (the entire BannerAds `Link` block in Row 2 / Secondary Nav)
-   - This removes the `<Megaphone />` icon and "BannerAds" text from the navigation
+### Problem
+The calendar only shows slots returned by the contract. Since the contract hasn't launched, no rows exist, so users see an empty "not initialized" message instead of the full UI.
 
-2. **Add Advertise Link to Footer** (`src/components/Footer.tsx`)
-   - Import `Link` from `react-router-dom` 
-   - Add a new paragraph below the copyright text with an "Advertise on CHEESEHub" link
-   - Style it as `text-cheese hover:text-cheese-dark transition-colors` for brand consistency
-   - Points to `/bannerads` route
+### Solution
+Generate the next 30 days of placeholder slots in the frontend. Merge any real on-chain data on top of them. Slots not yet initialized on-chain show as "Not Live" (disabled Rent button) instead of being hidden.
 
-### Technical Details
+### Changes
 
-**File: `src/components/Header.tsx`** (lines 150-162)
-- Delete the entire BannerAds link block (the commented `{/* BannerAds */}` through the closing `</Link>`)
+**File: `src/components/bannerads/SlotCalendar.tsx`**
 
-**File: `src/components/Footer.tsx`** (lines 1-31)
-- Add import: `import { Link } from "react-router-dom";` at the top
-- After the copyright `<p>` closing tag (line 28), add a new paragraph:
-  ```tsx
-  <p className="mt-4">
-    <Link to="/bannerads" className="text-cheese hover:text-cheese-dark transition-colors">
-      Advertise on CHEESEHub
-    </Link>
-  </p>
-  ```
+- Generate 30 days of placeholder `BannerSlotGroup` entries starting from today's UTC midnight
+- Each day gets 2 placeholder slots (position 1 and 2) marked as `isAvailable: true` but with a new `isOnChain: false` flag
+- Merge real on-chain slot data over placeholders (matching by time + position)
+- For slots where `isOnChain === false`, show a "Not Live" badge and disable the Rent button
+- Remove the empty-state card entirely -- the grid always renders
+
+**File: `src/hooks/useBannerSlots.ts`**
+
+- Add `isOnChain: boolean` to the `BannerSlot` interface (always `true` for contract-fetched data)
+
+**File: `src/components/bannerads/SlotCalendar.tsx` -- SlotBadge updates**
+
+- New badge state: if `!slot.isOnChain`, render a grey "Not Live" badge
+- Rent button: disabled when `!slot.isOnChain` with a tooltip/title saying "Contract not yet initialized"
 
 ### Result
-
-- BannerAds navigation link is removed from the header's secondary row
-- The BannerAds page remains accessible via the footer "Advertise on CHEESEHub" call-to-action
-- Footer now directs visitors to the ad rental marketplace without cluttering the main navigation
+- The full 30-day calendar with both positions always renders
+- Users can see the upcoming slot schedule and pricing
+- Once the contract launches and admin initializes slots, they seamlessly become rentable (badge flips to "Available" and Rent button enables)
 

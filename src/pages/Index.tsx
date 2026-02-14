@@ -105,7 +105,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 2: CHEESEFaucet + CHEESEDao */}
+          {/* Row 2: CHEESEFaucet + CHEESEFarm */}
           {/* CHEESEFaucet CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -125,26 +125,6 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESEDao CTA */}
-          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-            <CardContent className="py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🏛️</span>
-              </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
-              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
-              </p>
-              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                <Link to="/dao">
-                  Go to CHEESEDao
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Row 3: CHEESEFarm + CHEESELock */}
           {/* CHEESEFarm CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -164,26 +144,26 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESELock CTA */}
+          {/* Row 3: CHEESEDao + CHEESEDrop */}
+          {/* CHEESEDao CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔐</span>
+                <span className="text-4xl">🏛️</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
+                Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-                <Link to="/locker">
-                  Go to CHEESELock
+                <Link to="/dao">
+                  Go to CHEESEDao
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
             </CardContent>
           </Card>
 
-          {/* Row 4: CHEESEDrop */}
           {/* CHEESEDrop CTA */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
@@ -197,6 +177,26 @@ const Index = () => {
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">
                   Go to CHEESEDrop
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Row 4: CHEESELock */}
+          {/* CHEESELock CTA */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔐</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
+              </p>
+              <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
+                <Link to="/locker">
+                  Go to CHEESELock
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

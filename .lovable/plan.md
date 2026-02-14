@@ -1,45 +1,97 @@
 
 
-## Remove CHEESE Payment Option from Banner Ads
+## Implement WAX Payment Split in cheesebannad Contract
 
 ### Overview
-Remove the CHEESE payment method from both the smart contract and the frontend UI, leaving WAX as the only accepted payment. The contract will still distribute received WAX through the ecosystem (once the fund distribution update is implemented separately).
+When users pay WAX for banner ad rentals, the contract will split received funds through the CHEESE ecosystem. All operations happen as inline actions within the same transaction -- if any step fails (including the Alcor swap), the **entire transaction reverts atomically** and the user loses nothing.
+
+- **20% WAX** -- sent to `cheeseburner` account (ecosystem financing, NOT a direct burn)
+- **80% WAX** -- swapped to CHEESE via Alcor Pool 1252
+- **Swapped CHEESE** -- 66% sent to `eosio.null` (burn), 34% sent to `xcheeseliqst` (liquidity staking)
+
+### Atomicity Guarantee
+EOSIO inline actions execute within the same transaction context. If the Alcor swap fails (pool inactive, insufficient liquidity, etc.), the entire transaction reverts -- including slot assignment, the 20% transfer to cheeseburner, and the user's original WAX transfer. The user's WAX is never at risk.
+
+### Fund Flow
+
+```text
+User sends WAX for banner slot
+         |
+on_wax_transfer: validate payment, assign slots
+         |
+distribute_wax_funds() (all inline, same transaction):
+  |-- 20% WAX --> cheeseburner (ecosystem financing)
+  |-- 80% WAX --> swap.alcor Pool 1252
+  |                  memo: "swapexactin#1252#cheesebannad#0.0001 CHEESE#0"
+  |                  (CHEESE sent back to contract)
+         |
+on_cheese_transfer triggered (same transaction):
+  |-- from swap.alcor? --> distribute_cheese_funds()
+         |
+  |-- 66% CHEESE --> eosio.null (burn)
+  |-- 34% CHEESE --> xcheeseliqst (liquidity staking)
+
+If ANY step fails --> entire transaction reverts, user keeps WAX
+```
 
 ### Contract Changes
 
 **`contracts/cheesebannad/cheesebannad.hpp`**
-- Remove the `on_cheese_transfer` notification handler
-- Remove the `get_cheese_wax_price()` and `check_price_deviation()` private methods
-- Remove the `distribute_cheese()` private method
-- Remove the `alcor_pool` struct (no longer needed for price lookups)
-- Remove `wax_per_cheese_baseline` from the `config` table
-- Remove constants: `CHEESE_CONTRACT`, `CHEESE_SYMBOL`, `NULL_ACCOUNT`, `LIQUIDITY_STAKING`, `BURN_PERCENT`, `DEFAULT_WAX_PER_CHEESE`
-- Update `setconfig` action to only take `wax_price_per_day` (no baseline)
-- Keep `ALCOR_CONTRACT` and `CHEESE_WAX_POOL_ID` if the WAX fund distribution (swap to CHEESE) will be added later; otherwise remove
+
+Add constants:
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `ALCOR_CONTRACT` | `"swap.alcor"_n` | Alcor DEX |
+| `CHEESE_WAX_POOL_ID` | `1252` | CHEESE/WAX pool |
+| `CHEESE_CONTRACT` | `"cheeseburger"_n` | CHEESE token contract |
+| `CHEESE_SYMBOL` | `symbol("CHEESE", 4)` | CHEESE token symbol |
+| `NULL_ACCOUNT` | `"eosio.null"_n` | Burn destination |
+| `LIQUIDITY_STAKING` | `"xcheeseliqst"_n` | Liquidity staking |
+| `CHEESEBURNER` | `"cheeseburner"_n` | Ecosystem financing (20% WAX) |
+| `WAX_BURNER_PERCENT` | `0.20` | 20% to cheeseburner |
+| `CHEESE_BURN_PERCENT` | `0.66` | 66% CHEESE burn |
+
+Add notification handler:
+```text
+[[eosio::on_notify("cheeseburger::transfer")]]
+void on_cheese_transfer(name from, name to, asset quantity, string memo);
+```
+
+Add private methods:
+- `void distribute_wax_funds(asset quantity)` -- splits WAX 20/80
+- `void distribute_cheese_funds(asset quantity)` -- splits CHEESE 66/34
 
 **`contracts/cheesebannad/cheesebannad.cpp`**
-- Remove the entire `on_cheese_transfer` function
-- Remove `get_cheese_wax_price()`, `check_price_deviation()`, and `distribute_cheese()` functions
-- Simplify `setconfig` to only accept `wax_price_per_day`
-- Update `get_config()` to return only the WAX price (no baseline)
 
-### Frontend Changes
+1. **`on_wax_transfer`** -- after `assign_slots()`, call `distribute_wax_funds(quantity)`:
+   - Calculate 20% (`quantity.amount * 0.20`), send to `cheeseburner` via inline transfer
+   - Calculate 80% (`quantity.amount - burner_amount`), send to `swap.alcor` with memo `swapexactin#1252#cheesebannad#0.0001 CHEESE#0`
 
-**`src/components/bannerads/RentSlotDialog.tsx`**
-- Remove the `payMethod` state and the "Payment Method" radio group entirely
-- Remove the CHEESE payment branch from `handleRent` (always use WAX via `eosio.token`)
-- Simplify: the dialog shows days input, rental type selector, total WAX price, and a "Rent Slot" button
+2. **`on_cheese_transfer`** (new handler) -- receives CHEESE from Alcor swap result:
+   - Guard: ignore outgoing transfers (`from == get_self()`) and non-contract transfers (`to != get_self()`)
+   - If `from == ALCOR_CONTRACT`: call `distribute_cheese_funds(quantity)` and return
+   - Ignore all other CHEESE transfers
 
-### Technical Details
+3. **`distribute_cheese_funds`** -- splits incoming CHEESE:
+   - 66% to `eosio.null` via inline transfer through `cheeseburger` contract
+   - 34% (remainder) to `xcheeseliqst` via inline transfer through `cheeseburger` contract
 
-The `setconfig` action signature changes from:
+### Alcor Swap Memo Format
+Following the exact pattern from `cheesefeefee`:
 ```text
-setconfig(asset wax_price_per_day, double wax_per_cheese_baseline)
+swapexactin#1252#cheesebannad#0.0001 CHEESE#0
 ```
-to:
-```text
-setconfig(asset wax_price_per_day)
-```
+- `1252` = Pool ID (CHEESE/WAX)
+- `cheesebannad` = Recipient (contract receives CHEESE back)
+- `0.0001 CHEESE` = Minimum output (low threshold, prevents zero-output swaps)
+- `0` = No referral
 
-Note: The Alcor-related structs and constants for the WAX fund distribution feature (20% to cheeseburner, 80% swapped to CHEESE) should be added back when that feature is implemented as a separate step.
+### Files Modified
+
+| File | Changes |
+|------|--------|
+| `contracts/cheesebannad/cheesebannad.hpp` | Add constants, `on_cheese_transfer` handler, `distribute_wax_funds`, `distribute_cheese_funds` private methods |
+| `contracts/cheesebannad/cheesebannad.cpp` | Implement new methods, add `distribute_wax_funds()` call in `on_wax_transfer` after slot assignment |
+
+No frontend changes required.
 

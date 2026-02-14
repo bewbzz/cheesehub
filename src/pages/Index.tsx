@@ -24,7 +24,7 @@ const Index = () => {
               <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
             </div>
 
-            <h1 className="mt-8 text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-3xl md:text-4xl font-bold mb-6">
               <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Hub</span>
             </h1>

@@ -29,8 +29,8 @@ const PowerUp = () => {
               <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
-            <h1 className="mt-8 font-display text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-              <span className="text-primary cheese-text-glow">CHEESE</span>
+            <h1 className="text-3xl md:text-4xl font-bold">
+              <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Up</span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">

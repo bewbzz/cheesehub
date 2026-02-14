@@ -11,7 +11,7 @@ const BannerAds = () => {
             <span className="text-foreground">Ads</span>
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Rent banner ad slots on the CHEESEHub homepage. Each day has two positions — pay with WAX or CHEESE.
+            Rent banner ad slots on the CHEESEHub homepage. Each day has two positions — pay with WAX.
           </p>
         </div>
         <SlotCalendar />

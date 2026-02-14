@@ -52,8 +52,7 @@ export default function Farm() {
                   <span className="text-2xl">🌱</span>
                 </div>
                 <p className="text-muted-foreground max-w-lg mx-auto">
-                  Create and manage V2 NFT staking farms on WaxDAO. Reward your community 
-                  with tokens for staking their NFTs.
+                  Create and Manage V2 Non-Custodial NFT Farms Utilizing WAXDAOs Battle Tested Smart Contract. Reward Your Community With Tokens While the NFTs Never Leave their Wallet.
                 </p>
               </div>
             </div>

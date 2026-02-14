@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { BackgroundDecorations } from './drops/BackgroundDecorations';
+import { BannerAd } from './home/BannerAd';
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,6 +15,7 @@ export function Layout({ children, showFooter = true }: LayoutProps) {
       <BackgroundDecorations />
       <Header />
       <main className="flex-1">
+        <BannerAd />
         {children}
       </main>
       {showFooter && <Footer />}

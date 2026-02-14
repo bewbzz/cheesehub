@@ -373,7 +373,7 @@ export function CheeseAmpPlayer() {
       {/* Main Player */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Now Playing */}
-        <div className="flex flex-col w-64 shrink-0">
+        <div className="flex flex-col w-72 shrink-0">
           {/* Cover Art / Video */}
           <div className="aspect-square rounded-lg overflow-hidden bg-muted/30 border border-border/50 mb-4">
             {currentTrack ? (
@@ -516,7 +516,7 @@ export function CheeseAmpPlayer() {
 
         {/* Right: Playlist/Library Panel */}
         {showPlaylist && (
-          <div className="flex-1 min-w-0 border-l border-border/50 pl-4">
+          <div className="flex-1 min-w-0 border-l border-border/50 pl-3">
             {/* Tab Bar */}
             <div className="flex items-center gap-1 mb-3">
               <Button

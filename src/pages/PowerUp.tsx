@@ -29,10 +29,14 @@ const PowerUp = () => {
               <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-bold">
-              <span className="text-cheese">CHEESE</span>
-              <span className="text-foreground">Up</span>
-            </h1>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-2xl">⚡</span>
+              <h1 className="text-3xl md:text-4xl font-bold">
+                <span className="text-cheese">CHEESE</span>
+                <span className="text-foreground">Up</span>
+              </h1>
+              <span className="text-2xl">⚡</span>
+            </div>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
               Fuel your WAX transactions with CHEESE tokens
             </p>

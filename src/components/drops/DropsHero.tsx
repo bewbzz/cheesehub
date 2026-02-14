@@ -26,9 +26,13 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
             <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold">
-            <span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span>
-          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-2xl">💧</span>
+            <h1 className="text-3xl md:text-4xl font-bold">
+              <span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span>
+            </h1>
+            <span className="text-2xl">💧</span>
+          </div>
 
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
             Exchange your <img src={cheeseLogo} alt="CHEESE" className="inline-block w-6 h-6 mx-1" /><span className="font-semibold text-primary">CHEESE</span> for Physical Items & NFTs

@@ -8,7 +8,7 @@ import walletIcon from "@/assets/wallet-icon.png";
 import { TokenStatsBanner } from "@/components/home/TokenStatsBanner";
 import { CheesePriceBar } from "@/components/home/CheesePriceBar";
 import { CheeseHistorySection } from "@/components/home/CheeseHistorySection";
-import { BannerAd } from "@/components/home/BannerAd";
+
 
 const Index = () => {
   return (
@@ -51,9 +51,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-      {/* Banner Ads */}
-      <BannerAd />
 
       {/* Token Stats Banner */}
       <TokenStatsBanner />

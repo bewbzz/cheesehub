@@ -129,7 +129,7 @@ void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string me
     
     string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
         + "#" + from.to_string()
-        + "#" + waxdao_amount.to_string()
+        + "#" + waxdao_amount.to_string() + "@" + WAXDAO_CONTRACT.to_string()
         + "#0";
     
     action(

@@ -28,7 +28,7 @@ import { WalletResources, AccountResources, StakedResourcesSection, AccountDetai
 import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout, AlertTriangle } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout, AlertTriangle, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
@@ -41,7 +41,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards' | 'alcor-farms';
+type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards' | 'alcor-farms' | 'burn-nfts';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -61,6 +61,7 @@ const mainMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }
 
 const bottomMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
   { id: 'alcor-farms', label: 'Manage Alcor Farms', icon: <Sprout className="h-4 w-4" /> },
+  { id: 'burn-nfts', label: 'Burn NFTs', icon: <Flame className="h-4 w-4" /> },
 ];
 
 export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialogProps) {
@@ -642,6 +643,11 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
                   onTransactionComplete={handleTransactionComplete}
                   onTransactionSuccess={showSuccessDialog}
                 />
+              )}
+
+              {/* Burn NFTs Section */}
+              {activeSection === 'burn-nfts' && (
+                <NFTSendManager onTransactionSuccess={showSuccessDialog} />
               )}
             </div>
           </div>

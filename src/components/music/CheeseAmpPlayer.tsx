@@ -546,7 +546,19 @@ export function CheeseAmpPlayer() {
                 Global{globalStackedNfts.length > 0 ? ` (${globalStackedNfts.length})` : ''}
               </Button>
               
+              {/* Spacer */}
+              <div className="flex-1" />
               
+              {/* Shuffle Toggle */}
+              <div className="flex items-center gap-2">
+                <Shuffle className={cn("h-3.5 w-3.5", playlist.shuffle ? "text-cheese" : "text-muted-foreground")} />
+                <span className={cn("text-xs", playlist.shuffle ? "text-foreground" : "text-muted-foreground")}>Shuffle</span>
+                <Switch
+                  checked={playlist.shuffle}
+                  onCheckedChange={playlist.toggleShuffle}
+                  className="data-[state=checked]:bg-cheese"
+                />
+              </div>
               {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
                 <Button
                   variant="secondary"
@@ -625,17 +637,6 @@ export function CheeseAmpPlayer() {
                     )}
                   </div>
                 </ScrollArea>
-                {/* Shuffle Toggle */}
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                  <Shuffle className={cn("h-3.5 w-3.5", playlist.shuffle ? "text-cheese" : "text-muted-foreground")} />
-                  <span className={cn("text-xs", playlist.shuffle ? "text-foreground" : "text-muted-foreground")}>Shuffle</span>
-                  <div className="flex-1" />
-                  <Switch
-                    checked={playlist.shuffle}
-                    onCheckedChange={playlist.toggleShuffle}
-                    className="data-[state=checked]:bg-cheese"
-                  />
-                </div>
               </div>
             ) : (
               /* Library/Global Tracks View */
@@ -745,17 +746,6 @@ export function CheeseAmpPlayer() {
                     })}
                   </div>
                 </ScrollArea>
-                {/* Shuffle Toggle */}
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                  <Shuffle className={cn("h-3.5 w-3.5", playlist.shuffle ? "text-cheese" : "text-muted-foreground")} />
-                  <span className={cn("text-xs", playlist.shuffle ? "text-foreground" : "text-muted-foreground")}>Shuffle</span>
-                  <div className="flex-1" />
-                  <Switch
-                    checked={playlist.shuffle}
-                    onCheckedChange={playlist.toggleShuffle}
-                    className="data-[state=checked]:bg-cheese"
-                  />
-                </div>
               </div>
             )}
           </div>

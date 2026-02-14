@@ -30,6 +30,19 @@ using namespace std;
 static constexpr name WAX_CONTRACT    = "eosio.token"_n;
 static constexpr symbol WAX_SYMBOL    = symbol("WAX", 8);
 
+// CHEESE ecosystem constants
+static constexpr name ALCOR_CONTRACT     = "swap.alcor"_n;
+static constexpr uint64_t CHEESE_WAX_POOL_ID = 1252;
+static constexpr name CHEESE_CONTRACT    = "cheeseburger"_n;
+static constexpr symbol CHEESE_SYMBOL    = symbol("CHEESE", 4);
+static constexpr name NULL_ACCOUNT       = "eosio.null"_n;
+static constexpr name LIQUIDITY_STAKING  = "xcheeseliqst"_n;
+static constexpr name CHEESEBURNER       = "cheeseburner"_n;
+
+// Distribution percentages
+static constexpr double WAX_BURNER_PERCENT  = 0.20;  // 20% WAX to cheeseburner (financing)
+static constexpr double CHEESE_BURN_PERCENT = 0.66;  // 66% CHEESE burned
+
 // Pricing
 static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
@@ -73,6 +86,9 @@ public:
     [[eosio::on_notify("eosio.token::transfer")]]
     void on_wax_transfer(name from, name to, asset quantity, string memo);
 
+    [[eosio::on_notify("cheeseburger::transfer")]]
+    void on_cheese_transfer(name from, name to, asset quantity, string memo);
+
     // ---- Tables ----
 
     TABLE bannerad {
@@ -107,4 +123,10 @@ private:
 
     // Assign consecutive slots to user for a specific position (and mode: e/s/j)
     void assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position, char mode);
+
+    // Split WAX: 20% to cheeseburner, 80% swapped to CHEESE via Alcor
+    void distribute_wax_funds(asset quantity);
+
+    // Split CHEESE: 66% burned to eosio.null, 34% to xcheeseliqst
+    void distribute_cheese_funds(asset quantity);
 };

@@ -4,9 +4,14 @@ Smart contract for paid banner advertising slots on CHEESEHub.
 
 ## Overview
 
-The contract owner initializes 24-hour ad slots. Anyone can rent slots by paying:
-- **100 WAX per day** (sent to `eosio.token`)
-- **Equivalent CHEESE** at current Alcor Pool 1252 price (66% burned, 34% to `xcheeseliqst`)
+The contract owner initializes 24-hour ad slots. Anyone can rent slots by paying WAX:
+- **100 WAX per day** (default, configurable via `setconfig`)
+
+WAX payments are split atomically (if any step fails, the entire transaction reverts):
+- **20% WAX** → `cheeseburner` (ecosystem financing)
+- **80% WAX** → swapped to CHEESE via Alcor Pool 1252
+  - **66% CHEESE** → burned to `eosio.null`
+  - **34% CHEESE** → sent to `xcheeseliqst` (liquidity staking)
 
 ## Deployment
 

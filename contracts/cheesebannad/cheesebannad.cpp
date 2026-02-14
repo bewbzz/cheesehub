@@ -132,9 +132,25 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
 
     assign_slots(from, start_time, num_days, position, mode);
+
+    // Distribute WAX: 20% financing, 80% swapped to CHEESE (all atomic)
+    distribute_wax_funds(quantity);
 }
 
 // ============================================================================
+// CHEESE Transfer Notification (receives CHEESE back from Alcor swap)
+// ============================================================================
+
+void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string memo) {
+    if (from == get_self() || to != get_self()) return;
+    if (quantity.symbol != CHEESE_SYMBOL) return;
+
+    // Only process CHEESE arriving from Alcor (swap result)
+    if (from == ALCOR_CONTRACT) {
+        distribute_cheese_funds(quantity);
+    }
+    // Ignore all other CHEESE transfers
+}
 // Private Helpers
 // ============================================================================
 
@@ -228,5 +244,65 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
                 row.shared_user = user;  // this user is the secondary renter
             });
         }
+    }
+}
+
+// ============================================================================
+// Fund Distribution
+// ============================================================================
+
+void cheesebannad::distribute_wax_funds(asset quantity) {
+    int64_t burner_amount = static_cast<int64_t>(quantity.amount * WAX_BURNER_PERCENT);
+    int64_t swap_amount = quantity.amount - burner_amount;
+
+    // 20% WAX to cheeseburner (ecosystem financing)
+    if (burner_amount > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            WAX_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), CHEESEBURNER, asset(burner_amount, WAX_SYMBOL),
+                string("CHEESEAds ecosystem financing"))
+        ).send();
+    }
+
+    // 80% WAX to Alcor swap -> CHEESE comes back to this contract
+    if (swap_amount > 0) {
+        string swap_memo = "swapexactin#" + to_string(CHEESE_WAX_POOL_ID) +
+            "#" + get_self().to_string() + "#0.0001 CHEESE#0";
+
+        action(
+            permission_level{get_self(), "active"_n},
+            WAX_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), ALCOR_CONTRACT, asset(swap_amount, WAX_SYMBOL), swap_memo)
+        ).send();
+    }
+}
+
+void cheesebannad::distribute_cheese_funds(asset quantity) {
+    int64_t burn_amount = static_cast<int64_t>(quantity.amount * CHEESE_BURN_PERCENT);
+    int64_t stake_amount = quantity.amount - burn_amount;
+
+    // 66% CHEESE burned
+    if (burn_amount > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            CHEESE_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), NULL_ACCOUNT, asset(burn_amount, CHEESE_SYMBOL),
+                string("CHEESEAds CHEESE burn"))
+        ).send();
+    }
+
+    // 34% CHEESE to liquidity staking
+    if (stake_amount > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            CHEESE_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), LIQUIDITY_STAKING, asset(stake_amount, CHEESE_SYMBOL),
+                string("CHEESEAds liquidity staking"))
+        ).send();
     }
 }

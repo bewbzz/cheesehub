@@ -24,6 +24,7 @@ export interface BannerSlot {
   ipfsHash: string;
   websiteUrl: string;
   isAvailable: boolean;
+  isOnChain: boolean;
 }
 
 export interface BannerSlotGroup {
@@ -61,6 +62,7 @@ export function useBannerSlots() {
           ipfsHash: row.ipfs_hash,
           websiteUrl: row.website_url,
           isAvailable: row.user === BANNER_CONTRACT,
+          isOnChain: true,
         };
 
         const existing = grouped.get(row.time) || [];

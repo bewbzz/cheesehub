@@ -22,6 +22,7 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import walletIcon from "@/assets/wallet-icon.png";
 import { WalletTransferDialog } from "./WalletTransferDialog";
 import { CheeseAmpDialog } from "./music/CheeseAmpDialog";
 import { CheeseAmpMiniPlayer } from "./music/CheeseAmpMiniPlayer";
@@ -152,7 +153,7 @@ export function WalletConnect() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="border-cheese/30 hover:border-cheese hover:bg-cheese/10">
-            <span className="mr-2 text-base leading-none">👛</span>
+            <img src={walletIcon} alt="Wallet" className="mr-2 h-5 w-5 object-contain" />
             <span className="max-w-[120px] truncate">{accountName}</span>
             <span className="ml-2 text-cheese font-semibold flex items-center gap-1">
               <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
@@ -257,7 +258,7 @@ export function WalletConnect() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
-          <span className="mr-2 text-base leading-none">👛</span>
+          <img src={walletIcon} alt="Wallet" className="mr-2 h-5 w-5 object-contain" />
           Connect Wallet
         </Button>
       </DialogTrigger>
@@ -274,7 +275,7 @@ export function WalletConnect() {
             disabled={isLoading}
             className="h-14 bg-cheese hover:bg-cheese-dark text-primary-foreground"
           >
-            <span className="mr-2 text-lg leading-none">👛</span>
+            <img src={walletIcon} alt="Wallet" className="mr-2 h-6 w-6 object-contain" />
             {isLoading ? "Connecting..." : "Connect Wallet"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">

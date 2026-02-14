@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useWax } from '@/context/WaxContext';
 import {
   fetchUserStakedFarmsWithDetails,
-  fetchUserPositions,
   fetchPoolIncentives,
   fetchPoolDetails,
   getAlcorDataSource,
@@ -60,11 +59,8 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
       // Ensure token cache is loaded before fetching farms
       await ensureTokenCacheLoaded();
       
-      // Fetch staked farms and all LP positions
-      const [stakedFarms, allPositions] = await Promise.all([
-        fetchUserStakedFarmsWithDetails(accountName),
-        fetchUserPositions(accountName),
-      ]);
+      // Fetch staked farms AND positions from single call (no double-fetch)
+      const { farms: stakedFarms, positions: allPositions } = await fetchUserStakedFarmsWithDetails(accountName);
       
       // Build map of positionId -> staked incentive IDs
       const stakedByPosition = new Map<number, { poolId: number; incentiveIds: number[] }>();

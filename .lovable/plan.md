@@ -1,64 +1,68 @@
 
 
-# Fix Alcor Farm Manager - Positions Still Showing Unstaked
+# Fix: cheesefeefee WAX Payment Swap Slippage
 
 ## Problem
-Even after the previous fix, all positions still appear as "unstaked" when the Alcor API is down. The data source correctly shows "onchain" now, but the position data is wrong because:
+The `on_wax_transfer` function in the `cheesefeefee` contract always fails when routing 250 WAX because it sets `minTokenOut` to the exact reserves-based price, which doesn't account for Alcor's swap fee (~0.3%) and price impact. The swap output is always slightly less than the theoretical calculation, causing `Received lower than minTokenOut` every time.
 
-1. **`fetchUserPositions` lacks cross-validation**: When the API is down, this function may return empty or stale data independently of the staked farms fix
-2. **On-chain positions have no token amounts**: `transformOnChainPositions` hardcodes `amountA: '0 TOKEN'` and `amountB: '0 TOKEN'` because raw on-chain position data doesn't include amounts -- they must be calculated from pool data
-3. **Double-fetching causes mismatches**: The hook calls `fetchUserStakedFarmsWithDetails` (which internally fetches positions) AND `fetchUserPositions` separately in parallel. When the API is intermittent, one call may succeed and the other fail, causing the staked/unstaked comparison to break
+## Root Cause (line 120-133 of `cheesefeefee.cpp`)
+1. `calculate_waxdao_from_wax(205.0)` calculates WAXDAO using raw reserves ratio
+2. That exact amount is passed as `minTokenOut` in the Alcor swap memo
+3. Alcor's AMM deducts fees, so actual output is always less -- swap reverts
 
-## Solution
+## Fix
 
-### 1. Enrich on-chain positions with token amounts from pool data
-**File: `src/lib/alcorFarms.ts`** -- `transformOnChainPositions`
+### Contract Change: `contracts/cheesefeefee/cheesefeefee.cpp`
 
-- After fetching raw on-chain positions, also fetch the corresponding pool details for each position
-- Use pool token quantities and the position's liquidity/tick data to populate `amountA` and `amountB` with real values instead of `'0 TOKEN'`
-- This ensures positions fetched via blockchain look identical to API-fetched positions
+Add a slippage buffer (2%) to the `minTokenOut` used in the Alcor swap memo. The contract already validates the calculated amount against `MIN_WAXDAO_OUTPUT` (5 WAXDAO) for dust protection, so lowering `minTokenOut` slightly is safe.
 
-### 2. Add cross-validation to `fetchUserPositions`
-**File: `src/lib/alcorFarms.ts`** -- `fetchUserPositions`
+**Before (line 126-133):**
+```cpp
+// 1. Swap 205 WAX for WAXDAO via Alcor Pool 1236 (sent directly to user)
+int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0);
+asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
 
-- Apply the same pattern used for `fetchUserStakedFarms`: when the API returns empty, cross-validate against the blockchain before trusting it
-- If blockchain has positions but API returned empty, use blockchain data
+string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
+    + "#" + from.to_string()
+    + "#" + waxdao_amount.to_string() + "@" + WAXDAO_CONTRACT.to_string()
+    + "#0";
+```
 
-### 3. Prevent double-fetching of positions in the hook
-**File: `src/hooks/useAlcorFarms.ts`**
+**After:**
+```cpp
+// 1. Swap 205 WAX for WAXDAO via Alcor Pool 1236 (sent directly to user)
+int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0);
+asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
 
-- Currently line 64-67 calls `fetchUserStakedFarmsWithDetails(accountName)` (which internally fetches positions) AND `fetchUserPositions(accountName)` in parallel
-- `fetchUserStakedFarmsWithDetails` already fetches positions internally, so the second call is redundant and can return different results
-- Refactor to either:
-  - Have `fetchUserStakedFarmsWithDetails` return positions alongside staked farms so they can be reused, OR
-  - Use a shared positions fetch that both paths consume
+// Apply 2% slippage buffer to minTokenOut (reserves price != swap price due to fees)
+int64_t min_output = static_cast<int64_t>(waxdao_amount.amount * 0.98);
+asset min_waxdao_out = asset(min_output, WAXDAO_SYMBOL);
 
-### 4. Make `fetchUserPositionsOnChain` populate token amounts
-**File: `src/lib/alcorFarms.ts`** -- `fetchUserPositionsOnChain`
+string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
+    + "#" + from.to_string()
+    + "#" + min_waxdao_out.to_string() + "@" + WAXDAO_CONTRACT.to_string()
+    + "#0";
+```
 
-- After fetching raw positions, batch-fetch pool details for all unique pool IDs
-- Calculate approximate token amounts from pool liquidity data and position tick range
-- Update `transformOnChainPositions` to accept pool data and produce proper `amountA`/`amountB` strings
+The same fix should also be applied to the CHEESE payment path in `calculate_waxdao_amount` if it ever performs an Alcor swap (currently it doesn't -- it sends from contract balance, so only the WAX path is affected).
 
-## Technical Details
+### Header Change: `contracts/cheesefeefee/cheesefeefee.hpp`
 
-### Changes to `src/lib/alcorFarms.ts`:
+Add a constant for the slippage tolerance:
+```cpp
+static constexpr double SWAP_SLIPPAGE_TOLERANCE = 0.02; // 2% for AMM fee + price impact
+```
 
-**`fetchUserPositionsOnChain` enhancement:**
-- Collect unique pool IDs from positions
-- Batch-fetch pool details via `fetchPoolDetailsOnChain`
-- Use pool token data to set position `amountA`/`amountB` with correct symbols and contracts
+## Deployment Required
 
-**`fetchUserPositions` cross-validation:**
-- Same pattern as `fetchUserStakedFarms`: if API returns empty array, check blockchain
-- If blockchain has positions, use blockchain data
+This is a **smart contract fix** -- after updating the `.cpp` and `.hpp` files, you will need to:
+1. Recompile the contract (`make` in `contracts/cheesefeefee/`)
+2. Redeploy to the `cheesefeefee` account on WAX mainnet
 
-**New export from `fetchUserStakedFarmsWithDetails`:**
-- Return both `{ farms, positions }` so the hook can reuse positions without double-fetching
+No frontend changes are needed.
 
-### Changes to `src/hooks/useAlcorFarms.ts`:
-
-- Consume positions from `fetchUserStakedFarmsWithDetails` result instead of making a separate `fetchUserPositions` call
-- Only call `fetchUserPositions` as a fallback if the combined function doesn't return positions
-- This eliminates the race condition where one parallel call gets API data and the other gets blockchain data
+## Security Note
+- The `MIN_WAXDAO_OUTPUT` check (5 WAXDAO minimum) still protects against dust attacks
+- The 10% price deviation guard still protects against manipulation
+- The 2% slippage buffer only affects the Alcor swap's minimum output, not the amount sent to the user (Alcor sends whatever the swap actually produces)
 

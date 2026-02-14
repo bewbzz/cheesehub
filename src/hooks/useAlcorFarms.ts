@@ -181,7 +181,7 @@ export function useAlcorFarms(): UseAlcorFarmsResult {
       return { stakedFarms, unstakedIncentives, unstakedPositions };
     },
     enabled: !!accountName,
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: 30 * 1000, // 30 seconds - match refetchInterval to prevent redundant refetches
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
     retry: 2,
   });

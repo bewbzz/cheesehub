@@ -68,6 +68,19 @@ export async function fetchTableRows<T = Record<string, unknown>>(
         return data as TableRowsResponse<T>;
       }
 
+      // If account doesn't exist, no point retrying other endpoints
+      if (response.status === 400 || response.status === 500) {
+        try {
+          const errBody = await response.json();
+          const errMsg = JSON.stringify(errBody);
+          if (errMsg.includes("account_query_exception") || errMsg.includes("Fail to retrieve account")) {
+            throw new Error(`account_query_exception: ${params.code}`);
+          }
+        } catch (parseErr) {
+          if (parseErr instanceof Error && parseErr.message.startsWith("account_query_exception")) throw parseErr;
+        }
+      }
+
       console.warn(`WAX endpoint ${baseUrl} returned ${response.status}, trying next...`);
     } catch (error) {
       lastError = error as Error;

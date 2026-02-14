@@ -22,7 +22,7 @@ interface RentSlotDialogProps {
   startTime: number;
   position: number;
   waxPricePerDay: number;
-  isJoining?: boolean; // if true, show "Join Shared Slot" instead of mode selector
+  isJoining?: boolean;
   onSuccess: () => void;
 }
 
@@ -38,7 +38,6 @@ export function RentSlotDialog({
   const { session, transferToken } = useWax();
   const { toast } = useToast();
   const [numDays, setNumDays] = useState(1);
-  const [payMethod, setPayMethod] = useState<"wax" | "cheese">("wax");
   const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">(isJoining ? "shared" : "exclusive");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,20 +55,7 @@ export function RentSlotDialog({
 
     setIsSubmitting(true);
     try {
-      let txId: string | null;
-
-      if (payMethod === "wax") {
-        txId = await transferToken("eosio.token", "WAX", 8, "cheesebannad", totalWax, memo);
-      } else {
-        // For CHEESE, user needs to send equivalent value — for now we show WAX amount
-        // The contract validates the CHEESE value against Alcor price
-        toast({
-          title: "CHEESE Payment",
-          description: `Send enough CHEESE worth ${totalWax} WAX to cheesebannad with memo: ${memo}`,
-        });
-        setIsSubmitting(false);
-        return;
-      }
+      const txId = await transferToken("eosio.token", "WAX", 8, "cheesebannad", totalWax, memo);
 
       if (txId) {
         toast({ title: "Slot Rented! 🧀", description: `Position ${position} rented for ${numDays} day(s)` });
@@ -137,28 +123,11 @@ export function RentSlotDialog({
             </div>
           )}
 
-          <div>
-            <Label>Payment Method</Label>
-            <RadioGroup
-              value={payMethod}
-              onValueChange={(v) => setPayMethod(v as "wax" | "cheese")}
-              className="mt-2 space-y-2"
-            >
-              <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
-                <RadioGroupItem value="wax" id="pay-wax" />
-                <Label htmlFor="pay-wax" className="cursor-pointer flex-1">
-                  <span className="font-medium">{totalWax.toFixed(2)} WAX</span>
-                  <span className="text-xs text-muted-foreground ml-2">({(waxPricePerDay * priceMultiplier).toFixed(2)} WAX × {numDays} day{numDays > 1 ? "s" : ""})</span>
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
-                <RadioGroupItem value="cheese" id="pay-cheese" />
-                <Label htmlFor="pay-cheese" className="cursor-pointer flex-1">
-                  <span className="font-medium">CHEESE equivalent</span>
-                  <span className="text-xs text-muted-foreground ml-2">(priced via Alcor Pool 1252)</span>
-                </Label>
-              </div>
-            </RadioGroup>
+          <div className="rounded-lg bg-muted/50 p-3 text-sm">
+            <p className="font-medium">{totalWax.toFixed(2)} WAX</p>
+            <p className="text-xs text-muted-foreground">
+              {(waxPricePerDay * priceMultiplier).toFixed(2)} WAX × {numDays} day{numDays > 1 ? "s" : ""}
+            </p>
           </div>
 
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">

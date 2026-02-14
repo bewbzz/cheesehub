@@ -1,5 +1,4 @@
 #include "cheesebannad.hpp"
-#include <cmath>
 
 // ============================================================================
 // Admin Actions
@@ -74,26 +73,23 @@ void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t posi
     });
 }
 
-void cheesebannad::setconfig(asset wax_price_per_day, double wax_per_cheese_baseline) {
+void cheesebannad::setconfig(asset wax_price_per_day) {
     require_auth(get_self());
 
     check(wax_price_per_day.symbol == WAX_SYMBOL, "Price must be in WAX");
     check(wax_price_per_day.amount > 0, "Price must be positive");
-    check(wax_per_cheese_baseline > 0, "Baseline must be positive");
 
     config_table configs(get_self(), get_self().value);
     auto itr = configs.find(1);
 
     if (itr == configs.end()) {
         configs.emplace(get_self(), [&](auto& c) {
-            c.id                      = 1;
-            c.wax_price_per_day       = wax_price_per_day;
-            c.wax_per_cheese_baseline = wax_per_cheese_baseline;
+            c.id                = 1;
+            c.wax_price_per_day = wax_price_per_day;
         });
     } else {
         configs.modify(itr, get_self(), [&](auto& c) {
-            c.wax_price_per_day       = wax_price_per_day;
-            c.wax_per_cheese_baseline = wax_per_cheese_baseline;
+            c.wax_price_per_day = wax_price_per_day;
         });
     }
 }
@@ -127,44 +123,13 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
     check(quantity.amount > 0, "Amount must be positive");
 
     auto [start_time, num_days, position, mode] = parse_banner_memo(memo);
-    auto [price_per_day, baseline] = get_config();
+    asset price_per_day = get_config();
 
     // Shared slots cost 20% less
     double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
     int64_t required = static_cast<int64_t>(static_cast<double>(price_per_day.amount) * multiplier) * static_cast<int64_t>(num_days);
     check(quantity.amount >= required,
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
-
-    assign_slots(from, start_time, num_days, position, mode);
-}
-
-void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string memo) {
-    if (from == get_self() || to != get_self()) return;
-
-    check(quantity.symbol == CHEESE_SYMBOL, "Only CHEESE accepted");
-    check(quantity.amount > 0, "Amount must be positive");
-
-    // Only process banner memos
-    if (memo.substr(0, 7) != "banner|") return;
-
-    auto [start_time, num_days, position, mode] = parse_banner_memo(memo);
-    auto [price_per_day, baseline] = get_config();
-
-    // Get CHEESE→WAX price from Alcor
-    double wax_per_cheese = get_cheese_wax_price();
-    check_price_deviation(wax_per_cheese, baseline);
-
-    // Calculate WAX value of sent CHEESE
-    double cheese_units = static_cast<double>(quantity.amount) / 10000.0; // 4 decimals
-    double wax_value = cheese_units * wax_per_cheese;
-
-    // Shared slots cost 20% less
-    double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
-    double required_wax = static_cast<double>(price_per_day.amount * static_cast<int64_t>(num_days)) / 100000000.0 * multiplier;
-
-    check(wax_value >= required_wax,
-        "Insufficient CHEESE value. Need " + to_string(static_cast<int64_t>(required_wax)) +
-        " WAX worth. Sent: " + to_string(static_cast<int64_t>(wax_value)) + " WAX worth");
 
     assign_slots(from, start_time, num_days, position, mode);
 }
@@ -211,46 +176,16 @@ tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const s
     return make_tuple(start_time, num_days, position, mode);
 }
 
-double cheesebannad::get_cheese_wax_price() {
-    alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
-    auto pool_itr = pools.find(CHEESE_WAX_POOL_ID);
-    check(pool_itr != pools.end(), "Alcor pool 1252 not found");
-    check(pool_itr->active, "Alcor pool is not active");
-
-    double reserveA = static_cast<double>(pool_itr->tokenA.quantity.amount);
-    double reserveB = static_cast<double>(pool_itr->tokenB.quantity.amount);
-    uint8_t precisionA = pool_itr->tokenA.quantity.symbol.precision();
-    uint8_t precisionB = pool_itr->tokenB.quantity.symbol.precision();
-
-    reserveA /= pow(10.0, precisionA);
-    reserveB /= pow(10.0, precisionB);
-
-    // Pool 1252: CHEESE=tokenA, WAX=tokenB → WAX per CHEESE = reserveB / reserveA
-    symbol_code symbolA = pool_itr->tokenA.quantity.symbol.code();
-    if (symbolA == symbol_code("CHEESE")) {
-        return reserveB / reserveA;
-    } else {
-        return reserveA / reserveB;
-    }
-}
-
-pair<asset, double> cheesebannad::get_config() {
+asset cheesebannad::get_config() {
     config_table configs(get_self(), get_self().value);
     auto itr = configs.find(1);
 
     if (itr != configs.end()) {
-        return make_pair(itr->wax_price_per_day, itr->wax_per_cheese_baseline);
+        return itr->wax_price_per_day;
     }
 
-    // Defaults
-    return make_pair(asset(DEFAULT_WAX_PRICE, WAX_SYMBOL), DEFAULT_WAX_PER_CHEESE);
-}
-
-void cheesebannad::check_price_deviation(double actual, double baseline) {
-    double deviation = fabs(actual - baseline) / baseline;
-    check(deviation <= MAX_PRICE_DEVIATION,
-        "CHEESE/WAX price deviation too high (" + to_string(static_cast<int>(deviation * 100)) +
-        "%). Possible manipulation. Try again later.");
+    // Default
+    return asset(DEFAULT_WAX_PRICE, WAX_SYMBOL);
 }
 
 void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position, char mode) {
@@ -293,30 +228,5 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
                 row.shared_user = user;  // this user is the secondary renter
             });
         }
-    }
-}
-
-void cheesebannad::distribute_cheese(asset quantity) {
-    int64_t burn_amount  = static_cast<int64_t>(quantity.amount * BURN_PERCENT);
-    int64_t stake_amount = quantity.amount - burn_amount;
-
-    if (burn_amount > 0) {
-        action(
-            permission_level{get_self(), "active"_n},
-            CHEESE_CONTRACT,
-            "transfer"_n,
-            make_tuple(get_self(), NULL_ACCOUNT, asset(burn_amount, CHEESE_SYMBOL),
-                string("CHEESE burn - banner ad"))
-        ).send();
-    }
-
-    if (stake_amount > 0) {
-        action(
-            permission_level{get_self(), "active"_n},
-            CHEESE_CONTRACT,
-            "transfer"_n,
-            make_tuple(get_self(), LIQUIDITY_STAKING, asset(stake_amount, CHEESE_SYMBOL),
-                string("CHEESE liquidity staking - banner ad"))
-        ).send();
     }
 }

@@ -24,22 +24,24 @@ const PowerUp = () => {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
-          <div className="flex flex-col items-center text-center">
+           <div className="flex flex-col items-center gap-8">
             <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
               <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-2xl">⚡</span>
-              <h1 className="text-3xl md:text-4xl font-bold">
-                <span className="text-cheese">CHEESE</span>
-                <span className="text-foreground">Up</span>
-              </h1>
-              <span className="text-2xl">⚡</span>
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-2xl">⚡</span>
+                <h1 className="text-3xl md:text-4xl font-bold">
+                  <span className="text-cheese">CHEESE</span>
+                  <span className="text-foreground">Up</span>
+                </h1>
+                <span className="text-2xl">⚡</span>
+              </div>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Fuel your WAX transactions with CHEESE tokens
+              </p>
             </div>
-            <p className="mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Fuel your WAX transactions with CHEESE tokens
-            </p>
           </div>
         </div>
       </section>

@@ -13,8 +13,8 @@ const BannerAds = () => {
             <img src={cheeseLogo} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
           </div>
 
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 mb-3">
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center gap-2">
               <Megaphone className="h-8 w-8 text-cheese" />
               <h1 className="text-3xl md:text-4xl font-bold">
                 <span className="text-cheese">CHEESE</span>
@@ -22,7 +22,7 @@ const BannerAds = () => {
               </h1>
               <Megaphone className="h-8 w-8 text-cheese" />
             </div>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-muted-foreground max-w-lg mx-auto">
               Rent banner ad slots on the CHEESEHub homepage. Each day has two positions — pay with WAX.
             </p>
           </div>

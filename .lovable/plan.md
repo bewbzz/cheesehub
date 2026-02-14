@@ -1,59 +1,37 @@
 
 
-## Fix Alcor Swap Memo Format in cheesefeefee and cheesebannad
+# Standardize CHEESENull Containers to Match Other dApps
 
-### Problem
-Alcor's `swapexactin` action requires the minimum output to be an **extended asset** with the token contract appended using `@`. Both contracts currently omit this, causing:
-```
-assertion failure with message: Invalid extended asset: Should be separated with '@'
-```
+## The Problem
 
-### Changes
+The CHEESENull page uses different card/container styling compared to CHEESEFarm, CHEESEDao, and other dApps:
 
-**`contracts/cheesefeefee/cheesefeefee.cpp`** (line ~130-133)
+| Property | CHEESENull | Other dApps (Farm, DAO) |
+|----------|-----------|------------------------|
+| Background | `bg-card/80`, `bg-card/60` | `bg-card/50` |
+| Border | `border-cheese/20`, `border-cheese/10` | `border-border/50` |
+| Shadow | `shadow-[0_0_15px_rgba(255,204,0,0.1)]` (cheese glow) | None (standard) |
+| Hover | None | `hover:border-cheese/30` or `hover:border-primary/30` |
 
-Current:
-```text
-string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
-    + "#" + from.to_string()
-    + "#" + waxdao_amount.to_string()
-    + "#0";
-```
+## Changes
 
-Fixed -- append `@token.waxdao` to the minimum output:
-```text
-string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
-    + "#" + from.to_string()
-    + "#" + waxdao_amount.to_string() + "@" + WAXDAO_CONTRACT.to_string()
-    + "#0";
-```
+### 1. NullStats.tsx (line 30)
+Change the Card class from:
+`bg-card/80 backdrop-blur border-cheese/20 shadow-[0_0_15px_rgba(255,204,0,0.1)]`
+to:
+`bg-card/50 border-border/50`
 
-Produces: `swapexactin#1236#username#123.45678901 WAXDAO@token.waxdao#0`
+### 2. NullTotalStats.tsx (line 19)
+Change the Card class from:
+`bg-card/60 backdrop-blur border-cheese/10`
+to:
+`bg-card/50 border-border/50`
 
----
+### 3. NullerLeaderboard.tsx (line 58)
+Change the Card class from:
+`bg-card/60 backdrop-blur border-cheese/10`
+to:
+`bg-card/50 border-border/50`
 
-**`contracts/cheesebannad/cheesebannad.cpp`** (line ~271-272)
-
-Current:
-```text
-string swap_memo = "swapexactin#" + to_string(CHEESE_WAX_POOL_ID) +
-    "#" + get_self().to_string() + "#0.0001 CHEESE#0";
-```
-
-Fixed -- append `@cheeseburger` to the minimum output:
-```text
-string swap_memo = "swapexactin#" + to_string(CHEESE_WAX_POOL_ID) +
-    "#" + get_self().to_string() + "#0.0001 CHEESE@" + CHEESE_CONTRACT.to_string() + "#0";
-```
-
-Produces: `swapexactin#1252#cheesebannad#0.0001 CHEESE@cheeseburger#0`
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `contracts/cheesefeefee/cheesefeefee.cpp` | Append `@token.waxdao` to WAXDAO minimum output in Alcor swap memo |
-| `contracts/cheesebannad/cheesebannad.cpp` | Append `@cheeseburger` to CHEESE minimum output in Alcor swap memo |
-
-No frontend changes needed.
+All three components keep their `w-full max-w-md` width since CHEESENull uses a centered single-column layout (unlike the grid layouts of Farm/DAO browse pages). The internal content, fonts, and spacing remain unchanged as they are already consistent.
 

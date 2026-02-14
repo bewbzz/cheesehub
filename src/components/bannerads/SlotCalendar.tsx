@@ -53,7 +53,8 @@ export function SlotCalendar() {
       {futureGroups.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No banner ad slots are available yet. Check back soon!</p>
+            <p className="text-muted-foreground mb-2">No banner ad slots are initialized yet.</p>
+            <p className="text-sm text-muted-foreground">The contract has not launched — slots will appear here once the admin initializes them.</p>
           </CardContent>
         </Card>
       ) : (

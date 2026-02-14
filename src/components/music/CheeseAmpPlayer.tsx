@@ -429,17 +429,20 @@ export function CheeseAmpPlayer() {
 
           {/* Transport Controls */}
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "h-8 w-8",
-                playlist.shuffle && "text-cheese"
-              )}
-              onClick={playlist.toggleShuffle}
-            >
-              <Shuffle className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-col items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-8 w-8",
+                  playlist.shuffle && "text-cheese"
+                )}
+                onClick={playlist.toggleShuffle}
+              >
+                <Shuffle className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-cheese -mt-1">Shuffle</span>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -546,19 +549,6 @@ export function CheeseAmpPlayer() {
                 Global{globalStackedNfts.length > 0 ? ` (${globalStackedNfts.length})` : ''}
               </Button>
               
-              {/* Spacer */}
-              <div className="flex-1" />
-              
-              {/* Shuffle Toggle */}
-              <div className="flex items-center gap-2">
-                <Shuffle className={cn("h-3.5 w-3.5", playlist.shuffle ? "text-cheese" : "text-muted-foreground")} />
-                <span className={cn("text-xs", playlist.shuffle ? "text-foreground" : "text-muted-foreground")}>Shuffle</span>
-                <Switch
-                  checked={playlist.shuffle}
-                  onCheckedChange={playlist.toggleShuffle}
-                  className="data-[state=checked]:bg-cheese"
-                />
-              </div>
               {playlist.currentPlaylistId !== 'library' && viewMode === 'library' && (
                 <Button
                   variant="secondary"

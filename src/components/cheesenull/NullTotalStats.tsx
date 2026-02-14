@@ -16,7 +16,7 @@ export function NullTotalStats() {
   } = useCheeseNullStats();
 
   return (
-    <Card className="w-full max-w-md bg-card/60 backdrop-blur border-cheese/10">
+    <Card className="w-full max-w-md bg-card/50 border-border/50">
       <CardContent className="p-5 space-y-4">
         <div className="text-center">
           <h3 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">

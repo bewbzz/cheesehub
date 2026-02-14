@@ -27,7 +27,7 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
   }
 
   return (
-    <Card className="w-full max-w-md bg-card/80 backdrop-blur border-cheese/20 shadow-[0_0_15px_rgba(255,204,0,0.1)]">
+    <Card className="w-full max-w-md bg-card/50 border-border/50">
       <CardContent className="p-6 space-y-6">
         {/* Estimated CHEESE Burn */}
         <div className="text-center space-y-4">

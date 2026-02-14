@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWax } from '@/context/WaxContext';
+import { logPlay } from '@/lib/cheeseAmpRoyalties';
+import { isAnchorSession } from '@/lib/wharfKit';
+import { getBufferedPlayCount } from '@/lib/cheeseAmpRoyalties';
 import { useMusicNFTs, CHEESEAMP_GLOBAL_ACCOUNT, type StackedMusicNFT } from '@/hooks/useMusicNFTs';
 import { useCheeseAmpPlaylist } from '@/hooks/useCheeseAmpPlaylist';
 import { getAudioPlayer, formatTime, type PlaybackState } from '@/lib/musicPlayer';
@@ -118,7 +121,7 @@ function CoverArt({ src, alt, isPlaying }: CoverArtProps) {
 }
 
 export function CheeseAmpPlayer() {
-  const { accountName } = useWax();
+  const { accountName, session } = useWax();
   const { nfts, stackedNfts, isLoading: isLoadingNfts, refetch } = useMusicNFTs();
   const { stackedNfts: globalStackedNfts, isLoading: isLoadingGlobal, refetch: refetchGlobal } = useMusicNFTs(CHEESEAMP_GLOBAL_ACCOUNT);
   const [viewMode, setViewMode] = useState<'library' | 'playlists' | 'global'>('library');
@@ -184,10 +187,14 @@ export function CheeseAmpPlayer() {
     playlist.playTrack(track);
     try {
       await audioPlayer.play(track);
+      // Log play for royalty tracking when playing global library tracks
+      if (viewMode === 'global' && session && accountName && track.template_id) {
+        logPlay(session, accountName, Number(track.template_id));
+      }
     } catch (error) {
       console.error('Failed to play track:', error);
     }
-  }, [audioPlayer, playlist]);
+  }, [audioPlayer, playlist, viewMode, session, accountName]);
 
   const handlePlayPause = useCallback(() => {
     if (playbackState.isPlaying) {
@@ -329,6 +336,21 @@ export function CheeseAmpPlayer() {
             {activeTracks.length} track{activeTracks.length !== 1 ? 's' : ''}
             {viewMode === 'global' && ' (Global)'}
           </span>
+          {/* Buffered plays indicator for Cloud Wallet users */}
+          {accountName && session && !isAnchorSession(session) && getBufferedPlayCount(accountName) > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs bg-cheese/20 text-cheese px-1.5 py-0.5 rounded-full cursor-help">
+                    {getBufferedPlayCount(accountName)} pending
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Plays waiting to sync on-chain</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button
             variant="ghost"
             size="icon"

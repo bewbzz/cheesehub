@@ -40,7 +40,7 @@ function loadSettings(accountName: string): PlaybackSettings {
  * It should be mounted at a persistent level (e.g., WalletConnect) so it
  * continues working even when the CHEESEAmp dialog is minimized/closed.
  */
-export function useCheeseAmpAutoAdvance(accountName: string | null) {
+export function useCheeseAmpAutoAdvance(accountName: string | null, onTrackPlayed?: (templateId: string) => void) {
   const { stackedNfts } = useMusicNFTs();
   const shuffleOrderRef = useRef<number[]>([]);
   
@@ -190,12 +190,17 @@ export function useCheeseAmpAutoAdvance(accountName: string | null) {
     const unsubscribe = audioPlayer.onTrackEnd(() => {
       const nextTrack = getNextTrack();
       if (nextTrack) {
-        audioPlayer.play(nextTrack).catch(console.error);
+        audioPlayer.play(nextTrack).then(() => {
+          // Log the auto-advanced track for royalty tracking
+          if (onTrackPlayed && nextTrack.template_id) {
+            onTrackPlayed(String(nextTrack.template_id));
+          }
+        }).catch(console.error);
       }
     });
     
     return unsubscribe;
-  }, [accountName, getNextTrack]);
+  }, [accountName, getNextTrack, onTrackPlayed]);
 
   // Listen for skip next/previous events from mini player
   useEffect(() => {

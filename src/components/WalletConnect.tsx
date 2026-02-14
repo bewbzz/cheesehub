@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import { CheeseAmpMiniPlayer } from "./music/CheeseAmpMiniPlayer";
 import { useCheeseAmpAutoAdvance } from "@/hooks/useCheeseAmpAutoAdvance";
 import { getAudioPlayer } from "@/lib/musicPlayer";
 import { useCheeseAmpStore } from "@/stores/cheeseAmpStore";
+import { logPlay, flushPlayBuffer, getBufferedPlayCount } from "@/lib/cheeseAmpRoyalties";
 
 export function WalletConnect() {
   const { 
@@ -49,8 +50,25 @@ export function WalletConnect() {
   const cheeseAmpMinimized = useCheeseAmpStore((state) => state.isMinimized);
   const setCheeseAmpMinimized = useCheeseAmpStore((state) => state.setMinimized);
 
+  // Callback for auto-advance play logging (royalties)
+  const handleTrackPlayed = useCallback((templateId: string) => {
+    if (session && accountName) {
+      logPlay(session, accountName, Number(templateId));
+    }
+  }, [session, accountName]);
+
   // Persistent auto-advance hook - works even when CHEESEAmp dialog is minimized
-  useCheeseAmpAutoAdvance(accountName);
+  useCheeseAmpAutoAdvance(accountName, handleTrackPlayed);
+
+  // Flush Cloud Wallet play buffer when wallet opens (opportunistic)
+  useEffect(() => {
+    if (walletOpen && session && accountName) {
+      const buffered = getBufferedPlayCount(accountName);
+      if (buffered > 0) {
+        flushPlayBuffer(session, accountName).catch(() => {});
+      }
+    }
+  }, [walletOpen, session, accountName]);
 
   // Listen for custom event to open wallet
   useEffect(() => {

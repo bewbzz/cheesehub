@@ -1,6 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { SlotCalendar } from "@/components/bannerads/SlotCalendar";
-import { Megaphone } from "lucide-react";
+
 import cheeseLogo from "@/assets/cheese-logo.png";
 
 const BannerAds = () => {
@@ -15,12 +15,12 @@ const BannerAds = () => {
 
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
-              <Megaphone className="h-8 w-8 text-cheese" />
+              <span className="text-3xl">📰</span>
               <h1 className="text-3xl md:text-4xl font-bold">
                 <span className="text-cheese">CHEESE</span>
                 <span className="text-foreground">Ads</span>
               </h1>
-              <Megaphone className="h-8 w-8 text-cheese" />
+              <span className="text-3xl">📰</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Rent banner ad slots on the CHEESEHub homepage. Each day has two positions — pay with WAX.

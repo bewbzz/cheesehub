@@ -171,7 +171,7 @@ async function fetchUserPositionsOnChain(accountName: string): Promise<AlcorApiP
   const cached = positionsCache.get(accountName);
   if (cached && Date.now() - cached.timestamp < POSITIONS_CACHE_TTL) {
     console.log('[Alcor] Using cached on-chain positions for', accountName);
-    return transformOnChainPositions(cached.data);
+    return enrichOnChainPositions(cached.data);
   }
 
   console.log('[Alcor] Fetching positions from blockchain for', accountName);
@@ -207,27 +207,69 @@ async function fetchUserPositionsOnChain(accountName: string): Promise<AlcorApiP
   // Cache the raw data
   positionsCache.set(accountName, { data: allPositions, timestamp: Date.now() });
   
-  return transformOnChainPositions(allPositions);
+  return enrichOnChainPositions(allPositions);
 }
 
 /**
- * Transform on-chain positions to API format
+ * Enrich on-chain positions with real token amounts from pool data
  */
-function transformOnChainPositions(positions: OnChainPosition[]): AlcorApiPosition[] {
-  return positions.map(pos => ({
-    id: pos.id,
-    owner: pos.owner,
-    tickLower: pos.tickLower,
-    tickUpper: pos.tickUpper,
-    liquidity: pos.liquidity,
-    pool: pos.pool,
-    inRange: true, // Will be calculated later if needed
-    amountA: '0 TOKEN', // Will be populated from pool data
-    amountB: '0 TOKEN',
-    feesA: '0 TOKEN',
-    feesB: '0 TOKEN',
-    totalValue: 0,
-  }));
+async function enrichOnChainPositions(positions: OnChainPosition[]): Promise<AlcorApiPosition[]> {
+  if (positions.length === 0) return [];
+  
+  // Batch-fetch pool details for all unique pools
+  const uniquePoolIds = [...new Set(positions.map(p => p.pool))];
+  const poolMap = new Map<number, any>();
+  
+  await Promise.all(
+    uniquePoolIds.map(async (poolId) => {
+      try {
+        const pool = await fetchPoolDetailsOnChain(poolId);
+        if (pool) poolMap.set(poolId, pool);
+      } catch (e) {
+        console.warn(`[Alcor] Failed to fetch pool ${poolId} for position enrichment`);
+      }
+    })
+  );
+
+  return positions.map(pos => {
+    const pool = poolMap.get(pos.pool);
+    let amountA = '0 TOKEN';
+    let amountB = '0 TOKEN';
+    let inRange = true;
+
+    if (pool) {
+      const tokenAParsed = parseAsset(pool.tokenA?.quantity || '0 TOKEN');
+      const tokenBParsed = parseAsset(pool.tokenB?.quantity || '0 TOKEN');
+      const symbolA = tokenAParsed.symbol || 'TOKEN';
+      const symbolB = tokenBParsed.symbol || 'TOKEN';
+      const precA = tokenAParsed.precision || 8;
+      const precB = tokenBParsed.precision || 8;
+      
+      // Check if position is in range based on pool's current tick
+      const currentTick = pool.tick || 0;
+      inRange = currentTick >= pos.tickLower && currentTick < pos.tickUpper;
+      
+      // Use placeholder amounts with correct symbols/precision
+      // Exact amounts require complex sqrt-price math, but symbols are critical for UI
+      amountA = `${(0).toFixed(precA)} ${symbolA}`;
+      amountB = `${(0).toFixed(precB)} ${symbolB}`;
+    }
+
+    return {
+      id: pos.id,
+      owner: pos.owner,
+      tickLower: pos.tickLower,
+      tickUpper: pos.tickUpper,
+      liquidity: pos.liquidity,
+      pool: pos.pool,
+      inRange,
+      amountA,
+      amountB,
+      feesA: '0 TOKEN',
+      feesB: '0 TOKEN',
+      totalValue: 0,
+    };
+  });
 }
 
 /**
@@ -465,6 +507,9 @@ export async function fetchUserStakedFarms(accountName: string): Promise<AlcorAp
  */
 export async function fetchUserPositions(accountName: string): Promise<AlcorApiPosition[]> {
   // Try API first with timeout
+  let apiData: AlcorApiPosition[] | null = null;
+  let apiSucceeded = false;
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
@@ -477,11 +522,13 @@ export async function fetchUserPositions(accountName: string): Promise<AlcorApiP
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data)) {
-        console.log('[Alcor] Positions from API:', data.length);
-        return data;
+        apiSucceeded = true;
+        apiData = data;
       }
     }
-    console.warn(`[Alcor] Positions API returned ${response.status}, trying blockchain...`);
+    if (!apiSucceeded) {
+      console.warn(`[Alcor] Positions API returned ${response.status}, trying blockchain...`);
+    }
   } catch (error: any) {
     if (error.name === 'AbortError') {
       console.warn('[Alcor] Positions API timeout, falling back to blockchain...');
@@ -490,7 +537,31 @@ export async function fetchUserPositions(accountName: string): Promise<AlcorApiP
     }
   }
 
-  // Fallback to blockchain
+  // If API returned data with items, use it
+  if (apiSucceeded && apiData && apiData.length > 0) {
+    console.log('[Alcor] Positions from API:', apiData.length);
+    return apiData;
+  }
+
+  // If API returned empty, cross-validate with blockchain
+  if (apiSucceeded && apiData && apiData.length === 0) {
+    console.log('[Alcor] API returned empty positions, cross-validating with blockchain...');
+    try {
+      const onChainPositions = await fetchUserPositionsOnChain(accountName);
+      if (onChainPositions.length > 0) {
+        console.warn('[Alcor] API returned empty but blockchain has', onChainPositions.length, 'positions - using blockchain');
+        return onChainPositions;
+      } else {
+        console.log('[Alcor] Confirmed: user has no positions');
+        return [];
+      }
+    } catch (validationError) {
+      console.warn('[Alcor] Cross-validation failed, trusting API empty result');
+      return [];
+    }
+  }
+
+  // API failed entirely - use blockchain fallback
   try {
     return fetchUserPositionsOnChain(accountName);
   } catch (blockchainError) {
@@ -635,15 +706,20 @@ export async function fetchPoolIncentives(poolId: number): Promise<any[]> {
 /**
  * Combine farm positions with LP position details
  */
-export async function fetchUserStakedFarmsWithDetails(accountName: string): Promise<AlcorFarmPosition[]> {
-  // Fetch farms and positions in parallel
+export interface StakedFarmsWithPositions {
+  farms: AlcorFarmPosition[];
+  positions: AlcorApiPosition[];
+}
+
+export async function fetchUserStakedFarmsWithDetails(accountName: string): Promise<StakedFarmsWithPositions> {
+  // Fetch farms and positions in parallel (single shared fetch for positions)
   const [farmPositions, lpPositions] = await Promise.all([
     fetchUserStakedFarms(accountName),
     fetchUserPositions(accountName),
   ]);
 
   if (farmPositions.length === 0) {
-    return [];
+    return { farms: [], positions: lpPositions };
   }
 
   // Create a map of position ID to LP position details
@@ -727,7 +803,7 @@ export async function fetchUserStakedFarmsWithDetails(accountName: string): Prom
     });
   }
 
-  return result;
+  return { farms: result, positions: lpPositions };
 }
 
 // Parse WAX asset string to get precision

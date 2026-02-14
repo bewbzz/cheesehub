@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
-import { ShoppingCart } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -102,19 +102,21 @@ export function Header() {
         </div>
         <div className="flex items-center gap-2">
           <WalletConnect />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-primary/10"
-            onClick={() => setIsOpen(true)}
-          >
-            <ShoppingCart className="h-5 w-5 text-primary" />
-            {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                {totalItems}
-              </span>
-            )}
-          </Button>
+          {location.pathname === "/drops" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative hover:bg-primary/10"
+              onClick={() => setIsOpen(true)}
+            >
+              <span className="text-lg leading-none">🛒</span>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  {totalItems}
+                </span>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 

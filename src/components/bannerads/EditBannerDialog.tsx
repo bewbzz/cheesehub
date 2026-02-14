@@ -27,8 +27,9 @@ interface EditBannerDialogProps {
 export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBannerDialogProps) {
   const { session } = useWax();
   const { toast } = useToast();
-  const [ipfsHash, setIpfsHash] = useState(slot.ipfsHash);
-  const [websiteUrl, setWebsiteUrl] = useState(slot.websiteUrl);
+  const isSharedUser = slot.sharedUser === session?.actor?.toString();
+  const [ipfsHash, setIpfsHash] = useState(isSharedUser ? slot.sharedIpfsHash || "" : slot.ipfsHash);
+  const [websiteUrl, setWebsiteUrl] = useState(isSharedUser ? slot.sharedWebsiteUrl || "" : slot.websiteUrl);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const previewUrl = ipfsHash
@@ -42,9 +43,12 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
 
     setIsSubmitting(true);
     try {
+      const isSharedUser = slot.sharedUser === session.actor.toString();
+      const actionName = isSharedUser ? "editsharedbanner" : "editadbanner";
+
       const action = {
         account: "cheesebannad",
-        name: "editadbanner",
+        name: actionName,
         authorization: [session.permissionLevel],
         data: {
           user: session.actor.toString(),
@@ -85,7 +89,7 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
         <DialogHeader>
           <DialogTitle>Edit Banner Ad</DialogTitle>
           <DialogDescription>
-            Position {slot.position} — Update your banner image and link.
+            Position {slot.position} — {slot.rentalType === "shared" && slot.sharedUser === session?.actor?.toString() ? "Update your shared " : "Update your "}banner image and link.
           </DialogDescription>
         </DialogHeader>
 

@@ -22,6 +22,7 @@ interface RentSlotDialogProps {
   startTime: number;
   position: number;
   waxPricePerDay: number;
+  isJoining?: boolean; // if true, show "Join Shared Slot" instead of mode selector
   onSuccess: () => void;
 }
 
@@ -31,16 +32,21 @@ export function RentSlotDialog({
   startTime,
   position,
   waxPricePerDay,
+  isJoining = false,
   onSuccess,
 }: RentSlotDialogProps) {
   const { session, transferToken } = useWax();
   const { toast } = useToast();
   const [numDays, setNumDays] = useState(1);
   const [payMethod, setPayMethod] = useState<"wax" | "cheese">("wax");
+  const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">(isJoining ? "shared" : "exclusive");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const totalWax = waxPricePerDay * numDays;
-  const memo = `banner|${startTime}|${numDays}|${position}`;
+  const SHARED_DISCOUNT = 0.20;
+  const priceMultiplier = rentalMode === "shared" ? 1 - SHARED_DISCOUNT : 1;
+  const totalWax = waxPricePerDay * numDays * priceMultiplier;
+  const modeChar = isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
+  const memo = `banner|${startTime}|${numDays}|${position}|${modeChar}`;
 
   const handleRent = async () => {
     if (!session) {
@@ -86,7 +92,7 @@ export function RentSlotDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Rent Banner Slot</DialogTitle>
+          <DialogTitle>{isJoining ? "Join Shared Banner Slot" : "Rent Banner Slot"}</DialogTitle>
           <DialogDescription>
             Position {position} starting {format(new Date(startTime * 1000), "MMM d, yyyy")}
           </DialogDescription>
@@ -105,6 +111,32 @@ export function RentSlotDialog({
             />
           </div>
 
+          {!isJoining && (
+            <div>
+              <Label>Rental Type</Label>
+              <RadioGroup
+                value={rentalMode}
+                onValueChange={(v) => setRentalMode(v as "exclusive" | "shared")}
+                className="mt-2 space-y-2"
+              >
+                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
+                  <RadioGroupItem value="exclusive" id="mode-exclusive" />
+                  <Label htmlFor="mode-exclusive" className="cursor-pointer flex-1">
+                    <span className="font-medium">Exclusive</span>
+                    <span className="text-xs text-muted-foreground ml-2">100% display time, full price</span>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
+                  <RadioGroupItem value="shared" id="mode-shared" />
+                  <Label htmlFor="mode-shared" className="cursor-pointer flex-1">
+                    <span className="font-medium">Shared (Save 20%)</span>
+                    <span className="text-xs text-muted-foreground ml-2">50% display time with rotation</span>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+          )}
+
           <div>
             <Label>Payment Method</Label>
             <RadioGroup
@@ -115,8 +147,8 @@ export function RentSlotDialog({
               <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
                 <RadioGroupItem value="wax" id="pay-wax" />
                 <Label htmlFor="pay-wax" className="cursor-pointer flex-1">
-                  <span className="font-medium">{totalWax} WAX</span>
-                  <span className="text-xs text-muted-foreground ml-2">({waxPricePerDay} WAX × {numDays} day{numDays > 1 ? "s" : ""})</span>
+                  <span className="font-medium">{totalWax.toFixed(2)} WAX</span>
+                  <span className="text-xs text-muted-foreground ml-2">({(waxPricePerDay * priceMultiplier).toFixed(2)} WAX × {numDays} day{numDays > 1 ? "s" : ""})</span>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">

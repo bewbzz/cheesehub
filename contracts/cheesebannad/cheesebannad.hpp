@@ -49,6 +49,7 @@ static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
 static constexpr double   MAX_PRICE_DEVIATION   = 0.10;        // 10%
 static constexpr double   DEFAULT_WAX_PER_CHEESE = 1.50;       // baseline
+static constexpr double   SHARED_DISCOUNT       = 0.20;        // 20% off for shared slots
 
 // Input limits
 static constexpr uint32_t MAX_IPFS_HASH_LEN = 128;
@@ -67,6 +68,11 @@ public:
      * @brief User edits their rented banner (IPFS hash + URL)
      */
     ACTION editadbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
+
+    /**
+     * @brief User edits their shared banner slot (when they are the secondary renter)
+     */
+    ACTION editsharedbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
 
     /**
      * @brief Admin sets pricing config
@@ -89,11 +95,15 @@ public:
     // ---- Tables ----
 
     TABLE bannerad {
-        uint64_t time;        // slot start timestamp
-        uint8_t  position;    // 1 or 2
-        name     user;        // renter (contract account = available)
+        uint64_t time;              // slot start timestamp
+        uint8_t  position;          // 1 or 2
+        name     user;              // primary renter (contract account = available)
         string   ipfs_hash;
         string   website_url;
+        uint8_t  rental_type;       // 0 = exclusive, 1 = shared
+        name     shared_user;       // second renter (empty = not filled)
+        string   shared_ipfs_hash;
+        string   shared_website_url;
 
         uint64_t primary_key() const { return time * 10 + position; }
     };
@@ -124,8 +134,8 @@ public:
     typedef multi_index<"pools"_n, alcor_pool> alcor_pools_table;
 
 private:
-    // Parse memo "banner|start_time|num_days|position"
-    tuple<uint64_t, uint64_t, uint8_t> parse_banner_memo(const string& memo);
+    // Parse memo "banner|start_time|num_days|position|mode" or "banner|start_time|num_days|position"
+    tuple<uint64_t, uint64_t, uint8_t, char> parse_banner_memo(const string& memo);
 
     // Get WAX-per-CHEESE price from Alcor Pool 1252
     double get_cheese_wax_price();
@@ -136,8 +146,8 @@ private:
     // Validate price deviation
     void check_price_deviation(double actual, double baseline);
 
-    // Assign consecutive slots to user for a specific position
-    void assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position);
+    // Assign consecutive slots to user for a specific position (and mode: e/s/j)
+    void assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position, char mode);
 
     // Distribute CHEESE: 66% burn, 34% liquidity staking
     void distribute_cheese(asset quantity);

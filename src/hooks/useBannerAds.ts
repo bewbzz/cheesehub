@@ -9,6 +9,10 @@ interface BannerAdRow {
   user: string;
   ipfs_hash: string;
   website_url: string;
+  rental_type: number;
+  shared_user: string;
+  shared_ipfs_hash: string;
+  shared_website_url: string;
 }
 
 export interface ActiveBanner {
@@ -17,6 +21,11 @@ export interface ActiveBanner {
   user: string;
   ipfsHash: string;
   websiteUrl: string;
+  rentalType: "exclusive" | "shared";
+  sharedUser?: string;
+  sharedIpfsHash?: string;
+  sharedWebsiteUrl?: string;
+  displayMode: "full" | "shared"; // 'full' = 100%, 'shared' = 50% w/ rotation
 }
 
 /**
@@ -55,6 +64,14 @@ export function useBannerAds() {
         user: row.user,
         ipfsHash: row.ipfs_hash,
         websiteUrl: row.website_url,
+        rentalType: row.rental_type === 1 ? "shared" : "exclusive",
+        sharedUser: row.shared_user && row.shared_user !== BANNER_CONTRACT ? row.shared_user : undefined,
+        sharedIpfsHash: row.shared_ipfs_hash,
+        sharedWebsiteUrl: row.shared_website_url,
+        displayMode:
+          row.rental_type === 1 && row.shared_user && row.shared_user !== BANNER_CONTRACT
+            ? "shared"
+            : "full",
       }));
     },
     refetchInterval: 60000, // Poll every 60s

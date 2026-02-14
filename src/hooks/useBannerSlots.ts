@@ -10,6 +10,10 @@ interface BannerAdRow {
   user: string;
   ipfs_hash: string;
   website_url: string;
+  rental_type: number;
+  shared_user: string;
+  shared_ipfs_hash: string;
+  shared_website_url: string;
 }
 
 interface BannerConfig {
@@ -24,6 +28,10 @@ export interface BannerSlot {
   user: string;
   ipfsHash: string;
   websiteUrl: string;
+  rentalType: "exclusive" | "shared";
+  sharedUser?: string;
+  sharedIpfsHash?: string;
+  sharedWebsiteUrl?: string;
   isAvailable: boolean;
   isOnChain: boolean;
 }
@@ -87,21 +95,25 @@ export function useBannerSlots() {
 
       // Group by time
       const grouped = new Map<number, BannerSlot[]>();
-      for (const row of rows) {
-        const slot: BannerSlot = {
-          time: row.time,
-          position: row.position,
-          user: row.user,
-          ipfsHash: row.ipfs_hash,
-          websiteUrl: row.website_url,
-          isAvailable: row.user === BANNER_CONTRACT,
-          isOnChain: true,
-        };
+       for (const row of rows) {
+         const slot: BannerSlot = {
+           time: row.time,
+           position: row.position,
+           user: row.user,
+           ipfsHash: row.ipfs_hash,
+           websiteUrl: row.website_url,
+           rentalType: row.rental_type === 1 ? "shared" : "exclusive",
+           sharedUser: row.shared_user && row.shared_user !== BANNER_CONTRACT ? row.shared_user : undefined,
+           sharedIpfsHash: row.shared_ipfs_hash,
+           sharedWebsiteUrl: row.shared_website_url,
+           isAvailable: row.user === BANNER_CONTRACT || (row.rental_type === 1 && (!row.shared_user || row.shared_user === BANNER_CONTRACT)),
+           isOnChain: true,
+         };
 
-        const existing = grouped.get(row.time) || [];
-        existing.push(slot);
-        grouped.set(row.time, existing);
-      }
+         const existing = grouped.get(row.time) || [];
+         existing.push(slot);
+         grouped.set(row.time, existing);
+       }
 
       return Array.from(grouped.entries())
         .sort(([a], [b]) => a - b)

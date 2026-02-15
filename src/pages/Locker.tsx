@@ -6,6 +6,7 @@ import { CreateLiquidityLock } from "@/components/locker/CreateLiquidityLock";
 import { MyLiquidityLocks } from "@/components/locker/MyLiquidityLocks";
 import { Lock, List, Coins, Droplets } from "lucide-react";
 import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseLockOrb from "@/assets/cheeselock.png";
 
 export default function Locker() {
   return (
@@ -17,7 +18,7 @@ export default function Locker() {
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
             <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+              <img src={cheeseLockOrb} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
             <div className="text-center space-y-2">

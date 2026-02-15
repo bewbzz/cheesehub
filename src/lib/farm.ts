@@ -124,7 +124,7 @@ export async function fetchUserGlobalStakes(account: string): Promise<GlobalStak
 
 // Fee constants for farm creation
 export const FARM_CREATION_FEES = {
-  WAX: "250.00000000 WAX",
+  WAX: "265.00000000 WAX",
   WAXDAO: "25000.00000000 WAXDAO",
   WOJAK_COLLECTION: "ourwojaksart", // Can use 1 Wojak NFT
 };

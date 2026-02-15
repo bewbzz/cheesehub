@@ -6,7 +6,7 @@ import { getTokenConfig } from "@/lib/tokenRegistry";
 export const DAO_CONTRACT = "dao.waxdao";
 
 // Fee constants for DAO creation
-export const DAO_CREATION_FEE = "250.00000000 WAX";
+export const DAO_CREATION_FEE = "265.00000000 WAX";
 
 // Build action for announcing deposit (required before proposal payment)
 export function buildAnnounceDepoAction(user: string) {

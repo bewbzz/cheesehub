@@ -43,8 +43,8 @@ export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
 export const CHEESE_SAFETY_BUFFER = 0.025; // 2.5% buffer for price drift
 
 // WAX payment routing through cheesefeefee
-export const WAX_TO_WAXDAO = 205; // WAX used to calculate WAXDAO for user
-export const WAX_TO_BURNER = 45; // WAX sent to cheeseburner
+export const WAX_TO_WAXDAO = 215; // WAX used to calculate WAXDAO for user
+export const WAX_TO_BURNER = 35; // WAX sent to cheeseburner
 
 // Security: Minimum WAXDAO output (must match contract)
 export const MIN_WAXDAO_OUTPUT = 5.0; // 5 WAXDAO minimum

@@ -30,7 +30,7 @@ export default function Locker() {
                 <span className="text-2xl">🔐</span>
               </div>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Lock your tokens and LP tokens securely on the WAX blockchain using WaxDAO smart contracts
+                Time Lock Tokens and LP Tokens Utilizing WAXDAOs Battle Tested Smart Contract.
               </p>
             </div>
           </div>

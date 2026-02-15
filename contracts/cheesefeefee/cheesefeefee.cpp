@@ -127,8 +127,8 @@ void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string me
     int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0); // 8 decimals
     asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
     
-    // Apply 2% slippage buffer to minTokenOut (reserves price != swap price due to fees)
-    int64_t min_output = static_cast<int64_t>(waxdao_amount.amount * (1.0 - SWAP_SLIPPAGE_TOLERANCE));
+    // AMM formula already accounts for price impact, just buffer for block timing
+    int64_t min_output = static_cast<int64_t>(waxdao_amount.amount * 0.99);
     asset min_waxdao_out = asset(min_output, WAXDAO_SYMBOL);
     
     string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
@@ -336,20 +336,33 @@ asset cheesefeefee::calculate_waxdao_amount(asset cheese_amount) {
  * @return WAXDAO asset amount
  */
 asset cheesefeefee::calculate_waxdao_from_wax(double wax_value) {
-    // Get WAXDAO per WAX from Pool 1236
-    double waxdao_per_wax = get_price_from_pool(WAXDAO_WAX_POOL_ID, symbol_code("WAX"));
-    check(waxdao_per_wax > 0, "Invalid WAXDAO/WAX price from Alcor");
-    
-    // SECURITY: Check price deviation from baseline
+    alcor_pools_table pools(ALCOR_CONTRACT, ALCOR_CONTRACT.value);
+    auto pool_itr = pools.find(WAXDAO_WAX_POOL_ID);
+    check(pool_itr != pools.end(), "Alcor pool 1236 not found");
+    check(pool_itr->active, "Alcor pool 1236 not active");
+
+    // Get raw reserves
+    double reserveA = static_cast<double>(pool_itr->tokenA.quantity.amount); // WAX
+    double reserveB = static_cast<double>(pool_itr->tokenB.quantity.amount); // WAXDAO
+    uint8_t precA = pool_itr->tokenA.quantity.symbol.precision();
+    uint8_t precB = pool_itr->tokenB.quantity.symbol.precision();
+
+    // Normalize
+    double normA = reserveA / pow(10.0, precA);
+    double normB = reserveB / pow(10.0, precB);
+
+    // Spot price check (deviation guard still applies)
+    double waxdao_per_wax = normB / normA;
+    check(waxdao_per_wax > 0, "Invalid WAXDAO/WAX price");
     auto [baseline_cheese, baseline_waxdao] = get_baselines();
     check_price_deviation(waxdao_per_wax, baseline_waxdao, "WAXDAO/WAX price");
-    
-    // Convert WAX value to WAXDAO
-    double waxdao_amount = wax_value * waxdao_per_wax;
-    int64_t waxdao_units = static_cast<int64_t>(waxdao_amount * 100000000.0); // 8 decimals
-    
+
+    // AMM constant product formula: output = (input * reserveOut) / (reserveIn + input)
+    double amm_output = (wax_value * normB) / (normA + wax_value);
+
+    int64_t waxdao_units = static_cast<int64_t>(amm_output * 100000000.0); // 8 decimals
     check(waxdao_units > 0, "Calculated WAXDAO amount too small");
-    
+
     return asset(waxdao_units, WAXDAO_SYMBOL);
 }
 

@@ -4,7 +4,7 @@ import { BrowseDaos } from "@/components/dao/BrowseDaos";
 import { CreateDao } from "@/components/dao/CreateDao";
 import { MyDaos } from "@/components/dao/MyDaos";
 import { Users, Plus, User } from "lucide-react";
-import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseDaoLogo from "@/assets/cheesedao.png";
 
 export default function Dao() {
   return (
@@ -16,7 +16,7 @@ export default function Dao() {
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
             <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+              <img src={cheeseDaoLogo} alt="CHEESE DAO" className="w-24 h-24 object-contain" />
             </div>
 
             <div className="text-center space-y-2">

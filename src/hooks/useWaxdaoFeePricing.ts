@@ -7,7 +7,7 @@ const WAXDAO_SYMBOL = "WAXDAO";
 const WAXDAO_PRECISION = 8;
 
 // Fee configuration
-const WAX_FEE = 250; // Standard fee in WAX
+const WAX_FEE = 265; // Standard fee in WAX
 const WAXDAO_DISCOUNT = 0.20; // 20% discount when paying with WAXDAO
 const SAFETY_BUFFER = 0.005; // 0.5% buffer for price drift
 
@@ -32,7 +32,7 @@ export interface WaxdaoFeePricing {
  * Hook to calculate WAXDAO fee pricing using WaxDAO's formula
  * Uses Alcor exchange prices for real-time WAXDAO/WAX rate
  * 
- * Formula: (250 WAX / WAXDAO_price) * 0.80 + 0.5% buffer
+ * Formula: (265 WAX / WAXDAO_price) * 0.80 + 0.5% buffer
  */
 export function useWaxdaoFeePricing(): WaxdaoFeePricing {
   const { data: prices, isLoading, refetch } = useAlcorTokenPrices();
@@ -54,7 +54,7 @@ export function useWaxdaoFeePricing(): WaxdaoFeePricing {
       };
     }
 
-    // WaxDAO formula: (250 WAX / price) * 0.80
+    // WaxDAO formula: (265 WAX / price) * 0.80
     const baseAmount = WAX_FEE / waxdaoWaxPrice;
     const discountedAmount = baseAmount * (1 - WAXDAO_DISCOUNT);
     

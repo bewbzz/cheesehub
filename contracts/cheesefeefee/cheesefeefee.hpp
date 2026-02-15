@@ -52,10 +52,10 @@ static constexpr uint64_t WAXDAO_WAX_POOL_ID = 1236;    // WAX/WAXDAO pool (WAX=
 static constexpr double MIN_WAX_VALUE = 200.0;          // Minimum WAX value required
 static constexpr double WAX_VALUE_TOLERANCE = 0.025;    // 2.5% tolerance for price fluctuations
 
-// WAX payment routing: 205 WAX → WAXDAO for user, 45 WAX → cheeseburner
-static constexpr int64_t WAX_FEE_REQUIRED = 25000000000;  // 250 WAX (8 decimals)
+// WAX payment routing: 215 WAX → WAXDAO for user, 50 WAX → cheeseburner
+static constexpr int64_t WAX_FEE_REQUIRED = 26500000000;  // 265 WAX (8 decimals)
 static constexpr double WAX_TO_WAXDAO = 215.0;            // WAX used to calculate WAXDAO
-static constexpr double WAX_TO_BURNER = 35.0;             // WAX sent to cheeseburner
+static constexpr double WAX_TO_BURNER = 50.0;             // WAX sent to cheeseburner
 
 // Security: Minimum output prevents dust attacks
 static constexpr int64_t MIN_WAXDAO_OUTPUT = 500000000; // 5 WAXDAO minimum (8 decimals)

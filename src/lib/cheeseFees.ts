@@ -38,13 +38,13 @@ export const WAXDAO_TOKEN_SYMBOL = "WAXDAO";
 export const WAXDAO_TOKEN_PRECISION = 8;
 
 // Fee configuration
-export const WAX_EQUIVALENT_FEE = 250; // 250 WAX equivalent (standard fee)
+export const WAX_EQUIVALENT_FEE = 265; // 265 WAX equivalent (standard fee)
 export const CHEESE_DISCOUNT = 0.20; // 20% discount when paying with CHEESE
 export const CHEESE_SAFETY_BUFFER = 0.025; // 2.5% buffer for price drift
 
 // WAX payment routing through cheesefeefee
 export const WAX_TO_WAXDAO = 215; // WAX used to calculate WAXDAO for user
-export const WAX_TO_BURNER = 35; // WAX sent to cheeseburner
+export const WAX_TO_BURNER = 50; // WAX sent to cheeseburner
 
 // Security: Minimum WAXDAO output (must match contract)
 export const MIN_WAXDAO_OUTPUT = 5.0; // 5 WAXDAO minimum
@@ -151,9 +151,9 @@ export function buildWaxdaoFeeAction(
 
 /**
  * Build WAX payment action that routes through cheesefeefee
- * Instead of sending 250 WAX directly to WaxDAO, routes through contract:
- * - 205 WAX → converted to WAXDAO and sent to user (inline)
- * - 45 WAX → sent to cheeseburner (inline)
+ * Instead of sending 265 WAX directly to WaxDAO, routes through contract:
+ * - 215 WAX → converted to WAXDAO and sent to user (inline)
+ * - 50 WAX → sent to cheeseburner (inline)
  * 
  * @param user - User sending WAX
  * @param feeType - "dao" or "farm"
@@ -215,7 +215,7 @@ export function calculateDiscountedCheeseAmount(
   // Base amount: waxAmount / price per CHEESE
   const baseAmount = waxAmount / cheeseWaxPrice;
   
-  // Apply 20% discount (user pays equivalent of 200 WAX instead of 250)
+  // Apply 20% discount (user pays equivalent of 212 WAX instead of 265)
   const discountedAmount = baseAmount * (1 - CHEESE_DISCOUNT);
   
   // Add safety buffer to prevent failures from price drift

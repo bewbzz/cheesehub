@@ -252,7 +252,7 @@ export function CreateDao() {
         ];
       } else {
         // WAX payment routed through cheesefeefee
-        // 1. Send 250 WAX → contract sends WAXDAO to user + 45 WAX to cheeseburner (inline)
+        // 1. Send 265 WAX → contract sends WAXDAO to user + 50 WAX to cheeseburner (inline)
         // 2. Assert point
         // 3. User pays WAXDAO to dao.waxdao
         // 4. Create DAO
@@ -380,7 +380,7 @@ export function CreateDao() {
                         <AccordionContent className="text-sm text-foreground space-y-2">
                           <p>
                             You can <strong className="text-cheese">pay with CHEESE tokens</strong> and receive a 
-                            <strong className="text-green-500"> 20% discount</strong> on the 250 WAX creation fee.
+                            <strong className="text-green-500"> 20% discount</strong> on the {WAX_FEE_AMOUNT} WAX creation fee.
                           </p>
                           <p>
                             Simply select the CHEESE payment option and the transaction will handle everything 
@@ -1162,7 +1162,7 @@ export function CreateDao() {
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create DAO (250 WAX)
+                  Create DAO ({WAX_FEE_AMOUNT} WAX)
                 </>
               )}
             </Button>

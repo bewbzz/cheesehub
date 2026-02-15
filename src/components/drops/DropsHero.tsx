@@ -35,7 +35,7 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
               <span className="text-2xl">💧</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Exchange your <img src={cheeseLogo} alt="CHEESE" className="inline-block w-6 h-6 mx-1" /><span className="font-semibold text-primary">CHEESE</span> for Physical Items & NFTs
+              Create and Manage NFT Drops Utilizing NFTHives Free to Use, Battle Tested Smart Contract.
             </p>
           </div>
 

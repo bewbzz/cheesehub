@@ -3,7 +3,7 @@ import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
 import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
-import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseUpLogo from "@/assets/cheeseup.png";
 
 const PowerUp = () => {
   const { isConnected, accountName, isLoading, session, cheeseBalance, login, logout, refreshBalance } = useWax();
@@ -26,7 +26,7 @@ const PowerUp = () => {
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
             <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-              <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+              <img src={cheeseUpLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 
             <div className="text-center space-y-2">

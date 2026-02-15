@@ -5,7 +5,7 @@ import { NullButton } from '@/components/cheesenull/NullButton';
 import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
 import { NullerLeaderboard } from '@/components/cheesenull/NullerLeaderboard';
 import { useNullerLeaderboard } from '@/hooks/useNullerLeaderboard';
-import cheeseLogo from '@/assets/cheese-logo.png';
+import cheeseNullLogo from '@/assets/cheesenull.png';
 
 export default function CheeseNull() {
   const [canClaim, setCanClaim] = useState(false);
@@ -21,7 +21,7 @@ export default function CheeseNull() {
         <div className="flex flex-col items-center gap-8">
           {/* Floating Cheese Orb */}
           <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-            <img src={cheeseLogo} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
+            <img src={cheeseNullLogo} alt="CHEESE Null" className="w-24 h-24 object-contain" />
           </div>
 
           {/* Title */}

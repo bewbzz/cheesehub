@@ -16,7 +16,7 @@ export default function CheeseNull() {
   };
 
   return (
-    <Layout>
+    <Layout floatingLogo={cheeseNullLogo}>
       <section className="container py-12 md:py-20">
         <div className="flex flex-col items-center gap-8">
           {/* Floating Cheese Orb */}

@@ -1,6 +1,11 @@
 import cheeseLogo from "@/assets/cheese-logo.png";
 
-export function BackgroundDecorations() {
+interface BackgroundDecorationsProps {
+  floatingLogo?: string;
+}
+
+export function BackgroundDecorations({ floatingLogo }: BackgroundDecorationsProps) {
+  const logo = floatingLogo || cheeseLogo;
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
       {/* Gradient orbs - warm cheese tones */}
@@ -21,10 +26,10 @@ export function BackgroundDecorations() {
       />
 
       {/* Floating cheese logos */}
-      <img src={cheeseLogo} alt="" className="absolute top-20 left-20 w-12 h-12 opacity-20 animate-float" />
-      <img src={cheeseLogo} alt="" className="absolute top-40 right-32 w-10 h-10 opacity-15 animate-float" style={{ animationDelay: "2s" }} />
-      <img src={cheeseLogo} alt="" className="absolute bottom-32 left-40 w-16 h-16 opacity-10 animate-float" style={{ animationDelay: "4s" }} />
-      <img src={cheeseLogo} alt="" className="absolute bottom-20 right-20 w-12 h-12 opacity-20 animate-float" style={{ animationDelay: "3s" }} />
+      <img src={logo} alt="" className="absolute top-20 left-20 w-12 h-12 opacity-20 animate-float" />
+      <img src={logo} alt="" className="absolute top-40 right-32 w-10 h-10 opacity-15 animate-float" style={{ animationDelay: "2s" }} />
+      <img src={logo} alt="" className="absolute bottom-32 left-40 w-16 h-16 opacity-10 animate-float" style={{ animationDelay: "4s" }} />
+      <img src={logo} alt="" className="absolute bottom-20 right-20 w-12 h-12 opacity-20 animate-float" style={{ animationDelay: "3s" }} />
     </div>
   );
 }

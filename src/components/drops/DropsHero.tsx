@@ -1,4 +1,4 @@
-import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseDropOrb from "@/assets/cheesedrop.png";
 
 interface DropsHeroProps {
   stats?: { activeDrops: number; totalSold: number };
@@ -23,7 +23,7 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
       <div className="container relative">
         <div className="flex flex-col items-center gap-8">
           <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-            <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+            <img src={cheeseDropOrb} alt="CHEESE" className="w-24 h-24 object-contain" />
           </div>
 
           <div className="text-center space-y-2">

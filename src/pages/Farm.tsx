@@ -7,7 +7,7 @@ import { BrowseFarms } from "@/components/farm/BrowseFarms";
 import { MyFarms } from "@/components/farm/MyFarms";
 import { CreateFarm } from "@/components/farm/CreateFarm";
 import { FarmDetail } from "@/components/farm/FarmDetail";
-import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseFarmOrb from "@/assets/cheesefarm.png";
 
 export default function Farm() {
   const { farmName } = useParams<{ farmName: string }>();
@@ -39,7 +39,7 @@ export default function Farm() {
           <div className="container relative z-10">
             <div className="flex flex-col items-center gap-8">
               <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
-                <img src={cheeseLogo} alt="CHEESE" className="w-24 h-24 object-contain" />
+                <img src={cheeseFarmOrb} alt="CHEESE" className="w-24 h-24 object-contain" />
               </div>
 
               <div className="text-center space-y-2">

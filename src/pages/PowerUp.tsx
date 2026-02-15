@@ -18,7 +18,7 @@ const PowerUp = () => {
   };
 
   return (
-    <Layout>
+    <Layout floatingLogo={cheeseUpLogo}>
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">

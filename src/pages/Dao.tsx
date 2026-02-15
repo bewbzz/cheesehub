@@ -8,7 +8,7 @@ import cheeseDaoLogo from "@/assets/cheesedao.png";
 
 export default function Dao() {
   return (
-    <Layout>
+    <Layout floatingLogo={cheeseDaoLogo}>
       
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">

@@ -29,8 +29,7 @@ export default function Dao() {
                 <span className="text-2xl">🏛️</span>
               </div>
               <p className="text-muted-foreground max-w-lg mx-auto">
-                Create and manage decentralized autonomous organizations on WAX.
-                Propose, vote, and govern your community with on-chain transparency.
+                Create and Manage DAOs (Decentralized Autonomous Organizations) on WAX Utlizing WAXDAOs Battle Tested Smart Contract. Propose, Vote, Govern and Manage Token and NFT Treasuries with On-Chain Transparency.
               </p>
             </div>
           </div>

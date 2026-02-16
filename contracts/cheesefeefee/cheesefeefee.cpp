@@ -127,9 +127,8 @@ void cheesefeefee::on_wax_transfer(name from, name to, asset quantity, string me
     int64_t wax_to_swap = static_cast<int64_t>(WAX_TO_WAXDAO * 100000000.0); // 8 decimals
     asset wax_swap_quantity = asset(wax_to_swap, WAX_SYMBOL);
     
-    // AMM formula already accounts for price impact, just buffer for block timing
-    int64_t min_output = static_cast<int64_t>(waxdao_amount.amount * 0.99);
-    asset min_waxdao_out = asset(min_output, WAXDAO_SYMBOL);
+    // Safe floor -- don't predict V3 output, just catch broken pools
+    asset min_waxdao_out = asset(MIN_WAXDAO_OUTPUT, WAXDAO_SYMBOL);
     
     string alcor_memo = string("swapexactin#") + to_string(WAXDAO_WAX_POOL_ID)
         + "#" + from.to_string()

@@ -1,40 +1,23 @@
 
 
-# Fix: CHEESENull Cooldown Timer Using Wrong Field
+# Fix Claim Cooldown Timer in Both CheeseNull and Wallet Vote Rewards
 
 ## Problem
 
-The CHEESENull UI tracks the 24-hour claim cooldown using `unpaid_voteshare_last_updated` from the voters table. This field updates whenever vote weight changes, including when WAX is staked (`delegatebw`). So staking WAX to `cheeseburner` makes the UI think a claim just happened, resetting the countdown and disabling the NULL button -- even though the actual claim cooldown (tracked by `last_claim_time`) has not reset.
+Both the CheeseNull page and the Wallet's Vote Rewards section use `unpaid_voteshare_last_updated` to track the 24-hour claim cooldown. This field updates when WAX is staked or votes change, incorrectly resetting the timer. The correct field is `last_claim_time`, which only updates on actual reward claims.
 
-## Fix
+## Changes
 
-Switch the cooldown timer to use `last_claim_time` instead of `unpaid_voteshare_last_updated`. This field only updates when `claimgbmvote` is executed, which is the actual claim action.
+### 1. `src/hooks/useCheeseNullData.ts` (already done)
 
-## Technical Changes
+Switch `lastClaimTime` from `unpaid_voteshare_last_updated` to `last_claim_time`.
 
-### 1. `src/hooks/useCheeseNullData.ts`
+### 2. `src/components/wallet/VoteRewardsManager.tsx`
 
-Change line 58 from:
-```
-const lastClaimTime = voterQuery.data?.unpaid_voteshare_last_updated ?? null;
-```
-to:
-```
-const lastClaimTime = voterQuery.data?.last_claim_time ?? null;
-```
+This component has the same bug but fetches voter data independently (not using the shared hook). Two changes needed:
 
-### 2. No other changes needed
+- **Add `last_claim_time` to the `VoterInfo` interface** -- it's currently missing from the local type definition.
+- **Use `last_claim_time` instead of `unpaid_voteshare_last_updated`** for calculating `lastClaimTime`, `nextClaimTime`, and `canClaim` state. The relevant section is around lines 109-133 where `lastUpdatedTime` is derived from `voter.unpaid_voteshare_last_updated`.
 
-- The `VoterData` interface in `cheeseNullApi.ts` already includes the `last_claim_time` field (line 18)
-- The `canClaim()` and `getTimeUntilNextClaim()` functions work with any timestamp string
-- The `NullStats` and `NullButton` components receive the correct `canClaim` boolean from the hook
-
-## Why This Works
-
-| Field | Updated by | Purpose |
-|-------|-----------|---------|
-| `unpaid_voteshare_last_updated` | `delegatebw`, `voteproducer`, `claimgbmvote` | Voteshare accounting |
-| `last_claim_time` | `claimgbmvote` only | Claim cooldown tracking |
-
-The `cheeseburner` contract's `burn` action calls `claimgbmvote`, which updates `last_claim_time`. Staking WAX does not touch this field, so the countdown will no longer reset incorrectly.
+The reward estimation logic (`calculateRewards`) still correctly uses `unpaid_voteshare_last_updated` for voteshare accounting -- that stays unchanged.
 

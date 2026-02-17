@@ -30,6 +30,7 @@ interface VoterInfo {
   flags1: number;
   reserved2: number;
   reserved3: string;
+  last_claim_time: string;
   unpaid_voteshare: string;
   unpaid_voteshare_last_updated: number;
   unpaid_voteshare_change_rate: string;
@@ -123,13 +124,10 @@ export function VoteRewardsManager({ onTransactionComplete, onTransactionSuccess
         console.log('Is voting:', isVoting, 'Proxy:', voter.proxy, 'Producers:', voter.producers?.length);
         setHasVoted(isVoting);
         
-        // Calculate last claim time from unpaid_voteshare_last_updated
-        // This can be either a timestamp string or unix seconds
+        // Use last_claim_time (only updates on actual claims, not staking/voting)
         let lastUpdatedTime: Date;
-        if (typeof voter.unpaid_voteshare_last_updated === 'string') {
-          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated + 'Z');
-        } else if (voter.unpaid_voteshare_last_updated > 0) {
-          lastUpdatedTime = new Date(voter.unpaid_voteshare_last_updated * 1000);
+        if (voter.last_claim_time && voter.last_claim_time !== '1970-01-01T00:00:00') {
+          lastUpdatedTime = new Date(voter.last_claim_time + 'Z');
         } else {
           lastUpdatedTime = new Date(0);
         }

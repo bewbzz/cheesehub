@@ -56,6 +56,9 @@ static constexpr double   DEFAULT_CHEESE_BASELINE = 1.5;       // default WAX pe
 static constexpr uint32_t MAX_IPFS_HASH_LEN = 128;
 static constexpr uint32_t MAX_URL_LEN       = 256;
 
+// Alcor swap safe floor: 0.0001 CHEESE (4 decimals)
+static constexpr int64_t MIN_CHEESE_OUTPUT = 1;
+
 // Max slots to erase per cleanup call (prevent timeout)
 static constexpr uint32_t MAX_CLEANUP_SLOTS = 100;
 

@@ -15,11 +15,13 @@ using namespace std;
  * individual positions by paying WAX (100 WAX per position per day) via
  * eosio.token transfer.
  * 
- * WAX payments: held in contract for admin withdrawal (fund distribution
- * to be implemented separately).
+ * WAX payments: split 20% to cheeseburner financing, 80% swapped to CHEESE
+ * via Alcor (66% burned, 34% to liquidity staking).
  * 
  * SECURITY:
  *   - Cannot rent already-rented or past slots
+ *   - Overpayment is automatically refunded
+ *   - Expired slots cannot be edited
  *
  * PRIMARY KEY ENCODING:
  *   pk = time * 10 + position (position is 1 or 2)
@@ -47,10 +49,14 @@ static constexpr double CHEESE_BURN_PERCENT = 0.66;  // 66% CHEESE burned
 static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
 static constexpr double   SHARED_DISCOUNT       = 0.20;        // 20% off for shared slots
+static constexpr double   DEFAULT_CHEESE_BASELINE = 1.5;       // default WAX per CHEESE baseline
 
 // Input limits
 static constexpr uint32_t MAX_IPFS_HASH_LEN = 128;
 static constexpr uint32_t MAX_URL_LEN       = 256;
+
+// Max slots to erase per cleanup call (prevent timeout)
+static constexpr uint32_t MAX_CLEANUP_SLOTS = 100;
 
 CONTRACT cheesebannad : public contract {
 public:
@@ -72,14 +78,19 @@ public:
     ACTION editsharedbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
 
     /**
-     * @brief Admin sets pricing config
+     * @brief Admin sets pricing config including WAX/CHEESE baseline for UI display
      */
-    ACTION setconfig(asset wax_price_per_day);
+    ACTION setconfig(asset wax_price_per_day, double wax_per_cheese_baseline);
 
     /**
      * @brief Admin withdraws any token from the contract
      */
     ACTION withdraw(name token_contract, name to, asset quantity);
+
+    /**
+     * @brief Admin prunes expired slots to recover RAM (max 100 per call)
+     */
+    ACTION cleanup(uint64_t before_time);
 
     // ---- Transfer notifications ----
 
@@ -109,13 +120,15 @@ public:
     TABLE config {
         uint64_t id = 1;
         asset    wax_price_per_day;
+        double   wax_per_cheese_baseline;
 
         uint64_t primary_key() const { return id; }
     };
     typedef multi_index<"config"_n, config> config_table;
 
 private:
-    // Parse memo "banner|start_time|num_days|position|mode" or "banner|start_time|num_days|position"
+    // Parse memo "banner|start_time|num_days|position[|mode]"
+    // mode: 'e' = exclusive (default), 's' = shared-primary, 'j' = join-shared
     tuple<uint64_t, uint64_t, uint8_t, char> parse_banner_memo(const string& memo);
 
     // Get current config (uses defaults if not set)

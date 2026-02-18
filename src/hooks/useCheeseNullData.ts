@@ -55,7 +55,7 @@ export function useCheeseNullData(): CheeseNullData {
     staleTime: 10000,
   });
 
-  const lastClaimTime = voterQuery.data?.unpaid_voteshare_last_updated ?? null;
+  const lastClaimTime = voterQuery.data?.last_claim_time ?? null;
 
   useEffect(() => {
     if (!lastClaimTime) return;

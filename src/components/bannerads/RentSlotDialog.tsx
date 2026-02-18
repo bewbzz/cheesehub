@@ -41,7 +41,7 @@ export function RentSlotDialog({
   const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">(isJoining ? "shared" : "exclusive");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const SHARED_DISCOUNT = 0.20;
+  const SHARED_DISCOUNT = 0.30;
   const priceMultiplier = rentalMode === "shared" ? 1 - SHARED_DISCOUNT : 1;
   const totalWax = waxPricePerDay * numDays * priceMultiplier;
   const modeChar = isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
@@ -115,7 +115,7 @@ export function RentSlotDialog({
                 <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
                   <RadioGroupItem value="shared" id="mode-shared" />
                   <Label htmlFor="mode-shared" className="cursor-pointer flex-1">
-                    <span className="font-medium">Shared (Save 20%)</span>
+                    <span className="font-medium">Shared (Save 30%)</span>
                     <span className="text-xs text-muted-foreground ml-2">50% display time with rotation</span>
                   </Label>
                 </div>

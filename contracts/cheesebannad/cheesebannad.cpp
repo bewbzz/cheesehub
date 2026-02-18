@@ -409,8 +409,11 @@ void cheesebannad::distribute_wax_funds(asset quantity) {
 
     // 80% WAX to Alcor swap -> CHEESE comes back to this contract
     if (swap_amount > 0) {
-        string swap_memo = "swapexactin#" + to_string(CHEESE_WAX_POOL_ID) +
-            "#" + get_self().to_string() + "#0.0001 CHEESE@" + CHEESE_CONTRACT.to_string() + "#0";
+        asset min_cheese_out = asset(MIN_CHEESE_OUTPUT, CHEESE_SYMBOL);
+        string swap_memo = string("swapexactin#") + to_string(CHEESE_WAX_POOL_ID)
+            + "#" + get_self().to_string()
+            + "#" + min_cheese_out.to_string() + "@" + CHEESE_CONTRACT.to_string()
+            + "#0";
 
         action(
             permission_level{get_self(), "active"_n},

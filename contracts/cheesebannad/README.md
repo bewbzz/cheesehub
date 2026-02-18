@@ -6,7 +6,7 @@ Smart contract for paid banner advertising slots on CHEESEHub.
 
 The contract owner initializes 24-hour ad slots. Anyone can rent slots by paying WAX:
 - **100 WAX per day** (default, configurable via `setconfig`)
-- **80 WAX per day** for shared slots (20% discount)
+- **70 WAX per day** for shared slots (30% discount)
 
 WAX payments are split atomically (if any step fails, the entire transaction reverts):
 - **20% WAX** → `cheeseburner` (ecosystem financing)
@@ -58,14 +58,14 @@ cleos push action cheesebannad initbannerad '[1707350400, 30]' -p cheesebannad@a
 cleos transfer myaccount cheesebannad "100.00000000 WAX" "banner|1707350400|1|1|e" -p myaccount@active
 ```
 
-### Rent Shared Primary (WAX — 20% off)
+### Rent Shared Primary (WAX — 30% off)
 ```bash
-cleos transfer myaccount cheesebannad "80.00000000 WAX" "banner|1707350400|1|1|s" -p myaccount@active
+cleos transfer myaccount cheesebannad "70.00000000 WAX" "banner|1707350400|1|1|s" -p myaccount@active
 ```
 
-### Join Existing Shared Slot (WAX — 20% off)
+### Join Existing Shared Slot (WAX — 30% off)
 ```bash
-cleos transfer myaccount cheesebannad "80.00000000 WAX" "banner|1707350400|1|1|j" -p myaccount@active
+cleos transfer myaccount cheesebannad "70.00000000 WAX" "banner|1707350400|1|1|j" -p myaccount@active
 ```
 
 Memo format: `banner|start_time|num_days|position[|mode]`

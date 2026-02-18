@@ -1,222 +1,51 @@
 
-# Admin Moderation: Remove and Reinstate Banner Ads
+# Revert Unnecessary Price Deviation Guard from cheesebannad
 
-## Overview
+## Why the Guard is Not Needed Here
 
-Admins need to be able to pull down a bad ad immediately, and reverse that decision later (e.g. after a community vote clears the advertiser). This requires:
+The price deviation guard in `cheesefeefee` exists because that contract reads the Alcor pool price and sends WAXDAO tokens directly to a user. If the price is manipulated, the contract could be drained or users shortchanged. There is a direct financial risk to token holders.
 
-1. **Contract**: Two new actions — `removeadbanner` (wipe content) and `reinstateadbanner` (restore a flag so the renter can re-upload)
-2. **Frontend**: A `RemoveBannerDialog` component and admin buttons wired into `SlotCalendar`
+`cheesebannad` is fundamentally different. The swap output (CHEESE) goes entirely to:
+- 66% burned to `eosio.null`
+- 34% to `xcheeseliqst` (liquidity staking)
 
----
+No tokens are ever returned to the user. The slot is assigned before the swap runs. The worst case of a manipulated pool price is that slightly more or less CHEESE gets burned — not a security risk. The guard adds operational overhead (admin must keep baseline current, users get blocked during volatile markets) for zero security benefit.
 
-## How Removal and Reinstatement Work
+## What We Do Keep
 
-The key insight is that the contract does **not** store a separate "suspended" flag field — instead it uses the existing `ipfs_hash` and `website_url` fields as the source of truth for display. The `useBannerAds` hook already skips any slot where `ipfs_hash.length === 0`. So:
+The **memo format fix** is still valid and important. The current code builds the swap memo as a raw string with a hardcoded `"0.0001 CHEESE@cheeseburger"`. This should use the proper extended asset construction `asset(MIN_CHEESE_OUTPUT, CHEESE_SYMBOL).to_string() + "@" + CHEESE_CONTRACT.to_string()` to ensure correctness and maintainability — consistent with how `cheesefeefee` builds its memos.
 
-- **Remove**: Admin zeroes out `ipfs_hash`, `website_url` (and optionally shared fields). The slot still belongs to the renter — the ad just disappears from the live display.
-- **Reinstate**: Admin sets a placeholder back on the record that signals the slot is restored. The renter can then call `editadbanner` again to upload new content. This is the "reversible" part — the admin restores the slot, community review happens off-chain, then the renter re-uploads.
+## What We Remove / Never Add
 
-This is clean because no new table fields are needed and the existing `BannerAd.tsx` already handles empty `ipfs_hash` gracefully (returns `null`).
+- `alcor_pool` struct and `alcor_pools_table` typedef — not needed
+- `get_wax_per_cheese()` helper — not needed
+- `get_wax_per_cheese_baseline()` helper — not needed
+- `check_price_deviation()` helper — not needed
+- `MAX_PRICE_DEVIATION` constant — not needed
+- `#include <cmath>` — not needed
+- The `wax_per_cheese_baseline` field in the config table can be removed entirely, or left harmlessly unused (leaving it avoids a schema change if already deployed)
 
----
-
-## Contract Changes
-
-### `contracts/cheesebannad/cheesebannad.hpp`
-
-**New Actions:**
-
-```cpp
-/**
- * @brief Admin removes a banner ad (zeroes IPFS hash + URL)
- * @param caller     Admin account authorizing this action
- * @param start_time Slot start timestamp
- * @param position   1 or 2
- * @param clear_shared If true, also clears the shared renter's content
- */
-ACTION removeadbanner(name caller, uint64_t start_time, uint8_t position, bool clear_shared);
-
-/**
- * @brief Admin reinstates a previously removed banner (restores renter's ability to upload)
- * @param caller     Admin account authorizing this action
- * @param start_time Slot start timestamp
- * @param position   1 or 2
- */
-ACTION reinstateadbanner(name caller, uint64_t start_time, uint8_t position);
-```
-
-Both use `require_admin(caller)` from the multi-admin system planned previously (or fall back to `require_auth(get_self())` if that system isn't deployed yet — see sequencing note below).
-
-**New `admins` TABLE** (included here since multi-admin is required for the `caller` pattern):
-
-```cpp
-TABLE admin_entry {
-    name account;
-    uint64_t primary_key() const { return account.value; }
-};
-typedef multi_index<"admins"_n, admin_entry> admins_table;
-```
-
-**New Actions for admin management:**
-
-```cpp
-ACTION addadmin(name account);
-ACTION removeadmin(name account);
-```
-
-**Private helper:**
-
-```cpp
-void require_admin(name account);
-```
-
----
-
-### `contracts/cheesebannad/cheesebannad.cpp`
-
-**`removeadbanner` implementation:**
-- `require_admin(caller)`
-- Validate `position == 1 || position == 2`
-- Look up slot by `start_time * 10 + position`
-- `check` slot exists
-- `check` slot is rented (user != `get_self()`) — can't remove an unrented slot
-- `ads.modify(itr, get_self(), ...)` — zeroes `ipfs_hash` and `website_url`
-- If `clear_shared == true`, also zeroes `shared_ipfs_hash` and `shared_website_url`
-- RAM payer is `get_self()` (admin is shrinking content, net RAM release)
-
-**`reinstateadbanner` implementation:**
-- `require_admin(caller)`
-- Validate `position == 1 || position == 2`
-- Look up slot by `start_time * 10 + position`
-- `check` slot exists and is still rented (user != `get_self()`)
-- `check` slot is currently removed (ipfs_hash is empty) — otherwise it's already live
-- No data written — this action is a **signal** (the renter sees the slot is back and re-uploads via `editadbanner`)
-- Actually: we set `ipfs_hash` to a special sentinel like `"reinstated"` so the slot visually appears as "awaiting content" in the frontend without showing a broken image
-
-Wait — simpler approach: do nothing to the data for reinstatement. The admin simply tells the renter off-chain "you can re-upload." The renter calls `editadbanner` normally. BUT the problem is `editadbanner` might fail if the admin zeroed the hash and the contract has a guard preventing empty-hash edits.
-
-Looking at the current `editadbanner` code — it has NO guard against empty ipfs_hash, it just writes whatever the user provides. So the renter CAN always call `editadbanner` again after removal. The `reinstateadbanner` action is still valuable as an on-chain signal / audit trail. It sets `ipfs_hash` to `""` (already is) and sets a new boolean field... 
-
-Actually, cleanest design: **add a `bool suspended` field to the `bannerad` table.** This separates "removed by admin" from "renter hasn't uploaded yet." The `editadbanner` action should `check(!suspended, "Slot is suspended by admin")`. `reinstateadbanner` sets `suspended = false`, which re-enables `editadbanner`. This gives:
-
-- Clear on-chain audit state
-- Prevents renter from re-uploading while suspended
-- Admin can cleanly reverse: `reinstateadbanner` → renter re-uploads
-- Frontend can show "Suspended" badge to admin
-
-### Updated `bannerad` TABLE:
-
-```cpp
-TABLE bannerad {
-    uint64_t time;
-    uint8_t  position;
-    name     user;
-    string   ipfs_hash;
-    string   website_url;
-    uint8_t  rental_type;
-    name     shared_user;
-    string   shared_ipfs_hash;
-    string   shared_website_url;
-    bool     suspended;            // NEW: true = admin has pulled this ad
-
-    uint64_t primary_key() const { return time * 10 + position; }
-};
-```
-
-`suspended` defaults to `false` in `initbannerad` and `assign_slots`.
-
-`editadbanner` and `editsharedbanner` get a new guard:
-```cpp
-check(!itr->suspended, "This slot has been suspended by an admin. Contact support.");
-```
-
----
-
-## Frontend Changes
-
-### 1. `src/hooks/useBannerSlots.ts`
-
-Add `suspended: boolean` to `BannerAdRow` interface and `BannerSlot` interface. Map it from `row.suspended`.
-
-### 2. `src/hooks/useBannerAds.ts`
-
-Add filter: skip suspended slots from the active display:
-```typescript
-row.user !== BANNER_CONTRACT &&
-row.ipfs_hash.length > 0 &&
-!row.suspended   // NEW: skip admin-suspended ads
-```
-
-### 3. `src/components/bannerads/SlotCalendar.tsx`
-
-- Detect admin: `const isAdmin = accountName === "cheesebannad"` (extend later when multi-admin table is queryable)
-- Add `removeTarget: BannerSlot | null` state
-- Show a red **"Remove"** button when `isAdmin && slot.isOnChain && slot.user !== "cheesebannad" && !slot.suspended`
-- Show a green **"Reinstate"** button when `isAdmin && slot.isOnChain && slot.suspended`
-- Add suspended badge to `SlotBadge` component: when `slot.suspended`, show a red "Suspended" badge visible to all users (so the renter knows their ad is down)
-
-### 4. New `src/components/bannerads/RemoveBannerDialog.tsx`
-
-A dialog with:
-- Title: "Remove Banner Ad"
-- Shows renter account, date, position
-- Checkbox: "Also clear shared banner content" (shown only if shared slot with a shared renter)
-- Reason field (string) — stored locally for UI reference only, not sent to contract (contract doesn't need it)
-- Two buttons: Cancel / Remove Ad (destructive red)
-- Calls `removeadbanner` action on `cheesebannad`
-- On success: toast + refetch
-
-### 5. New `src/components/bannerads/ReinstateBannerDialog.tsx`
-
-A simple confirmation dialog:
-- Title: "Reinstate Banner Ad"
-- Description: "This will allow the renter to re-upload content. The slot was previously removed."
-- Two buttons: Cancel / Reinstate
-- Calls `reinstateadbanner` action on `cheesebannad`
-- On success: toast + refetch
-
----
-
-## Data Flow
-
-```text
-Admin sees bad ad in SlotCalendar
-  → Clicks "Remove" → RemoveBannerDialog opens
-  → Submits → cheesebannad::removeadbanner(caller, start_time, position, clear_shared)
-  → Contract: zeroes ipfs_hash + website_url, sets suspended = true
-  → editadbanner now blocked for this slot
-  → BannerAd.tsx: slot filtered out (suspended = true) → ad disappears from all pages
-  → SlotCalendar: slot shows red "Suspended" badge
-
-[Community votes, decides to reinstate]
-
-Admin clicks "Reinstate" → ReinstateBannerDialog opens
-  → Submits → cheesebannad::reinstateadbanner(caller, start_time, position)
-  → Contract: sets suspended = false, ipfs_hash stays ""
-  → editadbanner now unblocked
-  → Renter can re-upload new content via Edit button
-  → Once re-uploaded, ad goes live again
-```
-
----
-
-## Files to Create / Modify
+## Files to Modify
 
 | File | Change |
 |---|---|
-| `contracts/cheesebannad/cheesebannad.hpp` | Add `suspended` field to `bannerad` table; add `removeadbanner`, `reinstateadbanner`, `addadmin`, `removeadmin` actions; add `admin_entry` table; add `require_admin` helper |
-| `contracts/cheesebannad/cheesebannad.cpp` | Implement all above; add `suspended = false` in `initbannerad` and `assign_slots`; add `check(!suspended)` guard to `editadbanner` and `editsharedbanner`; implement `require_admin`, `addadmin`, `removeadmin` |
-| `contracts/cheesebannad/README.md` | Document new actions with block explorer examples |
-| `src/hooks/useBannerSlots.ts` | Add `suspended` to interfaces and mapping |
-| `src/hooks/useBannerAds.ts` | Filter out suspended slots from active display |
-| `src/components/bannerads/SlotCalendar.tsx` | Add admin Remove/Reinstate buttons; add Suspended badge |
-| `src/components/bannerads/RemoveBannerDialog.tsx` | New dialog (create) |
-| `src/components/bannerads/ReinstateBannerDialog.tsx` | New dialog (create) |
+| `contracts/cheesebannad/cheesebannad.hpp` | Remove `alcor_pool` struct, `MAX_PRICE_DEVIATION` constant, and the three helper declarations. Keep `MIN_CHEESE_OUTPUT`. Keep `wax_per_cheese_baseline` in the config struct (avoid unnecessary schema change). |
+| `contracts/cheesebannad/cheesebannad.cpp` | Remove `#include <cmath>`. Remove `get_wax_per_cheese()`, `get_wax_per_cheese_baseline()`, `check_price_deviation()` implementations. In `distribute_wax_funds()`, remove the deviation check call. Fix the swap memo to use the proper extended asset string construction. |
+| `contracts/cheesebannad/README.md` | Update WAX payment flow to remove references to price deviation guard. Note that the memo uses extended asset format. |
 
----
+## The Only Real Change: Swap Memo Fix
 
-## Important Note: Contract Redeployment
+```cpp
+// Before (fragile raw string):
+string swap_memo = "swapexactin#" + to_string(CHEESE_WAX_POOL_ID) +
+    "#" + get_self().to_string() + "#0.0001 CHEESE@" + CHEESE_CONTRACT.to_string() + "#0";
 
-Adding `suspended bool` to the `bannerad` TABLE is a **schema change**. Because existing on-chain rows won't have this field, the new contract code must treat a missing `suspended` field as `false` — EOSIO handles this correctly for added fields at the end of a struct as long as existing rows are read with the new ABI. Existing rows will deserialize `suspended` as `false` (the default). No migration SQL is needed.
+// After (proper extended asset construction, consistent with cheesefeefee):
+asset min_cheese_out = asset(MIN_CHEESE_OUTPUT, CHEESE_SYMBOL);
+string swap_memo = string("swapexactin#") + to_string(CHEESE_WAX_POOL_ID)
+    + "#" + get_self().to_string()
+    + "#" + min_cheese_out.to_string() + "@" + CHEESE_CONTRACT.to_string()
+    + "#0";
+```
 
+This is a small but meaningful correctness fix — the asset `to_string()` method ensures the amount and symbol are always formatted correctly without relying on a hardcoded string that could get out of sync.

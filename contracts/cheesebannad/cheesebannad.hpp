@@ -22,6 +22,7 @@ using namespace std;
  *   - Cannot rent already-rented or past slots
  *   - Overpayment is automatically refunded
  *   - Expired slots cannot be edited
+ *   - Suspended slots cannot be edited by renters (admin moderation)
  *
  * PRIMARY KEY ENCODING:
  *   pk = time * 10 + position (position is 1 or 2)
@@ -92,6 +93,35 @@ public:
      */
     ACTION cleanup(uint64_t before_time);
 
+    /**
+     * @brief Admin removes a banner ad (zeroes IPFS hash + URL, sets suspended = true)
+     * @param caller      Admin account authorizing this action
+     * @param start_time  Slot start timestamp
+     * @param position    1 or 2
+     * @param clear_shared If true, also clears the shared renter's content
+     */
+    ACTION removeadbanner(name caller, uint64_t start_time, uint8_t position, bool clear_shared);
+
+    /**
+     * @brief Admin reinstates a previously suspended banner (sets suspended = false, re-enables editing)
+     * @param caller     Admin account authorizing this action
+     * @param start_time Slot start timestamp
+     * @param position   1 or 2
+     */
+    ACTION reinstateadbanner(name caller, uint64_t start_time, uint8_t position);
+
+    /**
+     * @brief Contract owner adds a new admin account
+     * @param account WAX account to grant admin privileges
+     */
+    ACTION addadmin(name account);
+
+    /**
+     * @brief Contract owner removes an admin account
+     * @param account WAX account to revoke admin privileges
+     */
+    ACTION removeadmin(name account);
+
     // ---- Transfer notifications ----
 
     [[eosio::on_notify("eosio.token::transfer")]]
@@ -112,6 +142,7 @@ public:
         name     shared_user;       // second renter (empty = not filled)
         string   shared_ipfs_hash;
         string   shared_website_url;
+        bool     suspended;         // true = admin has pulled this ad; blocks renter editing
 
         uint64_t primary_key() const { return time * 10 + position; }
     };
@@ -125,6 +156,12 @@ public:
         uint64_t primary_key() const { return id; }
     };
     typedef multi_index<"config"_n, config> config_table;
+
+    TABLE admin_entry {
+        name account;
+        uint64_t primary_key() const { return account.value; }
+    };
+    typedef multi_index<"admins"_n, admin_entry> admins_table;
 
 private:
     // Parse memo "banner|start_time|num_days|position[|mode]"
@@ -142,4 +179,7 @@ private:
 
     // Split CHEESE: 66% burned to eosio.null, 34% to xcheeseliqst
     void distribute_cheese_funds(asset quantity);
+
+    // Check that 'account' is either get_self() or in the admins table, then require_auth
+    void require_admin(name account);
 };

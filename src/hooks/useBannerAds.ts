@@ -13,6 +13,7 @@ interface BannerAdRow {
   shared_user: string;
   shared_ipfs_hash: string;
   shared_website_url: string;
+  suspended: boolean;
 }
 
 export interface ActiveBanner {
@@ -46,7 +47,7 @@ export function useBannerAds() {
         { limit: 100 }
       );
 
-      // Find slots in the current 24h window that are rented (user !== contract)
+      // Find slots in the current 24h window that are rented, have content, and are not suspended
       const active = rows.filter((row) => {
         const slotStart = row.time;
         const slotEnd = slotStart + 86400;
@@ -54,7 +55,8 @@ export function useBannerAds() {
           nowSec >= slotStart &&
           nowSec < slotEnd &&
           row.user !== BANNER_CONTRACT &&
-          row.ipfs_hash.length > 0
+          row.ipfs_hash.length > 0 &&
+          !row.suspended
         );
       });
 

@@ -14,6 +14,7 @@ interface BannerAdRow {
   shared_user: string;
   shared_ipfs_hash: string;
   shared_website_url: string;
+  suspended: boolean;
 }
 
 interface BannerConfig {
@@ -34,6 +35,7 @@ export interface BannerSlot {
   sharedWebsiteUrl?: string;
   isAvailable: boolean;
   isOnChain: boolean;
+  suspended: boolean;
 }
 
 export interface BannerSlotGroup {
@@ -108,6 +110,7 @@ export function useBannerSlots() {
            sharedWebsiteUrl: row.shared_website_url,
            isAvailable: row.user === BANNER_CONTRACT || (row.rental_type === 1 && (!row.shared_user || row.shared_user === BANNER_CONTRACT)),
            isOnChain: true,
+           suspended: row.suspended ?? false,
          };
 
          const existing = grouped.get(row.time) || [];

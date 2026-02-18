@@ -241,9 +241,17 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
     auto [start_time, num_days, position, mode] = parse_banner_memo(memo);
     asset price_per_day = get_config();
 
-    // Shared slots cost 20% less
+    // Shared slots cost 30% less
     double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
-    int64_t required = static_cast<int64_t>(static_cast<double>(price_per_day.amount) * multiplier) * static_cast<int64_t>(num_days);
+
+    // Permanent 50% discount for cheesepromoz (stacks multiplicatively with shared discount)
+    if (from == PROMOZ_ACCOUNT) {
+        multiplier *= (1.0 - PROMOZ_DISCOUNT);
+    }
+
+    int64_t required = static_cast<int64_t>(
+        static_cast<double>(price_per_day.amount) * multiplier
+    ) * static_cast<int64_t>(num_days);
     check(quantity.amount >= required,
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
 

@@ -50,6 +50,8 @@ static constexpr double CHEESE_BURN_PERCENT = 0.66;  // 66% CHEESE burned
 static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
 static constexpr double   SHARED_DISCOUNT       = 0.30;        // 30% off for shared slots
+static constexpr name     PROMOZ_ACCOUNT        = "cheesepromoz"_n;
+static constexpr double   PROMOZ_DISCOUNT       = 0.50;        // 50% off for cheesepromoz (permanent)
 static constexpr double   DEFAULT_CHEESE_BASELINE = 1.5;       // default WAX per CHEESE baseline
 
 // Input limits

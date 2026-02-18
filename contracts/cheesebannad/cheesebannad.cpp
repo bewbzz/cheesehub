@@ -21,14 +21,14 @@ void cheesebannad::initbannerad(uint64_t start_time, uint64_t amount_of_slots) {
             if (itr != ads.end()) continue; // Skip if already exists
 
             ads.emplace(get_self(), [&](auto& row) {
-                row.time              = slot_time;
-                row.position          = pos;
-                row.user              = get_self();  // available = owned by contract
-                row.ipfs_hash         = "";
-                row.website_url       = "";
-                row.rental_type       = 0;           // default exclusive
-                row.shared_user       = name();      // empty
-                row.shared_ipfs_hash  = "";
+                row.time               = slot_time;
+                row.position           = pos;
+                row.user               = get_self();  // available = owned by contract
+                row.ipfs_hash          = "";
+                row.website_url        = "";
+                row.rental_type        = 0;           // default exclusive
+                row.shared_user        = name();      // empty
+                row.shared_ipfs_hash   = "";
                 row.shared_website_url = "";
             });
         }
@@ -41,6 +41,10 @@ void cheesebannad::editadbanner(name user, uint64_t start_time, uint8_t position
     check(position == 1 || position == 2, "Position must be 1 or 2");
     check(ipfs_hash.length() <= MAX_IPFS_HASH_LEN, "IPFS hash too long");
     check(website_url.length() <= MAX_URL_LEN, "URL too long");
+
+    // Guard: cannot edit an expired slot
+    uint32_t now = current_time_point().sec_since_epoch();
+    check(start_time + SECONDS_PER_DAY > now, "Slot has already expired");
 
     bannerads_table ads(get_self(), get_self().value);
     uint64_t pk = start_time * 10 + position;
@@ -61,6 +65,10 @@ void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t posi
     check(ipfs_hash.length() <= MAX_IPFS_HASH_LEN, "IPFS hash too long");
     check(website_url.length() <= MAX_URL_LEN, "URL too long");
 
+    // Guard: cannot edit an expired slot
+    uint32_t now = current_time_point().sec_since_epoch();
+    check(start_time + SECONDS_PER_DAY > now, "Slot has already expired");
+
     bannerads_table ads(get_self(), get_self().value);
     uint64_t pk = start_time * 10 + position;
     auto itr = ads.find(pk);
@@ -73,23 +81,26 @@ void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t posi
     });
 }
 
-void cheesebannad::setconfig(asset wax_price_per_day) {
+void cheesebannad::setconfig(asset wax_price_per_day, double wax_per_cheese_baseline) {
     require_auth(get_self());
 
     check(wax_price_per_day.symbol == WAX_SYMBOL, "Price must be in WAX");
     check(wax_price_per_day.amount > 0, "Price must be positive");
+    check(wax_per_cheese_baseline > 0, "Baseline must be positive");
 
     config_table configs(get_self(), get_self().value);
     auto itr = configs.find(1);
 
     if (itr == configs.end()) {
         configs.emplace(get_self(), [&](auto& c) {
-            c.id                = 1;
-            c.wax_price_per_day = wax_price_per_day;
+            c.id                     = 1;
+            c.wax_price_per_day      = wax_price_per_day;
+            c.wax_per_cheese_baseline = wax_per_cheese_baseline;
         });
     } else {
         configs.modify(itr, get_self(), [&](auto& c) {
-            c.wax_price_per_day = wax_price_per_day;
+            c.wax_price_per_day       = wax_price_per_day;
+            c.wax_per_cheese_baseline = wax_per_cheese_baseline;
         });
     }
 }
@@ -107,6 +118,22 @@ void cheesebannad::withdraw(name token_contract, name to, asset quantity) {
         "transfer"_n,
         make_tuple(get_self(), to, quantity, string("Admin withdrawal"))
     ).send();
+}
+
+void cheesebannad::cleanup(uint64_t before_time) {
+    require_auth(get_self());
+    check(before_time > 0, "Invalid before_time");
+
+    bannerads_table ads(get_self(), get_self().value);
+    auto itr = ads.begin();
+    uint32_t count = 0;
+
+    while (itr != ads.end() && itr->time < before_time && count < MAX_CLEANUP_SLOTS) {
+        itr = ads.erase(itr);
+        count++;
+    }
+
+    check(count > 0, "No expired slots found before the given time");
 }
 
 // ============================================================================
@@ -131,10 +158,21 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
     check(quantity.amount >= required,
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
 
+    // Refund any overpayment before distributing
+    int64_t overpay = quantity.amount - required;
+    if (overpay > 0) {
+        action(
+            permission_level{get_self(), "active"_n},
+            WAX_CONTRACT,
+            "transfer"_n,
+            make_tuple(get_self(), from, asset(overpay, WAX_SYMBOL), string("Banner ad overpayment refund"))
+        ).send();
+    }
+
     assign_slots(from, start_time, num_days, position, mode);
 
-    // Distribute WAX: 20% financing, 80% swapped to CHEESE (all atomic)
-    distribute_wax_funds(quantity);
+    // Distribute exactly the required WAX (not the full quantity)
+    distribute_wax_funds(asset(required, WAX_SYMBOL));
 }
 
 // ============================================================================
@@ -151,11 +189,13 @@ void cheesebannad::on_cheese_transfer(name from, name to, asset quantity, string
     }
     // Ignore all other CHEESE transfers
 }
+
+// ============================================================================
 // Private Helpers
 // ============================================================================
 
 tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const string& memo) {
-    // Format: "banner|start_time|num_days|position|mode" or "banner|start_time|num_days|position"
+    // Format: "banner|start_time|num_days|position[|mode]"
     // mode: 'e' = exclusive (default), 's' = shared-primary, 'j' = join-shared
     size_t first = memo.find('|');
     check(first != string::npos, "Invalid memo. Use: banner|start_time|num_days|position[|mode]");
@@ -170,9 +210,6 @@ tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const s
     string days_str     = memo.substr(second + 1, third - second - 1);
     string position_str = memo.substr(third + 1);
 
-    uint64_t start_time = stoull(start_str);
-    uint64_t num_days   = stoull(days_str);
-    
     // Check if there's a 5th component (mode)
     size_t fourth = position_str.find('|');
     char mode = 'e'; // default
@@ -182,7 +219,18 @@ tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const s
         position_str = position_str.substr(0, fourth);
     }
 
-    uint8_t  position   = static_cast<uint8_t>(stoul(position_str));
+    uint64_t start_time = 0;
+    uint64_t num_days   = 0;
+    uint8_t  position   = 0;
+
+    // Safely parse numeric fields — bad input gives a clear error, not a C++ exception
+    try {
+        start_time = stoull(start_str);
+        num_days   = stoull(days_str);
+        position   = static_cast<uint8_t>(stoul(position_str));
+    } catch (...) {
+        check(false, "Invalid memo: non-numeric value in start_time, num_days, or position");
+    }
 
     check(start_time > 0, "Invalid start time");
     check(num_days > 0 && num_days <= 365, "Days must be 1-365");
@@ -221,26 +269,28 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
         if (mode == 'e') {
             // Exclusive mode: slot must be unrented
             check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " is already rented");
-            
-            ads.modify(itr, get_self(), [&](auto& row) {
-                row.user = user;
+
+            // User pays RAM — they're adding content to the row
+            ads.modify(itr, user, [&](auto& row) {
+                row.user        = user;
                 row.rental_type = 0;  // exclusive
             });
         } else if (mode == 's') {
             // Shared-primary mode: slot must be unrented, sets as shared
             check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " is already rented");
-            
-            ads.modify(itr, get_self(), [&](auto& row) {
-                row.user = user;
-                row.rental_type = 1;  // shared
-                row.shared_user = name();  // empty for now
+
+            ads.modify(itr, user, [&](auto& row) {
+                row.user        = user;
+                row.rental_type = 1;     // shared
+                row.shared_user = name(); // empty for now
             });
         } else if (mode == 'j') {
             // Join-shared mode: slot must exist and be shared with no secondary renter
             check(itr->rental_type == 1, "Slot must be a shared slot to join");
             check(itr->shared_user == name(), "Shared slot is already full");
-            
-            ads.modify(itr, get_self(), [&](auto& row) {
+
+            // Joining user pays RAM for the shared_user name expansion
+            ads.modify(itr, user, [&](auto& row) {
                 row.shared_user = user;  // this user is the secondary renter
             });
         }
@@ -281,7 +331,7 @@ void cheesebannad::distribute_wax_funds(asset quantity) {
 }
 
 void cheesebannad::distribute_cheese_funds(asset quantity) {
-    int64_t burn_amount = static_cast<int64_t>(quantity.amount * CHEESE_BURN_PERCENT);
+    int64_t burn_amount  = static_cast<int64_t>(quantity.amount * CHEESE_BURN_PERCENT);
     int64_t stake_amount = quantity.amount - burn_amount;
 
     // 66% CHEESE burned

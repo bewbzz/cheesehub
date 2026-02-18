@@ -42,7 +42,12 @@ export function RentSlotDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const SHARED_DISCOUNT = 0.30;
-  const priceMultiplier = rentalMode === "shared" ? 1 - SHARED_DISCOUNT : 1;
+  const PROMOZ_DISCOUNT = 0.50;
+
+  const isPromoz = session?.actor?.toString() === "cheesepromoz";
+  const sharedMultiplier = rentalMode === "shared" ? (1 - SHARED_DISCOUNT) : 1;
+  const promozMultiplier = isPromoz ? (1 - PROMOZ_DISCOUNT) : 1;
+  const priceMultiplier = sharedMultiplier * promozMultiplier;
   const totalWax = waxPricePerDay * numDays * priceMultiplier;
   const modeChar = isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
   const memo = `banner|${startTime}|${numDays}|${position}|${modeChar}`;
@@ -128,6 +133,9 @@ export function RentSlotDialog({
             <p className="text-xs text-muted-foreground">
               {(waxPricePerDay * priceMultiplier).toFixed(2)} WAX × {numDays} day{numDays > 1 ? "s" : ""}
             </p>
+            {isPromoz && (
+              <p className="text-xs font-medium mt-1" style={{color: 'hsl(142 71% 45%)'}}>🧀 Promoz 50% discount applied</p>
+            )}
           </div>
 
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">

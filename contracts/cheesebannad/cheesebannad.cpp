@@ -1,6 +1,49 @@
 #include "cheesebannad.hpp"
 
 // ============================================================================
+// Admin Auth Helper
+// ============================================================================
+
+void cheesebannad::require_admin(name account) {
+    if (account == get_self()) {
+        require_auth(get_self());
+        return;
+    }
+    admins_table admins(get_self(), get_self().value);
+    auto itr = admins.find(account.value);
+    check(itr != admins.end(), "Not authorized: " + account.to_string() + " is not an admin");
+    require_auth(account);
+}
+
+// ============================================================================
+// Admin Management Actions
+// ============================================================================
+
+void cheesebannad::addadmin(name account) {
+    require_auth(get_self());
+    check(is_account(account), "Account does not exist: " + account.to_string());
+    check(account != get_self(), "Contract account is already the owner/admin");
+
+    admins_table admins(get_self(), get_self().value);
+    auto itr = admins.find(account.value);
+    check(itr == admins.end(), "Account is already an admin");
+
+    admins.emplace(get_self(), [&](auto& row) {
+        row.account = account;
+    });
+}
+
+void cheesebannad::removeadmin(name account) {
+    require_auth(get_self());
+
+    admins_table admins(get_self(), get_self().value);
+    auto itr = admins.find(account.value);
+    check(itr != admins.end(), "Account is not an admin");
+
+    admins.erase(itr);
+}
+
+// ============================================================================
 // Admin Actions
 // ============================================================================
 
@@ -30,6 +73,7 @@ void cheesebannad::initbannerad(uint64_t start_time, uint64_t amount_of_slots) {
                 row.shared_user        = name();      // empty
                 row.shared_ipfs_hash   = "";
                 row.shared_website_url = "";
+                row.suspended          = false;
             });
         }
     }
@@ -51,6 +95,9 @@ void cheesebannad::editadbanner(name user, uint64_t start_time, uint8_t position
     auto itr = ads.find(pk);
     check(itr != ads.end(), "Slot not found");
     check(itr->user == user, "You do not own this slot");
+
+    // Guard: cannot edit a suspended slot
+    check(!itr->suspended, "This slot has been suspended by an admin. Contact support.");
 
     ads.modify(itr, user, [&](auto& row) {
         row.ipfs_hash   = ipfs_hash;
@@ -75,9 +122,51 @@ void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t posi
     check(itr != ads.end(), "Slot not found");
     check(itr->shared_user == user, "You do not own this shared slot");
 
+    // Guard: cannot edit a suspended slot
+    check(!itr->suspended, "This slot has been suspended by an admin. Contact support.");
+
     ads.modify(itr, user, [&](auto& row) {
         row.shared_ipfs_hash   = ipfs_hash;
         row.shared_website_url = website_url;
+    });
+}
+
+void cheesebannad::removeadbanner(name caller, uint64_t start_time, uint8_t position, bool clear_shared) {
+    require_admin(caller);
+
+    check(position == 1 || position == 2, "Position must be 1 or 2");
+
+    bannerads_table ads(get_self(), get_self().value);
+    uint64_t pk = start_time * 10 + position;
+    auto itr = ads.find(pk);
+    check(itr != ads.end(), "Slot not found");
+    check(itr->user != get_self(), "Cannot remove an unrented slot");
+
+    ads.modify(itr, get_self(), [&](auto& row) {
+        row.ipfs_hash   = "";
+        row.website_url = "";
+        row.suspended   = true;
+        if (clear_shared) {
+            row.shared_ipfs_hash   = "";
+            row.shared_website_url = "";
+        }
+    });
+}
+
+void cheesebannad::reinstateadbanner(name caller, uint64_t start_time, uint8_t position) {
+    require_admin(caller);
+
+    check(position == 1 || position == 2, "Position must be 1 or 2");
+
+    bannerads_table ads(get_self(), get_self().value);
+    uint64_t pk = start_time * 10 + position;
+    auto itr = ads.find(pk);
+    check(itr != ads.end(), "Slot not found");
+    check(itr->user != get_self(), "Slot is not rented");
+    check(itr->suspended, "Slot is not currently suspended");
+
+    ads.modify(itr, get_self(), [&](auto& row) {
+        row.suspended = false;
     });
 }
 
@@ -274,6 +363,7 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
             ads.modify(itr, user, [&](auto& row) {
                 row.user        = user;
                 row.rental_type = 0;  // exclusive
+                row.suspended   = false;
             });
         } else if (mode == 's') {
             // Shared-primary mode: slot must be unrented, sets as shared
@@ -283,6 +373,7 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
                 row.user        = user;
                 row.rental_type = 1;     // shared
                 row.shared_user = name(); // empty for now
+                row.suspended   = false;
             });
         } else if (mode == 'j') {
             // Join-shared mode: slot must exist and be shared with no secondary renter

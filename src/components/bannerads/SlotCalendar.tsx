@@ -8,11 +8,20 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { RentSlotDialog } from "./RentSlotDialog";
 import { EditBannerDialog } from "./EditBannerDialog";
+import { RemoveBannerDialog } from "./RemoveBannerDialog";
+import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
 import { format } from "date-fns";
+
+const BANNER_CONTRACT = "cheesebannad";
 
 function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: string | null }) {
   if (!slot.isOnChain) {
     return <Badge variant="secondary" className="text-xs">Not Live</Badge>;
+  }
+
+  // Suspended by admin — shown to everyone
+  if (slot.suspended) {
+    return <Badge variant="destructive" className="text-xs">Suspended</Badge>;
   }
   
   // Exclusive slot, rented by current user
@@ -21,7 +30,7 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   }
   
   // Exclusive slot, rented by someone else
-  if (slot.rentalType === "exclusive" && slot.user !== slot.user) {
+  if (slot.rentalType === "exclusive" && slot.user !== BANNER_CONTRACT) {
     return <Badge variant="outline" className="text-muted-foreground text-xs">Rented</Badge>;
   }
   
@@ -72,6 +81,7 @@ function generatePlaceholderGroups(): BannerSlotGroup[] {
         rentalType: "exclusive" as const,
         isAvailable: true,
         isOnChain: false,
+        suspended: false,
       })),
     });
   }
@@ -101,6 +111,10 @@ export function SlotCalendar() {
   const { accountName } = useWax();
   const [rentTarget, setRentTarget] = useState<{ time: number; position: number; isJoining?: boolean } | null>(null);
   const [editTarget, setEditTarget] = useState<BannerSlot | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<BannerSlot | null>(null);
+  const [reinstateTarget, setReinstateTarget] = useState<BannerSlot | null>(null);
+
+  const isAdmin = accountName === BANNER_CONTRACT;
 
   const placeholders = useMemo(() => generatePlaceholderGroups(), []);
   const mergedGroups = useMemo(() => mergeGroups(placeholders, slotGroups), [placeholders, slotGroups]);
@@ -145,8 +159,9 @@ export function SlotCalendar() {
                         <span className="text-sm font-medium text-muted-foreground">Pos {slot.position}</span>
                         <SlotBadge slot={slot} accountName={accountName} />
                       </div>
-                      <div>
-                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive" && (
+                      <div className="flex items-center gap-2">
+                         {/* Rent / Join buttons for non-admin users */}
+                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive" && !isAdmin && (
                            <Button
                              size="sm"
                              className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
@@ -155,7 +170,7 @@ export function SlotCalendar() {
                              Rent
                            </Button>
                          )}
-                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && (
+                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && (
                            <Button
                              size="sm"
                              className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
@@ -180,7 +195,9 @@ export function SlotCalendar() {
                              <TooltipContent>Contract not yet initialized</TooltipContent>
                            </Tooltip>
                          )}
-                         {slot.isOnChain && (slot.user === accountName || slot.sharedUser === accountName) && (
+
+                         {/* Edit button for slot owners */}
+                         {slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
                            <Button
                              size="sm"
                              variant="outline"
@@ -188,6 +205,30 @@ export function SlotCalendar() {
                              onClick={() => setEditTarget(slot)}
                            >
                              Edit
+                           </Button>
+                         )}
+
+                         {/* Admin: Remove button (active rented, not suspended) */}
+                         {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && !slot.suspended && (
+                           <Button
+                             size="sm"
+                             variant="destructive"
+                             className="text-xs h-7"
+                             onClick={() => setRemoveTarget(slot)}
+                           >
+                             Remove
+                           </Button>
+                         )}
+
+                         {/* Admin: Reinstate button (suspended slots) */}
+                         {isAdmin && slot.isOnChain && slot.suspended && (
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
+                             onClick={() => setReinstateTarget(slot)}
+                           >
+                             Reinstate
                            </Button>
                          )}
                        </div>
@@ -217,6 +258,24 @@ export function SlotCalendar() {
           open={!!editTarget}
           onOpenChange={(open) => !open && setEditTarget(null)}
           slot={editTarget}
+          onSuccess={refetch}
+        />
+      )}
+
+      {removeTarget && (
+        <RemoveBannerDialog
+          open={!!removeTarget}
+          onOpenChange={(open) => !open && setRemoveTarget(null)}
+          slot={removeTarget}
+          onSuccess={refetch}
+        />
+      )}
+
+      {reinstateTarget && (
+        <ReinstateBannerDialog
+          open={!!reinstateTarget}
+          onOpenChange={(open) => !open && setReinstateTarget(null)}
+          slot={reinstateTarget}
           onSuccess={refetch}
         />
       )}

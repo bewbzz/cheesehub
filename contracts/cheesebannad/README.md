@@ -86,6 +86,42 @@ cleos push action cheesebannad editsharedbanner '["myaccount", 1707350400, 1, "Q
 
 ## Admin Actions
 
+All admin actions require the caller to be either the contract owner (`cheesebannad`) or a designated admin added via `addadmin`.
+
+### Add an Admin Account
+Only callable by the contract owner. Grants admin privileges to any WAX account.
+```bash
+cleos push action cheesebannad addadmin '["trustedmod1"]' -p cheesebannad@active
+```
+
+### Remove an Admin Account
+Only callable by the contract owner.
+```bash
+cleos push action cheesebannad removeadmin '["trustedmod1"]' -p cheesebannad@active
+```
+
+### Remove a Banner Ad (Moderation)
+Zeroes the renter's IPFS hash and website URL, and sets `suspended = true`. The renter cannot re-upload while suspended. Use `clear_shared: true` to also wipe the shared renter's content.
+```bash
+# Remove primary content only
+cleos push action cheesebannad removeadbanner '["cheesebannad", 1707350400, 1, false]' -p cheesebannad@active
+
+# Remove both primary and shared content (if slot is shared)
+cleos push action cheesebannad removeadbanner '["cheesebannad", 1707350400, 1, true]' -p cheesebannad@active
+
+# Using a designated admin account
+cleos push action cheesebannad removeadbanner '["trustedmod1", 1707350400, 1, false]' -p trustedmod1@active
+```
+
+### Reinstate a Banner Ad
+Sets `suspended = false`, allowing the renter to re-upload their content via `editadbanner`. Use this after a community decision to clear the advertiser.
+```bash
+cleos push action cheesebannad reinstateadbanner '["cheesebannad", 1707350400, 1]' -p cheesebannad@active
+
+# Using a designated admin account
+cleos push action cheesebannad reinstateadbanner '["trustedmod1", 1707350400, 1]' -p trustedmod1@active
+```
+
 ### Withdraw Tokens
 ```bash
 cleos push action cheesebannad withdraw '["eosio.token", "adminaccount", "10.00000000 WAX"]' -p cheesebannad@active
@@ -104,6 +140,21 @@ cleos push action cheesebannad cleanup '[1707350400]' -p cheesebannad@active
 |-------|-------|-------------|
 | `bannerads` | contract | Ad slots (key: `time * 10 + position`) |
 | `config` | contract | Pricing config (id = 1) |
+| `admins` | contract | Designated admin accounts |
+
+### bannerad fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `time` | uint64 | Slot start timestamp (Unix) |
+| `position` | uint8 | 1 or 2 |
+| `user` | name | Primary renter (contract = available) |
+| `ipfs_hash` | string | IPFS hash of the banner image |
+| `website_url` | string | Click-through URL |
+| `rental_type` | uint8 | 0 = exclusive, 1 = shared |
+| `shared_user` | name | Secondary renter (empty = none) |
+| `shared_ipfs_hash` | string | IPFS hash for shared renter |
+| `shared_website_url` | string | URL for shared renter |
+| `suspended` | bool | **true = admin has pulled this ad** |
 
 ### config fields
 | Field | Type | Description |
@@ -112,13 +163,37 @@ cleos push action cheesebannad cleanup '[1707350400]' -p cheesebannad@active
 | `wax_price_per_day` | asset | Price per slot per day in WAX |
 | `wax_per_cheese_baseline` | double | WAX/CHEESE baseline rate for UI display |
 
+### admin_entry fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `account` | name | Designated admin WAX account |
+
+## Moderation Flow
+
+```
+Admin sees offensive ad
+  → calls removeadbanner(caller, start_time, position, clear_shared)
+  → Contract: ipfs_hash = "", website_url = "", suspended = true
+  → Frontend: ad disappears from live display (filtered by suspended flag)
+  → Renter's editadbanner calls are blocked with error message
+
+[Community votes to reinstate]
+
+Admin calls reinstateadbanner(caller, start_time, position)
+  → Contract: suspended = false
+  → Renter can call editadbanner again to re-upload content
+```
+
 ## Security
 
 - Cannot rent past or already-rented slots
 - Overpayment is automatically refunded to sender
 - Expired slots cannot be edited (`editadbanner` / `editsharedbanner`)
+- **Suspended slots cannot be edited by renters** (`suspended = true`)
 - Malformed memo values return a clean error (no unhandled C++ exception)
 - Renting user pays their own RAM on slot modification
 - Max 100 slots erased per `cleanup` call to prevent CPU timeout
 - IPFS hash max 128 chars, URL max 256 chars
 - Only slot owner can edit their banner content
+- Only contract owner can add/remove admin accounts
+- `addadmin` / `removeadmin` are NOT delegatable to other admins (owner only)

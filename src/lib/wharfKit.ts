@@ -49,26 +49,25 @@ export function isAnchorSession(session: Session): boolean {
   return isAnchor && !isCloudWallet;
 }
 
-// Get transact options with Fuel plugin for Anchor-only sessions
-// Cloud Wallet doesn't support Fuel's partial signature flow
+// Get transact options — Greymass Fuel (wax.greymass.com) SSL certificate is currently
+// expired (ERR_CERT_DATE_INVALID). All Fuel requests fail at browser level for heavier
+// transactions (e.g. multi-action addliquid). Disabling until Greymass renews their cert.
 export function getTransactPlugins(session: Session) {
+  console.log('[WharfKit] getTransactPlugins - Fuel disabled (Greymass cert expired)');
+  return [];
+
+  /* Re-enable when wax.greymass.com cert is renewed:
   const useAnchorPlugins = isAnchorSession(session);
-  console.log('[WharfKit] getTransactPlugins - using Fuel:', useAnchorPlugins);
-  
   if (useAnchorPlugins) {
     return [
       new TransactPluginResourceProvider({
-        endpoints: {
-          [WAX_CHAIN_ID]: 'https://wax.greymass.com',
-        },
-        // Don't allow paid Fuel - only use free resource sponsorship
+        endpoints: { [WAX_CHAIN_ID]: 'https://wax.greymass.com' },
         allowFees: false,
       }),
     ];
   }
-  // Return empty array for Cloud Wallet - no Fuel support
-  console.log('[WharfKit] Returning EMPTY plugins for Cloud Wallet');
   return [];
+  */
 }
 
 // Track if a login is in progress to avoid removing modal during login

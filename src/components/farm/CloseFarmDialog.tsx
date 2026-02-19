@@ -46,7 +46,7 @@ export function CloseFarmDialog({ farm, onSuccess }: CloseFarmDialogProps) {
 
       toast({ 
         title: "Farm Closed!", 
-        description: `${farm.farm_name} has been permanently closed.` 
+        description: `${farm.farm_name} has been closed.` 
       });
       setOpen(false);
       onSuccess?.();

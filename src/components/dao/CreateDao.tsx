@@ -419,7 +419,7 @@ export function CreateDao() {
                           
                           <div className="space-y-3">
                             <div className="p-2 rounded border border-cheese/50 bg-cheese/5">
-                              <p className="font-medium text-cheese">Stake Tokens (Custodial) ⭐ Popular</p>
+                              <p className="font-medium text-cheese">Stake Tokens (Custodial)</p>
                               <p className="text-xs mt-1">
                                 Members stake governance tokens directly to the DAO. <strong>No external farm needed.</strong>
                                 Tokens are held by the DAO contract until unstaked. Voting power equals staked balance.
@@ -427,7 +427,7 @@ export function CreateDao() {
                             </div>
                             
                             <div className="p-2 rounded border border-green-500/50 bg-green-500/5">
-                              <p className="font-medium text-green-500">Hold NFTs (Non-Custodial) 🆕 Easiest</p>
+                              <p className="font-medium text-green-500">Hold NFTs (Non-Custodial)</p>
                               <p className="text-xs mt-1">
                                 <strong>No staking required!</strong> NFTs stay in user's wallet. 
                                 Simply hold eligible NFTs to vote. Each NFT = 1 vote. 
@@ -622,11 +622,6 @@ export function CreateDao() {
                         <Label htmlFor={`type-${type}`} className="font-medium cursor-pointer">
                           {DAO_TYPE_DESCRIPTIONS[type]?.short || `Type ${type}`}
                         </Label>
-                        {type === 5 && (
-                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
-                            Recommended
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {DAO_TYPE_DESCRIPTIONS[type]?.long}

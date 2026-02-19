@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Users } from "lucide-react";
+import { Users, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ export function KickUsersDialog({ farm, onSuccess }: KickUsersDialogProps) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<string>("10");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [kickError, setKickError] = useState<string | null>(null);
   const { session, accountName } = useWax();
   const { executeTransaction } = useWaxTransaction(session);
 
@@ -34,17 +36,22 @@ export function KickUsersDialog({ farm, onSuccess }: KickUsersDialogProps) {
     const kickAmount = parseInt(amount, 10);
     if (isNaN(kickAmount) || kickAmount <= 0) return;
 
+    setKickError(null);
     setIsSubmitting(true);
     try {
       const action = buildKickManyAction(accountName, farm.farm_name, kickAmount);
+      console.log('[KickUsers] Sending action:', JSON.stringify(action, null, 2));
       const result = await executeTransaction([action], {
         successTitle: "Users Kicked",
         successDescription: `Successfully kicked up to ${kickAmount} stakers from ${farm.farm_name}`,
+        showErrorToast: false,
       });
 
       if (result.success) {
         setOpen(false);
         onSuccess?.();
+      } else if (result.error) {
+        setKickError(result.error.message);
       }
     } finally {
       setIsSubmitting(false);
@@ -76,6 +83,13 @@ export function KickUsersDialog({ farm, onSuccess }: KickUsersDialogProps) {
               Currently staked: <span className="text-foreground font-medium">{farm.staked_count} NFTs</span>
             </p>
           </div>
+
+          {kickError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="break-all text-xs">{kickError}</AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="kickAmount">Number of users to kick</Label>

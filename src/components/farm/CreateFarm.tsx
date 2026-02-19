@@ -548,9 +548,24 @@ export function CreateFarm() {
                   <SelectValue placeholder="Choose farm type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(FARM_TYPE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
+                  {Object.entries(FARM_TYPE_LABELS).map(([key, label]) => {
+                    const isDisabled = key === "attributes";
+                    return (
+                      <SelectItem
+                        key={key}
+                        value={key}
+                        disabled={isDisabled}
+                        className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                      >
+                        <span className="flex items-center gap-2">
+                          {label}
+                          {isDisabled && (
+                            <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Coming Soon</span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">

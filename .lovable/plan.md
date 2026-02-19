@@ -1,129 +1,102 @@
 
-# Fix: Kick Users Button After Closing Farm
+# Why testtestfarm Still Shows as Expired
 
-## Root Cause Confirmed
+## Root Cause
 
-Your hypothesis is correct. The WaxDAO `closefarm` action does NOT set `status = 3`. It resets the farm back to **Under Construction** — `status = 0` with `expiration = 1` (the sentinel value meaning "never opened"). There is no separate status code for "temporarily closed".
+The code logic is now correct — `isUnderConstruction` is properly defined and the Kick Users button condition is right. The problem is **the React Query cache is not being reliably cleared and the RPC node itself is returning cached/stale data**.
 
-The current UI code checks `farm.status === 3` for `isClosed`, which **never triggers** because the contract never writes `3`. After closing, the farm becomes `isUnderConstruction` (status 0, expiration <= 1), but the Kick Users button only renders when `isClosed || isPermClosed` — so it never appears.
+Here is the exact sequence of failures:
 
-The "Expired" badge the user sees is likely from the stale cache returning the old expired expiration timestamp before the 2s/5s delayed refetch brings back the updated `expiration = 1`.
+1. `handleFarmUpdated` calls `queryClient.removeQueries(...)` — this removes the cache entry.
+2. Then it calls `await refetch()` — but `refetch()` is a reference to the query's refetch function captured before the remove. After `removeQueries`, the query has been unmounted from the cache. In some versions of React Query, calling `refetch()` on a removed query re-creates it but may not guarantee a fresh network request if the component is simultaneously re-rendering and re-mounting the same query.
+3. Even if the network request goes out, **the WAX RPC node (eosphere.io, pink.gg, etc.) has its own server-side caching** — they can return the same old `expiration` value for 10–30+ seconds after a transaction.
+4. The `staleTime: 30000` on the query (line 107) means that if React Query sees fresh-ish data (from the RPC node's cache), it will happily accept it and not go to the network again.
+
+The delayed refetches at 2s and 5s also call `removeQueries` then `refetch()` — same issue.
+
+Additionally, the manual **Refresh button** (`handleRefresh` at line 130) only calls `refetch()` without first calling `removeQueries`, so it also serves stale data.
 
 ## The Fix
 
-The entire `isClosed` / `status === 3` concept should be removed. The contract uses only these states:
+Two changes to `src/components/farm/FarmDetail.tsx`:
 
-```text
-status 0 + expiration <= 1  → Under Construction (also the state after closefarm)
-status 0 + expiration > now → Active (opened, not expired)
-status 0 + expiration < now → Expired
-status 1                    → (not used / legacy?)
-status 2                    → Permanently Closed
+### Fix 1 — Set `staleTime: 0` on the farmDetail query
+
+Change the query from `staleTime: 30000` to `staleTime: 0`. This ensures that every time a refetch is requested, it **always goes to the network** rather than potentially returning data from React Query's own cache.
+
+```tsx
+// Before
+staleTime: 30000,
+
+// After
+staleTime: 0,
 ```
 
-The Kick Users button and the "Now kick all users..." info message need to trigger on `isUnderConstruction && hasStakers`, not `isClosed`.
+### Fix 2 — Replace `refetch()` calls with `queryClient.fetchQuery` in `handleFarmUpdated`
+
+Instead of calling `refetch()` (which is a reference to the old query that may be stale after `removeQueries`), use `queryClient.fetchQuery` which is guaranteed to trigger a fresh network request and update the cache. This is the correct React Query pattern for imperatively fetching fresh data.
+
+```tsx
+const handleFarmUpdated = async () => {
+  // Remove stale cache entirely
+  queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+  queryClient.invalidateQueries({ queryKey: ["myV2farms"] });
+
+  // Immediately trigger a fresh fetch (guaranteed network request)
+  await queryClient.fetchQuery({
+    queryKey: ["farmDetail", farmName],
+    queryFn: () => fetchFarmDetails(farmName!),
+    staleTime: 0,
+  });
+
+  // Delayed refetches to handle RPC node propagation lag (nodes can cache for 10-30s)
+  setTimeout(async () => {
+    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+    await queryClient.fetchQuery({
+      queryKey: ["farmDetail", farmName],
+      queryFn: () => fetchFarmDetails(farmName!),
+      staleTime: 0,
+    });
+  }, 3000);
+
+  setTimeout(async () => {
+    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+    await queryClient.fetchQuery({
+      queryKey: ["farmDetail", farmName],
+      queryFn: () => fetchFarmDetails(farmName!),
+      staleTime: 0,
+    });
+  }, 7000);
+};
+```
+
+Also fix the **Refresh button** handler to clear the cache before refreshing:
+
+```tsx
+const handleRefresh = async () => {
+  setIsRefreshing(true);
+  try {
+    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+    await queryClient.fetchQuery({
+      queryKey: ["farmDetail", farmName],
+      queryFn: () => fetchFarmDetails(farmName!),
+      staleTime: 0,
+    });
+    toast({ title: "Farm data refreshed!" });
+  } finally {
+    setIsRefreshing(false);
+  }
+};
+```
+
+## Why This Works
+
+- `queryClient.fetchQuery` is explicitly designed to fetch fresh data imperatively and update the cache — it does not have the stale-reference problem that `refetch()` can have after `removeQueries`.
+- `staleTime: 0` on the query declaration means React Query never considers existing data "fresh enough to skip the network", so every request goes to the RPC node.
+- The 3s and 7s delayed refetches (slightly longer than before) give WAX RPC nodes enough time to propagate the transaction and return the updated `expiration: 1` value.
 
 ## Files to Change
 
-### `src/components/farm/FarmDetail.tsx`
-
-**1. Remove the dead `isClosed` variable (status === 3 never happens).**
-
-Current:
-```tsx
-const isClosed = farm.status === 3;
-const isPermClosed = farm.status === 2;
-const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
-```
-
-Replace with:
-```tsx
-const isPermClosed = farm.status === 2;
-const isExpired = !isUnderConstruction && !isPermClosed && farm.expiration < now;
-```
-
-**2. Update the "Kick Users" button condition** from `isClosed || isPermClosed` to `isUnderConstruction || isPermClosed`.
-
-Current (line ~389):
-```tsx
-{isCreator && (isClosed || isPermClosed) && hasStakers && (
-  <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
-)}
-{isCreator && (isClosed || isPermClosed) && !hasStakers && (
-  <span className="text-xs text-muted-foreground">No stakers to kick</span>
-)}
-{isCreator && isPermClosed && !hasStakers && (
-  <EmptyFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
-)}
-```
-
-Replace with:
-```tsx
-{isCreator && (isUnderConstruction || isPermClosed) && hasStakers && (
-  <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
-)}
-{isCreator && (isUnderConstruction || isPermClosed) && !hasStakers && (
-  <span className="text-xs text-muted-foreground">No stakers to kick</span>
-)}
-{isCreator && isPermClosed && !hasStakers && (
-  <EmptyFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
-)}
-```
-
-**3. Update the Creator Info Box** — the `isClosed` branch message should now show under `isUnderConstruction` when stakers exist.
-
-Current:
-```tsx
-} : isClosed ? (
-  <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
-) : isUnderConstruction ? (
-  <p>Your farm is under construction. Add stakeable assets...</p>
-```
-
-Replace so `isUnderConstruction` shows the right message depending on whether stakers exist:
-```tsx
-} : isUnderConstruction ? (
-  hasStakers ? (
-    <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
-  ) : (
-    <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
-  )
-) :
-```
-
-**4. Remove all remaining `isClosed` references** (badge rendering, ManageStakableAssets `canEdit` prop, etc.).
-
-Current badge rendering:
-```tsx
-{isPermClosed ? (
-  <Badge variant="destructive">Permanently Closed</Badge>
-) : isClosed ? (
-  <Badge className="...">Closed</Badge>
-) : isUnderConstruction ? (
-```
-
-Replace by simply removing the `isClosed` branch:
-```tsx
-{isPermClosed ? (
-  <Badge variant="destructive">Permanently Closed</Badge>
-) : isUnderConstruction ? (
-```
-
-Current `canEdit` for ManageStakableAssets:
-```tsx
-canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
-```
-Replace with:
-```tsx
-canEdit={isUnderConstruction && !isPermClosed}
-```
-
-**5. Fix the "Close/Perm Close" button condition** — currently buttons show only when `isExpired`. This is still correct since `closefarm` is only callable on expired farms.
-
-## Summary of Changes
-
 | File | Change |
 |---|---|
-| `src/components/farm/FarmDetail.tsx` | Remove dead `isClosed` (status 3) variable; show Kick Users when `isUnderConstruction && hasStakers`; update info box message to branch on `hasStakers` inside the `isUnderConstruction` block; remove `isClosed` badge; fix `canEdit` prop |
-
-No other files need to change — the contract action builders and `CloseFarmDialog` toast are already correct from the previous fix.
+| `src/components/farm/FarmDetail.tsx` | Set `staleTime: 0` on farmDetail query; replace `refetch()` calls with `queryClient.fetchQuery` in `handleFarmUpdated`; fix `handleRefresh` to also clear cache first |

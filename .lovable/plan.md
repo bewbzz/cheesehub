@@ -1,74 +1,129 @@
 
-# Fix CloseFarmDialog: Wrong Toast + Stale UI After Closing
+# Fix: Kick Users Button After Closing Farm
 
-## Two Bugs to Fix
+## Root Cause Confirmed
 
-### Bug 1 — Wrong Toast Message
-In `src/components/farm/CloseFarmDialog.tsx`, the success toast incorrectly says:
+Your hypothesis is correct. The WaxDAO `closefarm` action does NOT set `status = 3`. It resets the farm back to **Under Construction** — `status = 0` with `expiration = 1` (the sentinel value meaning "never opened"). There is no separate status code for "temporarily closed".
+
+The current UI code checks `farm.status === 3` for `isClosed`, which **never triggers** because the contract never writes `3`. After closing, the farm becomes `isUnderConstruction` (status 0, expiration <= 1), but the Kick Users button only renders when `isClosed || isPermClosed` — so it never appears.
+
+The "Expired" badge the user sees is likely from the stale cache returning the old expired expiration timestamp before the 2s/5s delayed refetch brings back the updated `expiration = 1`.
+
+## The Fix
+
+The entire `isClosed` / `status === 3` concept should be removed. The contract uses only these states:
+
+```text
+status 0 + expiration <= 1  → Under Construction (also the state after closefarm)
+status 0 + expiration > now → Active (opened, not expired)
+status 0 + expiration < now → Expired
+status 1                    → (not used / legacy?)
+status 2                    → Permanently Closed
 ```
-"Farm Permanently Closed!"
-```
-It should say:
-```
-"Farm Closed!"
-```
-This is a simple one-line text change.
 
-### Bug 2 — Kick Users Button Not Appearing After Close
-After closing the farm, the UI still shows "Close" and "Permanently Closed" buttons instead of "Kick Users". This is caused by stale React Query cache.
-
-**Root cause:** The `handleFarmUpdated` callback in `FarmDetail.tsx` invalidates `["farmDetail", farmName]` and calls `refetch()`, but the WAX RPC node has its own caching delay. By the time the refetch runs, the node may still return the old `status` value. Additionally, the `staleTime: 30000` on the query means React Query may serve the old cached data even after `refetch()` is called in some cases.
-
-**The fix:** In `FarmDetail.tsx`, the `handleFarmUpdated` function needs to:
-1. Force the query out of stale state by setting `staleTime` to `0` for the invalidation, or more practically, call `queryClient.removeQueries` to fully clear the cache entry before refetching — ensuring fresh data is always fetched from the network.
-2. Also invalidate the `["myV2farms"]` list cache so other views stay in sync.
+The Kick Users button and the "Now kick all users..." info message need to trigger on `isUnderConstruction && hasStakers`, not `isClosed`.
 
 ## Files to Change
 
-### 1. `src/components/farm/CloseFarmDialog.tsx`
-Change line in the success toast:
-```tsx
-// Before
-title: "Farm Permanently Closed!",
-description: `${farm.farm_name} has been permanently removed.`
+### `src/components/farm/FarmDetail.tsx`
 
-// After  
-title: "Farm Closed!",
-description: `${farm.farm_name} has been closed.`
+**1. Remove the dead `isClosed` variable (status === 3 never happens).**
+
+Current:
+```tsx
+const isClosed = farm.status === 3;
+const isPermClosed = farm.status === 2;
+const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
 ```
 
-### 2. `src/components/farm/FarmDetail.tsx`
-Update `handleFarmUpdated` to remove (not just invalidate) the cached query entry before refetching, ensuring the UI always gets fresh on-chain data:
-
+Replace with:
 ```tsx
-const handleFarmUpdated = async () => {
-  // Remove stale cache entirely so refetch always goes to network
-  queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-  queryClient.invalidateQueries({ queryKey: ["myV2farms"] });
-
-  // Immediate refetch
-  await refetch();
-
-  // Delayed refetches to handle RPC node propagation lag
-  setTimeout(() => {
-    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-    refetch();
-  }, 2000);
-
-  setTimeout(() => {
-    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-    refetch();
-  }, 5000);
-};
+const isPermClosed = farm.status === 2;
+const isExpired = !isUnderConstruction && !isPermClosed && farm.expiration < now;
 ```
 
-## Why `removeQueries` Instead of `invalidateQueries`
-- `invalidateQueries` marks the data as stale but React Query may still return the cached value while fetching in the background, causing the old buttons to flash briefly or persist.
-- `removeQueries` fully clears the cache entry, so the next `refetch()` is guaranteed to fetch from the network and the UI shows fresh data.
+**2. Update the "Kick Users" button condition** from `isClosed || isPermClosed` to `isUnderConstruction || isPermClosed`.
 
-## Summary
+Current (line ~389):
+```tsx
+{isCreator && (isClosed || isPermClosed) && hasStakers && (
+  <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
+)}
+{isCreator && (isClosed || isPermClosed) && !hasStakers && (
+  <span className="text-xs text-muted-foreground">No stakers to kick</span>
+)}
+{isCreator && isPermClosed && !hasStakers && (
+  <EmptyFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+)}
+```
+
+Replace with:
+```tsx
+{isCreator && (isUnderConstruction || isPermClosed) && hasStakers && (
+  <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
+)}
+{isCreator && (isUnderConstruction || isPermClosed) && !hasStakers && (
+  <span className="text-xs text-muted-foreground">No stakers to kick</span>
+)}
+{isCreator && isPermClosed && !hasStakers && (
+  <EmptyFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
+)}
+```
+
+**3. Update the Creator Info Box** — the `isClosed` branch message should now show under `isUnderConstruction` when stakers exist.
+
+Current:
+```tsx
+} : isClosed ? (
+  <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
+) : isUnderConstruction ? (
+  <p>Your farm is under construction. Add stakeable assets...</p>
+```
+
+Replace so `isUnderConstruction` shows the right message depending on whether stakers exist:
+```tsx
+} : isUnderConstruction ? (
+  hasStakers ? (
+    <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
+  ) : (
+    <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
+  )
+) :
+```
+
+**4. Remove all remaining `isClosed` references** (badge rendering, ManageStakableAssets `canEdit` prop, etc.).
+
+Current badge rendering:
+```tsx
+{isPermClosed ? (
+  <Badge variant="destructive">Permanently Closed</Badge>
+) : isClosed ? (
+  <Badge className="...">Closed</Badge>
+) : isUnderConstruction ? (
+```
+
+Replace by simply removing the `isClosed` branch:
+```tsx
+{isPermClosed ? (
+  <Badge variant="destructive">Permanently Closed</Badge>
+) : isUnderConstruction ? (
+```
+
+Current `canEdit` for ManageStakableAssets:
+```tsx
+canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
+```
+Replace with:
+```tsx
+canEdit={isUnderConstruction && !isPermClosed}
+```
+
+**5. Fix the "Close/Perm Close" button condition** — currently buttons show only when `isExpired`. This is still correct since `closefarm` is only callable on expired farms.
+
+## Summary of Changes
 
 | File | Change |
 |---|---|
-| `src/components/farm/CloseFarmDialog.tsx` | Fix toast title/description to say "Farm Closed!" not "Permanently Closed!" |
-| `src/components/farm/FarmDetail.tsx` | Replace `invalidateQueries` with `removeQueries` in `handleFarmUpdated` and also invalidate `myV2farms` list |
+| `src/components/farm/FarmDetail.tsx` | Remove dead `isClosed` (status 3) variable; show Kick Users when `isUnderConstruction && hasStakers`; update info box message to branch on `hasStakers` inside the `isUnderConstruction` block; remove `isClosed` badge; fix `canEdit` prop |
+
+No other files need to change — the contract action builders and `CloseFarmDialog` toast are already correct from the previous fix.

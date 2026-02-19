@@ -21,7 +21,7 @@ interface FarmCardProps {
 export function FarmCard({ farm, onSelect }: FarmCardProps) {
   const navigate = useNavigate();
   const now = Math.floor(Date.now() / 1000);
-  const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
+  const isUnderConstruction = farm.status === 0;
   const isExpired = !isUnderConstruction && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));

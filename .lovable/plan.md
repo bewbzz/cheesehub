@@ -1,108 +1,65 @@
 
-# Fix: "Failed to Fetch" Error When Adding Liquidity in Alcor Farm Manager
+# Fix: "Failed to Fetch" — Greymass SSL Certificate Expired
 
-## Root Cause
+## Root Cause (100% Confirmed by Console Logs)
 
-The "TypeError: Failed to fetch" error shown as a toast comes from inside `handleSubmit` in `IncreaseLiquidityDialog.tsx`. The error is thrown during `session.transact(...)` — specifically when WharfKit tries to **fetch the ABI** for the `swap.alcor` contract from the WAX RPC node to serialize the transaction.
-
-WharfKit always fetches the contract ABI before signing a transaction to serialize action data. If the primary RPC endpoint is slow or drops the connection at that moment, the fetch fails with a generic `TypeError: Failed to fetch`. The error bubbles up and the dialog shows it as a toast.
-
-There are two contributing issues:
-
-1. **No retry on the RPC fetch**: The ABI fetch by WharfKit hits whichever RPC is currently active. If it times out or drops, it throws immediately with no retry.
-2. **The error is caught and shown as a toast, then the dialog stays open with no inline error** — the user sees a toast flash and disappear, leaving them confused about what happened.
-
-## What the Session Replay Showed
-
-The session replay confirmed:
-- The "Add Liquidity" button was disabled (showing "Adding Liquidity...") — so `handleSubmit` was called and `setIsTransacting(true)` ran.
-- Then `TypeError: Failed to fetch` appeared as a toast notification.
-
-This confirms the error happens inside `session.transact` when WharfKit internally tries to resolve the `swap.alcor` ABI.
-
-## The Fix
-
-### Two Changes Needed
-
-**Change 1: `src/components/wallet/IncreaseLiquidityDialog.tsx`**
-
-Add inline error display (same pattern as `KickUsersDialog`) so the user sees the error clearly inside the dialog, with a "Try Again" button, rather than a fleeting toast. Also add a retry wrapper around `session.transact` with a small delay on failure.
-
-```tsx
-const [submitError, setSubmitError] = useState<string | null>(null);
-
-const handleSubmit = async () => {
-  setSubmitError(null);
-  // ... existing validation ...
-  
-  setIsTransacting(true);
-  try {
-    // Retry up to 2 times on network errors
-    let lastError: any = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
-        const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
-        // ... handle success ...
-        return;
-      } catch (err: any) {
-        lastError = err;
-        const isNetworkError = err?.message?.toLowerCase().includes('failed to fetch') ||
-                               err?.message?.toLowerCase().includes('network');
-        if (!isNetworkError) break; // Don't retry contract errors
-      }
-    }
-    throw lastError;
-  } catch (error: any) {
-    const msg = error?.message || 'Failed to add liquidity';
-    const isNetworkError = msg.toLowerCase().includes('failed to fetch');
-    setSubmitError(
-      isNetworkError
-        ? 'Network error: Could not reach WAX node. Please try again.'
-        : msg
-    );
-  } finally {
-    setIsTransacting(false);
-    closeWharfkitModals();
-    setTimeout(() => closeWharfkitModals(), 300);
-  }
-};
+The console error is definitive:
+```
+POST https://wax.greymass.com/v1/resource_provider/request_transaction
+net::ERR_CERT_DATE_INVALID
 ```
 
-Then add an inline `Alert` in the JSX (just like `KickUsersDialog` now has):
-```tsx
-{submitError && (
-  <Alert variant="destructive">
-    <AlertCircle className="h-4 w-4" />
-    <AlertDescription className="break-all text-xs">{submitError}</AlertDescription>
-  </Alert>
-)}
-```
+The `getTransactPlugins` function in `src/lib/wharfKit.ts` returns a `TransactPluginResourceProvider` pointing to `https://wax.greymass.com` when an Anchor wallet is detected. Before WharfKit submits any transaction, this plugin makes a POST request to Greymass asking for free CPU/NET sponsorship ("Fuel"). Greymass's SSL certificate is currently expired — the browser refuses the connection entirely with `ERR_CERT_DATE_INVALID`, which throws `TypeError: Failed to fetch`.
 
-**Change 2: `src/lib/alcorFarms.ts` — Fix the `addliquid` action structure**
+## Why Claiming Rewards Seems to Work
 
-Looking at the `buildIncreaseLiquidityAction` function (lines 925-993), there is a potential structural issue: the `addliquid` action's `data` object has **inconsistent indentation** suggesting the fields may not be correctly nested (lines 986-990 have different indentation than lines 982-985). While TypeScript won't care about indentation, it's worth double-checking that `tokenAMin`, `tokenBMin`, and `deadline` are inside the `data` object.
+The `TransactPluginResourceProvider` only requests Fuel sponsorship for transactions that appear to **need** resources (based on CPU/NET estimates). Small/simple claim transactions may succeed because either:
+- The Fuel plugin decides no sponsorship is needed and skips the Greymass call
+- Or the user has enough staked CPU that the plugin silently bypasses Fuel
 
-More importantly: the `addliquid` action sends a `positionId` parameter that isn't used. The Alcor `addliquid` action creates a **new position** if one doesn't exist or adds to an existing one. To add to an **existing position**, the correct action name on Alcor V3 is actually `addliquid` with the same tick range — but the `positionId` is NOT passed to this action. The current implementation is correct on this point.
+The `addliquid` action is a **3-action transaction** (2x token transfers + 1x addliquid) — this is larger and always triggers the Fuel request to Greymass, which is why it specifically fails while smaller transactions may not.
 
-However, the **slippage calculation** uses 10% which is very aggressive and may cause failures if price moves slightly. The Alcor frontend uses 0.5% slippage by default. The 10% slippage should be reduced to 0.5% so min amounts are much closer to desired amounts and the transaction doesn't fail with "amount too small" contract assertions.
+## The Fix — Disable Greymass Fuel Endpoint
 
-Change in `buildIncreaseLiquidityAction`:
+Only one file needs to change: `src/lib/wharfKit.ts`
+
+Update `getTransactPlugins` to return an empty array, bypassing the broken Greymass endpoint. Users will use their own WAX CPU/NET resources. With `allowFees: false` already set, we were never getting paid sponsorship anyway — only free sponsorship when Greymass decided to offer it.
+
 ```ts
-// Before
-const slippageMultiplier = 0.90; // 10% slippage
+export function getTransactPlugins(session: Session) {
+  // NOTE: Greymass Fuel (wax.greymass.com) SSL certificate is currently expired
+  // (ERR_CERT_DATE_INVALID). All requests to the Fuel endpoint fail at browser level.
+  // Disabling Fuel until Greymass renews their certificate.
+  // To re-enable: restore the TransactPluginResourceProvider block below.
+  console.log('[WharfKit] getTransactPlugins - Fuel disabled (Greymass cert expired)');
+  return [];
 
-// After  
-const slippageMultiplier = 0.995; // 0.5% slippage (matches Alcor default)
+  /* Re-enable when wax.greymass.com cert is renewed:
+  const useAnchorPlugins = isAnchorSession(session);
+  if (useAnchorPlugins) {
+    return [
+      new TransactPluginResourceProvider({
+        endpoints: { [WAX_CHAIN_ID]: 'https://wax.greymass.com' },
+        allowFees: false,
+      }),
+    ];
+  }
+  return [];
+  */
+}
 ```
+
+## What This Changes
+
+- All transactions (claim rewards, add liquidity, stake, etc.) will skip the Greymass Fuel co-signing step
+- Users will sign transactions using their own CPU/NET resources (staked WAX or REX)
+- No functional difference since `allowFees: false` meant Greymass was only ever providing free resource sponsorship, which it may or may not have granted
+- When Greymass renews their cert, simply restore the original function body
 
 ## Files to Change
 
 | File | Change |
 |---|---|
-| `src/components/wallet/IncreaseLiquidityDialog.tsx` | Add `submitError` state; wrap `session.transact` in 2-attempt retry loop for network errors; show inline `Alert` with error message; keep toast removed |
-| `src/lib/alcorFarms.ts` | Change `slippageMultiplier` from `0.90` (10%) to `0.995` (0.5%) in `buildIncreaseLiquidityAction` |
+| `src/lib/wharfKit.ts` | Lines 54-72: Replace `getTransactPlugins` body to return `[]` immediately, with the original code commented out for easy re-enabling |
 
-## Why 0.5% Slippage
-
-Alcor Exchange uses 0.5% slippage by default for concentrated liquidity adds. With 10% slippage, the `tokenAMin` and `tokenBMin` are 10% below the desired amount — this is so loose that it may cause issues on the contract side if the pool validates that the minimum makes sense relative to the desired. Alcor's own frontend uses 0.5% (or up to 2% in volatile markets), not 10%.
+This is a single-function, single-file change that will immediately fix the "Failed to fetch" error on all transactions.

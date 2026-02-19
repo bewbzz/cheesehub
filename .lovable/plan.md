@@ -1,102 +1,62 @@
 
-# Why testtestfarm Still Shows as Expired
+# Fix: Farm Shows as Expired Instead of Under Construction After Closing
 
-## Root Cause
+## Root Cause — Wrong State Machine Assumption
 
-The code logic is now correct — `isUnderConstruction` is properly defined and the Kick Users button condition is right. The problem is **the React Query cache is not being reliably cleared and the RPC node itself is returning cached/stale data**.
-
-Here is the exact sequence of failures:
-
-1. `handleFarmUpdated` calls `queryClient.removeQueries(...)` — this removes the cache entry.
-2. Then it calls `await refetch()` — but `refetch()` is a reference to the query's refetch function captured before the remove. After `removeQueries`, the query has been unmounted from the cache. In some versions of React Query, calling `refetch()` on a removed query re-creates it but may not guarantee a fresh network request if the component is simultaneously re-rendering and re-mounting the same query.
-3. Even if the network request goes out, **the WAX RPC node (eosphere.io, pink.gg, etc.) has its own server-side caching** — they can return the same old `expiration` value for 10–30+ seconds after a transaction.
-4. The `staleTime: 30000` on the query (line 107) means that if React Query sees fresh-ish data (from the RPC node's cache), it will happily accept it and not go to the network again.
-
-The delayed refetches at 2s and 5s also call `removeQueries` then `refetch()` — same issue.
-
-Additionally, the manual **Refresh button** (`handleRefresh` at line 130) only calls `refetch()` without first calling `removeQueries`, so it also serves stale data.
-
-## The Fix
-
-Two changes to `src/components/farm/FarmDetail.tsx`:
-
-### Fix 1 — Set `staleTime: 0` on the farmDetail query
-
-Change the query from `staleTime: 30000` to `staleTime: 0`. This ensures that every time a refetch is requested, it **always goes to the network** rather than potentially returning data from React Query's own cache.
-
+The current code determines "Under Construction" as:
 ```tsx
-// Before
-staleTime: 30000,
-
-// After
-staleTime: 0,
+const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
 ```
 
-### Fix 2 — Replace `refetch()` calls with `queryClient.fetchQuery` in `handleFarmUpdated`
+This is **incorrect**. Looking at the actual on-chain data from the network log:
+- After `closefarm` executes: `status = 0`, `expiration = 1771423200` (the old expiration is KEPT — not reset to 1)
+- `last_state_change` updates to the close transaction time: `1771487514`
 
-Instead of calling `refetch()` (which is a reference to the old query that may be stale after `removeQueries`), use `queryClient.fetchQuery` which is guaranteed to trigger a fresh network request and update the cache. This is the correct React Query pattern for imperatively fetching fresh data.
+The `farms.waxdao` contract does NOT reset `expiration` to `1` when you call `closefarm`. The expiration stays at whatever value it had. So the check `expiration <= 1` never fires after a close — it only fires for a brand-new farm that was never opened.
 
-```tsx
-const handleFarmUpdated = async () => {
-  // Remove stale cache entirely
-  queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-  queryClient.invalidateQueries({ queryKey: ["myV2farms"] });
+The WaxDAO UI determines "Under Construction / Closed" by checking **only `status === 0`**, not the expiration value. Both a new farm (never opened) and a closed farm land on `status = 0`.
 
-  // Immediately trigger a fresh fetch (guaranteed network request)
-  await queryClient.fetchQuery({
-    queryKey: ["farmDetail", farmName],
-    queryFn: () => fetchFarmDetails(farmName!),
-    staleTime: 0,
-  });
+## The Correct State Machine
 
-  // Delayed refetches to handle RPC node propagation lag (nodes can cache for 10-30s)
-  setTimeout(async () => {
-    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-    await queryClient.fetchQuery({
-      queryKey: ["farmDetail", farmName],
-      queryFn: () => fetchFarmDetails(farmName!),
-      staleTime: 0,
-    });
-  }, 3000);
-
-  setTimeout(async () => {
-    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-    await queryClient.fetchQuery({
-      queryKey: ["farmDetail", farmName],
-      queryFn: () => fetchFarmDetails(farmName!),
-      staleTime: 0,
-    });
-  }, 7000);
-};
+```text
+status === 0  → Under Construction (includes: newly created AND post-closefarm)
+status === 1  → Active (opened and not expired)
+status === 2  → Permanently Closed
 ```
 
-Also fix the **Refresh button** handler to clear the cache before refreshing:
+The `expiration` field is only useful for distinguishing Active vs Expired when `status === 1`. When `status === 0`, the farm is always "Under Construction" regardless of expiration value.
 
+## The Fix — One Line Change
+
+### `src/components/farm/FarmDetail.tsx`
+
+**Line 200 — Change `isUnderConstruction`:**
+
+Current:
 ```tsx
-const handleRefresh = async () => {
-  setIsRefreshing(true);
-  try {
-    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-    await queryClient.fetchQuery({
-      queryKey: ["farmDetail", farmName],
-      queryFn: () => fetchFarmDetails(farmName!),
-      staleTime: 0,
-    });
-    toast({ title: "Farm data refreshed!" });
-  } finally {
-    setIsRefreshing(false);
-  }
-};
+const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
 ```
 
-## Why This Works
+Replace with:
+```tsx
+const isUnderConstruction = farm.status === 0;
+```
 
-- `queryClient.fetchQuery` is explicitly designed to fetch fresh data imperatively and update the cache — it does not have the stale-reference problem that `refetch()` can have after `removeQueries`.
-- `staleTime: 0` on the query declaration means React Query never considers existing data "fresh enough to skip the network", so every request goes to the RPC node.
-- The 3s and 7s delayed refetches (slightly longer than before) give WAX RPC nodes enough time to propagate the transaction and return the updated `expiration: 1` value.
+This single change fixes everything:
+- `testtestfarm` has `status = 0` → `isUnderConstruction = true` → shows "Under Construction" badge
+- `isExpired` (line 204) is `!isUnderConstruction && !isPermClosed && farm.expiration < now` → becomes `false` because `isUnderConstruction` is `true`
+- The Kick Users button condition `isUnderConstruction && hasStakers` → shows the button
+- A brand new farm that was never opened also has `status = 0` → also shows "Under Construction" correctly
+- The Close/Perm Close buttons only show when `isExpired` → will no longer show when status = 0
+
+## Why the `expiration <= 1` sentinel was wrong
+
+The assumption that WaxDAO uses `expiration = 1` as a sentinel for "never opened" was based on observing that newly created farms start with `expiration = 1`. But after `closefarm`, the expiration is NOT reset — so the sentinel approach only worked for new farms. The correct check is purely `status === 0`.
 
 ## Files to Change
 
 | File | Change |
 |---|---|
-| `src/components/farm/FarmDetail.tsx` | Set `staleTime: 0` on farmDetail query; replace `refetch()` calls with `queryClient.fetchQuery` in `handleFarmUpdated`; fix `handleRefresh` to also clear cache first |
+| `src/components/farm/FarmDetail.tsx` | Line 200: Change `farm.status === 0 && farm.expiration <= 1` to just `farm.status === 0` |
+
+That is the only change needed. All downstream logic (`isExpired`, `isPermClosed`, the badge rendering, the Kick Users button condition, the Close/PermClose button condition) is already correctly written — it just needs `isUnderConstruction` to be true.

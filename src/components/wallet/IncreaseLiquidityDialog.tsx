@@ -14,7 +14,7 @@ import { useWax } from '@/context/WaxContext';
 import { useAllTokenBalances } from '@/hooks/useAllTokenBalances';
 import { buildIncreaseLiquidityAction, AlcorFarmPosition } from '@/lib/alcorFarms';
 import { TokenLogo } from '@/components/TokenLogo';
-import { toast } from 'sonner';
+
 import { closeWharfkitModals, getTransactPlugins } from '@/lib/wharfKit';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -37,6 +37,7 @@ export function IncreaseLiquidityDialog({
   const [tokenBAmount, setTokenBAmount] = useState('');
   const [lastEditedToken, setLastEditedToken] = useState<'A' | 'B' | null>(null);
   const [isTransacting, setIsTransacting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Find user's balances for the position tokens
   const tokenABalance = useMemo(() => {
@@ -92,6 +93,7 @@ export function IncreaseLiquidityDialog({
       setTokenAAmount('');
       setTokenBAmount('');
       setLastEditedToken(null);
+      setSubmitError(null);
       // Refetch balances to ensure we have the latest (e.g., after claiming rewards)
       refetchBalances();
     }
@@ -121,10 +123,11 @@ export function IncreaseLiquidityDialog({
 
   const handleSubmit = async () => {
     if (!session || !accountName || !position) return;
+    setSubmitError(null);
 
     // Validate tick data
     if (position.tickLower === 0 && position.tickUpper === 0) {
-      toast.error('Position tick data is missing. Please use Alcor directly.');
+      setSubmitError('Position tick data is missing. Please use Alcor directly.');
       return;
     }
 
@@ -132,17 +135,17 @@ export function IncreaseLiquidityDialog({
     const amountB = parseFloat(tokenBAmount);
 
     if (!amountA || !amountB || amountA <= 0 || amountB <= 0) {
-      toast.error('Enter valid amounts for both tokens');
+      setSubmitError('Enter valid amounts for both tokens');
       return;
     }
 
     if (tokenABalance && amountA > tokenABalance.balance) {
-      toast.error(`Insufficient ${position.tokenA.symbol} balance`);
+      setSubmitError(`Insufficient ${position.tokenA.symbol} balance`);
       return;
     }
 
     if (tokenBBalance && amountB > tokenBBalance.balance) {
-      toast.error(`Insufficient ${position.tokenB.symbol} balance`);
+      setSubmitError(`Insufficient ${position.tokenB.symbol} balance`);
       return;
     }
 
@@ -152,36 +155,55 @@ export function IncreaseLiquidityDialog({
     const quantityA = `${amountA.toFixed(precisionA)} ${position.tokenA.symbol}`;
     const quantityB = `${amountB.toFixed(precisionB)} ${position.tokenB.symbol}`;
 
+    const actions = buildIncreaseLiquidityAction(
+      accountName,
+      position.positionId,
+      position.poolId,
+      position.tickLower,
+      position.tickUpper,
+      position.tokenA.contract,
+      quantityA,
+      position.tokenB.contract,
+      quantityB
+    );
+
     setIsTransacting(true);
     try {
-      const actions = buildIncreaseLiquidityAction(
-        accountName,
-        position.positionId,
-        position.poolId,
-        position.tickLower,
-        position.tickUpper,
-        position.tokenA.contract,
-        quantityA,
-        position.tokenB.contract,
-        quantityB
-      );
+      // Retry up to 2 times on transient network errors
+      let lastError: any = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+          const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
+          const txId = result.resolved?.transaction.id?.toString() || null;
 
-      const result = await session.transact({ actions }, { transactPlugins: getTransactPlugins(session) });
-      const txId = result.resolved?.transaction.id?.toString() || null;
+          // Refetch token balances after successful transaction
+          setTimeout(() => { refetchBalances(); }, 2000);
 
-      // Refetch token balances after successful transaction
-      setTimeout(() => {
-        refetchBalances();
-      }, 2000);
-
-      onSuccess(
-        'Liquidity Added!',
-        `Added ${quantityA} and ${quantityB} to your ${position.tokenA.symbol}/${position.tokenB.symbol} position`,
-        txId
-      );
+          onSuccess(
+            'Liquidity Added!',
+            `Added ${quantityA} and ${quantityB} to your ${position.tokenA.symbol}/${position.tokenB.symbol} position`,
+            txId
+          );
+          return;
+        } catch (err: any) {
+          lastError = err;
+          const isNetworkError =
+            err?.message?.toLowerCase().includes('failed to fetch') ||
+            err?.message?.toLowerCase().includes('networkerror');
+          if (!isNetworkError) break; // Don't retry contract-level errors
+        }
+      }
+      throw lastError;
     } catch (error: any) {
       console.error('Add liquidity error:', error);
-      toast.error(error?.message || 'Failed to add liquidity');
+      const msg = error?.message || 'Failed to add liquidity';
+      const isNetworkError = msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror');
+      setSubmitError(
+        isNetworkError
+          ? 'Network error: Could not reach WAX node. Please try again.'
+          : msg
+      );
     } finally {
       setIsTransacting(false);
       closeWharfkitModals();
@@ -296,6 +318,14 @@ export function IncreaseLiquidityDialog({
               <AlertDescription>
                 Insufficient {position.tokenB.symbol} balance
               </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Inline transaction error */}
+          {submitError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="break-all text-xs">{submitError}</AlertDescription>
             </Alert>
           )}
 

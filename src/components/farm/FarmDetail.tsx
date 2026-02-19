@@ -179,12 +179,12 @@ export function FarmDetail() {
   
   // Farm is "under construction" only if never opened (status 0 AND expiration <= 1)
   // The contract uses expiration: 1 as sentinel for "never opened"
+  // NOTE: closefarm also resets back to status 0 + expiration 1 (under construction), there is no status 3
   const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
-  // Farm status codes: 0 = Under Construction, 1 = Active, 2 = Permanently Closed, 3 = Closed
-  const isClosed = farm.status === 3;
+  // Farm status codes: 0 = Under Construction (also post-close), 1 = Active, 2 = Permanently Closed
   const isPermClosed = farm.status === 2;
   // Farm is "expired" only if it's been opened and has passed its expiration date
-  const isExpired = !isUnderConstruction && !isClosed && !isPermClosed && farm.expiration < now;
+  const isExpired = !isUnderConstruction && !isPermClosed && farm.expiration < now;
   const expirationDate = new Date(farm.expiration * 1000);
   const daysRemaining = Math.max(0, Math.ceil((farm.expiration - now) / 86400));
   const hasStakers = farm.staked_count > 0;
@@ -254,10 +254,6 @@ export function FarmDetail() {
             </Badge>
             {isPermClosed ? (
               <Badge variant="destructive">Permanently Closed</Badge>
-            ) : isClosed ? (
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                Closed
-              </Badge>
             ) : isUnderConstruction ? (
               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                 <Construction className="h-3 w-3 mr-1" />
@@ -286,7 +282,7 @@ export function FarmDetail() {
             {isCreator && (
               <ManageStakableAssets 
                 farm={farm} 
-                canEdit={(isUnderConstruction || (isClosed && !hasStakers)) && !isPermClosed}
+                canEdit={isUnderConstruction && !isPermClosed}
                 onSuccess={handleFarmUpdated} 
               />
             )}
@@ -306,10 +302,12 @@ export function FarmDetail() {
               <div className="text-sm text-foreground space-y-1">
                 {isPermClosed ? (
                   <p>Kick all users, then use the <strong>Empty Farm</strong> option to retrieve any leftover reward tokens. This farm is permanently closed and cannot be opened or extended.</p>
-                ) : isClosed ? (
-                  <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
                 ) : isUnderConstruction ? (
-                  <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
+                  hasStakers ? (
+                    <p>Now kick all users, update stakeable assets and values (optional) then open the farm again.</p>
+                  ) : (
+                    <p>Your farm is under construction. Add stakeable assets, deposit reward tokens, then press <strong>Open Farm</strong> to set an expiration date and go live.</p>
+                  )
                 ) : isExpired ? (
                   <div className="space-y-2">
                     <p>You have 2 choices:</p>
@@ -349,8 +347,6 @@ export function FarmDetail() {
                 <p className="font-medium">
                   {isPermClosed ? (
                     <span className="text-red-400">Permanently Closed</span>
-                  ) : isClosed ? (
-                    <span className="text-amber-400">Closed</span>
                   ) : isUnderConstruction ? (
                     <span className="text-amber-400">Under Construction</span>
                   ) : isExpired ? (
@@ -378,19 +374,19 @@ export function FarmDetail() {
                   {isCreator && !isUnderConstruction && !isExpired && (
                     <ExtendFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
-                  {/* Show Close/Perm Close buttons for expired farms that aren't already closed */}
-                  {isCreator && isExpired && !isClosed && !isPermClosed && (
+                  {/* Show Close/Perm Close buttons for expired farms */}
+                  {isCreator && isExpired && !isPermClosed && (
                     <>
                       <CloseFarmDialog farm={farm} onSuccess={handleFarmUpdated} />
                       <PermCloseFarmDialog farm={farm} onSuccess={() => navigate('/farm')} />
                     </>
                   )}
-                  {/* Show Kick Users if farm is closed/perm closed and has stakers */}
-                  {isCreator && (isClosed || isPermClosed) && hasStakers && (
+                  {/* Show Kick Users if farm is under construction (post-close) or perm closed and has stakers */}
+                  {isCreator && (isUnderConstruction || isPermClosed) && hasStakers && (
                     <KickUsersDialog farm={farm} onSuccess={handleFarmUpdated} />
                   )}
-                  {/* Show message if closed/perm closed with no stakers */}
-                  {isCreator && (isClosed || isPermClosed) && !hasStakers && (
+                  {/* Show message if under construction/perm closed with no stakers */}
+                  {isCreator && (isUnderConstruction || isPermClosed) && !hasStakers && (
                     <span className="text-xs text-muted-foreground">No stakers to kick</span>
                   )}
                   {/* Show Empty Farm if perm closed and no stakers left */}
@@ -500,7 +496,7 @@ export function FarmDetail() {
               </CardTitle>
               <div className="flex items-center gap-2">
                 <DepositRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
-                {isCreator && !isUnderConstruction && !isExpired && !isClosed && !isPermClosed && (
+                {isCreator && !isUnderConstruction && !isExpired && !isPermClosed && (
                   <WithdrawRewardsDialog farm={farm} onSuccess={handleFarmUpdated} />
                 )}
               </div>

@@ -933,8 +933,8 @@ export function buildIncreaseLiquidityAction(
   tokenBContract: string,
   tokenBQuantity: string
 ): TransactionAction[] {
-  // Parse amounts for min values (apply 10% slippage like Alcor does)
-  const slippageMultiplier = 0.90;
+  // Parse amounts for min values (apply 0.5% slippage - matches Alcor default)
+  const slippageMultiplier = 0.995;
   
   const tokenAAmount = parseFloat(tokenAQuantity.split(' ')[0]);
   const tokenASymbol = tokenAQuantity.split(' ')[1];

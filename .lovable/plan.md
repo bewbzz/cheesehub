@@ -1,98 +1,74 @@
 
-# Add Permanent 50% Discount for `cheesepromoz` in `cheesebannad`
+# Fix CloseFarmDialog: Wrong Toast + Stale UI After Closing
 
-## Overview
+## Two Bugs to Fix
 
-The `cheesepromoz` account gets a hardcoded 50% discount on all banner ad slot rentals — both exclusive and shared modes. This is implemented entirely inside the smart contract so it cannot be bypassed at the frontend level.
-
-## How Pricing Currently Works
-
-In `on_wax_transfer`, the required payment is calculated as:
-
-```cpp
-double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
-int64_t required = static_cast<int64_t>(price_per_day.amount * multiplier) * num_days;
+### Bug 1 — Wrong Toast Message
+In `src/components/farm/CloseFarmDialog.tsx`, the success toast incorrectly says:
 ```
+"Farm Permanently Closed!"
+```
+It should say:
+```
+"Farm Closed!"
+```
+This is a simple one-line text change.
 
-The fix adds one extra step: if `from == "cheesepromoz"_n`, apply an additional 50% reduction to the `multiplier` before computing `required`.
+### Bug 2 — Kick Users Button Not Appearing After Close
+After closing the farm, the UI still shows "Close" and "Permanently Closed" buttons instead of "Kick Users". This is caused by stale React Query cache.
+
+**Root cause:** The `handleFarmUpdated` callback in `FarmDetail.tsx` invalidates `["farmDetail", farmName]` and calls `refetch()`, but the WAX RPC node has its own caching delay. By the time the refetch runs, the node may still return the old `status` value. Additionally, the `staleTime: 30000` on the query means React Query may serve the old cached data even after `refetch()` is called in some cases.
+
+**The fix:** In `FarmDetail.tsx`, the `handleFarmUpdated` function needs to:
+1. Force the query out of stale state by setting `staleTime` to `0` for the invalidation, or more practically, call `queryClient.removeQueries` to fully clear the cache entry before refetching — ensuring fresh data is always fetched from the network.
+2. Also invalidate the `["myV2farms"]` list cache so other views stay in sync.
 
 ## Files to Change
 
-### 1. `contracts/cheesebannad/cheesebannad.hpp`
+### 1. `src/components/farm/CloseFarmDialog.tsx`
+Change line in the success toast:
+```tsx
+// Before
+title: "Farm Permanently Closed!",
+description: `${farm.farm_name} has been permanently removed.`
 
-Add a new constant near the other discount constants:
-
-```cpp
-// After SHARED_DISCOUNT line (~line 55):
-static constexpr name   PROMOZ_ACCOUNT      = "cheesepromoz"_n;
-static constexpr double PROMOZ_DISCOUNT     = 0.50;   // 50% off for cheesepromoz
+// After  
+title: "Farm Closed!",
+description: `${farm.farm_name} has been closed.`
 ```
 
-### 2. `contracts/cheesebannad/cheesebannad.cpp`
-
-In `on_wax_transfer`, after the existing multiplier calculation (around line 245), apply the promoz discount:
-
-```cpp
-// Existing shared discount
-double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
-
-// NEW: Permanent 50% discount for cheesepromoz (applies on top of any shared discount)
-if (from == PROMOZ_ACCOUNT) {
-    multiplier *= (1.0 - PROMOZ_DISCOUNT);
-}
-
-int64_t required = static_cast<int64_t>(
-    static_cast<double>(price_per_day.amount) * multiplier
-) * static_cast<int64_t>(num_days);
-```
-
-## Resulting Price Matrix
-
-| Account | Mode | Final Multiplier | Example (100 WAX/day) |
-|---|---|---|---|
-| Anyone | Exclusive | 1.00× | 100 WAX/day |
-| Anyone | Shared | 0.70× | 70 WAX/day |
-| cheesepromoz | Exclusive | 0.50× | 50 WAX/day |
-| cheesepromoz | Shared | 0.35× | 35 WAX/day |
-
-The promoz discount stacks multiplicatively with the shared discount (50% of 70% = 35%), which is the most logical and fair approach.
-
-## Frontend Update
-
-### `src/components/bannerads/RentSlotDialog.tsx`
-
-The dialog currently calculates the preview price client-side. Add a promoz discount check using the connected wallet session:
+### 2. `src/components/farm/FarmDetail.tsx`
+Update `handleFarmUpdated` to remove (not just invalidate) the cached query entry before refetching, ensuring the UI always gets fresh on-chain data:
 
 ```tsx
-const PROMOZ_DISCOUNT = 0.50;
-const SHARED_DISCOUNT = 0.30;
+const handleFarmUpdated = async () => {
+  // Remove stale cache entirely so refetch always goes to network
+  queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+  queryClient.invalidateQueries({ queryKey: ["myV2farms"] });
 
-const isPromoz = session?.actor?.toString() === "cheesepromoz";
-const sharedMultiplier = rentalMode === "shared" ? (1 - SHARED_DISCOUNT) : 1;
-const promozMultiplier = isPromoz ? (1 - PROMOZ_DISCOUNT) : 1;
-const priceMultiplier = sharedMultiplier * promozMultiplier;
-const totalWax = waxPricePerDay * numDays * priceMultiplier;
+  // Immediate refetch
+  await refetch();
+
+  // Delayed refetches to handle RPC node propagation lag
+  setTimeout(() => {
+    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+    refetch();
+  }, 2000);
+
+  setTimeout(() => {
+    queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+    refetch();
+  }, 5000);
+};
 ```
 
-A small badge is shown in the price summary when the connected account is `cheesepromoz`:
+## Why `removeQueries` Instead of `invalidateQueries`
+- `invalidateQueries` marks the data as stale but React Query may still return the cached value while fetching in the background, causing the old buttons to flash briefly or persist.
+- `removeQueries` fully clears the cache entry, so the next `refetch()` is guaranteed to fetch from the network and the UI shows fresh data.
 
-```tsx
-{isPromoz && (
-  <p className="text-xs text-green-500 font-medium">🧀 Promoz 50% discount applied</p>
-)}
-```
-
-## What Does NOT Change
-
-- No new table or admin action is required — the discount is a compile-time constant.
-- All other users are completely unaffected.
-- Overpayment refund logic already handles the case correctly — if `cheesepromoz` pays more than the discounted required amount, the excess is refunded as normal.
-- The existing shared discount logic is untouched; the promoz discount is a clean multiplicative layer on top.
-
-## Files Summary
+## Summary
 
 | File | Change |
 |---|---|
-| `contracts/cheesebannad/cheesebannad.hpp` | Add `PROMOZ_ACCOUNT` and `PROMOZ_DISCOUNT` constants |
-| `contracts/cheesebannad/cheesebannad.cpp` | Apply promoz multiplier in `on_wax_transfer` after shared discount |
-| `src/components/bannerads/RentSlotDialog.tsx` | Show discounted price and badge when `cheesepromoz` is connected |
+| `src/components/farm/CloseFarmDialog.tsx` | Fix toast title/description to say "Farm Closed!" not "Permanently Closed!" |
+| `src/components/farm/FarmDetail.tsx` | Replace `invalidateQueries` with `removeQueries` in `handleFarmUpdated` and also invalidate `myV2farms` list |

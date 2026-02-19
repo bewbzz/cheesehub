@@ -194,10 +194,9 @@ export function FarmDetail() {
   const now = Math.floor(Date.now() / 1000);
   const createdDate = new Date(farm.time_created * 1000);
   
-  // Farm is "under construction" only if never opened (status 0 AND expiration <= 1)
-  // The contract uses expiration: 1 as sentinel for "never opened"
-  // NOTE: closefarm also resets back to status 0 + expiration 1 (under construction), there is no status 3
-  const isUnderConstruction = farm.status === 0 && farm.expiration <= 1;
+  // status === 0 means Under Construction — covers both newly created AND post-closefarm.
+  // closefarm sets status=0 but does NOT reset expiration to 1, so checking expiration<=1 was wrong.
+  const isUnderConstruction = farm.status === 0;
   // Farm status codes: 0 = Under Construction (also post-close), 1 = Active, 2 = Permanently Closed
   const isPermClosed = farm.status === 2;
   // Farm is "expired" only if it's been opened and has passed its expiration date

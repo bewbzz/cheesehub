@@ -100,37 +100,54 @@ export function FarmDetail() {
 
   const queryClient = useQueryClient();
   
-  const { data: farm, isLoading, error, refetch } = useQuery({
+  const { data: farm, isLoading, error } = useQuery({
     queryKey: ["farmDetail", farmName],
     queryFn: () => fetchFarmDetails(farmName!),
     enabled: !!farmName,
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   const handleFarmUpdated = async () => {
-    // Remove stale cache entirely so refetch always goes to network
+    // Remove stale cache entirely so fetchQuery always goes to network
     queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
     queryClient.invalidateQueries({ queryKey: ["myV2farms"] });
 
-    // Immediate refetch
-    await refetch();
+    // Use fetchQuery (guaranteed fresh network request, unlike refetch() after removeQueries)
+    await queryClient.fetchQuery({
+      queryKey: ["farmDetail", farmName],
+      queryFn: () => fetchFarmDetails(farmName!),
+      staleTime: 0,
+    });
 
-    // Delayed refetches to handle RPC node propagation lag
-    setTimeout(() => {
+    // Delayed refetches to handle RPC node propagation lag (nodes cache for 10-30s)
+    setTimeout(async () => {
       queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-      refetch();
-    }, 2000);
+      await queryClient.fetchQuery({
+        queryKey: ["farmDetail", farmName],
+        queryFn: () => fetchFarmDetails(farmName!),
+        staleTime: 0,
+      });
+    }, 3000);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
-      refetch();
-    }, 5000);
+      await queryClient.fetchQuery({
+        queryKey: ["farmDetail", farmName],
+        queryFn: () => fetchFarmDetails(farmName!),
+        staleTime: 0,
+      });
+    }, 7000);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refetch();
+      queryClient.removeQueries({ queryKey: ["farmDetail", farmName] });
+      await queryClient.fetchQuery({
+        queryKey: ["farmDetail", farmName],
+        queryFn: () => fetchFarmDetails(farmName!),
+        staleTime: 0,
+      });
       toast({ title: "Farm data refreshed!" });
     } finally {
       setIsRefreshing(false);

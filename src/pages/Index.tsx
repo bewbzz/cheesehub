@@ -24,9 +24,9 @@ const Index = () => {
               <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-bold mb-6">
-              <span className="text-cheese">CHEESE</span>
-              <span className="text-foreground">Hub</span>
+            <h1 className="text-3xl md:text-4xl font-bold mb-6 flex items-center gap-3">
+              <span><span className="text-cheese">CHEESE</span><span className="text-foreground">Hub</span></span>
+              <span className="text-sm font-bold px-2 py-1 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Unlocking Meme-Fi on the WAX Blockchain
@@ -73,7 +73,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">⚡</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Up</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Up</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the CHEESEPOWERZ smart contract CHEESEUp allows $CHEESE holders to power-up CPU and NET with $CHEESE. The $CHEESE is sent to eosio.null and leaves circulation forever
               </p>
@@ -92,7 +92,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">⛔</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Null</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Null</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the CHEESEBURNER smart contract. Perpetually NULLS $CHEESE. Anyone can call the NULL action and earn $CHEESE as a reward
               </p>
@@ -112,7 +112,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🧀</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Faucet</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Faucet</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the CHEESEFAUCET and CHEESECHEESE smart contracts, Hosted on GitHub users stake their $CHEESE to claim mine $CHEESE at a high APR
               </p>
@@ -131,7 +131,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🌱</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Farm</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the FARMS.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEFarm allows all WAX users to create and participate in V2 non-custodial NFT staking farms
               </p>
@@ -151,7 +151,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🏛️</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Dao</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the DAO.WAXDAO and CHEESEFEEFEE smart contracts and acting as an alternate Front-End CHEESEDao allows all WAX users to create DAOs and vote on Governance Proposals
               </p>
@@ -170,7 +170,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">💧</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEDrop allows all WAX users to create NFT drops and sell them for various WAX tokens
               </p>
@@ -190,7 +190,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🔐</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Lock</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
                 Powered by the WAXDAOLOCKER smart contract and acting as an alternate Front-End CHEESELock allows all WAX users to time-lock tokens and/or LP tokens
               </p>
@@ -210,7 +210,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <img src={walletIcon} alt="Wallet" className="h-12 w-12 object-contain" />
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Wallet</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
                 A simple, clean wallet UI. Send tokens OR NFTs. Stake WAX for resources. Rent CPU and NET. Buy and sell RAM. Vote for Block Producers or nominate a Proxy. Claim vote rewards.
               </p>
@@ -235,7 +235,7 @@ const Index = () => {
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🎧</span>
               </div>
-              <h2 className="text-2xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Amp</span></h2>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span className="text-cheese">CHEESE</span><span className="text-foreground">Amp</span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
                 Partially powered by the CHEESEAMPHUB smart contract CHEESEAmp is a simple, clean NFT music player that populates a list automatically with your music NFTS allowing you to play videos, create playlists and shuffle tracks. Minimizes to mini player and keeps playing while you work or browse the web
               </p>

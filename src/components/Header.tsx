@@ -21,6 +21,7 @@ export function Header() {
               <span className="text-cheese">CHEESE</span>
               <span className="text-foreground">Hub</span>
             </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {/* Home */}

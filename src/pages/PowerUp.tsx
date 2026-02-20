@@ -40,7 +40,7 @@ const PowerUp = () => {
                 <span className="text-2xl">⚡</span>
               </div>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Fuel your WAX transactions with CHEESE tokens
+                Power Up your CPU and NET resources using $CHEESE. The $CHEESE is sent to eosio.null and leaves circulation forever
               </p>
             </div>
           </div>

@@ -1,10 +1,14 @@
-// Fetches per-contract null breakdown from Hyperion
+// Fetches per-contract null breakdown from Hyperion + on-chain stats
 
 const HYPERION_ENDPOINT = 'https://wax.eosusa.io/v2/history/get_actions';
 const BATCH_SIZE = 1000;
 const MAX_ACTIONS = 50000;
 
-const NULL_CONTRACTS = ['cheeseburner', 'cheesefeefee', 'cheesepowerz'] as const;
+const WAX_RPC_ENDPOINTS = [
+  'https://wax.eosusa.io/v1/chain/get_table_rows',
+  'https://api.waxsweden.org/v1/chain/get_table_rows',
+  'https://wax.greymass.com/v1/chain/get_table_rows',
+];
 
 export interface NullBreakdownEntry {
   contract: string;
@@ -17,7 +21,7 @@ function parseAsset(str: string): number {
   return parseFloat(str.split(' ')[0]) || 0;
 }
 
-async function fetchContractNulled(account: string): Promise<number> {
+async function fetchContractNulledFromHyperion(account: string): Promise<number> {
   let total = 0;
   let skip = 0;
 
@@ -44,6 +48,44 @@ async function fetchContractNulled(account: string): Promise<number> {
 
   return total;
 }
+
+// cheesepowerz stores its own stats on-chain (authoritative)
+async function fetchCheesepowerzNulled(): Promise<number> {
+  for (const endpoint of WAX_RPC_ENDPOINTS) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: 'cheesepowerz',
+          scope: 'cheesepowerz',
+          table: 'stats',
+          json: true,
+          limit: 1,
+        }),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (data.rows && data.rows.length > 0) {
+        return parseAsset(data.rows[0].total_cheese_received);
+      }
+      return 0;
+    } catch {
+      continue;
+    }
+  }
+  // Fallback to Hyperion if all RPC fail
+  return fetchContractNulledFromHyperion('cheesepowerz');
+}
+
+async function fetchContractNulled(account: string): Promise<number> {
+  if (account === 'cheesepowerz') {
+    return fetchCheesepowerzNulled();
+  }
+  return fetchContractNulledFromHyperion(account);
+}
+
+const NULL_CONTRACTS = ['cheeseburner', 'cheesefeefee', 'cheesepowerz'] as const;
 
 export async function fetchNullBreakdown(): Promise<NullBreakdownEntry[]> {
   const results = await Promise.all(

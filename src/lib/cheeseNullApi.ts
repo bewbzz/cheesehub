@@ -98,7 +98,7 @@ export function calculateCheesePerWax(poolData: AlcorPoolData): number {
 }
 
 export function formatWaxAmount(amount: number): string {
-  return amount.toFixed(8);
+  return amount.toFixed(4);
 }
 
 export function formatCheeseAmount(amount: number): string {

@@ -14,6 +14,8 @@ export interface NullBreakdownEntry {
   contract: string;
   amount: number;
   percent: number;
+  amount7d: number;
+  percent7d: number;
 }
 
 function parseAsset(str: string): number {
@@ -21,12 +23,13 @@ function parseAsset(str: string): number {
   return parseFloat(str.split(' ')[0]) || 0;
 }
 
-async function fetchContractNulledFromHyperion(account: string): Promise<number> {
+async function fetchContractNulledFromHyperion(account: string, after?: string): Promise<number> {
   let total = 0;
   let skip = 0;
 
   while (skip < MAX_ACTIONS) {
-    const url = `${HYPERION_ENDPOINT}?act.account=cheeseburger&act.name=transfer&transfer.from=${account}&transfer.to=eosio.null&limit=${BATCH_SIZE}&skip=${skip}`;
+    let url = `${HYPERION_ENDPOINT}?act.account=cheeseburger&act.name=transfer&transfer.from=${account}&transfer.to=eosio.null&limit=${BATCH_SIZE}&skip=${skip}`;
+    if (after) url += `&after=${after}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Hyperion API error: ${response.status}`);
 
@@ -87,18 +90,29 @@ async function fetchContractNulled(account: string): Promise<number> {
 
 const NULL_CONTRACTS = ['cheeseburner', 'cheesefeefee', 'cheesepowerz'] as const;
 
+function get7dAgo(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 7);
+  return d.toISOString();
+}
+
 export async function fetchNullBreakdown(): Promise<NullBreakdownEntry[]> {
+  const after7d = get7dAgo();
+
   const results = await Promise.all(
     NULL_CONTRACTS.map(async (contract) => ({
       contract,
       amount: await fetchContractNulled(contract),
+      amount7d: await fetchContractNulledFromHyperion(contract, after7d),
     }))
   );
 
   const grandTotal = results.reduce((sum, r) => sum + r.amount, 0);
+  const grandTotal7d = results.reduce((sum, r) => sum + r.amount7d, 0);
 
   return results.map((r) => ({
     ...r,
     percent: grandTotal > 0 ? (r.amount / grandTotal) * 100 : 0,
+    percent7d: grandTotal7d > 0 ? (r.amount7d / grandTotal7d) * 100 : 0,
   }));
 }

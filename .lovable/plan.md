@@ -1,72 +1,75 @@
 
 
-# Update cheesebannad WAX Distribution: Add cheesepowerz 10% Split
+# 3D Bubble Effect for Floating Cheese Orb
 
-## Summary
+## What Changes
 
-Change the WAX payment distribution from a 20/80 split to a 20/10/70 split, adding a new 10% allocation to `cheesepowerz` for ecosystem financing. The CHEESE distribution (66% burn, 34% liquidity) stays the same.
+Upgrade the flat circular orb container from a simple `cheese-glow` box-shadow into a glossy 3D bubble effect with depth, highlights, and a subtle inner shine -- making it look like a glass sphere holding the cheese logo.
 
-```
-BEFORE:                          AFTER:
-WAX -> 20% cheeseburner         WAX -> 20% cheeseburner
-    -> 80% Alcor swap                -> 10% cheesepowerz
-                                     -> 70% Alcor swap
+## Visual Effect
 
-CHEESE (unchanged):              CHEESE (unchanged):
-    -> 66% burn (eosio.null)         -> 66% burn (eosio.null)
-    -> 34% xcheeseliqst              -> 34% xcheeseliqst
-```
+The bubble will have:
+- A radial gradient background simulating light hitting a sphere (bright highlight top-left, darker bottom-right)
+- An inner box-shadow for depth/concavity
+- A pseudo-element overlay for a glossy specular highlight (the "shine" on glass)
+- The existing outer cheese-glow kept for the ambient glow
 
-## Changes
+## Technical Details
 
-### 1. Contract: `contracts/cheesebannad/cheesebannad.hpp`
+### 1. Add `.cheese-bubble` utility class in `src/index.css`
 
-- Add new constant: `static constexpr name CHEESEPOWERZ = "cheesepowerz"_n;`
-- Add new constant: `static constexpr double WAX_POWERZ_PERCENT = 0.10;`
-- Update `WAX_BURNER_PERCENT` comment (value stays 0.20)
-- Update doc comments referencing the 20/80 split to reflect 20/10/70
+A new CSS utility class that layers multiple effects:
 
-### 2. Contract: `contracts/cheesebannad/cheesebannad.cpp`
+```css
+.cheese-bubble {
+  background: radial-gradient(
+    circle at 35% 30%,
+    hsl(var(--cheese-light) / 0.4) 0%,
+    hsl(var(--cheese) / 0.15) 40%,
+    hsl(var(--cheese-dark) / 0.25) 70%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 20px hsl(var(--cheese) / 0.3),
+    0 0 40px hsl(var(--cheese) / 0.15),
+    inset 0 -4px 12px hsl(var(--cheese-dark) / 0.3),
+    inset 0 4px 8px hsl(var(--cheese-light) / 0.4);
+  position: relative;
+  overflow: hidden;
+}
 
-Update `distribute_wax_funds` to calculate three splits instead of two:
-
-- 20% to `cheeseburner` (unchanged)
-- 10% to `cheesepowerz` (new -- raw WAX transfer)
-- 70% remainder to Alcor swap (was 80%)
-
-```cpp
-void cheesebannad::distribute_wax_funds(asset quantity) {
-    int64_t burner_amount = static_cast<int64_t>(quantity.amount * WAX_BURNER_PERCENT);
-    int64_t powerz_amount = static_cast<int64_t>(quantity.amount * WAX_POWERZ_PERCENT);
-    int64_t swap_amount   = quantity.amount - burner_amount - powerz_amount;
-
-    // 20% WAX to cheeseburner
-    if (burner_amount > 0) { /* existing transfer action */ }
-
-    // 10% WAX to cheesepowerz
-    if (powerz_amount > 0) {
-        action(
-            permission_level{get_self(), "active"_n},
-            WAX_CONTRACT, "transfer"_n,
-            make_tuple(get_self(), CHEESEPOWERZ,
-                asset(powerz_amount, WAX_SYMBOL),
-                string("CHEESEAds ecosystem financing"))
-        ).send();
-    }
-
-    // 70% WAX to Alcor swap -> CHEESE
-    if (swap_amount > 0) { /* existing swap action */ }
+.cheese-bubble::before {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 18%;
+  width: 35%;
+  height: 25%;
+  background: radial-gradient(
+    ellipse,
+    rgba(255, 255, 255, 0.5) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
 }
 ```
 
-### 3. Frontend: `src/components/bannerads/RentSlotDialog.tsx`
+### 2. Update all orb containers across pages
 
-No pricing changes needed -- the rental cost to users stays the same. Only the backend distribution changes.
+Replace `cheese-glow` with `cheese-bubble` on the orb `div` in these files:
+- `src/pages/CheeseNull.tsx`
+- `src/pages/Dao.tsx`
+- `src/pages/Farm.tsx`
+- `src/pages/Locker.tsx`
+- `src/pages/PowerUp.tsx`
+- `src/pages/BannerAds.tsx`
+- `src/components/drops/DropsHero.tsx`
 
-## Notes
+Each change is a single class swap, e.g.:
+```
+- "h-32 w-32 animate-float cheese-glow rounded-full ..."
++ "h-32 w-32 animate-float cheese-bubble rounded-full ..."
+```
 
-- The `cheesepowerz` account must exist on WAX mainnet before deploying
-- The contract must have `eosio.token::transfer` permission to send to `cheesepowerz`
-- User-facing prices, discounts (shared 30%, promoz 50%), and refund logic are all unaffected
-- The CHEESE distribution (66% burn / 34% liquidity) is completely unchanged
-
+No other files or logic are affected.

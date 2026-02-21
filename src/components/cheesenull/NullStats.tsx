@@ -1,4 +1,4 @@
-import { RefreshCw, Clock, CheckCircle, Gift, TrendingUp, Droplet } from 'lucide-react';
+import { RefreshCw, Clock, CheckCircle, TrendingUp, Droplet } from 'lucide-react';
 import { useCheeseNullData } from '@/hooks/useCheeseNullData';
 import { formatWaxAmount, formatCheeseAmount, formatCountdown } from '@/lib/cheeseNullApi';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,15 +48,7 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
 
           {/* Distribution Breakdown */}
           {!isLoading && !isError && (
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
-                  <Gift className="w-3 h-3" />
-                  <span className="text-xs font-medium">Your Reward</span>
-                </div>
-                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)}</p>
-                <p className="text-xs text-muted-foreground">CHEESE</p>
-              </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="text-center space-y-1">
                 <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
                   <Droplet className="w-3 h-3" />

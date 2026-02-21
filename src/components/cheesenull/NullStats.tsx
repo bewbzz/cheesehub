@@ -55,28 +55,28 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
                   <Gift className="w-3 h-3" />
                   <span className="text-[10px] font-medium">Reward</span>
                 </div>
-                <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
+                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)} <span className="text-[11px] text-muted-foreground">CHEESE</span></p>
               </div>
               <div className="text-center space-y-0.5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Droplet className="w-3 h-3" />
                   <span className="text-[10px] font-medium">xCHEESE</span>
                 </div>
-                <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(cheeseLiquidityAmount)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
+                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseLiquidityAmount)} <span className="text-[11px] text-muted-foreground">CHEESE</span></p>
               </div>
               <div className="text-center space-y-0.5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <TrendingUp className="w-3 h-3" />
                   <span className="text-[10px] font-medium">Compound</span>
                 </div>
-                <p className="text-xs font-semibold text-cheese">{formatWaxAmount(waxStakeAmount)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
+                <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxStakeAmount)} <span className="text-[11px] text-muted-foreground">WAX</span></p>
               </div>
               <div className="text-center space-y-0.5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Zap className="w-3 h-3" />
                   <span className="text-[10px] font-medium">CheesePowerz</span>
                 </div>
-                <p className="text-xs font-semibold text-cheese">{formatWaxAmount(waxCheesepowerzAmount)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
+                <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxCheesepowerzAmount)} <span className="text-[11px] text-muted-foreground">WAX</span></p>
               </div>
             </div>
           )}

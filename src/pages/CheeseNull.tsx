@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { NullStats } from '@/components/cheesenull/NullStats';
 import { NullButton } from '@/components/cheesenull/NullButton';
@@ -6,20 +6,11 @@ import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
 import { NullerLeaderboard } from '@/components/cheesenull/NullerLeaderboard';
 import { useNullerLeaderboard } from '@/hooks/useNullerLeaderboard';
 import cheeseNullLogo from '@/assets/cheesenull.png';
-import cheeseNullOrbSound from '@/assets/cheese-null-orb-sound.mp3';
+import { playRandomFart } from '@/lib/fartSounds';
 
 export default function CheeseNull() {
   const [canClaim, setCanClaim] = useState(false);
   const { rawActions, isLoading: lbLoading, isError: lbError, refetch: refetchLeaderboard } = useNullerLeaderboard();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const playOrbSound = useCallback(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(cheeseNullOrbSound);
-    }
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => {});
-  }, []);
 
   const handleBurnSuccess = () => {
     refetchLeaderboard();
@@ -32,7 +23,7 @@ export default function CheeseNull() {
           {/* Floating Cheese Orb */}
           <div
             className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"
-            onClick={playOrbSound}
+            onClick={playRandomFart}
           >
             <img src={cheeseNullLogo} alt="CHEESE Null" className="w-24 h-24 object-contain" />
           </div>

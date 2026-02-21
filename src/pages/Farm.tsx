@@ -8,6 +8,7 @@ import { MyFarms } from "@/components/farm/MyFarms";
 import { CreateFarm } from "@/components/farm/CreateFarm";
 import { FarmDetail } from "@/components/farm/FarmDetail";
 import cheeseFarmOrb from "@/assets/cheesefarm.png";
+import { playRandomFart } from "@/lib/fartSounds";
 
 export default function Farm() {
   const { farmName } = useParams<{ farmName: string }>();
@@ -38,7 +39,7 @@ export default function Farm() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
           <div className="container relative z-10">
             <div className="flex flex-col items-center gap-8">
-              <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center">
+              <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer" onClick={playRandomFart}>
                 <img src={cheeseFarmOrb} alt="CHEESE" className="w-28 h-28 object-contain" />
               </div>
 

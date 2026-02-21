@@ -1,20 +1,10 @@
-import { useCallback, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { SlotCalendar } from "@/components/bannerads/SlotCalendar";
+import { playRandomFart } from "@/lib/fartSounds";
 
 import cheeseLogo from "@/assets/cheese-logo.png";
-import cheeseOrbSound from "@/assets/cheese-orb-sound.mp3";
 
 const BannerAds = () => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const playOrbSound = useCallback(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(cheeseOrbSound);
-    }
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => {});
-  }, []);
 
   return (
     <Layout>
@@ -23,7 +13,7 @@ const BannerAds = () => {
           {/* Floating Cheese Orb */}
           <div
             className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"
-            onClick={playOrbSound}
+            onClick={playRandomFart}
           >
             <img src={cheeseLogo} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
           </div>

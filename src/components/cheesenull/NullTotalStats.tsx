@@ -61,17 +61,17 @@ export function NullTotalStats() {
             </div>
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                <TrendingUp className="w-3 h-3" />
-                <span className="text-[10px] font-medium">Compound</span>
-              </div>
-              <p className="text-sm font-semibold text-cheese">{formatWaxAmount(totalWaxCompounded)} <span className="text-[11px] text-muted-foreground">WAX</span></p>
-            </div>
-            <div className="text-center space-y-0.5">
-              <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <Zap className="w-3 h-3" />
                 <span className="text-[10px] font-medium">CheesePowerz</span>
               </div>
               <p className="text-sm font-semibold text-cheese">{formatWaxAmount(totalWaxCheesepowerz)} <span className="text-[11px] text-muted-foreground">WAX</span></p>
+            </div>
+            <div className="text-center space-y-0.5">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                <TrendingUp className="w-3 h-3" />
+                <span className="text-[10px] font-medium">Compound</span>
+              </div>
+              <p className="text-sm font-semibold text-cheese">{formatWaxAmount(totalWaxCompounded)} <span className="text-[11px] text-muted-foreground">WAX</span></p>
             </div>
           </div>
         )}

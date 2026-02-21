@@ -35,7 +35,7 @@ export default function CheeseNull() {
               <span className="text-2xl">⛔</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Earn $CHEESE by nulling $CHEESE. Pressing the NULL button when active rewards the caller with $CHEESE by triggering the smart contract to buy $CHEESE and split it as per the table
+              Null $CHEESE and collateralize xCHEESE. A dapp for pure lovers of $CHEESE that yields no reward except for the creamy satisfaction of increasing your share of supply and boosting xCHEESE
             </p>
           </div>
 

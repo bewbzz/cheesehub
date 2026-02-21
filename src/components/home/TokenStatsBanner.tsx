@@ -1,7 +1,10 @@
 import { useCheeseStats } from '@/hooks/useCheeseStats';
+import { useNullBreakdown } from '@/hooks/useNullBreakdown';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ExternalLink } from 'lucide-react';
 import { CHEESE_CONFIG } from '@/lib/waxConfig';
 import cheeseToken from '@/assets/cheese-token.png';
@@ -30,6 +33,7 @@ function formatFullNumber(num: number): string {
 
 export function TokenStatsBanner() {
   const { data: stats, isLoading, isError } = useCheeseStats();
+  const { data: breakdown, isLoading: breakdownLoading, refetch: fetchBreakdown } = useNullBreakdown();
 
   return (
     <section className="container py-8">
@@ -161,36 +165,80 @@ export function TokenStatsBanner() {
             </div>
 
             {/* CHEESE Nulled */}
-            <div className="flex items-center gap-4 justify-center md:justify-end">
-              <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🔥</span>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">CHEESE Nulled</p>
-                {isLoading ? (
-                  <Skeleton className="h-7 w-24 mt-1" />
-                ) : isError ? (
-                  <p className="text-lg font-bold text-destructive">Error</p>
+            <Popover onOpenChange={(open) => { if (open) fetchBreakdown(); }}>
+              <PopoverTrigger asChild>
+                <div className="flex items-center gap-4 justify-center md:justify-end cursor-pointer group">
+                  <div className="h-12 w-12 rounded-full bg-cheese/20 flex items-center justify-center shrink-0">
+                    <span className="text-2xl">🔥</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground font-medium group-hover:text-cheese transition-colors">CHEESE Nulled ▾</p>
+                    {isLoading ? (
+                      <Skeleton className="h-7 w-24 mt-1" />
+                    ) : isError ? (
+                      <p className="text-lg font-bold text-destructive">Error</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <p 
+                          className="text-xl font-bold text-foreground group-hover:text-cheese transition-colors"
+                          title={`${formatFullNumber(stats?.nulledBalance ?? 0)} CHEESE sent to eosio.null`}
+                        >
+                          {formatLargeNumber(stats?.nulledBalance ?? 0)} <span className="text-cheese">CHEESE</span>
+                        </p>
+                        <a
+                          href="https://waxblock.io/account/eosio.null?code=cheeseburger&scope=eosio.null&table=accounts&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          proof
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-3 border-b border-border">
+                  <p className="text-sm font-semibold text-foreground">Null Breakdown by Contract</p>
+                </div>
+                {breakdownLoading ? (
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ) : breakdown && breakdown.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="h-8 text-xs">Contract</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Nulled</TableHead>
+                        <TableHead className="h-8 text-xs text-right w-16">%</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {breakdown.map((entry) => (
+                        <TableRow key={entry.contract}>
+                          <TableCell className="py-2 text-xs font-mono">{entry.contract}</TableCell>
+                          <TableCell className="py-2 text-xs text-right">
+                            {formatFullNumber(entry.amount)} <span className="text-cheese">CHEESE</span>
+                          </TableCell>
+                          <TableCell className="py-2 text-xs text-right font-semibold">
+                            {entry.percent.toFixed(1)}%
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 ) : (
-                  <div className="flex flex-col gap-1">
-                    <p 
-                      className="text-xl font-bold text-foreground"
-                      title={`${formatFullNumber(stats?.nulledBalance ?? 0)} CHEESE sent to eosio.null`}
-                    >
-                      {formatLargeNumber(stats?.nulledBalance ?? 0)} <span className="text-cheese">CHEESE</span>
-                    </p>
-                    <a
-                      href="https://waxblock.io/account/eosio.null?code=cheeseburger&scope=eosio.null&table=accounts&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-cheese/70 hover:text-cheese underline transition-colors"
-                    >
-                      proof
-                    </a>
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    No data available
                   </div>
                 )}
-              </div>
-            </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Bottom row - Contract Status centered */}

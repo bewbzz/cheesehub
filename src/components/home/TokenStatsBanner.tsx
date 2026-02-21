@@ -10,18 +10,18 @@ import { CHEESE_CONFIG } from '@/lib/waxConfig';
 import cheeseToken from '@/assets/cheese-token.png';
 
 // Format large numbers with abbreviations
-function formatLargeNumber(num: number): string {
+function formatLargeNumber(num: number, decimals: number = 1): string {
   if (num >= 1_000_000_000_000) {
-    return `${(num / 1_000_000_000_000).toFixed(1)}T`;
+    return `${(num / 1_000_000_000_000).toFixed(decimals)}T`;
   }
   if (num >= 1_000_000_000) {
-    return `${(num / 1_000_000_000).toFixed(1)}B`;
+    return `${(num / 1_000_000_000).toFixed(decimals)}B`;
   }
   if (num >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(1)}M`;
+    return `${(num / 1_000_000).toFixed(decimals)}M`;
   }
   if (num >= 1_000) {
-    return `${(num / 1_000).toFixed(1)}K`;
+    return `${(num / 1_000).toFixed(decimals)}K`;
   }
   return num.toLocaleString();
 }
@@ -147,7 +147,7 @@ export function TokenStatsBanner() {
                       className="text-xl font-bold text-foreground"
                       title={`${formatFullNumber(stats.nextUnlock.amount)} CHEESE unlocking in ${stats.nextUnlock.year}`}
                     >
-                      {stats.nextUnlock.year} <span className="text-cheese">({formatLargeNumber(stats.nextUnlock.amount)})</span>
+                      {stats.nextUnlock.year} <span className="text-cheese">({formatLargeNumber(stats.nextUnlock.amount, 3)})</span>
                     </p>
                     <a
                       href="https://waxblock.io/account/waxdaolocker?code=waxdaolocker&scope=waxdaolocker&table=locks&lower_bound=249&upper_bound=259&limit=10&reverse=false#contract-tables"

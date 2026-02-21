@@ -15,8 +15,8 @@ using namespace std;
  * individual positions by paying WAX (100 WAX per position per day) via
  * eosio.token transfer.
  * 
- * WAX payments: split 20% to cheeseburner financing, 80% swapped to CHEESE
- * via Alcor (66% burned, 34% to liquidity staking).
+ * WAX payments: split 20% to cheeseburner financing, 10% to cheesepowerz
+ * financing, 70% swapped to CHEESE via Alcor (66% burned, 34% to liquidity staking).
  * 
  * SECURITY:
  *   - Cannot rent already-rented or past slots
@@ -41,9 +41,11 @@ static constexpr symbol CHEESE_SYMBOL    = symbol("CHEESE", 4);
 static constexpr name NULL_ACCOUNT       = "eosio.null"_n;
 static constexpr name LIQUIDITY_STAKING  = "xcheeseliqst"_n;
 static constexpr name CHEESEBURNER       = "cheeseburner"_n;
+static constexpr name CHEESEPOWERZ       = "cheesepowerz"_n;
 
 // Distribution percentages
 static constexpr double WAX_BURNER_PERCENT  = 0.20;  // 20% WAX to cheeseburner (financing)
+static constexpr double WAX_POWERZ_PERCENT  = 0.10;  // 10% WAX to cheesepowerz (financing)
 static constexpr double CHEESE_BURN_PERCENT = 0.66;  // 66% CHEESE burned
 
 // Pricing
@@ -179,7 +181,7 @@ private:
     // Assign consecutive slots to user for a specific position (and mode: e/s/j)
     void assign_slots(name user, uint64_t start_time, uint64_t num_days, uint8_t position, char mode);
 
-    // Split WAX: 20% to cheeseburner, 80% swapped to CHEESE via Alcor
+    // Split WAX: 20% to cheeseburner, 10% to cheesepowerz, 70% swapped to CHEESE via Alcor
     void distribute_wax_funds(asset quantity);
 
     // Split CHEESE: 66% burned to eosio.null, 34% to xcheeseliqst

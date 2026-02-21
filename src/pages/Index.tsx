@@ -66,8 +66,7 @@ const Index = () => {
 
         {/* Grid of tools - 4x2 layout */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Row 1: CHEESEUp + CHEESENull */}
-          {/* CHEESEUp CTA */}
+          {/* CHEESEUp */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -86,7 +85,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESENull CTA */}
+          {/* CHEESENull */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -105,8 +104,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 2: CHEESEFaucet + CHEESEFarm */}
-          {/* CHEESEFaucet CTA */}
+          {/* CHEESEFaucet */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -125,7 +123,23 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESEFarm CTA */}
+          {/* xCHEESE */}
+          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
+            <CardContent className="py-12 text-center">
+              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">✨</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span><span className="text-foreground">x</span><span className="text-cheese">CHEESE</span></span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 leading-none">COMING SOON</span></h2>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                xCHEESE — more details coming soon. Stay tuned for the next evolution of the CHEESE ecosystem
+              </p>
+              <Button size="lg" className="bg-cheese/50 text-primary-foreground font-semibold cursor-not-allowed" disabled>
+                Coming Soon
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* CHEESEFarm */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -144,8 +158,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 3: CHEESEDao + CHEESEDrop */}
-          {/* CHEESEDao CTA */}
+          {/* CHEESEDao */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -164,7 +177,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESEDrop CTA */}
+          {/* CHEESEDrop */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -183,8 +196,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 4: CHEESELock */}
-          {/* CHEESELock CTA */}
+          {/* CHEESELock */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -203,8 +215,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* Row 5: CHEESEWallet + CHEESEAmp */}
-          {/* CHEESEWallet CTA */}
+          {/* CHEESEWallet */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
@@ -229,7 +240,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          {/* CHEESEAmp CTA */}
+          {/* CHEESEAmp */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">
               <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">

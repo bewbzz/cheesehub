@@ -9,6 +9,9 @@ import fart04 from '@/assets/farts/fart-04.mp3';
 import fart05 from '@/assets/farts/fart-05.mp3';
 import fart06 from '@/assets/farts/fart-06.mp3';
 import fart07 from '@/assets/farts/fart-07.mp3';
+import fart08 from '@/assets/farts/fart-08.mp3';
+import fart09 from '@/assets/farts/fart-09.mp3';
+import fart10 from '@/assets/farts/fart-10.mp3';
 
 const FART_SOUNDS = [
   cheeseOrb,
@@ -22,6 +25,9 @@ const FART_SOUNDS = [
   fart05,
   fart06,
   fart07,
+  fart08,
+  fart09,
+  fart10,
 ];
 
 export function playRandomFart() {

@@ -147,7 +147,7 @@ export function TokenStatsBanner() {
                       className="text-xl font-bold text-foreground"
                       title={`${formatFullNumber(stats.nextUnlock.amount)} CHEESE unlocking in ${stats.nextUnlock.year}`}
                     >
-                      {stats.nextUnlock.year} <span className="text-cheese">({formatLargeNumber(stats.nextUnlock.amount, 3)})</span>
+                      {stats.nextUnlock.year} <span className="text-cheese">({formatLargeNumber(stats.nextUnlock.amount, 2)})</span>
                     </p>
                     <a
                       href="https://waxblock.io/account/waxdaolocker?code=waxdaolocker&scope=waxdaolocker&table=locks&lower_bound=249&upper_bound=259&limit=10&reverse=false#contract-tables"

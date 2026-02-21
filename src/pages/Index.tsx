@@ -130,8 +130,8 @@ const Index = () => {
                 <span className="text-4xl">✖️</span>
               </div>
               <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span><span className="text-foreground">x</span><span className="text-cheese">CHEESE</span></span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 leading-none">COMING SOON</span></h2>
-              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                xCHEESE — more details coming soon. Stay tuned for the next evolution of the CHEESE ecosystem
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6 select-none">
+                <span className="blur-[6px]">xCHEESE is a new collateralized Liquid Staking token that can never lose value in $CHEESE. xCHEESE earns $CHEESE from multiple different streams on CHEESEHub always increasing the $CHEESE backing of xCHEESE making xCHEESE holders effectively shareholders in the platform directly benefitting from increased revenue and usage</span>
               </p>
               <Button size="lg" className="bg-cheese/50 text-primary-foreground font-semibold cursor-not-allowed" disabled>
                 Coming Soon

@@ -1,39 +1,48 @@
 
 
-# Null Breakdown Popup on Homepage
+## Random Fart Sounds on All Dapp Orbs
 
-Add a clickable popup to the "CHEESE Nulled" stat in the TokenStatsBanner that shows how much each contract (cheeseburner, cheesefeefee, cheesepowerz) has sent to eosio.null, along with each one's percentage of the total.
+All floating cheese orbs across dapp pages will play a random fart sound when clicked. The homepage orb is excluded.
 
-## How It Works
+### Changes
 
-When the user clicks the "CHEESE Nulled" stat on the homepage, a small Popover appears showing a 3-row table:
+**1. Save 7 new sound files** to `src/assets/farts/`
+- fart-01.mp3 through fart-07.mp3 (from the 7 uploaded files)
 
-| Contract | Nulled | % |
-|----------|--------|---|
-| cheeseburner | 1,234,567 CHEESE | 85.2% |
-| cheesefeefee | 150,000 CHEESE | 10.3% |
-| cheesepowerz | 65,000 CHEESE | 4.5% |
+**2. Create `src/lib/fartSounds.ts`** -- shared utility
+- Imports all 11 sound files (4 existing + 7 new)
+- Exports `playRandomFart()` which picks a random sound and plays it
+- Uses Audio object pooling so rapid clicks work smoothly
 
-## Data Fetching
+**3. Update 4 existing orb pages** (already have audio -- simplify them)
+- `src/pages/BannerAds.tsx` -- remove useRef/useCallback/sound import, use `playRandomFart`
+- `src/pages/Dao.tsx` -- same cleanup
+- `src/pages/CheeseNull.tsx` -- same cleanup
+- `src/pages/PowerUp.tsx` -- same cleanup
 
-Each of these three contracts sends CHEESE to `eosio.null` via the `cheeseburger` token contract. To get per-contract totals, we query Hyperion's `get_actions` endpoint for transfer actions from each contract to `eosio.null`.
+**4. Add click sound to 3 pages that don't have it yet**
+- `src/pages/Farm.tsx` -- add `cursor-pointer`, `onClick={playRandomFart}` to orb div
+- `src/pages/Locker.tsx` -- same
+- `src/components/drops/DropsHero.tsx` -- same
 
-## Technical Details
+### Technical Details
 
-### 1. New utility: `src/lib/cheeseNullBreakdown.ts`
-- Export an async function `fetchNullBreakdown()` that queries Hyperion for `cheeseburger::transfer` actions where `to=eosio.null` for each of the 3 sender accounts: `cheeseburner`, `cheesefeefee`, `cheesepowerz`
-- Paginates through all actions (same pattern as `fetchLogburnActions` in `fetchLeaderboard.ts`)
-- Sums the transferred amounts per contract
-- Returns an array of `{ contract: string, amount: number, percent: number }`
+```text
+src/lib/fartSounds.ts
+---------------------
+- Import 11 mp3 files (4 from assets root, 7 from assets/farts/)
+- const FART_SOUNDS = [all 11 sources]
+- export function playRandomFart():
+    pick random index -> new Audio(src) -> play()
 
-### 2. New hook: `src/hooks/useNullBreakdown.ts`
-- Wraps the fetch function in a `useQuery` with a long `staleTime` (5 min) since this data changes slowly
-- Returns the breakdown data, loading, and error states
+Each page change:
+- Add: import { playRandomFart } from '@/lib/fartSounds'
+- Add: onClick={playRandomFart} + cursor-pointer on orb div
+- Remove (where applicable): useRef, useCallback, audioRef, 
+  individual sound imports
+```
 
-### 3. Modify `src/components/home/TokenStatsBanner.tsx`
-- Import Radix `Popover` component
-- Wrap the "CHEESE Nulled" stat in a `PopoverTrigger` with a cursor-pointer style
-- The `PopoverContent` shows a compact table with 3 rows (one per contract), each showing contract name, formatted amount, and percentage of total
-- Table uses the existing `Table` UI component for consistency
-- Add a subtle hover indicator (e.g., underline or opacity change) so users know the stat is clickable
-
+### Files Touched
+- 7 new audio files created in `src/assets/farts/`
+- 1 new file: `src/lib/fartSounds.ts`
+- 7 files modified: BannerAds, Dao, CheeseNull, PowerUp, Farm, Locker, DropsHero

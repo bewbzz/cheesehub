@@ -49,16 +49,11 @@ export function isAnchorSession(session: Session): boolean {
   return isAnchor && !isCloudWallet;
 }
 
-// Get transact options — Greymass Fuel (wax.greymass.com) SSL certificate is currently
-// expired (ERR_CERT_DATE_INVALID). All Fuel requests fail at browser level for heavier
-// transactions (e.g. multi-action addliquid). Disabling until Greymass renews their cert.
+// Get transact plugins — Greymass Fuel provides free CPU/NET sponsorship for Anchor sessions
 export function getTransactPlugins(session: Session) {
-  console.log('[WharfKit] getTransactPlugins - Fuel disabled (Greymass cert expired)');
-  return [];
-
-  /* Re-enable when wax.greymass.com cert is renewed:
   const useAnchorPlugins = isAnchorSession(session);
   if (useAnchorPlugins) {
+    console.log('[WharfKit] getTransactPlugins - Fuel enabled for Anchor session');
     return [
       new TransactPluginResourceProvider({
         endpoints: { [WAX_CHAIN_ID]: 'https://wax.greymass.com' },
@@ -66,8 +61,8 @@ export function getTransactPlugins(session: Session) {
       }),
     ];
   }
+  console.log('[WharfKit] getTransactPlugins - no plugins (non-Anchor session)');
   return [];
-  */
 }
 
 // Track if a login is in progress to avoid removing modal during login

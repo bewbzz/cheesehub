@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BrowseDaos } from "@/components/dao/BrowseDaos";
@@ -5,8 +6,19 @@ import { CreateDao } from "@/components/dao/CreateDao";
 import { MyDaos } from "@/components/dao/MyDaos";
 import { Users, Plus, User } from "lucide-react";
 import cheeseDaoLogo from "@/assets/cheesedao.png";
+import cheeseDaoOrbSound from "@/assets/cheese-dao-orb-sound.mp3";
 
 export default function Dao() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playOrbSound = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(cheeseDaoOrbSound);
+    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(() => {});
+  }, []);
+
   return (
     <Layout floatingLogo={cheeseDaoLogo}>
       
@@ -15,7 +27,10 @@ export default function Dao() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
-            <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center">
+            <div
+              className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"
+              onClick={playOrbSound}
+            >
               <img src={cheeseDaoLogo} alt="CHEESE DAO" className="w-24 h-24 object-contain" />
             </div>
 

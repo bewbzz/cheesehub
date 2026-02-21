@@ -1,4 +1,5 @@
 import cheeseDropOrb from "@/assets/cheesedrop.png";
+import { playRandomFart } from "@/lib/fartSounds";
 
 interface DropsHeroProps {
   stats?: { activeDrops: number; totalSold: number };
@@ -22,7 +23,7 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
 
       <div className="container relative">
         <div className="flex flex-col items-center gap-8">
-          <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center">
+          <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer" onClick={playRandomFart}>
             <img src={cheeseDropOrb} alt="CHEESE" className="w-24 h-24 object-contain" />
           </div>
 

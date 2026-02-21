@@ -56,6 +56,7 @@ export interface ContractStats {
   total_cheese_burned: string;
   total_cheese_rewards: string;
   total_cheese_liquidity: string;
+  total_wax_cheesepowerz: string;
 }
 
 // Parse asset string like "123.45678900 WAX" to number

@@ -1,4 +1,4 @@
-import { RefreshCw, Clock, CheckCircle, TrendingUp, Droplet } from 'lucide-react';
+import { RefreshCw, Clock, CheckCircle, TrendingUp, Droplet, Gift, Zap } from 'lucide-react';
 import { useCheeseNullData } from '@/hooks/useCheeseNullData';
 import { formatWaxAmount, formatCheeseAmount, formatCountdown } from '@/lib/cheeseNullApi';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,9 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
   const {
     cheeseBurnAmount,
     cheeseLiquidityAmount,
+    cheeseRewardAmount,
     waxStakeAmount,
+    waxCheesepowerzAmount,
     canClaim,
     timeUntilNextClaim,
     isLoading,
@@ -50,6 +52,14 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="text-center space-y-1">
                 <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+                  <Gift className="w-3 h-3" />
+                  <span className="text-xs font-medium">Reward</span>
+                </div>
+                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)}</p>
+                <p className="text-xs text-muted-foreground">CHEESE</p>
+              </div>
+              <div className="text-center space-y-1">
+                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
                   <Droplet className="w-3 h-3" />
                   <span className="text-xs font-medium">xCHEESE</span>
                 </div>
@@ -62,6 +72,14 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
                   <span className="text-xs font-medium">Compound</span>
                 </div>
                 <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxStakeAmount)}</p>
+                <p className="text-xs text-muted-foreground">WAX</p>
+              </div>
+              <div className="text-center space-y-1">
+                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+                  <Zap className="w-3 h-3" />
+                  <span className="text-xs font-medium">CheesePowerz</span>
+                </div>
+                <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxCheesepowerzAmount)}</p>
                 <p className="text-xs text-muted-foreground">WAX</p>
               </div>
             </div>

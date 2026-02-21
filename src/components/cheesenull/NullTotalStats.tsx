@@ -44,38 +44,34 @@ export function NullTotalStats() {
 
         {/* Distribution Breakdown */}
         {!isLoading && !isError && (
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="flex items-center justify-center gap-4 pt-1">
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <Gift className="w-3 h-3" />
                 <span className="text-[10px] font-medium">Rewards</span>
               </div>
-              <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(totalCheeseRewards)}</p>
-              <p className="text-[10px] text-muted-foreground">CHEESE</p>
+              <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(totalCheeseRewards)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
             </div>
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <Droplet className="w-3 h-3" />
                 <span className="text-[10px] font-medium">xCHEESE</span>
               </div>
-              <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(totalCheeseLiquidity)}</p>
-              <p className="text-[10px] text-muted-foreground">CHEESE</p>
+              <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(totalCheeseLiquidity)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
             </div>
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <TrendingUp className="w-3 h-3" />
                 <span className="text-[10px] font-medium">Compound</span>
               </div>
-              <p className="text-xs font-semibold text-cheese">{formatWaxAmount(totalWaxCompounded)}</p>
-              <p className="text-[10px] text-muted-foreground">WAX</p>
+              <p className="text-xs font-semibold text-cheese">{formatWaxAmount(totalWaxCompounded)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
             </div>
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <Zap className="w-3 h-3" />
                 <span className="text-[10px] font-medium">CheesePowerz</span>
               </div>
-              <p className="text-xs font-semibold text-cheese">{formatWaxAmount(totalWaxCheesepowerz)}</p>
-              <p className="text-[10px] text-muted-foreground">WAX</p>
+              <p className="text-xs font-semibold text-cheese">{formatWaxAmount(totalWaxCheesepowerz)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
             </div>
           </div>
         )}

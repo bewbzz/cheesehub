@@ -49,38 +49,34 @@ export function NullStats({ onCanClaimChange }: NullStatsProps) {
 
           {/* Distribution Breakdown */}
           {!isLoading && !isError && (
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+            <div className="flex items-center justify-center gap-4 pt-2">
+              <div className="text-center space-y-0.5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Gift className="w-3 h-3" />
-                  <span className="text-xs font-medium">Reward</span>
+                  <span className="text-[10px] font-medium">Reward</span>
                 </div>
-                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)}</p>
-                <p className="text-xs text-muted-foreground">CHEESE</p>
+                <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(cheeseRewardAmount)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
               </div>
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+              <div className="text-center space-y-0.5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Droplet className="w-3 h-3" />
-                  <span className="text-xs font-medium">xCHEESE</span>
+                  <span className="text-[10px] font-medium">xCHEESE</span>
                 </div>
-                <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(cheeseLiquidityAmount)}</p>
-                <p className="text-xs text-muted-foreground">CHEESE</p>
+                <p className="text-xs font-semibold text-cheese">{formatCheeseAmount(cheeseLiquidityAmount)} <span className="text-[10px] text-muted-foreground">CHEESE</span></p>
               </div>
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+              <div className="text-center space-y-0.5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <TrendingUp className="w-3 h-3" />
-                  <span className="text-xs font-medium">Compound</span>
+                  <span className="text-[10px] font-medium">Compound</span>
                 </div>
-                <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxStakeAmount)}</p>
-                <p className="text-xs text-muted-foreground">WAX</p>
+                <p className="text-xs font-semibold text-cheese">{formatWaxAmount(waxStakeAmount)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
               </div>
-              <div className="text-center space-y-1">
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground">
+              <div className="text-center space-y-0.5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Zap className="w-3 h-3" />
-                  <span className="text-xs font-medium">CheesePowerz</span>
+                  <span className="text-[10px] font-medium">CheesePowerz</span>
                 </div>
-                <p className="text-sm font-semibold text-cheese">{formatWaxAmount(waxCheesepowerzAmount)}</p>
-                <p className="text-xs text-muted-foreground">WAX</p>
+                <p className="text-xs font-semibold text-cheese">{formatWaxAmount(waxCheesepowerzAmount)} <span className="text-[10px] text-muted-foreground">WAX</span></p>
               </div>
             </div>
           )}

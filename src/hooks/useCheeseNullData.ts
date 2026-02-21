@@ -18,7 +18,6 @@ export interface CheeseNullData {
   claimableWax: number;
   estimatedCheese: number;
   cheeseBurnAmount: number;
-  cheeseRewardAmount: number;
   cheeseLiquidityAmount: number;
   waxStakeAmount: number;
   cheesePerWax: number;
@@ -77,8 +76,7 @@ export function useCheeseNullData(): CheeseNullData {
   const estimatedCheese = waxToSwap * cheesePerWax;
 
   const cheeseBurnAmount = estimatedCheese * (63 / 80);
-  const cheeseRewardAmount = estimatedCheese * (10 / 80);
-  const cheeseLiquidityAmount = estimatedCheese * (7 / 80);
+  const cheeseLiquidityAmount = estimatedCheese * (17 / 80);
 
   const canClaim = lastClaimTime ? checkCanClaim(lastClaimTime) : false;
 
@@ -92,7 +90,6 @@ export function useCheeseNullData(): CheeseNullData {
     claimableWax,
     estimatedCheese,
     cheeseBurnAmount,
-    cheeseRewardAmount,
     cheeseLiquidityAmount,
     waxStakeAmount,
     cheesePerWax,

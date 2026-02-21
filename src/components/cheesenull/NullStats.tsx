@@ -12,7 +12,6 @@ interface NullStatsProps {
 export function NullStats({ onCanClaimChange }: NullStatsProps) {
   const {
     cheeseBurnAmount,
-    cheeseRewardAmount,
     cheeseLiquidityAmount,
     waxStakeAmount,
     canClaim,

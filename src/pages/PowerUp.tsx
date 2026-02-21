@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import { Layout } from "@/components/Layout";
 import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
@@ -5,10 +6,20 @@ import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
 import cheeseUpLogo from "@/assets/cheeseup.png";
 import cheeseUpOrb from "@/assets/cheeseup-2.png";
+import cheeseUpOrbSound from "@/assets/cheese-up-orb-sound.mp3";
 
 const PowerUp = () => {
   const { isConnected, accountName, isLoading, session, cheeseBalance, login, logout, refreshBalance } = useWax();
   const { stats, isLoading: statsLoading, refetch: refetchStats } = usePowerupStats();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playOrbSound = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(cheeseUpOrbSound);
+    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(() => {});
+  }, []);
 
   const handleConnectWallet = async () => {
     if (isConnected) {
@@ -26,7 +37,10 @@ const PowerUp = () => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
-            <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center">
+            <div
+              className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"
+              onClick={playOrbSound}
+            >
               <img src={cheeseUpOrb} alt="CHEESE" className="w-24 h-24 object-contain" />
             </div>
 

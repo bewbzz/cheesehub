@@ -172,16 +172,16 @@
   .cheese-bubble {
     background: radial-gradient(
       circle at 35% 30%,
-      hsl(var(--cheese-light) / 0.3) 0%,
-      hsl(var(--cheese) / 0.2) 40%,
-      hsl(var(--cheese-dark) / 0.45) 70%,
-      hsl(var(--cheese-dark) / 0.3) 100%
+      hsl(var(--cheese-light) / 0.15) 0%,
+      hsl(var(--cheese) / 0.1) 40%,
+      hsl(var(--cheese-dark) / 0.2) 70%,
+      hsl(var(--cheese-dark) / 0.12) 100%
     );
     box-shadow:
-      0 0 20px hsl(var(--cheese) / 0.3),
-      0 0 40px hsl(var(--cheese) / 0.15),
-      inset 0 -6px 16px hsl(var(--cheese-dark) / 0.5),
-      inset 0 4px 8px hsl(var(--cheese-light) / 0.3);
+      0 0 20px hsl(var(--cheese) / 0.2),
+      0 0 40px hsl(var(--cheese) / 0.1),
+      inset 0 -6px 16px hsl(var(--cheese-dark) / 0.25),
+      inset 0 4px 8px hsl(var(--cheese-light) / 0.15);
     position: relative;
     overflow: hidden;
   }

@@ -172,10 +172,10 @@
   .cheese-bubble {
     background: radial-gradient(
       circle at 35% 30%,
-      hsl(var(--cheese-light) / 0.45) 0%,
-      hsl(var(--cheese) / 0.35) 40%,
-      hsl(var(--cheese-dark) / 0.6) 70%,
-      hsl(var(--cheese-dark) / 0.45) 100%
+      hsl(var(--cheese-light) / 0.3) 0%,
+      hsl(var(--cheese) / 0.2) 40%,
+      hsl(var(--cheese-dark) / 0.45) 70%,
+      hsl(var(--cheese-dark) / 0.3) 100%
     );
     box-shadow:
       0 0 20px hsl(var(--cheese) / 0.3),

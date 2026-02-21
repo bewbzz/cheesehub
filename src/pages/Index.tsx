@@ -20,7 +20,7 @@ const Index = () => {
         <div className="container relative py-16 md:py-24">
           <div className="flex flex-col items-center text-center">
             {/* Floating Bubble - same pattern as DropsHero, just bigger */}
-            <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-glow rounded-full flex items-center justify-center">
+            <div className="h-64 w-64 md:h-80 md:w-80 animate-float cheese-bubble rounded-full flex items-center justify-center">
               <img src={cheeseCoin} alt="CHEESE Coin" className="w-56 md:w-72 object-contain" />
             </div>
 

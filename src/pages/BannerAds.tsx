@@ -9,7 +9,7 @@ const BannerAds = () => {
       <section className="container py-12 md:py-20">
         <div className="flex flex-col items-center gap-8">
           {/* Floating Cheese Orb */}
-          <div className="h-32 w-32 animate-float cheese-glow rounded-full flex items-center justify-center">
+          <div className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center">
             <img src={cheeseLogo} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
           </div>
 

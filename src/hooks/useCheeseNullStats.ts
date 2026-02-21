@@ -9,6 +9,7 @@ export interface CheeseNullStatsData {
   totalCheeseRewards: number;
   totalCheeseLiquidity: number;
   totalWaxCompounded: number;
+  totalWaxCheesepowerz: number;
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
@@ -28,6 +29,7 @@ export function useCheeseNullStats(): CheeseNullStatsData {
     totalCheeseRewards: parseAssetAmount(data?.total_cheese_rewards ?? ''),
     totalCheeseLiquidity: parseAssetAmount(data?.total_cheese_liquidity ?? ''),
     totalWaxCompounded: parseAssetAmount(data?.total_wax_staked ?? ''),
+    totalWaxCheesepowerz: parseAssetAmount(data?.total_wax_cheesepowerz ?? ''),
     isLoading,
     isError,
     refetch,

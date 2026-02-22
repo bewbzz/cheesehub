@@ -34,7 +34,7 @@ export function NullTotalStats() {
           {isLoading ? (
             <Skeleton className="h-7 w-40 mx-auto bg-muted" />
           ) : isError ? (
-            <p className="text-destructive text-xs">Error loading</p>
+            <p className="text-xs text-muted-foreground italic">Stats temporarily unavailable</p>
           ) : (
             <p className="text-xl font-bold text-cheese">
               {formatCheeseAmount(totalCheeseNulled)} <span className="text-sm text-muted-foreground">CHEESE</span>

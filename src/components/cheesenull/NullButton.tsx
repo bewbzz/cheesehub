@@ -16,7 +16,8 @@ export function NullButton({ disabled = false, onBurnSuccess }: NullButtonProps)
   const { session, isConnected } = useWax();
   const { executeTransaction } = useWaxTransaction(session);
 
-  const isDisabled = disabled || !isConnected || isTransacting;
+  const isMaintenanceMode = true;
+  const isDisabled = disabled || !isConnected || isTransacting || isMaintenanceMode;
 
   const handleClick = async () => {
     if (isDisabled || !session) return;
@@ -58,6 +59,7 @@ export function NullButton({ disabled = false, onBurnSuccess }: NullButtonProps)
   };
 
   const getHintText = () => {
+    if (isMaintenanceMode) return 'Contract is being updated, please wait';
     if (!isConnected) return 'Connect wallet first';
     if (disabled) return 'Waiting for cooldown';
     return null;

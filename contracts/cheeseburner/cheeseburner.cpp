@@ -179,14 +179,14 @@ ACTION cheeseburner::migrate(name caller) {
     require_auth(get_self());
 
     // Use raw DB intrinsics to delete without deserializing
-    auto raw_itr = db_find_i64(
+    auto raw_itr = eosio::internal_use_do_not_use::db_find_i64(
         get_self().value,   // code
         get_self().value,   // scope
         "stats"_n.value,    // table
         0                   // primary key
     );
     if (raw_itr >= 0) {
-        db_remove_i64(raw_itr);
+        eosio::internal_use_do_not_use::db_remove_i64(raw_itr);
     }
 
     // Now emplace a fresh row with the correct schema (all fields present)

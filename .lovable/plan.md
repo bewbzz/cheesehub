@@ -1,48 +1,67 @@
 
 
-## Random Fart Sounds on All Dapp Orbs
+# Fix CHEESENull Stats Error
 
-All floating cheese orbs across dapp pages will play a random fart sound when clicked. The homepage orb is excluded.
+## The Root Cause
 
-### Changes
+The `migrate` action in `cheeseburner.cpp` uses `stats_tbl.find(0)` and `stats_tbl.erase(itr)`, which both attempt to **deserialize** the row. Since the on-chain row was written with the old schema (missing `total_wax_cheesepowerz`), deserialization crashes with "datastream attempted to read past the end." Every previous fix attempt used the same `multi_index` API, which is why they all produce the same error.
 
-**1. Save 7 new sound files** to `src/assets/farts/`
-- fart-01.mp3 through fart-07.mp3 (from the 7 uploaded files)
+## Two-Part Fix
 
-**2. Create `src/lib/fartSounds.ts`** -- shared utility
-- Imports all 11 sound files (4 existing + 7 new)
-- Exports `playRandomFart()` which picks a random sound and plays it
-- Uses Audio object pooling so rapid clicks work smoothly
+### Part 1: Smart Contract Fix (cheeseburner.cpp)
 
-**3. Update 4 existing orb pages** (already have audio -- simplify them)
-- `src/pages/BannerAds.tsx` -- remove useRef/useCallback/sound import, use `playRandomFart`
-- `src/pages/Dao.tsx` -- same cleanup
-- `src/pages/CheeseNull.tsx` -- same cleanup
-- `src/pages/PowerUp.tsx` -- same cleanup
+Replace the `migrate` action to use **raw DB intrinsics** that bypass deserialization entirely:
 
-**4. Add click sound to 3 pages that don't have it yet**
-- `src/pages/Farm.tsx` -- add `cursor-pointer`, `onClick={playRandomFart}` to orb div
-- `src/pages/Locker.tsx` -- same
-- `src/components/drops/DropsHero.tsx` -- same
+```cpp
+ACTION cheeseburner::migrate(name caller) {
+    require_auth(get_self());
 
-### Technical Details
+    // Use raw DB intrinsics to delete without deserializing
+    auto raw_itr = db_find_i64(
+        get_self().value,   // code
+        get_self().value,   // scope
+        "stats"_n.value,    // table
+        0                   // primary key
+    );
+    if (raw_itr >= 0) {
+        db_remove_i64(raw_itr);
+    }
 
-```text
-src/lib/fartSounds.ts
----------------------
-- Import 11 mp3 files (4 from assets root, 7 from assets/farts/)
-- const FART_SOUNDS = [all 11 sources]
-- export function playRandomFart():
-    pick random index -> new Audio(src) -> play()
-
-Each page change:
-- Add: import { playRandomFart } from '@/lib/fartSounds'
-- Add: onClick={playRandomFart} + cursor-pointer on orb div
-- Remove (where applicable): useRef, useCallback, audioRef, 
-  individual sound imports
+    // Now emplace a fresh row with the correct schema
+    stats_table stats_tbl(get_self(), get_self().value);
+    stats_tbl.emplace(get_self(), [&](auto& row) {
+        row.total_burns            = 0;
+        row.total_wax_claimed      = asset(0, WAX_SYMBOL);
+        row.total_wax_staked       = asset(0, WAX_SYMBOL);
+        row.total_cheese_burned    = asset(0, CHEESE_SYMBOL);
+        row.total_cheese_rewards   = asset(0, CHEESE_SYMBOL);
+        row.total_cheese_liquidity = asset(0, CHEESE_SYMBOL);
+        row.total_wax_cheesepowerz = asset(0, WAX_SYMBOL);
+    });
+}
 ```
 
-### Files Touched
-- 7 new audio files created in `src/assets/farts/`
-- 1 new file: `src/lib/fartSounds.ts`
-- 7 files modified: BannerAds, Dao, CheeseNull, PowerUp, Farm, Locker, DropsHero
+You will need to recompile the contract, deploy it, and then call the `migrate` action.
+
+### Part 2: Frontend Graceful Fallback
+
+While the contract is being fixed, update the frontend so the CHEESENull page doesn't show errors:
+
+**File: `src/components/cheesenull/NullTotalStats.tsx`** -- Add error handling so NullTotalStats shows "Unavailable" or zeros instead of an error state when the stats table read fails.
+
+**File: `src/hooks/useCheeseNullStats.ts`** -- The hook already returns defaults (`0`) when data is null, and `fetchContractStats` already catches errors and returns `null`. No changes needed here -- the hook handles it gracefully. But the component may be showing an error state. Will verify and add a friendly fallback message if needed.
+
+### Summary
+
+| Step | What | Why |
+|------|------|-----|
+| 1 | Replace `migrate` action with raw DB intrinsics | `multi_index::find/erase` deserializes, which crashes on mismatched schema |
+| 2 | Recompile + deploy + call `migrate` | Fixes the on-chain data |
+| 3 | Add frontend fallback for stats errors | Users see "Stats unavailable" instead of errors until migration completes |
+
+### Technical Detail
+
+- `db_find_i64(code, scope, table, id)` returns a raw iterator (int) without deserializing
+- `db_remove_i64(itr)` deletes the row using that raw iterator, also without deserializing
+- These are the low-level C intrinsics that `multi_index` wraps -- using them directly sidesteps the deserialization layer entirely
+

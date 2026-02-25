@@ -130,18 +130,13 @@ export function SlotCalendar() {
   return (
     <TooltipProvider>
       <div className="flex flex-col items-center text-center mb-4 gap-3">
-        <div className="flex items-start text-sm w-full justify-center">
-          <div className="flex-1 flex justify-end pr-3">
-            <span className="text-foreground font-medium whitespace-nowrap pt-0.5">Exclusive: {pricing.waxPerDay} WAX/day</span>
-          </div>
-          <span className="text-muted-foreground pt-0.5">|</span>
-          <div className="flex-1 pl-3">
-            <div className="flex flex-col">
-              <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
-              <span className="text-xs text-muted-foreground text-left whitespace-nowrap">30% off, 50% display time</span>
-              <span className="text-xs text-muted-foreground text-left whitespace-nowrap">BUT if nobody rents the other shared slot,</span>
-              <span className="text-xs text-muted-foreground text-left whitespace-nowrap">you get exclusive for the cheaper price!</span>
-            </div>
+        <div className="flex flex-col items-center text-sm gap-1">
+          <span className="text-foreground font-medium">Exclusive: {pricing.waxPerDay} WAX/day</span>
+          <div className="flex flex-col items-start">
+            <span className="text-foreground font-medium whitespace-nowrap">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">30% off, 50% display time</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">BUT if nobody rents the other shared slot,</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">you get exclusive for the cheaper price!</span>
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese">

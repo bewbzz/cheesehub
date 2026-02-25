@@ -129,14 +129,15 @@ export function SlotCalendar() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col items-center text-center mb-4 gap-1">
+        <div className="flex items-center gap-2 text-sm">
           <span className="text-foreground font-medium">Exclusive: {pricing.waxPerDay} WAX/day</span>
-          <span className="mx-2">|</span>
+          <span className="text-muted-foreground">|</span>
           <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
-          <span className="text-xs ml-1">(30% off, 50% display time — if nobody rents the other shared slot, you get exclusive for the cheaper price!)</span>
-        </p>
-        <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese">
+        </div>
+        <p className="text-xs text-muted-foreground">30% off, 50% display time</p>
+        <p className="text-xs text-muted-foreground">If nobody rents the other shared slot, you get exclusive for the cheaper price!</p>
+        <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese mt-1">
           <RefreshCw className="h-4 w-4 mr-1" />
           Refresh
         </Button>

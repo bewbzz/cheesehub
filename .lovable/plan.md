@@ -1,48 +1,43 @@
 
 
-# Fix Music NFT Library Loading Timeouts
+# Open Up CHEESEAds Frontend and Add Shared Pricing
 
-## Problem
+## Current State
 
-When loading a user's music NFT library, the API requests time out too quickly (5 seconds per endpoint). For users with large collections, many paginated requests are needed, and the AtomicAssets APIs often take longer than 5 seconds to respond -- especially under load. This causes partial loads, requiring multiple refreshes to see the full collection.
+- Non-on-chain slots show a **disabled** "Rent" button with "Contract not yet initialized" tooltip (lines 195-210)
+- The pricing bar only shows the base WAX price with no mention of the shared discount
+- Rent/Join buttons only appear for on-chain slots
 
 ## Changes
 
-### 1. Increase timeouts in `useMusicNFTs.ts`
+### 1. Enable Rent button for all slots (`SlotCalendar.tsx`)
 
-- **`fetchApiPage`**: Increase timeout from 5s to 15s -- these are paginated queries that can be slow for large collections
-- **`fetchAssetMetadata`**: Increase timeout from 5s to 12s -- batch ID lookups can also be slow
+Remove the disabled/tooltip block for non-on-chain slots (lines 195-210) and replace it with an active "Rent" button that opens the `RentSlotDialog` -- same as the on-chain path. This makes all 30 days of slots immediately rentable once the contract is deployed.
 
-### 2. Increase default timeout in `fetchWithFallback.ts`
+Also update the availability check on lines 177-185 to include non-on-chain slots:
 
-- Change default timeout from 8s to 15s so any caller not specifying a timeout also gets a more generous window
+```
+Before:  slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive"
+After:   (slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared"
+```
 
-### 3. Add per-endpoint retry with backoff in `fetchWithFallback.ts`
+### 2. Add shared pricing to the pricing bar (`SlotCalendar.tsx`)
 
-- Before moving to the next fallback endpoint, retry the current endpoint once after a 1-second delay if the failure was a timeout (abort). This handles transient slowness without immediately burning through all endpoints.
+Update the pricing display (line 133-135) to show both tiers:
 
-## Files to Edit
+```
+Exclusive: 100 WAX/day | Shared: 70 WAX/day (30% off, 50% display time)
+```
+
+Calculated dynamically from `pricing.waxPerDay` and the 30% shared discount.
+
+### 3. Remove "Not Live" badge for placeholder slots
+
+Change the `SlotBadge` so non-on-chain slots show "Available" instead of "Not Live" -- since we're opening everything up.
+
+### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/lib/fetchWithFallback.ts` | Increase default timeout to 15s; add single retry on timeout for each endpoint |
-| `src/hooks/useMusicNFTs.ts` | Change timeout in `fetchApiPage` from 5000 to 15000; change timeout in `fetchAssetMetadata` from 5000 to 12000 |
-
-## Technical Details
-
-**`fetchWithFallback.ts`** -- updated logic:
-
-```text
-for each endpoint:
-  attempt 1: fetch with timeout
-  if timeout -> wait 1s, attempt 2 with same endpoint
-  if still fails -> move to next endpoint
-```
-
-**`useMusicNFTs.ts`** -- two line changes:
-
-- Line ~259: `fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000)` becomes `12000`
-- Line ~338: `fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000)` becomes `15000`
-
-This should allow the library to fully load on the first attempt for most users without needing to refresh.
+| `src/components/bannerads/SlotCalendar.tsx` | Enable rent for all slots, add shared pricing display, update badge |
 

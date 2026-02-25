@@ -256,7 +256,7 @@ async function fetchAssetMetadata(assetIds: string[]): Promise<MusicNFT[]> {
           const cacheBuster = `&_ts=${Date.now()}`;
           const path = `${ATOMIC_API.paths.assets}?ids=${idsParam}${cacheBuster}`;
           // Use faster 5s timeout for quicker failover
-          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000);
+          const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 12000);
           const json = await response.json();
           
           if (json.success && json.data) {
@@ -326,7 +326,7 @@ async function fetchApiPage(owner: string, page: number, limit: number): Promise
   
   try {
     // Use faster 5s timeout for quicker failover
-    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 5000);
+    const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 15000);
     const json = await response.json();
 
     if (!json.success || !json.data) {

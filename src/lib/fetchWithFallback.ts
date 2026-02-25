@@ -4,31 +4,44 @@ export async function fetchWithFallback(
   endpoints: string[],
   path: string,
   options?: RequestInit,
-  timeout: number = 8000
+  timeout: number = 15000
 ): Promise<Response> {
   let lastError: Error | null = null;
 
   for (const baseUrl of endpoints) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+    // Attempt up to 2 tries per endpoint (retry once on timeout)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const response = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        signal: controller.signal,
-      });
+        const response = await fetch(`${baseUrl}${path}`, {
+          ...options,
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (response.ok) {
-        return response;
+        if (response.ok) {
+          return response;
+        }
+        
+        // If response is not ok, don't retry same endpoint — try next
+        console.warn(`Endpoint ${baseUrl} returned ${response.status}, trying next...`);
+        break;
+      } catch (error) {
+        lastError = error as Error;
+        const isTimeout = (error as Error).name === 'AbortError';
+        
+        if (isTimeout && attempt === 0) {
+          console.warn(`Endpoint ${baseUrl} timed out, retrying after 1s...`);
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        }
+        
+        console.warn(`Endpoint ${baseUrl} failed:`, (error as Error).message);
+        break;
       }
-      
-      // If response is not ok, try next endpoint
-      console.warn(`Endpoint ${baseUrl} returned ${response.status}, trying next...`);
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`Endpoint ${baseUrl} failed:`, (error as Error).message);
     }
   }
 

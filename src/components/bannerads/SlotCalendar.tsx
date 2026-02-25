@@ -16,7 +16,7 @@ const BANNER_CONTRACT = "cheesebannad";
 
 function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: string | null }) {
   if (!slot.isOnChain) {
-    return <Badge variant="secondary" className="text-xs">Not Live</Badge>;
+    return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
   }
 
   // Suspended by admin — shown to everyone
@@ -131,7 +131,10 @@ export function SlotCalendar() {
     <TooltipProvider>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
-          Price: <span className="text-foreground font-medium">{pricing.waxPerDay} WAX</span> per position per day
+          <span className="text-foreground font-medium">Exclusive: {pricing.waxPerDay} WAX/day</span>
+          <span className="mx-2">|</span>
+          <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
+          <span className="text-xs ml-1">(30% off, 50% display time)</span>
         </p>
         <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese">
           <RefreshCw className="h-4 w-4 mr-1" />
@@ -174,7 +177,7 @@ export function SlotCalendar() {
                       </div>
                       <div className="flex items-center gap-2">
                          {/* Rent / Join buttons for non-admin users */}
-                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive" && !isAdmin && (
+                         {(slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && (
                            <Button
                              size="sm"
                              className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
@@ -191,22 +194,6 @@ export function SlotCalendar() {
                            >
                              Join
                            </Button>
-                         )}
-                         {!slot.isOnChain && (
-                           <Tooltip>
-                             <TooltipTrigger asChild>
-                               <span>
-                                 <Button
-                                   size="sm"
-                                   className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7 opacity-50 cursor-not-allowed"
-                                   disabled
-                                 >
-                                   Rent
-                                 </Button>
-                               </span>
-                             </TooltipTrigger>
-                             <TooltipContent>Contract not yet initialized</TooltipContent>
-                           </Tooltip>
                          )}
 
                          {/* Edit button for slot owners */}

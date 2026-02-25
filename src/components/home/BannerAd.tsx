@@ -74,7 +74,25 @@ function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
 export function BannerAd() {
   const { data: banners, isLoading } = useBannerAds();
 
-  if (isLoading || !banners || banners.length === 0) return null;
+  const hasRealBanners = !isLoading && banners && banners.length > 0;
+
+  // Show placeholder banners when no real ones exist
+  if (!hasRealBanners) {
+    return (
+      <div className="container py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-[580px] h-[150px] max-w-full rounded-lg border-2 border-dashed border-cheese/30 bg-cheese/5 flex items-center justify-center"
+            >
+              <span className="text-cheese/40 text-sm font-medium">Banner Ad — Position {i} (580×150)</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Separate by display mode
   const fullBanners = banners.filter((b) => b.displayMode === "full");

@@ -130,7 +130,7 @@ export function SlotCalendar() {
   return (
     <TooltipProvider>
       <div className="flex flex-col items-center text-center mb-4 gap-3">
-        <div className="flex items-start gap-4 text-sm w-full justify-center">
+        <div className="flex items-start gap-4 text-sm w-full justify-center pl-16">
           <span className="text-foreground font-medium whitespace-nowrap pt-0.5">Exclusive: {pricing.waxPerDay} WAX/day</span>
           <span className="text-muted-foreground pt-0.5">|</span>
           <div className="flex flex-col items-start">

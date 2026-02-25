@@ -15,6 +15,8 @@ import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
+import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 
 interface RentSlotDialogProps {
   open: boolean;
@@ -39,6 +41,8 @@ export function RentSlotDialog({
   const { toast } = useToast();
   const [numDays, setNumDays] = useState(1);
   const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">(isJoining ? "shared" : "exclusive");
+  const [ipfsHash, setIpfsHash] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const SHARED_DISCOUNT = 0.30;
@@ -52,6 +56,10 @@ export function RentSlotDialog({
   const modeChar = isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
   const memo = `banner|${startTime}|${numDays}|${position}|${modeChar}`;
 
+  const previewUrl = ipfsHash
+    ? ipfsHash.startsWith("http") ? ipfsHash : `${IPFS_GATEWAYS[0]}${ipfsHash}`
+    : "";
+
   const handleRent = async () => {
     if (!session) {
       toast({ title: "Wallet Not Connected", description: "Please connect your wallet first", variant: "destructive" });
@@ -62,6 +70,33 @@ export function RentSlotDialog({
     try {
       const txId = await transferToken("eosio.token", "WAX", 8, "cheesebannad", totalWax, memo);
 
+      if (txId && ipfsHash) {
+        // Set the banner image right after renting
+        const actionName = isJoining ? "editsharedbanner" : "editadbanner";
+        try {
+          await session.transact(
+            {
+              actions: [{
+                account: "cheesebannad",
+                name: actionName,
+                authorization: [session.permissionLevel],
+                data: {
+                  user: session.actor.toString(),
+                  start_time: startTime,
+                  position,
+                  ipfs_hash: ipfsHash,
+                  website_url: websiteUrl,
+                },
+              }],
+            },
+            { transactPlugins: getTransactPlugins(session) }
+          );
+        } catch (editError) {
+          console.warn("Banner image set failed (can be set later via Edit):", editError);
+          closeWharfkitModals();
+        }
+      }
+
       if (txId) {
         toast({ title: "Slot Rented! 🧀", description: `Position ${position} rented for ${numDays} day(s)` });
         onSuccess();
@@ -69,6 +104,7 @@ export function RentSlotDialog({
       }
     } catch (error) {
       console.error("Rent failed:", error);
+      closeWharfkitModals();
       toast({
         title: "Rent Failed",
         description: error instanceof Error ? error.message : "Transaction failed",
@@ -76,6 +112,7 @@ export function RentSlotDialog({
       });
     } finally {
       setIsSubmitting(false);
+      setTimeout(() => closeWharfkitModals(), 100);
     }
   };
 
@@ -125,6 +162,53 @@ export function RentSlotDialog({
                   </Label>
                 </div>
               </RadioGroup>
+            </div>
+          )}
+
+          <div>
+            <Label>IPFS Hash</Label>
+            <Input
+              value={ipfsHash}
+              onChange={(e) => setIpfsHash(e.target.value)}
+              placeholder="QmXyz... or bafyabc..."
+              maxLength={128}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Max 128 characters</p>
+          </div>
+
+          <div>
+            <Label>Website URL</Label>
+            <Input
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://example.com"
+              maxLength={256}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Max 256 characters</p>
+          </div>
+
+          <div className="rounded-lg border border-border/30 bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground text-sm">📐 Recommended Dimensions</p>
+            <p><strong>1200 × 300 px</strong> (4:1 ratio) — best for retina displays</p>
+            <p>Minimum: 600 × 150 px. Wide banner format works best.</p>
+            <p>Supported formats: PNG, JPG, GIF, WebP</p>
+          </div>
+
+          {previewUrl && (
+            <div>
+              <Label className="text-muted-foreground">Preview</Label>
+              <div className="mt-2 rounded-lg overflow-hidden border border-border/30">
+                <img
+                  src={previewUrl}
+                  alt="Banner preview"
+                  className="w-full h-auto max-h-40 object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
             </div>
           )}
 

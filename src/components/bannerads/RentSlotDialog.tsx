@@ -56,9 +56,7 @@ export function RentSlotDialog({
   const modeChar = isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
   const memo = `banner|${startTime}|${numDays}|${position}|${modeChar}`;
 
-  const previewUrl = ipfsHash
-    ? ipfsHash.startsWith("http") ? ipfsHash : `${IPFS_GATEWAYS[0]}${ipfsHash}`
-    : "";
+  const previewUrl = ipfsHash ? `${IPFS_GATEWAYS[0]}${ipfsHash}` : "";
 
   const handleRent = async () => {
     if (!session) {
@@ -169,12 +167,12 @@ export function RentSlotDialog({
             <Label>IPFS Hash</Label>
             <Input
               value={ipfsHash}
-              onChange={(e) => setIpfsHash(e.target.value)}
+              onChange={(e) => setIpfsHash(e.target.value.replace(/^https?:\/\/.*$/i, ""))}
               placeholder="QmXyz... or bafyabc..."
               maxLength={128}
               className="mt-1"
             />
-            <p className="text-xs text-muted-foreground mt-1">Max 128 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">IPFS hash only (no URLs). Max 128 characters.</p>
           </div>
 
           <div>
@@ -190,10 +188,10 @@ export function RentSlotDialog({
           </div>
 
           <div className="rounded-lg border border-border/30 bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-foreground text-sm">📐 Recommended Dimensions</p>
-            <p><strong>1200 × 300 px</strong> (4:1 ratio) — best for retina displays</p>
-            <p>Minimum: 600 × 150 px. Wide banner format works best.</p>
-            <p>Supported formats: PNG, JPG, GIF, WebP</p>
+            <p className="font-medium text-foreground text-sm">📐 Required Dimensions</p>
+            <p><strong>580 × 150 px</strong> — exact size required</p>
+            <p>Upload your image to IPFS and paste the hash here.</p>
+            <p>Only IPFS hashes accepted (Qm… or bafy…), not direct image URLs.</p>
           </div>
 
           {previewUrl && (

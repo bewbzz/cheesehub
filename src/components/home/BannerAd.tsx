@@ -6,9 +6,7 @@ import { Badge } from "@/components/ui/badge";
 function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isShared?: boolean }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
 
-  const imgUrl = banner.ipfsHash.startsWith("http")
-    ? banner.ipfsHash
-    : `${IPFS_GATEWAYS[gatewayIdx]}${banner.ipfsHash}`;
+  const imgUrl = `${IPFS_GATEWAYS[gatewayIdx]}${banner.ipfsHash}`;
 
   const handleError = () => {
     if (gatewayIdx < IPFS_GATEWAYS.length - 1) {
@@ -26,7 +24,9 @@ function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isSha
       <img
         src={imgUrl}
         alt="Banner Ad"
-        className="w-full h-auto object-cover opacity-100 transition-opacity duration-1000"
+        width={580}
+        height={150}
+        className="w-[580px] h-[150px] object-cover opacity-100 transition-opacity duration-1000"
         onError={handleError}
         loading="lazy"
       />

@@ -32,11 +32,7 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
   const [websiteUrl, setWebsiteUrl] = useState(isSharedUser ? slot.sharedWebsiteUrl || "" : slot.websiteUrl);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const previewUrl = ipfsHash
-    ? ipfsHash.startsWith("http")
-      ? ipfsHash
-      : `${IPFS_GATEWAYS[0]}${ipfsHash}`
-    : "";
+  const previewUrl = ipfsHash ? `${IPFS_GATEWAYS[0]}${ipfsHash}` : "";
 
   const handleSave = async () => {
     if (!session) return;
@@ -98,12 +94,12 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
             <Label>IPFS Hash</Label>
             <Input
               value={ipfsHash}
-              onChange={(e) => setIpfsHash(e.target.value)}
+              onChange={(e) => setIpfsHash(e.target.value.replace(/^https?:\/\/.*$/i, ""))}
               placeholder="QmXyz... or bafyabc..."
               maxLength={128}
               className="mt-1"
             />
-            <p className="text-xs text-muted-foreground mt-1">Max 128 characters</p>
+            <p className="text-xs text-muted-foreground mt-1">IPFS hash only (no URLs). Max 128 characters.</p>
           </div>
 
           <div>
@@ -116,6 +112,12 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
               className="mt-1"
             />
             <p className="text-xs text-muted-foreground mt-1">Max 256 characters</p>
+          </div>
+
+          <div className="rounded-lg border border-border/30 bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground text-sm">📐 Required Dimensions</p>
+            <p><strong>580 × 150 px</strong> — exact size required</p>
+            <p>Only IPFS hashes accepted (Qm… or bafy…), not direct image URLs.</p>
           </div>
 
           {/* Preview */}

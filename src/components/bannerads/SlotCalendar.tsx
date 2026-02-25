@@ -136,7 +136,7 @@ export function SlotCalendar() {
           <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
         </div>
         <p className="text-xs text-muted-foreground">30% off, 50% display time</p>
-        <p className="text-xs text-muted-foreground">If nobody rents the other shared slot, you get exclusive for the cheaper price!</p>
+        <p className="text-xs text-muted-foreground">BUT if nobody rents the other shared slot, you get exclusive for the cheaper price!</p>
         <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese mt-1">
           <RefreshCw className="h-4 w-4 mr-1" />
           Refresh

@@ -134,7 +134,7 @@ export function SlotCalendar() {
           <span className="text-foreground font-medium">Exclusive: {pricing.waxPerDay} WAX/day</span>
           <span className="mx-2">|</span>
           <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
-          <span className="text-xs ml-1">(30% off, 50% display time)</span>
+          <span className="text-xs ml-1">(30% off, 50% display time — if nobody rents the other shared slot, you get exclusive for the cheaper price!)</span>
         </p>
         <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese">
           <RefreshCw className="h-4 w-4 mr-1" />

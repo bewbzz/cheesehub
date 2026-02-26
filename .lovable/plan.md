@@ -1,34 +1,12 @@
 
 
-## Add "Create Account" to CHEESEWallet
+## Update Contract Files
 
-A new sidebar menu item and form section will be added to the wallet dialog, allowing users to create new WAX accounts directly from CHEESEWallet.
+Replace both contract source files with the user-uploaded versions:
 
-### Form Fields (matching WaxBlock)
-- **Account Name** -- 1-12 chars, a-z/1-5/period, with validation indicator
-- **Public Owner Key** -- placeholder "Owner Key (Starts with PUB_K1...)"
-- **Public Active Key** -- placeholder "Active Key (Starts with PUB_K1...)"
-- **NET to Stake** -- default 0.2 WAX
-- **CPU to Stake** -- default 0.2 WAX
-- **RAM to Buy (bytes)** -- default 3000
-- **Transfer checkbox** -- "Transfer staked resources to new account"
-- **Create Account button**
+1. **`contracts/cheesebannad/cheesebannad.cpp`** — Overwrite with `user-uploads://cheesebannad.cpp` (483 lines). This contains the fix where `get_self()` is used as the RAM payer in `assign_slots` instead of `user`, resolving the RAM billing error in notify contexts.
 
-### Technical Details
+2. **`contracts/cheesebannad/cheesebannad.hpp`** — Overwrite with `user-uploads://cheesebannad.hpp` (192 lines). This is the matching header file for the deployed contract.
 
-**New file: `src/components/wallet/CreateAccountManager.tsx`**
-- Standalone component following existing patterns (like `RamManager`, `StakeManager`)
-- Uses `useWaxTransaction` hook to execute the `newaccount`, `buyrambytes`, and `delegatebw` system actions in a single transaction
-- Validates account name (WAX rules) and public keys (must start with `PUB_K1` or `EOS`)
-- Shows success dialog with transaction ID on completion
-
-**Edit: `src/components/WalletTransferDialog.tsx`**
-- Add `'create-account'` to the `WalletSection` type union
-- Add a new menu item with `UserPlus` icon (from lucide-react) to `mainMenuItems` array
-- Add rendering logic for the new section in the content area, rendering `<CreateAccountManager />`
-
-**Transaction actions** (sent as a single multi-action transaction):
-1. `eosio::newaccount` -- creates the account with owner/active keys
-2. `eosio::buyrambytes` -- buys RAM for the new account
-3. `eosio::delegatebw` -- stakes CPU/NET, with optional transfer flag
+No other files need to change. This simply syncs the repository with what is actually deployed on-chain.
 

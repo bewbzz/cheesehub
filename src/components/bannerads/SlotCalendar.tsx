@@ -61,49 +61,11 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
-/** Generate 30 days of placeholder groups starting from today's UTC midnight */
-function generatePlaceholderGroups(): BannerSlotGroup[] {
+/** Filter to only show current and future slots */
+function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
   const now = new Date();
   const todayMidnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-  const groups: BannerSlotGroup[] = [];
-
-  for (let d = 0; d < 30; d++) {
-    const time = todayMidnightUTC + d * 86400;
-    groups.push({
-      time,
-      date: new Date(time * 1000),
-      slots: [1, 2].map((position) => ({
-        time,
-        position,
-        user: "",
-        ipfsHash: "",
-        websiteUrl: "",
-        rentalType: "exclusive" as const,
-        isAvailable: true,
-        isOnChain: false,
-        suspended: false,
-      })),
-    });
-  }
-  return groups;
-}
-
-/** Merge on-chain data over placeholders */
-function mergeGroups(placeholders: BannerSlotGroup[], onChain: BannerSlotGroup[]): BannerSlotGroup[] {
-  const chainMap = new Map<string, BannerSlot>();
-  for (const g of onChain) {
-    for (const s of g.slots) {
-      chainMap.set(`${s.time}-${s.position}`, s);
-    }
-  }
-
-  return placeholders.map((group) => ({
-    ...group,
-    slots: group.slots.map((slot) => {
-      const real = chainMap.get(`${slot.time}-${slot.position}`);
-      return real ?? slot;
-    }),
-  }));
+  return groups.filter((g) => g.time >= todayMidnightUTC);
 }
 
 export function SlotCalendar() {
@@ -116,8 +78,7 @@ export function SlotCalendar() {
 
   const isAdmin = accountName === BANNER_CONTRACT;
 
-  const placeholders = useMemo(() => generatePlaceholderGroups(), []);
-  const mergedGroups = useMemo(() => mergeGroups(placeholders, slotGroups), [placeholders, slotGroups]);
+  const futureGroups = useMemo(() => filterFutureGroups(slotGroups), [slotGroups]);
 
   if (isLoading) {
     return (
@@ -160,7 +121,13 @@ export function SlotCalendar() {
       </div>
 
       <div className="space-y-3">
-        {mergedGroups.map((group) => (
+        {futureGroups.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="text-lg font-medium">No banner slots available</p>
+            <p className="text-sm mt-1">No initialized slots found on-chain. Check back later.</p>
+          </div>
+        )}
+        {futureGroups.map((group) => (
           <Card key={group.time} className="border-border/50 bg-card/50">
             <CardContent className="py-4 px-5">
               <div className="flex flex-col md:flex-row md:items-center gap-4">

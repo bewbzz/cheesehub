@@ -233,7 +233,7 @@ export function SlotCalendar() {
                            <Button
                              size="sm"
                              variant="outline"
-                             className="border-cheese/30 text-cheese text-xs h-7"
+                             className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
                              onClick={() => setPreviewTarget(slot)}
                            >
                              <Eye className="h-3 w-3 mr-1" />

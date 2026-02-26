@@ -15,7 +15,27 @@ import { useToast } from "@/hooks/use-toast";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { BannerSlot } from "@/hooks/useBannerSlots";
+import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { format } from "date-fns";
+
+function BannerPreview({ ipfsHash, label }: { ipfsHash: string; label: string }) {
+  const [gatewayIdx, setGatewayIdx] = useState(0);
+  if (!ipfsHash) return null;
+  const imgUrl = `${IPFS_GATEWAYS[gatewayIdx]}${ipfsHash}`;
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+      <img
+        src={imgUrl}
+        alt={label}
+        className="w-full max-w-[580px] h-auto rounded-md border border-border/50 object-cover"
+        onError={() => {
+          if (gatewayIdx < IPFS_GATEWAYS.length - 1) setGatewayIdx((i) => i + 1);
+        }}
+      />
+    </div>
+  );
+}
 
 interface RemoveBannerDialogProps {
   open: boolean;
@@ -101,6 +121,14 @@ export function RemoveBannerDialog({ open, onOpenChange, slot, onSuccess }: Remo
               <p><span className="text-muted-foreground">Shared renter:</span> <span className="font-medium font-mono">{slot.sharedUser}</span></p>
             )}
           </div>
+
+          {/* Banner previews for admin review */}
+          {slot.ipfsHash && (
+            <BannerPreview ipfsHash={slot.ipfsHash} label={`Banner by ${slot.user}`} />
+          )}
+          {hasSharedRenter && slot.sharedIpfsHash && (
+            <BannerPreview ipfsHash={slot.sharedIpfsHash} label={`Banner by ${slot.sharedUser}`} />
+          )}
 
           {hasSharedRenter && (
             <div className="flex items-center gap-3 rounded-lg border border-border/50 p-3">

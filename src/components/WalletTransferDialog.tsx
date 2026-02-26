@@ -28,11 +28,12 @@ import { WalletResources, AccountResources, StakedResourcesSection, AccountDetai
 import { useWaxPrice } from '@/hooks/useWaxPrice';
 import { useAlcorTokenPrices } from '@/hooks/useAlcorTokenPrices';
 import { TransactionSuccessDialog } from '@/components/wallet/TransactionSuccessDialog';
-import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout, AlertTriangle } from 'lucide-react';
+import { Send, Check, X, Loader2, HardDrive, Cpu, Gift, Vote, Image, Zap, Wallet, Sprout, AlertTriangle, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NFTSendManager } from '@/components/wallet/NFTSendManager';
 import { RentResourcesManager } from '@/components/wallet/RentResourcesManager';
 import { AlcorFarmManager } from '@/components/wallet/AlcorFarmManager';
+import { CreateAccountManager } from '@/components/wallet/CreateAccountManager';
 import { closeWharfkitModals } from '@/lib/wharfKit';
 import cheeseLogo from '@/assets/cheese-logo.png';
 
@@ -41,7 +42,7 @@ interface WalletTransferDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards' | 'alcor-farms';
+type WalletSection = 'account' | 'send' | 'send-nfts' | 'stake' | 'rent' | 'ram' | 'vote' | 'rewards' | 'alcor-farms' | 'create-account';
 
 function isValidWaxAccount(account: string): boolean {
   if (!account || account.length < 1 || account.length > 12) return false;
@@ -57,6 +58,7 @@ const mainMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }
   { id: 'ram', label: 'Trade RAM', icon: <HardDrive className="h-4 w-4" /> },
   { id: 'vote', label: 'Governance', icon: <Vote className="h-4 w-4" /> },
   { id: 'rewards', label: 'Vote Rewards', icon: <Gift className="h-4 w-4" /> },
+  { id: 'create-account', label: 'Create Account', icon: <UserPlus className="h-4 w-4" /> },
 ];
 
 const bottomMenuItems: { id: WalletSection; label: string; icon: React.ReactNode }[] = [
@@ -639,6 +641,14 @@ export function WalletTransferDialog({ open, onOpenChange }: WalletTransferDialo
               {/* Alcor Farms Section */}
               {activeSection === 'alcor-farms' && (
                 <AlcorFarmManager 
+                  onTransactionComplete={handleTransactionComplete}
+                  onTransactionSuccess={showSuccessDialog}
+                />
+              )}
+
+              {/* Create Account Section */}
+              {activeSection === 'create-account' && (
+                <CreateAccountManager 
                   onTransactionComplete={handleTransactionComplete}
                   onTransactionSuccess={showSuccessDialog}
                 />

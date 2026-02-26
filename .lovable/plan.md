@@ -1,43 +1,27 @@
 
 
-# Open Up CHEESEAds Frontend and Add Shared Pricing
+## Update WAX Distribution Split in `cheesebannad`
 
-## Current State
+### What Changes
+The WAX revenue distribution from banner ad rentals is being updated from **20/10/70** to **25/25/50**:
 
-- Non-on-chain slots show a **disabled** "Rent" button with "Contract not yet initialized" tooltip (lines 195-210)
-- The pricing bar only shows the base WAX price with no mention of the shared discount
-- Rent/Join buttons only appear for on-chain slots
+| Recipient | Old | New |
+|-----------|-----|-----|
+| cheeseburner (ecosystem financing) | 20% | 25% |
+| cheesepowerz (resource powerups) | 10% | 25% |
+| Alcor swap to CHEESE | 70% | 50% |
 
-## Changes
+CHEESE distribution stays the same (66% burned, 34% to liquidity staking).
 
-### 1. Enable Rent button for all slots (`SlotCalendar.tsx`)
+### Files to Edit
 
-Remove the disabled/tooltip block for non-on-chain slots (lines 195-210) and replace it with an active "Rent" button that opens the `RentSlotDialog` -- same as the on-chain path. This makes all 30 days of slots immediately rentable once the contract is deployed.
+**1. `contracts/cheesebannad/cheesebannad.hpp`** (lines 47-48)
+- Change `WAX_BURNER_PERCENT` from `0.20` to `0.25`
+- Change `WAX_POWERZ_PERCENT` from `0.10` to `0.25`
+- Update the inline comments to reflect 25%
 
-Also update the availability check on lines 177-185 to include non-on-chain slots:
+**2. `contracts/cheesebannad/cheesebannad.cpp`** (lines ~415-430)
+- Update the string comments in `distribute_wax_funds` that reference the old percentages (e.g., "20% WAX to cheeseburner" becomes "25% WAX to cheeseburner")
 
-```
-Before:  slot.isOnChain && slot.isAvailable && slot.rentalType === "exclusive"
-After:   (slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared"
-```
-
-### 2. Add shared pricing to the pricing bar (`SlotCalendar.tsx`)
-
-Update the pricing display (line 133-135) to show both tiers:
-
-```
-Exclusive: 100 WAX/day | Shared: 70 WAX/day (30% off, 50% display time)
-```
-
-Calculated dynamically from `pricing.waxPerDay` and the 30% shared discount.
-
-### 3. Remove "Not Live" badge for placeholder slots
-
-Change the `SlotBadge` so non-on-chain slots show "Available" instead of "Not Live" -- since we're opening everything up.
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/components/bannerads/SlotCalendar.tsx` | Enable rent for all slots, add shared pricing display, update badge |
+No frontend changes needed -- the distribution logic is entirely on-chain. The `distribute_wax_funds` function already calculates the swap amount as the remainder (`quantity - burner - powerz`), so it will automatically become 50%.
 

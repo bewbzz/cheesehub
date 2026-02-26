@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useBannerAds, ActiveBanner } from "@/hooks/useBannerAds";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isShared?: boolean }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
@@ -90,6 +91,9 @@ export function BannerAd() {
             </div>
           ))}
         </div>
+        <div className="text-center mt-2">
+          <Link to="/bannerads" className="text-xs text-cheese/60 hover:text-cheese transition-colors">Advertise on CHEESEHub</Link>
+        </div>
       </div>
     );
   }
@@ -134,6 +138,9 @@ export function BannerAd() {
             )
           ) : null}
         </div>
+        <div className="text-center mt-2">
+          <Link to="/bannerads" className="text-xs text-cheese/60 hover:text-cheese transition-colors">Advertise on CHEESEHub</Link>
+        </div>
       </div>
     );
   }
@@ -147,6 +154,9 @@ export function BannerAd() {
         ) : (
           <BannerImage banner={banner} />
         )}
+      </div>
+      <div className="text-center mt-2">
+        <Link to="/bannerads" className="text-xs text-cheese/60 hover:text-cheese transition-colors">Advertise on CHEESEHub</Link>
       </div>
     </div>
   );

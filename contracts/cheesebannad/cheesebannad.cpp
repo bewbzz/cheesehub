@@ -1,4 +1,5 @@
 #include "cheesebannad.hpp"
+#include <limits>
 
 // ============================================================================
 // Admin Auth Helper
@@ -105,7 +106,7 @@ void cheesebannad::editadbanner(name user, uint64_t start_time, uint8_t position
     });
 }
 
-void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url) {
+void cheesebannad::editsharedad(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url) {
     require_auth(user);
 
     check(position == 1 || position == 2, "Position must be 1 or 2");
@@ -129,9 +130,9 @@ void cheesebannad::editsharedbanner(name user, uint64_t start_time, uint8_t posi
         row.shared_ipfs_hash   = ipfs_hash;
         row.shared_website_url = website_url;
     });
-}
+} // editsharedad()
 
-void cheesebannad::removeadbanner(name caller, uint64_t start_time, uint8_t position, bool clear_shared) {
+void cheesebannad::removeadbnr(name caller, uint64_t start_time, uint8_t position, bool clear_shared) {
     require_admin(caller);
 
     check(position == 1 || position == 2, "Position must be 1 or 2");
@@ -151,9 +152,9 @@ void cheesebannad::removeadbanner(name caller, uint64_t start_time, uint8_t posi
             row.shared_website_url = "";
         }
     });
-}
+} // removeadbnr()
 
-void cheesebannad::reinstateadbanner(name caller, uint64_t start_time, uint8_t position) {
+void cheesebannad::reinstatebnr(name caller, uint64_t start_time, uint8_t position) {
     require_admin(caller);
 
     check(position == 1 || position == 2, "Position must be 1 or 2");
@@ -168,7 +169,7 @@ void cheesebannad::reinstateadbanner(name caller, uint64_t start_time, uint8_t p
     ads.modify(itr, get_self(), [&](auto& row) {
         row.suspended = false;
     });
-}
+} // reinstatebnr()
 
 void cheesebannad::setconfig(asset wax_price_per_day, double wax_per_cheese_baseline) {
     require_auth(get_self());
@@ -316,18 +317,28 @@ tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const s
         position_str = position_str.substr(0, fourth);
     }
 
-    uint64_t start_time = 0;
-    uint64_t num_days   = 0;
-    uint8_t  position   = 0;
+    auto parse_u64 = [](const string& value, const char* field_name) -> uint64_t {
+        check(!value.empty(), string("Invalid memo: empty ") + field_name);
 
-    // Safely parse numeric fields — bad input gives a clear error, not a C++ exception
-    try {
-        start_time = stoull(start_str);
-        num_days   = stoull(days_str);
-        position   = static_cast<uint8_t>(stoul(position_str));
-    } catch (...) {
-        check(false, "Invalid memo: non-numeric value in start_time, num_days, or position");
-    }
+        uint64_t parsed = 0;
+        for (char ch : value) {
+            check(ch >= '0' && ch <= '9', string("Invalid memo: non-numeric ") + field_name);
+            uint64_t digit = static_cast<uint64_t>(ch - '0');
+            check(
+                parsed <= (std::numeric_limits<uint64_t>::max() - digit) / 10,
+                string("Invalid memo: ") + field_name + " is too large"
+            );
+            parsed = parsed * 10 + digit;
+        } // for (char ch : value)
+
+        return parsed;
+    };
+
+    uint64_t start_time = parse_u64(start_str, "start_time");
+    uint64_t num_days   = parse_u64(days_str, "num_days");
+    uint64_t position_u64 = parse_u64(position_str, "position");
+    check(position_u64 <= std::numeric_limits<uint8_t>::max(), "Invalid memo: position is too large");
+    uint8_t position = static_cast<uint8_t>(position_u64);
 
     check(start_time > 0, "Invalid start time");
     check(num_days > 0 && num_days <= 365, "Days must be 1-365");
@@ -335,7 +346,7 @@ tuple<uint64_t, uint64_t, uint8_t, char> cheesebannad::parse_banner_memo(const s
     check(mode == 'e' || mode == 's' || mode == 'j', "Mode must be 'e', 's', or 'j'");
 
     return make_tuple(start_time, num_days, position, mode);
-}
+} // parse_banner_memo()
 
 asset cheesebannad::get_config() {
     config_table configs(get_self(), get_self().value);

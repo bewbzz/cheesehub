@@ -1,27 +1,34 @@
 
 
-## Update WAX Distribution Split in `cheesebannad`
+## Add "Create Account" to CHEESEWallet
 
-### What Changes
-The WAX revenue distribution from banner ad rentals is being updated from **20/10/70** to **25/25/50**:
+A new sidebar menu item and form section will be added to the wallet dialog, allowing users to create new WAX accounts directly from CHEESEWallet.
 
-| Recipient | Old | New |
-|-----------|-----|-----|
-| cheeseburner (ecosystem financing) | 20% | 25% |
-| cheesepowerz (resource powerups) | 10% | 25% |
-| Alcor swap to CHEESE | 70% | 50% |
+### Form Fields (matching WaxBlock)
+- **Account Name** -- 1-12 chars, a-z/1-5/period, with validation indicator
+- **Public Owner Key** -- placeholder "Owner Key (Starts with PUB_K1...)"
+- **Public Active Key** -- placeholder "Active Key (Starts with PUB_K1...)"
+- **NET to Stake** -- default 0.2 WAX
+- **CPU to Stake** -- default 0.2 WAX
+- **RAM to Buy (bytes)** -- default 3000
+- **Transfer checkbox** -- "Transfer staked resources to new account"
+- **Create Account button**
 
-CHEESE distribution stays the same (66% burned, 34% to liquidity staking).
+### Technical Details
 
-### Files to Edit
+**New file: `src/components/wallet/CreateAccountManager.tsx`**
+- Standalone component following existing patterns (like `RamManager`, `StakeManager`)
+- Uses `useWaxTransaction` hook to execute the `newaccount`, `buyrambytes`, and `delegatebw` system actions in a single transaction
+- Validates account name (WAX rules) and public keys (must start with `PUB_K1` or `EOS`)
+- Shows success dialog with transaction ID on completion
 
-**1. `contracts/cheesebannad/cheesebannad.hpp`** (lines 47-48)
-- Change `WAX_BURNER_PERCENT` from `0.20` to `0.25`
-- Change `WAX_POWERZ_PERCENT` from `0.10` to `0.25`
-- Update the inline comments to reflect 25%
+**Edit: `src/components/WalletTransferDialog.tsx`**
+- Add `'create-account'` to the `WalletSection` type union
+- Add a new menu item with `UserPlus` icon (from lucide-react) to `mainMenuItems` array
+- Add rendering logic for the new section in the content area, rendering `<CreateAccountManager />`
 
-**2. `contracts/cheesebannad/cheesebannad.cpp`** (lines ~415-430)
-- Update the string comments in `distribute_wax_funds` that reference the old percentages (e.g., "20% WAX to cheeseburner" becomes "25% WAX to cheeseburner")
-
-No frontend changes needed -- the distribution logic is entirely on-chain. The `distribute_wax_funds` function already calculates the swap amount as the remainder (`quantity - burner - powerz`), so it will automatically become 50%.
+**Transaction actions** (sent as a single multi-action transaction):
+1. `eosio::newaccount` -- creates the account with owner/active keys
+2. `eosio::buyrambytes` -- buys RAM for the new account
+3. `eosio::delegatebw` -- stakes CPU/NET, with optional transfer flag
 

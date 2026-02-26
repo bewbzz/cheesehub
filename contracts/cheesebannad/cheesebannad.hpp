@@ -83,7 +83,7 @@ public:
     /**
      * @brief User edits their shared banner slot (when they are the secondary renter)
      */
-    ACTION editsharedbanner(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
+    ACTION editsharedad(name user, uint64_t start_time, uint8_t position, string ipfs_hash, string website_url);
 
     /**
      * @brief Admin sets pricing config including WAX/CHEESE baseline for UI display
@@ -107,7 +107,7 @@ public:
      * @param position    1 or 2
      * @param clear_shared If true, also clears the shared renter's content
      */
-    ACTION removeadbanner(name caller, uint64_t start_time, uint8_t position, bool clear_shared);
+    ACTION removeadbnr(name caller, uint64_t start_time, uint8_t position, bool clear_shared);
 
     /**
      * @brief Admin reinstates a previously suspended banner (sets suspended = false, re-enables editing)
@@ -115,7 +115,7 @@ public:
      * @param start_time Slot start timestamp
      * @param position   1 or 2
      */
-    ACTION reinstateadbanner(name caller, uint64_t start_time, uint8_t position);
+    ACTION reinstatebnr(name caller, uint64_t start_time, uint8_t position);
 
     /**
      * @brief Contract owner adds a new admin account

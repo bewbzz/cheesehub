@@ -378,8 +378,8 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
             // Exclusive mode: slot must be unrented
             check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " is already rented");
 
-            // User pays RAM — they're adding content to the row
-            ads.modify(itr, user, [&](auto& row) {
+            // Contract pays RAM (required in notify context)
+            ads.modify(itr, get_self(), [&](auto& row) {
                 row.user        = user;
                 row.rental_type = 0;  // exclusive
                 row.suspended   = false;
@@ -388,7 +388,7 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
             // Shared-primary mode: slot must be unrented, sets as shared
             check(itr->user == get_self(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " is already rented");
 
-            ads.modify(itr, user, [&](auto& row) {
+            ads.modify(itr, get_self(), [&](auto& row) {
                 row.user        = user;
                 row.rental_type = 1;     // shared
                 row.shared_user = name(); // empty for now
@@ -399,8 +399,8 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
             check(itr->rental_type == 1, "Slot must be a shared slot to join");
             check(itr->shared_user == name(), "Shared slot is already full");
 
-            // Joining user pays RAM for the shared_user name expansion
-            ads.modify(itr, user, [&](auto& row) {
+            // Contract pays RAM (required in notify context)
+            ads.modify(itr, get_self(), [&](auto& row) {
                 row.shared_user = user;  // this user is the secondary renter
             });
         }

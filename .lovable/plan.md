@@ -1,46 +1,68 @@
 
 
-## Align CHEESENull Frontend with Updated Contract
+## Combine Rent + Edit into a Single Transaction
 
-The updated contract from GitHub has significant changes to the distribution splits and removes the caller reward entirely. Here's what needs to change:
+### Problem
+Currently, renting a banner slot requires **two separate wallet signatures**: one for the WAX transfer (rent) and another for the edit action (set IPFS hash and website URL). This is bad UX -- the user already provides the IPFS hash and website URL during rental, so they shouldn't need to sign twice.
 
-### Contract Changes Summary
-- **WAX split**: 20% stake (was 15%), 5% CheesePowerz (same), 75% swap (was 80%)
-- **CHEESE split**: 85% burn (was 75%), 15% xCHEESE (was 12.5%), **0% caller reward** (was 12.5%)
-- No whitelist or priority_window in config
-- CheesePowerz stats moved to separate `cpowerstats` table
+### Solution
+Modify `RentSlotDialog.tsx` to send **both actions in a single `session.transact()` call** instead of using `transferToken()` (which only sends the transfer) followed by a second `transact()` call.
 
-### Changes Required
+### Changes
 
-**1. `src/hooks/useCheeseNullData.ts`** -- Fix distribution percentages and remove reward
-- Change WAX splits: `waxStakeAmount = claimableWax * 0.20`, `waxCheesepowerzAmount = claimableWax * 0.05`, `waxToSwap = claimableWax * 0.75`
-- Change CHEESE splits: `cheeseBurnAmount = estimatedCheese * 0.85`, `cheeseLiquidityAmount = estimatedCheese * 0.15`
-- Remove `cheeseRewardAmount` from the interface and return value
+**File: `src/components/bannerads/RentSlotDialog.tsx`**
 
-**2. `src/components/cheesenull/NullStats.tsx`** -- Remove "Reward" display
-- Remove the "Reward" card (lines 53-59) showing `cheeseRewardAmount`
-- Keep xCHEESE, CheesePowerz, and Compound displays
-- Update the xCHEESE percentage label if desired
+1. Replace the two-step flow (`transferToken` + separate `transact`) with a single `session.transact()` containing both actions in one array:
+   - Action 1: `eosio.token::transfer` (the WAX payment)
+   - Action 2: `cheesebannad::editadbanner` or `cheesebannad::editsharedbanner` (set the banner content)
 
-**3. `src/components/cheesenull/NullTotalStats.tsx`** -- Remove "Rewards" from lifetime stats
-- Remove the "Rewards" card (lines 48-54) showing `totalCheeseRewards`
-- The `total_cheese_rewards` field still exists in the stats table on-chain but will always be 0 going forward
+2. Only include the edit action if the user actually provided an IPFS hash (keep it optional).
 
-**4. `src/components/cheesenull/NullButton.tsx`** -- Remove maintenance mode
-- Set `isMaintenanceMode = false` (line 22) so the button activates when the cooldown ends
-- Remove the maintenance-specific hint text
+3. Remove the `transferToken` import/usage since we'll call `session.transact` directly with the combined actions array.
 
-**5. `contracts/cheeseburner/cheeseburner.cpp`** -- Sync with GitHub version
-- Overwrite with the updated contract from GitHub (new WAX 20/5/75 split, CHEESE 85/15 split, no reward, separate cpowerstats table)
+4. Call `refreshBalance()` after success (imported from `useWax`).
 
-**6. `contracts/cheeseburner/cheeseburner.hpp`** -- Sync with GitHub version
-- Overwrite with the updated header (no whitelist table, no priority_window in config, new cpowerstats table, updated action signatures)
+### Technical Detail
 
-**7. `src/hooks/useCheeseNullStats.ts`** -- Update CheesePowerz data source
-- CheesePowerz is now in a separate `cpowerstats` table, so fetch it separately instead of from the `stats` table
-- Remove `totalCheeseRewards` from the interface (or keep as legacy showing 0)
+The key change in `handleRent`:
 
-**8. `src/lib/cheeseNullApi.ts`** -- Update ContractStats interface
-- Remove `total_wax_cheesepowerz` from `ContractStats` (it's no longer in that table)
-- Add a new `CpowerStats` interface and `fetchCpowerStats` function to read from the `cpowerstats` table
+```typescript
+const actions = [];
+
+// Action 1: WAX transfer for rental payment
+actions.push({
+  account: "eosio.token",
+  name: "transfer",
+  authorization: [session.permissionLevel],
+  data: {
+    from: session.actor.toString(),
+    to: "cheesebannad",
+    quantity: `${totalWax.toFixed(8)} WAX`,
+    memo,
+  },
+});
+
+// Action 2: Set banner content (only if IPFS hash provided)
+if (ipfsHash) {
+  actions.push({
+    account: "cheesebannad",
+    name: isJoining ? "editsharedbanner" : "editadbanner",
+    authorization: [session.permissionLevel],
+    data: {
+      user: session.actor.toString(),
+      start_time: startTime,
+      position,
+      ipfs_hash: ipfsHash,
+      website_url: websiteUrl,
+    },
+  });
+}
+
+const result = await session.transact(
+  { actions },
+  { transactPlugins: getTransactPlugins(session) }
+);
+```
+
+This way the user signs once and both the payment and banner setup happen atomically. If either fails, neither goes through.
 

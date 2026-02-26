@@ -37,7 +37,7 @@ export function RentSlotDialog({
   isJoining = false,
   onSuccess,
 }: RentSlotDialogProps) {
-  const { session, transferToken } = useWax();
+  const { session, refreshBalance } = useWax();
   const { toast } = useToast();
   const [numDays, setNumDays] = useState(1);
   const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">(isJoining ? "shared" : "exclusive");
@@ -66,40 +66,44 @@ export function RentSlotDialog({
 
     setIsSubmitting(true);
     try {
-      const txId = await transferToken("eosio.token", "WAX", 8, "cheesebannad", totalWax, memo);
+      const actions: any[] = [
+        {
+          account: "eosio.token",
+          name: "transfer",
+          authorization: [session.permissionLevel],
+          data: {
+            from: session.actor.toString(),
+            to: "cheesebannad",
+            quantity: `${totalWax.toFixed(8)} WAX`,
+            memo,
+          },
+        },
+      ];
 
-      if (txId && ipfsHash) {
-        // Set the banner image right after renting
-        const actionName = isJoining ? "editsharedbanner" : "editadbanner";
-        try {
-          await session.transact(
-            {
-              actions: [{
-                account: "cheesebannad",
-                name: actionName,
-                authorization: [session.permissionLevel],
-                data: {
-                  user: session.actor.toString(),
-                  start_time: startTime,
-                  position,
-                  ipfs_hash: ipfsHash,
-                  website_url: websiteUrl,
-                },
-              }],
-            },
-            { transactPlugins: getTransactPlugins(session) }
-          );
-        } catch (editError) {
-          console.warn("Banner image set failed (can be set later via Edit):", editError);
-          closeWharfkitModals();
-        }
+      if (ipfsHash) {
+        actions.push({
+          account: "cheesebannad",
+          name: isJoining ? "editsharedbanner" : "editadbanner",
+          authorization: [session.permissionLevel],
+          data: {
+            user: session.actor.toString(),
+            start_time: startTime,
+            position,
+            ipfs_hash: ipfsHash,
+            website_url: websiteUrl,
+          },
+        });
       }
 
-      if (txId) {
-        toast({ title: "Slot Rented! 🧀", description: `Position ${position} rented for ${numDays} day(s)` });
-        onSuccess();
-        onOpenChange(false);
-      }
+      await session.transact(
+        { actions },
+        { transactPlugins: getTransactPlugins(session) }
+      );
+
+      toast({ title: "Slot Rented! 🧀", description: `Position ${position} rented for ${numDays} day(s)` });
+      refreshBalance?.();
+      onSuccess();
+      onOpenChange(false);
     } catch (error) {
       console.error("Rent failed:", error);
       closeWharfkitModals();

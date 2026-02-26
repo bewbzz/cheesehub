@@ -1,4 +1,4 @@
-import { TrendingUp, Droplet, Flame, Gift, Zap } from 'lucide-react';
+import { TrendingUp, Droplet, Flame, Zap } from 'lucide-react';
 import { useCheeseNullStats } from '@/hooks/useCheeseNullStats';
 import { formatWaxAmount, formatCheeseAmount } from '@/lib/cheeseNullApi';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,6 @@ export function NullTotalStats() {
   const {
     totalBurns,
     totalCheeseNulled,
-    totalCheeseRewards,
     totalCheeseLiquidity,
     totalWaxCompounded,
     totalWaxCheesepowerz,
@@ -45,13 +44,6 @@ export function NullTotalStats() {
         {/* Distribution Breakdown */}
         {!isLoading && !isError && (
           <div className="flex items-center justify-center gap-4 pt-1">
-            <div className="text-center space-y-0.5">
-              <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                <Gift className="w-3 h-3" />
-                <span className="text-[10px] font-medium">Rewards</span>
-              </div>
-              <p className="text-sm font-semibold text-cheese">{formatCheeseAmount(totalCheeseRewards)} <span className="text-[11px] text-muted-foreground">CHEESE</span></p>
-            </div>
             <div className="text-center space-y-0.5">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <Droplet className="w-3 h-3" />

@@ -56,7 +56,21 @@ export interface ContractStats {
   total_cheese_burned: string;
   total_cheese_rewards: string;
   total_cheese_liquidity: string;
+}
+
+export interface CpowerStats {
   total_wax_cheesepowerz: string;
+}
+
+// Fetch CheesePowerz stats from separate cpowerstats table
+export async function fetchCpowerStats(contractAccount: string): Promise<CpowerStats | null> {
+  try {
+    const rows = await fetchTable<CpowerStats>(contractAccount, contractAccount, 'cpowerstats', { limit: 1 });
+    return rows.length > 0 ? rows[0] : null;
+  } catch (error) {
+    console.error('Error fetching cpowerstats:', error);
+    return null;
+  }
 }
 
 // Parse asset string like "123.45678900 WAX" to number

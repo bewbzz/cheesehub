@@ -26,9 +26,6 @@ static constexpr name BURN_ACCOUNT = "eosio.null"_n;
 // Liquidity staking account
 static constexpr name CHEESE_LIQ_ACCOUNT = "xcheeseliqst"_n;
 
-// CheesePowerz account
-static constexpr name CHEESE_POWER_ACCOUNT = "cheesepowerz"_n;
-
 // Default Alcor pool ID for WAX/CHEESE
 static constexpr uint64_t DEFAULT_POOL_ID = 1252;
 
@@ -44,23 +41,15 @@ public:
         uint64_t alcor_pool_id;     // Alcor pool ID for WAX/CHEESE pair (1252)
         bool enabled;               // Whether burns are enabled
         asset min_wax_to_burn;      // Minimum WAX required to proceed with burn
-        uint32_t priority_window;   // Whitelist-only window in seconds (default 172800 = 48h)
     };
     typedef singleton<"config"_n, configrow> config_table;
-
-    // Whitelist table - accounts with priority burn access
-    TABLE whitelist_row {
-        name account;
-        uint64_t primary_key() const { return account.value; }
-    };
-    typedef multi_index<"whitelist"_n, whitelist_row> whitelist_table;
 
     // Pending burn caller - stores who initiated the current burn
     TABLE pendingburnr {
         name caller;               // Account that called burn()
         time_point_sec timestamp;  // When burn was initiated
         asset wax_claimed;         // Total WAX received from vote rewards
-        asset wax_swapped;         // The 80% portion sent to Alcor
+        asset wax_swapped;         // The 75% portion sent to Alcor
 
         uint64_t primary_key() const { return 0; }
     };
@@ -72,13 +61,19 @@ public:
         asset total_wax_claimed;        // Total WAX claimed from voting rewards
         asset total_wax_staked;         // Total WAX staked as CPU
         asset total_cheese_burned;      // Total CHEESE burned
-        asset total_cheese_rewards;     // Total CHEESE paid as caller rewards
+        asset total_cheese_rewards;     // Total CHEESE paid as caller rewards (legacy, always 0)
         asset total_cheese_liquidity;   // Total CHEESE sent to xcheeseliqst
-        asset total_wax_cheesepowerz;   // Total WAX sent to cheesepowerz
 
         uint64_t primary_key() const { return 0; }
     };
     typedef multi_index<"stats"_n, stats_row> stats_table;
+
+    // CheesePowerz tracking table (separate from stats to avoid migration issues)
+    TABLE cpowerrow {
+        asset total_wax_cheesepowerz;   // Total WAX sent to cheesepowerz
+        uint64_t primary_key() const { return 0; }
+    };
+    typedef multi_index<"cpowerstats"_n, cpowerrow> cpowerstats_table;
 
     // Alcor AMM Swap pools table (external - read only)
     TABLE alcor_pool {
@@ -108,13 +103,10 @@ public:
         name admin,
         uint64_t alcor_pool_id,
         bool enabled,
-        asset min_wax_to_burn,
-        uint32_t priority_window
+        asset min_wax_to_burn
     );
 
     ACTION burn(name caller);
-    ACTION addwhitelist(name account);
-    ACTION rmwhitelist(name account);
 
     [[eosio::on_notify("cheeseburger::transfer")]]
     void on_cheese_transfer(name from, name to, asset quantity, string memo);
@@ -129,15 +121,12 @@ public:
         asset cheese_burned
     );
 
-    // One-time migration action to fix stats row with missing fields
-    ACTION migrate(name caller);
-
 private:
     double get_wax_cheese_rate(uint64_t pool_id);
     asset get_wax_balance(name account);
     asset get_cheese_balance(name account);
     void burn_cheese(asset quantity);
-    void update_stats(asset wax_claimed, asset wax_staked, asset cheese_burned, asset cheese_reward, asset cheese_liquidity, asset wax_cheesepowerz, bool count_burn);
+    void update_stats(asset wax_claimed, asset wax_staked, asset cheese_burned, asset cheese_reward, asset cheese_liquidity, bool count_burn);
     configrow get_config();
-    bool is_whitelisted(name account);
+    void update_cpowerstats(asset wax_sent);
 };

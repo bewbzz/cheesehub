@@ -4,13 +4,61 @@ import { useWax } from "@/context/WaxContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, RefreshCw, Eye } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { RentSlotDialog } from "./RentSlotDialog";
 import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
 import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
 import { format } from "date-fns";
+
+function PreviewBannerImage({ ipfsHash, label }: { ipfsHash: string; label: string }) {
+  const [gatewayIdx, setGatewayIdx] = useState(0);
+  if (!ipfsHash) return null;
+  const imgUrl = `${IPFS_GATEWAYS[gatewayIdx]}${ipfsHash}`;
+  return (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+      <img
+        src={imgUrl}
+        alt={label}
+        className="w-full h-auto rounded-md border border-border/50 object-cover"
+        onError={() => { if (gatewayIdx < IPFS_GATEWAYS.length - 1) setGatewayIdx((i) => i + 1); }}
+      />
+    </div>
+  );
+}
+
+function PreviewBannerDialog({ open, onOpenChange, slot }: { open: boolean; onOpenChange: (o: boolean) => void; slot: BannerSlot }) {
+  const hasShared = slot.rentalType === "shared" && !!slot.sharedUser;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-cheese" />
+            Preview — Pos {slot.position}, {format(new Date(slot.time * 1000), "MMM d yyyy")}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+            <p><span className="text-muted-foreground">Renter:</span> <span className="font-mono font-medium">{slot.user}</span></p>
+            {slot.websiteUrl && <p><span className="text-muted-foreground">URL:</span> <a href={slot.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.websiteUrl}</a></p>}
+            {hasShared && <p><span className="text-muted-foreground">Shared renter:</span> <span className="font-mono font-medium">{slot.sharedUser}</span></p>}
+            {hasShared && slot.sharedWebsiteUrl && <p><span className="text-muted-foreground">Shared URL:</span> <a href={slot.sharedWebsiteUrl} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.sharedWebsiteUrl}</a></p>}
+          </div>
+          {slot.ipfsHash && <PreviewBannerImage ipfsHash={slot.ipfsHash} label={`Banner by ${slot.user}`} />}
+          {hasShared && slot.sharedIpfsHash && <PreviewBannerImage ipfsHash={slot.sharedIpfsHash} label={`Banner by ${slot.sharedUser}`} />}
+          {!slot.ipfsHash && !(hasShared && slot.sharedIpfsHash) && (
+            <p className="text-sm text-muted-foreground text-center py-4">No banner images uploaded yet.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const BANNER_CONTRACT = "cheesebannad";
 
@@ -75,6 +123,7 @@ export function SlotCalendar() {
   const [editTarget, setEditTarget] = useState<BannerSlot | null>(null);
   const [removeTarget, setRemoveTarget] = useState<BannerSlot | null>(null);
   const [reinstateTarget, setReinstateTarget] = useState<BannerSlot | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<BannerSlot | null>(null);
 
   const isAdmin = accountName === BANNER_CONTRACT;
 
@@ -179,6 +228,19 @@ export function SlotCalendar() {
                            </Button>
                          )}
 
+                         {/* Admin: Preview button (rented slots) */}
+                         {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && (
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             className="border-cheese/30 text-cheese text-xs h-7"
+                             onClick={() => setPreviewTarget(slot)}
+                           >
+                             <Eye className="h-3 w-3 mr-1" />
+                             Preview
+                           </Button>
+                         )}
+
                          {/* Admin: Remove button (active rented, not suspended) */}
                          {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && !slot.suspended && (
                            <Button
@@ -248,6 +310,14 @@ export function SlotCalendar() {
           onOpenChange={(open) => !open && setReinstateTarget(null)}
           slot={reinstateTarget}
           onSuccess={refetch}
+        />
+      )}
+
+      {previewTarget && (
+        <PreviewBannerDialog
+          open={!!previewTarget}
+          onOpenChange={(open) => !open && setPreviewTarget(null)}
+          slot={previewTarget}
         />
       )}
     </TooltipProvider>

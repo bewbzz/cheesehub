@@ -81,18 +81,22 @@ export function RentSlotDialog({
       ];
 
       if (ipfsHash) {
-        actions.push({
-          account: "cheesebannad",
-          name: isJoining ? "editsharedbanner" : "editadbanner",
-          authorization: [session.permissionLevel],
-          data: {
-            user: session.actor.toString(),
-            start_time: startTime,
-            position,
-            ipfs_hash: ipfsHash,
-            website_url: websiteUrl,
-          },
-        });
+        const editAction = isJoining ? "editsharedbanner" : "editadbanner";
+        const DAY_SECONDS = 86400;
+        for (let i = 0; i < numDays; i++) {
+          actions.push({
+            account: "cheesebannad",
+            name: editAction,
+            authorization: [session.permissionLevel],
+            data: {
+              user: session.actor.toString(),
+              start_time: startTime + i * DAY_SECONDS,
+              position,
+              ipfs_hash: ipfsHash,
+              website_url: websiteUrl,
+            },
+          });
+        }
       }
 
       await session.transact(

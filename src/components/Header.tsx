@@ -124,7 +124,7 @@ export function Header() {
       {/* Row 2: Secondary Nav */}
       <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
         <nav className="flex items-center gap-1">
-          {/* CHEESEDrop */}
+          {/* CHEESEShoppe */}
           <Link
             to="/drops"
             className={cn(
@@ -134,8 +134,8 @@ export function Header() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <span className="text-base leading-none">💧</span>
-            CHEESEDrop
+            <span className="text-base leading-none">🛒</span>
+            CHEESEShoppe
           </Link>
           {/* CHEESELock */}
           <Link
@@ -160,7 +160,7 @@ export function Header() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
-            <span className="text-base leading-none">🫧</span>
+            <span className="text-base leading-none">💧</span>
             CHEESEDrip
           </Link>
         </nav>

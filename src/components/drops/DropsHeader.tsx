@@ -55,7 +55,7 @@ export function DropsHeader() {
           <Link to="/drops" className="flex items-center gap-3 group">
             <img src={cheeseLogo} alt="Cheese" className="h-10 w-10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
             <span className="font-display text-2xl font-bold">
-              <span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Drops</span>
+              <span className="text-primary cheese-text-glow">CHEESE</span><span className="text-foreground">Shoppe</span>
             </span>
           </Link>
         </div>

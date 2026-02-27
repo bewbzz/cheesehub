@@ -86,7 +86,7 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   
   // Exclusive slot, rented by someone else
   if (slot.rentalType === "exclusive" && slot.user !== BANNER_CONTRACT) {
-    return <Badge variant="outline" className="text-muted-foreground text-xs">Rented</Badge>;
+    return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">Rented</Badge>;
   }
   
   // Shared slot, primary renter is current user
@@ -109,7 +109,7 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   
   // Shared slot, both filled
   if (slot.rentalType === "shared" && slot.sharedUser) {
-    return <Badge variant="outline" className="text-muted-foreground text-xs">Shared - Full</Badge>;
+    return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">Shared - Full</Badge>;
   }
   
   // Default: available

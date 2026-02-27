@@ -13,6 +13,7 @@ import { RentSlotDialog } from "./RentSlotDialog";
 import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
 import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { format } from "date-fns";
 
 function PreviewBannerImage({ ipfsHash, label }: { ipfsHash: string; label: string }) {
@@ -142,7 +143,7 @@ export function SlotCalendar() {
   const [reinstateTarget, setReinstateTarget] = useState<BannerSlot | null>(null);
   const [previewTarget, setPreviewTarget] = useState<BannerSlot | null>(null);
 
-  const isAdmin = accountName === BANNER_CONTRACT;
+  const { isWhitelisted: isAdmin } = useAdminAccess();
 
   const futureGroups = useMemo(() => filterFutureGroups(slotGroups), [slotGroups]);
 

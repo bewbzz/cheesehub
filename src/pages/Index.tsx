@@ -185,7 +185,7 @@ const Index = () => {
               </div>
               <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span><span className="text-cheese">CHEESE</span><span className="text-foreground">Shoppe</span></span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span></h2>
               <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEShoppe allows all WAX users to create NFT drops and sell them for various WAX tokens
+                Powered by the NFTHIVEDROP smart contract and acting as an alternate Front-End CHEESEShoppe Shows All Current $CHEESE NFT Drops
               </p>
               <Button asChild size="lg" className="bg-cheese hover:bg-cheese-dark text-primary-foreground font-semibold">
                 <Link to="/drops">

@@ -150,6 +150,19 @@ export function Header() {
             <span className="text-base leading-none">🔐</span>
             CHEESELock
           </Link>
+          {/* CHEESEDrip */}
+          <Link
+            to="/drip"
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+              location.pathname === "/drip"
+                ? "bg-cheese/20 text-cheese"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            <span className="text-base leading-none">🫧</span>
+            CHEESEDrip
+          </Link>
         </nav>
       </div>
     </header>

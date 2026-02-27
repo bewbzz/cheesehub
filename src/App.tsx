@@ -17,6 +17,7 @@ import CheeseNull from "./pages/CheeseNull";
 import BannerAds from "./pages/BannerAds";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
+import Drip from "./pages/Drip";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => {
                 <Route path="/farm/:farmName" element={<Farm />} />
                 <Route path="/cheesenull" element={<CheeseNull />} />
                 <Route path="/bannerads" element={<BannerAds />} />
+                <Route path="/drip" element={<Drip />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

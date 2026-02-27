@@ -32,7 +32,7 @@ export function PriceDeviationGauge({ label, baseline, live, deviationPct, unit 
       <div className="space-y-1">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Baseline:</span>
-          <span className="font-mono">{baseline.toFixed(4)} {unit}</span>
+          <span className="font-mono">{Number(baseline).toFixed(4)} {unit}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Live:</span>

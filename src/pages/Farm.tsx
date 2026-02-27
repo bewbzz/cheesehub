@@ -91,6 +91,14 @@ export default function Farm() {
               <CreateFarm />
             </TabsContent>
           </Tabs>
+
+          <p className="text-muted-foreground text-sm text-center max-w-lg mx-auto mt-8">
+            Powered by the{" "}
+            <a href="https://waxblock.io/account/farms.waxdao" target="_blank" rel="noopener noreferrer" className="text-cheese hover:text-cheese-dark underline underline-offset-2 font-semibold">
+              FARMS.WAXDAO
+            </a>{" "}
+            Smart Contract
+          </p>
         </main>
       </div>
     </Layout>

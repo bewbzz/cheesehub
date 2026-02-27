@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, RefreshCw, Eye } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { RentSlotDialog } from "./RentSlotDialog";
 import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
@@ -45,9 +46,9 @@ function PreviewBannerDialog({ open, onOpenChange, slot }: { open: boolean; onOp
         <div className="space-y-4 py-2">
           <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
             <p><span className="text-muted-foreground">Renter:</span> <span className="font-mono font-medium">{slot.user}</span></p>
-            {slot.websiteUrl && <p><span className="text-muted-foreground">URL:</span> <a href={slot.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.websiteUrl}</a></p>}
+            {slot.websiteUrl && <p><span className="text-muted-foreground">URL:</span> <a href={sanitizeUrl(slot.websiteUrl)} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.websiteUrl}</a></p>}
             {hasShared && <p><span className="text-muted-foreground">Shared renter:</span> <span className="font-mono font-medium">{slot.sharedUser}</span></p>}
-            {hasShared && slot.sharedWebsiteUrl && <p><span className="text-muted-foreground">Shared URL:</span> <a href={slot.sharedWebsiteUrl} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.sharedWebsiteUrl}</a></p>}
+            {hasShared && slot.sharedWebsiteUrl && <p><span className="text-muted-foreground">Shared URL:</span> <a href={sanitizeUrl(slot.sharedWebsiteUrl)} target="_blank" rel="noopener noreferrer" className="text-cheese hover:underline break-all">{slot.sharedWebsiteUrl}</a></p>}
           </div>
           {slot.ipfsHash && <PreviewBannerImage ipfsHash={slot.ipfsHash} label={`Banner by ${slot.user}`} />}
           {hasShared && slot.sharedIpfsHash && <PreviewBannerImage ipfsHash={slot.sharedIpfsHash} label={`Banner by ${slot.sharedUser}`} />}

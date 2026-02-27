@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useBannerAds, ActiveBanner } from "@/hooks/useBannerAds";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 
@@ -17,7 +18,7 @@ function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isSha
 
   return (
     <a
-      href={banner.websiteUrl}
+      href={sanitizeUrl(banner.websiteUrl)}
       target="_blank"
       rel="noopener noreferrer"
       className="relative block rounded-lg overflow-hidden border border-border/30 hover:border-cheese/30 transition-colors group"

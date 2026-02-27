@@ -55,14 +55,14 @@ async function fetchAllConfigs(): Promise<ContractConfigsData> {
     pool1252,
     pool1236,
   ] = await Promise.all([
-    fetchBurnerConfig(),
-    fetchBurnerStats(),
-    fetchFeeFeeConfig(),
-    fetchBannadConfig(),
-    fetchBannadAdmins(),
-    fetchPowerzStats(),
-    fetchPoolReserves(1252),
-    fetchPoolReserves(1236),
+    fetchBurnerConfig().catch(() => null),
+    fetchBurnerStats().catch(() => null),
+    fetchFeeFeeConfig().catch(() => null),
+    fetchBannadConfig().catch(() => null),
+    fetchBannadAdmins().catch(() => [] as BannadAdmin[]),
+    fetchPowerzStats().catch(() => null),
+    fetchPoolReserves(1252).catch(() => null),
+    fetchPoolReserves(1236).catch(() => null),
   ]);
 
   // Pool 1252: CHEESE/WAX — need to figure out which token is which

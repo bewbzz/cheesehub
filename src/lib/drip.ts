@@ -50,9 +50,10 @@ export function getStatusColor(status: DripStatus): string {
 }
 
 /** Parse an asset string like "100.0000 CHEESE" into { amount, symbol, precision } */
-export function parseAsset(asset: string): { amount: number; symbol: string; precision: number } {
+export function parseAsset(asset: string | undefined | null): { amount: number; symbol: string; precision: number } {
+  if (!asset || typeof asset !== 'string') return { amount: 0, symbol: '', precision: 0 };
   const parts = asset.split(' ');
-  const amount = parseFloat(parts[0]);
+  const amount = parseFloat(parts[0]) || 0;
   const symbol = parts[1] || '';
   const precision = parts[0].includes('.') ? parts[0].split('.')[1].length : 0;
   return { amount, symbol, precision };

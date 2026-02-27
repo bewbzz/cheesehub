@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useWax } from "@/context/WaxContext";
-import { getTokenBalances } from "@/lib/wax";
+import { useAllTokenBalances } from "@/hooks/useAllTokenBalances";
 import { ESCROW_CONTRACT, calculateTotalDeposit, parseAsset, fetchUserDrips } from "@/lib/drip";
 import { useWaxTransaction } from "@/hooks/useWaxTransaction";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,12 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface TokenBalance {
-  symbol: string;
-  amount: string;
-  contract: string;
-}
-
 const HOUR_PRESETS = [
   { label: "1h", value: 1 },
   { label: "6h", value: 6 },
@@ -37,8 +31,7 @@ export function CreateDrip() {
   const { session, accountName, isConnected } = useWax();
   const { executeTransaction } = useWaxTransaction(session);
   const { toast } = useToast();
-  const [tokens, setTokens] = useState<TokenBalance[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { tokens: allTokens, isLoading: loading } = useAllTokenBalances(accountName);
   const [creating, setCreating] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -52,37 +45,31 @@ export function CreateDrip() {
   const [endDate, setEndDate] = useState("");
   const [selectedToken, setSelectedToken] = useState<string>("");
 
+  // When selecting from token dropdown, auto-fill fields
   useEffect(() => {
-    if (accountName) {
-      loadTokens();
+    if (selectedToken) {
+      const [contract, symbol] = selectedToken.split(":");
+      const token = allTokens.find(t => t.contract === contract && t.symbol === symbol);
+      if (token) {
+        setTokenName(token.symbol);
+        setTokenContract(token.contract);
+        setTokenPrecision(String(token.precision));
+      }
     }
-  }, [accountName]);
-
-  const loadTokens = async () => {
-    if (!accountName) return;
-    setLoading(true);
-    try {
-      const balances = await getTokenBalances(accountName);
-      setTokens(balances);
-    } catch (error) {
-      console.error("Failed to load tokens:", error);
-    }
-    setLoading(false);
-  };
+  }, [selectedToken, allTokens]);
 
   // When selecting from token dropdown, auto-fill fields
   useEffect(() => {
     if (selectedToken) {
       const [contract, symbol] = selectedToken.split(":");
-      const token = tokens.find(t => t.contract === contract && t.symbol === symbol);
+      const token = allTokens.find(t => t.contract === contract && t.symbol === symbol);
       if (token) {
         setTokenName(token.symbol);
         setTokenContract(token.contract);
-        const precision = token.amount.split(".")[1]?.length || 4;
-        setTokenPrecision(String(precision));
+        setTokenPrecision(String(token.precision));
       }
     }
-  }, [selectedToken, tokens]);
+  }, [selectedToken, allTokens]);
 
   const precision = parseInt(tokenPrecision) || 4;
   const payoutNum = parseFloat(payoutAmount) || 0;
@@ -264,9 +251,7 @@ export function CreateDrip() {
               <SelectValue placeholder={loading ? "Loading tokens..." : "Auto-fill from balances"} />
             </SelectTrigger>
             <SelectContent>
-              {[...tokens]
-                .filter(t => parseFloat(t.amount) > 0)
-                .sort((a, b) => a.symbol.localeCompare(b.symbol))
+              {allTokens
                 .map(token => (
                   <SelectItem
                     key={`${token.contract}:${token.symbol}`}
@@ -279,7 +264,7 @@ export function CreateDrip() {
                         className="h-4 w-4 rounded-full"
                         onError={e => { e.currentTarget.src = TOKEN_LOGO_PLACEHOLDER; }}
                       />
-                      {token.symbol} - {token.amount}
+                      {token.symbol} - {token.balance.toFixed(token.precision)}
                     </span>
                   </SelectItem>
                 ))}

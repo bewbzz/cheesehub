@@ -1,5 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { SlotCalendar } from "@/components/bannerads/SlotCalendar";
+import { BannerAdStatsBar } from "@/components/bannerads/BannerAdStatsBar";
 import { playRandomFart } from "@/lib/fartSounds";
 
 import cheeseLogo from "@/assets/cheese-logo.png";
@@ -32,6 +33,7 @@ const BannerAds = () => {
               Rent Banner Ad Slots on CHEESEHub. Your Banner Persists Across All Dapp Pages. Each Day has 2 Slots Available. Choose from Exclusive or Shared.
             </p>
           </div>
+          <BannerAdStatsBar />
           <SlotCalendar />
         </div>
       </section>

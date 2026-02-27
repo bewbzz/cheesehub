@@ -47,6 +47,34 @@ export function useBannerAds() {
         { limit: 100 }
       );
 
+      // For multi-day rentals, content may only exist on the first day's row.
+      // Inherit content from the most recent previous row with the same user+position.
+      const sortedByTime = [...rows].sort((a, b) => a.time - b.time);
+      for (const row of sortedByTime) {
+        if (
+          row.user !== BANNER_CONTRACT &&
+          row.ipfs_hash.length === 0
+        ) {
+          const donor = sortedByTime
+            .filter(
+              (r) =>
+                r.position === row.position &&
+                r.user === row.user &&
+                r.time < row.time &&
+                r.ipfs_hash.length > 0
+            )
+            .pop(); // most recent earlier row with content
+          if (donor) {
+            row.ipfs_hash = donor.ipfs_hash;
+            row.website_url = donor.website_url;
+            row.rental_type = donor.rental_type;
+            row.shared_user = donor.shared_user;
+            row.shared_ipfs_hash = donor.shared_ipfs_hash;
+            row.shared_website_url = donor.shared_website_url;
+          }
+        }
+      }
+
       // Find slots in the current 24h window that are rented, have content, and are not suspended
       const active = rows.filter((row) => {
         const slotStart = row.time;

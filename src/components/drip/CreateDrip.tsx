@@ -58,19 +58,6 @@ export function CreateDrip() {
     }
   }, [selectedToken, allTokens]);
 
-  // When selecting from token dropdown, auto-fill fields
-  useEffect(() => {
-    if (selectedToken) {
-      const [contract, symbol] = selectedToken.split(":");
-      const token = allTokens.find(t => t.contract === contract && t.symbol === symbol);
-      if (token) {
-        setTokenName(token.symbol);
-        setTokenContract(token.contract);
-        setTokenPrecision(String(token.precision));
-      }
-    }
-  }, [selectedToken, allTokens]);
-
   const precision = parseInt(tokenPrecision) || 4;
   const payoutNum = parseFloat(payoutAmount) || 0;
   const hoursNum = parseFloat(hoursBetween) || 0;
@@ -79,6 +66,17 @@ export function CreateDrip() {
   const summary = endDateObj && hoursNum > 0 && payoutNum > 0
     ? calculateTotalDeposit(payoutNum, hoursNum, endDateObj)
     : null;
+
+  const missingFields = [
+    !receiver && "Receiving Account",
+    !payoutAmount && "Amount Per Payment",
+    !tokenName && "Token Name",
+    !tokenContract && "Token Contract",
+    !hoursBetween && "Hours Between Payments",
+    !endDate && "Drip Completion Date",
+  ].filter(Boolean) as string[];
+
+  console.log("[CreateDrip] form state:", { receiver, payoutAmount, tokenName, tokenContract, tokenPrecision, hoursBetween, endDate, selectedToken });
 
   const handleCreate = async () => {
     if (!session || !accountName) return;
@@ -414,6 +412,14 @@ export function CreateDrip() {
             </>
           )}
         </Button>
+
+        {/* Validation feedback */}
+        {!creating && missingFields.length > 0 && (
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+            <span>Missing: {missingFields.join(", ")}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

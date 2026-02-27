@@ -81,7 +81,7 @@ export function RentSlotDialog({
       ];
 
       if (ipfsHash) {
-        const editAction = isJoining ? "editsharedbanner" : "editadbanner";
+        const editAction = isJoining ? "editsharedad" : "editadbanner";
         const DAY_SECONDS = 86400;
         for (let i = 0; i < numDays; i++) {
           actions.push({

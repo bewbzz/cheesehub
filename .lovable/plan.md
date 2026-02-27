@@ -1,43 +1,39 @@
 
 
-# Fix Admin Dashboard Blank Page
+# Fix Burner Status Display + Deviation Bar Scaling
 
-## Problem
-The `cheeseburner` contract was redeployed without a `config` table in its ABI. Every RPC endpoint returns HTTP 500 for that table query. Since `fetchAllConfigs` uses `Promise.all`, this single failure crashes the entire dashboard -- no data loads at all.
+## Problem 1: Burner Shows "Disabled" When It's Actually Running
 
-## Solution
-Wrap each individual fetcher in `fetchAllConfigs` with error handling so failures return `null` instead of throwing. This way the dashboard still shows data for the contracts that ARE working (cheesefeefee, cheesebannad, cheesepowerz, Alcor pools).
+The `cheeseburner` contract is functioning, but its old `config` table is no longer in the ABI after redeployment. Since the fetch returns `null`, the dashboard interprets `enabled = undefined` as "Disabled" and marks it critical.
 
-## Changes
+**Fix**: Distinguish between "config unavailable" and "actually disabled". When `burnerConfig` is `null`, show a neutral "Config Unavailable" badge instead of "Disabled", and set the card status to `ok` (not critical). The stats table still works, so burns/claimed/burned values will still display.
 
-### 1. `src/hooks/useContractConfigs.ts` -- wrap fetchers in try/catch
+## Problem 2: Deviation Bar Fills Disproportionately
 
-Replace the `Promise.all` with `Promise.allSettled` or wrap each call so individual failures return null gracefully:
+The bar represents a range from -10% to +10%, with 0% at the center (50% position). Currently the bar width is calculated as:
 
-```typescript
-const [burnerConfig, burnerStats, ...rest] = await Promise.all([
-  fetchBurnerConfig().catch(() => null),
-  fetchBurnerStats().catch(() => null),
-  fetchFeeFeeConfig().catch(() => null),
-  fetchBannadConfig().catch(() => null),
-  fetchBannadAdmins().catch(() => []),
-  fetchPowerzStats().catch(() => null),
-  fetchPoolReserves(1252).catch(() => null),
-  fetchPoolReserves(1236).catch(() => null),
-]);
+```
+width: Math.abs(deviationPct) * 10
 ```
 
-This is a one-line-per-call change. Each fetcher gets a `.catch()` fallback so the rest of the data still loads.
+A 3.62% deviation produces a 36.2% wide bar starting from the 50% mark -- visually filling ~72% of one half. But 3.62% out of 10% should only fill ~36% of one half (18% of total bar).
 
-### 2. `src/pages/Admin.tsx` -- show partial data when available
+**Fix**: The bar's half is 50% of the container. A deviation of 10% should fill that entire half. So the formula should be:
 
-Currently line 213 shows `null` (nothing) when data is undefined. Change the `data ? (...)  : null` fallback to show a "failed to load" message instead of a blank page. Also handle the burnerConfig being null more gracefully in the card.
+```
+width: Math.abs(deviationPct) * 5   (i.e. 10% -> 50% width)
+```
 
-### No other files need changes
-The `fetchTable` function in `wax.ts` already has proper fallback logic -- the issue is purely that the contract's ABI genuinely no longer has this table, so all endpoints correctly return 500.
+This way +3.62% produces an 18.1% wide bar starting at the 50% mark, correctly filling about 36% of the right half.
 
-## Result
-- Dashboard loads with all working contract data (feefee, bannad, powerz, pool prices)
-- Burner card shows "unavailable" values instead of crashing everything
-- If more contracts lose tables in the future, the dashboard degrades gracefully
+## Files to Change
+
+### `src/pages/Admin.tsx`
+- Change `burnerDisabled` logic: only treat as disabled when config exists AND `enabled === 0`
+- When `burnerConfig` is null, show "Config Unavailable" (neutral/info badge) instead of "Disabled"
+- Set card status to `ok` when config is simply unavailable
+
+### `src/components/admin/PriceDeviationGauge.tsx`
+- Change bar width formula from `Math.abs(deviationPct) * 10` to `Math.abs(deviationPct) * 5`
+- This correctly maps the 0-10% range onto the 0-50% half of the bar
 

@@ -370,6 +370,15 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
         // Cannot rent past slots
         check(slot_time + SECONDS_PER_DAY > now, "Cannot rent expired slot at " + to_string(slot_time));
 
+        // Enforce minimum lead-time buffers
+        if (mode == 'e' || mode == 's') {
+            check(slot_time >= now + RENT_BUFFER_SECONDS,
+                "Must rent at least 48 hours before slot goes live");
+        } else if (mode == 'j') {
+            check(slot_time >= now + JOIN_BUFFER_SECONDS,
+                "Must join at least 12 hours before slot goes live");
+        }
+
         uint64_t pk = slot_time * 10 + position;
         auto itr = ads.find(pk);
         check(itr != ads.end(), "Slot at " + to_string(slot_time) + " position " + to_string(position) + " does not exist. Admin must init first.");

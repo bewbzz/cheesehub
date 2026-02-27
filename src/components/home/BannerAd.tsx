@@ -148,7 +148,7 @@ export function BannerAd() {
   const banner = allDisplayBanners[0];
   return (
     <div className="container py-4">
-      <div className="max-w-[50%] mx-auto max-md:max-w-full">
+      <div className="w-fit mx-auto max-md:max-w-full">
         {banner.displayMode === "shared" && sharedByPosition.has(banner.position) ? (
           <SharedBannerRotator banners={sharedByPosition.get(banner.position)!} />
         ) : (

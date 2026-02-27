@@ -40,7 +40,7 @@ export function EditBannerDialog({ open, onOpenChange, slot, onSuccess }: EditBa
     setIsSubmitting(true);
     try {
       const isSharedUser = slot.sharedUser === session.actor.toString();
-      const actionName = isSharedUser ? "editsharedbanner" : "editadbanner";
+      const actionName = isSharedUser ? "editsharedad" : "editadbanner";
 
       const action = {
         account: "cheesebannad",

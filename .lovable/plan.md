@@ -1,41 +1,43 @@
 
 
-# Switch Admin Dashboard Gate to cheesebannad Admins Table
+# Fix Admin Dashboard Blank Page
 
-## Summary
-Replace the current `/admin` access check (which reads from the now-missing `cheeseburner` whitelist table) with a check against the `cheesebannad` admins table instead.
+## Problem
+The `cheeseburner` contract was redeployed without a `config` table in its ABI. Every RPC endpoint returns HTTP 500 for that table query. Since `fetchAllConfigs` uses `Promise.all`, this single failure crashes the entire dashboard -- no data loads at all.
 
-## What Changes
+## Solution
+Wrap each individual fetcher in `fetchAllConfigs` with error handling so failures return `null` instead of throwing. This way the dashboard still shows data for the contracts that ARE working (cheesefeefee, cheesebannad, cheesepowerz, Alcor pools).
 
-### 1. Update `src/lib/adminData.ts`
-- Remove the `fetchWhitelist` function (reads from `cheeseburner` whitelist table)
-- Add a new `fetchIsAdmin` function that checks if an account exists in the `cheesebannad` admins table (reusing the existing `fetchBannadAdmins` fetcher)
+## Changes
 
-### 2. Update `src/hooks/useAdminAccess.ts`
-- Replace the `fetchWhitelist` call with `fetchIsAdmin`
-- Update the query key from `admin-whitelist` to `admin-access`
+### 1. `src/hooks/useContractConfigs.ts` -- wrap fetchers in try/catch
 
-### 3. No other changes needed
-- `Admin.tsx` already consumes `isWhitelisted` from the hook -- this boolean will now reflect cheesebannad admin status instead
-- The cheesebannad admins table already exists on-chain and is already being fetched for the dashboard display
-
-## Technical Detail
-
-The new check will query `cheesebannad::admins` and look for a matching account name, identical pattern to the old whitelist check but against a different contract/table:
+Replace the `Promise.all` with `Promise.allSettled` or wrap each call so individual failures return null gracefully:
 
 ```typescript
-export async function fetchIsAdmin(account: string): Promise<boolean> {
-  const rows = await fetchTable<BannadAdmin>(
-    CHEESEBANNAD, CHEESEBANNAD, 'admins',
-    { lower_bound: account, upper_bound: account, limit: 1 }
-  );
-  return rows.length > 0 && rows[0].account === account;
-}
+const [burnerConfig, burnerStats, ...rest] = await Promise.all([
+  fetchBurnerConfig().catch(() => null),
+  fetchBurnerStats().catch(() => null),
+  fetchFeeFeeConfig().catch(() => null),
+  fetchBannadConfig().catch(() => null),
+  fetchBannadAdmins().catch(() => []),
+  fetchPowerzStats().catch(() => null),
+  fetchPoolReserves(1252).catch(() => null),
+  fetchPoolReserves(1236).catch(() => null),
+]);
 ```
 
-## Files Modified
-- `src/lib/adminData.ts` — swap `fetchWhitelist` for `fetchIsAdmin`
-- `src/hooks/useAdminAccess.ts` — call `fetchIsAdmin` instead of `fetchWhitelist`
+This is a one-line-per-call change. Each fetcher gets a `.catch()` fallback so the rest of the data still loads.
 
-Two small edits, no new dependencies, no contract changes needed.
+### 2. `src/pages/Admin.tsx` -- show partial data when available
+
+Currently line 213 shows `null` (nothing) when data is undefined. Change the `data ? (...)  : null` fallback to show a "failed to load" message instead of a blank page. Also handle the burnerConfig being null more gracefully in the card.
+
+### No other files need changes
+The `fetchTable` function in `wax.ts` already has proper fallback logic -- the issue is purely that the contract's ABI genuinely no longer has this table, so all endpoints correctly return 500.
+
+## Result
+- Dashboard loads with all working contract data (feefee, bannad, powerz, pool prices)
+- Burner card shows "unavailable" values instead of crashing everything
+- If more contracts lose tables in the future, the dashboard degrades gracefully
 

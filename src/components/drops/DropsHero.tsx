@@ -29,12 +29,12 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
 
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2">
-              <span className="text-2xl">💧</span>
+              <span className="text-2xl">🛒</span>
               <h1 className="text-3xl md:text-4xl font-bold">
-                <span className="text-cheese">CHEESE</span><span className="text-foreground">Drop</span>
+                <span className="text-cheese">CHEESE</span><span className="text-foreground">Shoppe</span>
               </h1>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-cheese/20 text-cheese border border-cheese/30 leading-none">BETA</span>
-              <span className="text-2xl">💧</span>
+              <span className="text-2xl">🛒</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Create and Manage NFT Drops Utilizing NFTHives Free to Use, Battle Tested Smart Contract.

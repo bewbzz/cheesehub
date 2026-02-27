@@ -63,6 +63,10 @@ static constexpr uint32_t MAX_URL_LEN       = 256;
 // Alcor swap safe floor: 0.0001 CHEESE (4 decimals)
 static constexpr int64_t MIN_CHEESE_OUTPUT = 1;
 
+// Time buffers (anti-gaming)
+static constexpr uint32_t RENT_BUFFER_SECONDS = 48 * 3600;  // 48 hours
+static constexpr uint32_t JOIN_BUFFER_SECONDS = 12 * 3600;  // 12 hours
+
 // Max slots to erase per cleanup call (prevent timeout)
 static constexpr uint32_t MAX_CLEANUP_SLOTS = 100;
 

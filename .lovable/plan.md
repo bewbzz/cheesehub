@@ -1,40 +1,47 @@
 
 
-## 48-Hour Rent Buffer / 12-Hour Join Buffer
+## Enforce Rent/Join Buffers in the Smart Contract
 
-### Overview
-Apply two separate time buffers to prevent gaming while still allowing shared slot joins:
+### Problem
+The 48-hour rent buffer and 12-hour join buffer are only enforced in the frontend UI. Anyone can send a WAX transfer directly to `cheesebannad` with the correct memo and bypass these restrictions entirely, defeating the anti-gaming protection.
 
-- **Rent button** (new exclusive or shared rental): requires **48 hours** before go-live
-- **Join button** (joining an existing shared slot): requires **12 hours** before go-live
+### Solution
+Add time buffer checks inside the `assign_slots` function in `cheesebannad.cpp`. This is where exclusive rentals (mode `e`), shared rentals (mode `s`), and joins (mode `j`) are processed.
 
-This gives shared slot creators 36+ hours of visibility for others to join, while preventing last-minute joins that could disrupt display scheduling.
+### Contract Change
 
-### Changes
+**File: `contracts/cheesebannad/cheesebannad.cpp`**
 
-**File: `src/components/bannerads/SlotCalendar.tsx`**
+In the `assign_slots` function, after the existing expiry check on line 371, add buffer enforcement:
 
-1. Add two constants and a helper:
+```cpp
+// After: check(slot_time + SECONDS_PER_DAY > now, "Cannot rent expired slot...");
 
-```tsx
-const MIN_RENT_BUFFER_HOURS = 48;
-const MIN_JOIN_BUFFER_HOURS = 12;
-
-function isWithinBuffer(slotTime: number, bufferHours: number): boolean {
-  const cutoff = Math.floor(Date.now() / 1000) + bufferHours * 3600;
-  return slotTime >= cutoff;
+// Enforce minimum lead-time buffers
+if (mode == 'e' || mode == 's') {
+    // New rentals require 48 hours before go-live
+    check(slot_time >= now + RENT_BUFFER_SECONDS,
+        "Must rent at least 48 hours before slot goes live");
+} else if (mode == 'j') {
+    // Joining a shared slot requires 12 hours before go-live
+    check(slot_time >= now + JOIN_BUFFER_SECONDS,
+        "Must join at least 12 hours before slot goes live");
 }
 ```
 
-2. Add `isWithinBuffer(slot.time, 48)` condition to the **Rent** button (around line 155)
+**File: `contracts/cheesebannad/cheesebannad.hpp`**
 
-3. Add `isWithinBuffer(slot.time, 12)` condition to the **Join** button (around line 163)
+Add two constants alongside the existing ones:
 
-4. Keep `filterFutureGroups` unchanged -- all future slots remain visible so users can see what's coming, buttons just become disabled/hidden based on buffer windows.
+```cpp
+static constexpr uint32_t RENT_BUFFER_SECONDS = 48 * 3600;  // 48 hours
+static constexpr uint32_t JOIN_BUFFER_SECONDS = 12 * 3600;  // 12 hours
+```
 
-### Result
-- Slots always visible with countdown timers
-- Rent buttons disappear when less than 48 hours remain
-- Join buttons disappear when less than 12 hours remain
-- No way to game cheap exclusivity via last-minute shared rentals
+### Notes
+
+- The frontend buffers already match (48h rent, 12h join), so the UX won't change for normal users -- they'll never hit these contract checks.
+- Direct contract interactions will now get a clear error message explaining the minimum lead time.
+- This is a contract change, so it requires recompiling and redeploying `cheesebannad` on-chain. Lovable can update the source files but cannot deploy the contract.
+- The existing frontend checks remain as a UX convenience (hiding buttons rather than showing errors).
 

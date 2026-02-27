@@ -94,13 +94,13 @@ async function fetchAllConfigs(): Promise<ContractConfigsData> {
 
   // Calculate deviations
   const cheeseWaxDev = feefeeConfig && pool1252Prices
-    ? calcDeviation(pool1252Prices.waxPerCheese, feefeeConfig.wax_per_cheese_baseline)
+    ? calcDeviation(pool1252Prices.waxPerCheese, Number(feefeeConfig.wax_per_cheese_baseline))
     : null;
   const waxdaoWaxDev = feefeeConfig && pool1236Prices
-    ? calcDeviation(pool1236Prices.waxdaoPerWax, feefeeConfig.waxdao_per_wax_baseline)
+    ? calcDeviation(pool1236Prices.waxdaoPerWax, Number(feefeeConfig.waxdao_per_wax_baseline))
     : null;
   const bannadDev = bannadConfig && pool1252Prices
-    ? calcDeviation(pool1252Prices.waxPerCheese, bannadConfig.wax_per_cheese_baseline)
+    ? calcDeviation(pool1252Prices.waxPerCheese, Number(bannadConfig.wax_per_cheese_baseline))
     : null;
 
   return {

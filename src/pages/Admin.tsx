@@ -151,7 +151,7 @@ export default function Admin() {
                   status={bannadSeverity === 'red' ? 'critical' : bannadSeverity === 'yellow' ? 'warn' : 'ok'}
                   rows={[
                     { label: 'Price/Day', value: data.bannadConfig?.wax_price_per_day ?? '—' },
-                    { label: 'WAX/CHEESE Baseline', value: data.bannadConfig?.wax_per_cheese_baseline?.toFixed(4) ?? '—' },
+                    { label: 'WAX/CHEESE Baseline', value: data.bannadConfig?.wax_per_cheese_baseline != null ? Number(data.bannadConfig.wax_per_cheese_baseline).toFixed(4) : '—' },
                     { label: 'Live WAX/CHEESE', value: data.poolPrices.pool1252?.waxPerCheese?.toFixed(4) ?? '—' },
                     {
                       label: 'Baseline Drift',

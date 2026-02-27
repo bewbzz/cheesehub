@@ -54,17 +54,17 @@ export default function Admin() {
 
   // Derive overall statuses
   const burnerDisabled = data?.burnerConfig && !data.burnerConfig.enabled;
-  const cheeseWaxSeverity = data?.deviations.cheeseWax !== null
-    ? getDeviationSeverity(data.deviations.cheeseWax!)
+  const cheeseWaxSeverity = data?.deviations?.cheeseWax != null
+    ? getDeviationSeverity(data.deviations.cheeseWax)
     : 'green';
-  const waxdaoWaxSeverity = data?.deviations.waxdaoWax !== null
-    ? getDeviationSeverity(data.deviations.waxdaoWax!)
+  const waxdaoWaxSeverity = data?.deviations?.waxdaoWax != null
+    ? getDeviationSeverity(data.deviations.waxdaoWax)
     : 'green';
   const feefeeStatus = cheeseWaxSeverity === 'red' || waxdaoWaxSeverity === 'red'
     ? 'critical' : cheeseWaxSeverity === 'yellow' || waxdaoWaxSeverity === 'yellow'
     ? 'warn' : 'ok';
-  const bannadSeverity = data?.deviations.bannadCheese !== null
-    ? getDeviationSeverity(data.deviations.bannadCheese!)
+  const bannadSeverity = data?.deviations?.bannadCheese != null
+    ? getDeviationSeverity(data.deviations.bannadCheese)
     : 'green';
 
   return (

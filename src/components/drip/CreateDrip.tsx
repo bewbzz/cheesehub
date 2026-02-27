@@ -224,6 +224,9 @@ export function CreateDrip() {
         <CardTitle className="flex items-center gap-2">
           <Droplets className="h-5 w-5 text-cheese" />
           Create Slow Drip
+          <a href="https://www.youtube.com/watch?v=zZy6nE0Qmz8" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-cheese hover:text-cheese-dark underline underline-offset-2 ml-1">
+            Watch me
+          </a>
         </CardTitle>
         <CardDescription>
           Set up automated token payments that drip to a recipient over time.

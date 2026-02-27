@@ -87,6 +87,13 @@ void cheesebannad::editadbanner(name user, uint64_t start_time, uint8_t position
     check(ipfs_hash.length() <= MAX_IPFS_HASH_LEN, "IPFS hash too long");
     check(website_url.length() <= MAX_URL_LEN, "URL too long");
 
+    if (website_url.length() > 0) {
+        check(
+            website_url.substr(0, 8) == "https://" || website_url.substr(0, 7) == "http://",
+            "website_url must start with https:// or http://"
+        );
+    }
+
     // Guard: cannot edit an expired slot
     uint32_t now = current_time_point().sec_since_epoch();
     check(start_time + SECONDS_PER_DAY > now, "Slot has already expired");
@@ -112,6 +119,13 @@ void cheesebannad::editsharedad(name user, uint64_t start_time, uint8_t position
     check(position == 1 || position == 2, "Position must be 1 or 2");
     check(ipfs_hash.length() <= MAX_IPFS_HASH_LEN, "IPFS hash too long");
     check(website_url.length() <= MAX_URL_LEN, "URL too long");
+
+    if (website_url.length() > 0) {
+        check(
+            website_url.substr(0, 8) == "https://" || website_url.substr(0, 7) == "http://",
+            "website_url must start with https:// or http://"
+        );
+    }
 
     // Guard: cannot edit an expired slot
     uint32_t now = current_time_point().sec_since_epoch();
@@ -242,17 +256,20 @@ void cheesebannad::on_wax_transfer(name from, name to, asset quantity, string me
     auto [start_time, num_days, position, mode] = parse_banner_memo(memo);
     asset price_per_day = get_config();
 
-    // Shared slots cost 30% less
-    double multiplier = (mode == 's' || mode == 'j') ? (1.0 - SHARED_DISCOUNT) : 1.0;
+    // Integer-only pricing: apply discounts via numerator/denominator
+    int64_t unit_price = price_per_day.amount;
+
+    // Shared slots cost 30% less (70% of full price)
+    if (mode == 's' || mode == 'j') {
+        unit_price = unit_price * SHARED_NUMERATOR / PERCENT_BASE;
+    }
 
     // Permanent 50% discount for cheesepromoz (stacks multiplicatively with shared discount)
     if (from == PROMOZ_ACCOUNT) {
-        multiplier *= (1.0 - PROMOZ_DISCOUNT);
+        unit_price = unit_price * PROMOZ_NUMERATOR / PERCENT_BASE;
     }
 
-    int64_t required = static_cast<int64_t>(
-        static_cast<double>(price_per_day.amount) * multiplier
-    ) * static_cast<int64_t>(num_days);
+    int64_t required = unit_price * static_cast<int64_t>(num_days);
     check(quantity.amount >= required,
         "Insufficient WAX. Need " + to_string(required / 100000000) + " WAX for " + to_string(num_days) + " day(s)");
 
@@ -421,8 +438,8 @@ void cheesebannad::assign_slots(name user, uint64_t start_time, uint64_t num_day
 // ============================================================================
 
 void cheesebannad::distribute_wax_funds(asset quantity) {
-    int64_t burner_amount = static_cast<int64_t>(quantity.amount * WAX_BURNER_PERCENT);
-    int64_t powerz_amount = static_cast<int64_t>(quantity.amount * WAX_POWERZ_PERCENT);
+    int64_t burner_amount = quantity.amount * 25 / 100;
+    int64_t powerz_amount = quantity.amount * 25 / 100;
     int64_t swap_amount   = quantity.amount - burner_amount - powerz_amount;
 
     // 25% WAX to cheeseburner (ecosystem financing)
@@ -465,7 +482,7 @@ void cheesebannad::distribute_wax_funds(asset quantity) {
 }
 
 void cheesebannad::distribute_cheese_funds(asset quantity) {
-    int64_t burn_amount  = static_cast<int64_t>(quantity.amount * CHEESE_BURN_PERCENT);
+    int64_t burn_amount  = quantity.amount * 66 / 100;
     int64_t stake_amount = quantity.amount - burn_amount;
 
     // 66% CHEESE burned

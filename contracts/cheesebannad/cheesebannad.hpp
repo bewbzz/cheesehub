@@ -43,17 +43,18 @@ static constexpr name LIQUIDITY_STAKING  = "xcheeseliqst"_n;
 static constexpr name CHEESEBURNER       = "cheeseburner"_n;
 static constexpr name CHEESEPOWERZ       = "cheesepowerz"_n;
 
-// Distribution percentages
-static constexpr double WAX_BURNER_PERCENT  = 0.25;  // 25% WAX to cheeseburner (financing)
-static constexpr double WAX_POWERZ_PERCENT  = 0.25;  // 25% WAX to cheesepowerz (financing)
-static constexpr double CHEESE_BURN_PERCENT = 0.66;  // 66% CHEESE burned
+// Distribution percentages (integer-only: numerator / 100)
+static constexpr uint64_t WAX_BURNER_NUMERATOR  = 25;   // 25% WAX to cheeseburner
+static constexpr uint64_t WAX_POWERZ_NUMERATOR  = 25;   // 25% WAX to cheesepowerz
+static constexpr uint64_t CHEESE_BURN_NUMERATOR = 66;   // 66% CHEESE burned
 
 // Pricing
 static constexpr uint64_t SECONDS_PER_DAY      = 86400;
 static constexpr int64_t  DEFAULT_WAX_PRICE     = 10000000000; // 100.00000000 WAX
-static constexpr double   SHARED_DISCOUNT       = 0.30;        // 30% off for shared slots
+static constexpr uint64_t SHARED_NUMERATOR      = 70;          // 70% of full price (30% off)
 static constexpr name     PROMOZ_ACCOUNT        = "cheesepromoz"_n;
-static constexpr double   PROMOZ_DISCOUNT       = 0.50;        // 50% off for cheesepromoz (permanent)
+static constexpr uint64_t PROMOZ_NUMERATOR      = 50;          // 50% of full price
+static constexpr uint64_t PERCENT_BASE          = 100;
 static constexpr double   DEFAULT_CHEESE_BASELINE = 1.5;       // default WAX per CHEESE baseline
 
 // Input limits

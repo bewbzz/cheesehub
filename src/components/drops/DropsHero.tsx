@@ -37,7 +37,7 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
               <span className="text-2xl">🛒</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Create and Manage NFT Drops Utilizing NFTHives Free to Use, Battle Tested Smart Contract.
+              All the Wonders of a Rainbow
             </p>
           </div>
 

@@ -1,42 +1,40 @@
 
 
-## Remove User Edit Button from Banner Ads
+## 48-Hour Rent Buffer / 12-Hour Join Buffer
 
-### Problem
-After renting a banner slot and uploading content, users can currently edit their banner image/URL via an "Edit" button. This creates a moderation risk: a user could get approval for an innocent image, then swap it for offensive content.
+### Overview
+Apply two separate time buffers to prevent gaming while still allowing shared slot joins:
 
-### Solution
-Remove the "Edit" button visibility for regular (non-admin) users in `SlotCalendar.tsx`. Admins retain full control.
+- **Rent button** (new exclusive or shared rental): requires **48 hours** before go-live
+- **Join button** (joining an existing shared slot): requires **12 hours** before go-live
 
-### Change
+This gives shared slot creators 36+ hours of visibility for others to join, while preventing last-minute joins that could disrupt display scheduling.
 
-**File: `src/components/bannerads/SlotCalendar.tsx` (~line 161-169)**
+### Changes
 
-Update the Edit button condition to only show for admins:
+**File: `src/components/bannerads/SlotCalendar.tsx`**
 
-```tsx
-// Before:
-{slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
-
-// After:
-{isAdmin && slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
-```
-
-Since `isAdmin` checks `accountName === BANNER_CONTRACT`, and the admin account is never the renter, this effectively hides the Edit button entirely. A simpler approach: just remove the Edit button block for non-admins completely by wrapping it with `isAdmin &&`.
-
-Alternatively, since admins already have Preview + Remove buttons, we can simply remove the Edit button condition for slot owners entirely -- keeping `EditBannerDialog` available only if we want admins to use it in the future.
-
-**Simplest fix**: Change the condition on line 161 from:
+1. Add two constants and a helper:
 
 ```tsx
-{slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
+const MIN_RENT_BUFFER_HOURS = 48;
+const MIN_JOIN_BUFFER_HOURS = 12;
+
+function isWithinBuffer(slotTime: number, bufferHours: number): boolean {
+  const cutoff = Math.floor(Date.now() / 1000) + bufferHours * 3600;
+  return slotTime >= cutoff;
+}
 ```
 
-to:
+2. Add `isWithinBuffer(slot.time, 48)` condition to the **Rent** button (around line 155)
 
-```tsx
-{false && slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
-```
+3. Add `isWithinBuffer(slot.time, 12)` condition to the **Join** button (around line 163)
 
-Or cleaner: just remove the Edit button block entirely since users set their content during the rental transaction and admins have their own controls.
+4. Keep `filterFutureGroups` unchanged -- all future slots remain visible so users can see what's coming, buttons just become disabled/hidden based on buffer windows.
+
+### Result
+- Slots always visible with countdown timers
+- Rent buttons disappear when less than 48 hours remain
+- Join buttons disappear when less than 12 hours remain
+- No way to game cheap exclusivity via last-minute shared rentals
 

@@ -148,6 +148,8 @@ export function SlotCalendar() {
             <span className="text-xs text-muted-foreground">30% off, 50% display time</span>
             <span className="text-xs text-muted-foreground">BUT if nobody rents the other shared slot,</span>
             <span className="text-xs text-muted-foreground">you get exclusive for the cheaper price!</span>
+            <span className="text-xs text-muted-foreground">OR rent both shared slots and show 2 banners</span>
+            <span className="text-xs text-muted-foreground">for less than 2 exclusive slots</span>
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={refetch} className="text-cheese">

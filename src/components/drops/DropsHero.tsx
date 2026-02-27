@@ -37,7 +37,7 @@ export function DropsHero({ stats, isLoading = false }: DropsHeroProps) {
               <span className="text-2xl">🛒</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              All the Wonders of a Rainbow
+              All the Wonders of the Rainbow
             </p>
           </div>
 

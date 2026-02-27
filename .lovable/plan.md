@@ -1,68 +1,25 @@
 
 
-## Combine Rent + Edit into a Single Transaction
+## Fix Single Banner Fitting Snugly
 
 ### Problem
-Currently, renting a banner slot requires **two separate wallet signatures**: one for the WAX transfer (rent) and another for the edit action (set IPFS hash and website URL). This is bad UX -- the user already provides the IPFS hash and website URL during rental, so they shouldn't need to sign twice.
+When only one banner slot is rented, the wrapper uses `max-w-[50%] mx-auto` which creates a container wider than the 580px image, leaving visible empty space inside the bordered box.
 
 ### Solution
-Modify `RentSlotDialog.tsx` to send **both actions in a single `session.transact()` call** instead of using `transferToken()` (which only sends the transfer) followed by a second `transact()` call.
+Change the single-banner wrapper from `max-w-[50%]` to `w-fit` so the container shrinks to exactly match the 580px image width, keeping it centered with `mx-auto`.
 
-### Changes
+### Change
 
-**File: `src/components/bannerads/RentSlotDialog.tsx`**
+**File: `src/components/home/BannerAd.tsx` (line 151)**
 
-1. Replace the two-step flow (`transferToken` + separate `transact`) with a single `session.transact()` containing both actions in one array:
-   - Action 1: `eosio.token::transfer` (the WAX payment)
-   - Action 2: `cheesebannad::editadbanner` or `cheesebannad::editsharedbanner` (set the banner content)
-
-2. Only include the edit action if the user actually provided an IPFS hash (keep it optional).
-
-3. Remove the `transferToken` import/usage since we'll call `session.transact` directly with the combined actions array.
-
-4. Call `refreshBalance()` after success (imported from `useWax`).
-
-### Technical Detail
-
-The key change in `handleRent`:
-
-```typescript
-const actions = [];
-
-// Action 1: WAX transfer for rental payment
-actions.push({
-  account: "eosio.token",
-  name: "transfer",
-  authorization: [session.permissionLevel],
-  data: {
-    from: session.actor.toString(),
-    to: "cheesebannad",
-    quantity: `${totalWax.toFixed(8)} WAX`,
-    memo,
-  },
-});
-
-// Action 2: Set banner content (only if IPFS hash provided)
-if (ipfsHash) {
-  actions.push({
-    account: "cheesebannad",
-    name: isJoining ? "editsharedbanner" : "editadbanner",
-    authorization: [session.permissionLevel],
-    data: {
-      user: session.actor.toString(),
-      start_time: startTime,
-      position,
-      ipfs_hash: ipfsHash,
-      website_url: websiteUrl,
-    },
-  });
-}
-
-const result = await session.transact(
-  { actions },
-  { transactPlugins: getTransactPlugins(session) }
-);
+Replace:
+```tsx
+<div className="max-w-[50%] mx-auto max-md:max-w-full">
+```
+With:
+```tsx
+<div className="w-fit mx-auto max-md:max-w-full">
 ```
 
-This way the user signs once and both the payment and banner setup happen atomically. If either fails, neither goes through.
+This makes the wrapper shrink-wrap to the image's intrinsic 580px width so the border fits snugly around the banner.
 

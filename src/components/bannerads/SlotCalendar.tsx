@@ -109,11 +109,20 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
-/** Filter to only show current and future slots */
+/** Filter to only show future slots (exclude today / already live) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
   const now = new Date();
   const todayMidnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-  return groups.filter((g) => g.time >= todayMidnightUTC);
+  return groups.filter((g) => g.time > todayMidnightUTC);
+}
+
+/** Hours from now until a slot goes live */
+function hoursUntilLive(slotTime: number): string {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const diffHours = Math.max(0, Math.round((slotTime - nowSec) / 3600));
+  if (diffHours < 1) return "< 1 hr";
+  if (diffHours === 1) return "~1 hr";
+  return `~${diffHours} hrs`;
 }
 
 export function SlotCalendar() {
@@ -185,6 +194,7 @@ export function SlotCalendar() {
                 <div className="md:w-40 shrink-0">
                   <p className="font-medium text-foreground">{format(group.date, "EEE, MMM d yyyy")}</p>
                   <p className="text-xs text-muted-foreground">UTC Day</p>
+                  <p className="text-xs text-cheese font-medium mt-0.5">Live in {hoursUntilLive(group.time)}</p>
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">

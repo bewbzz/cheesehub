@@ -150,10 +150,10 @@ export function SlotCalendar() {
     <TooltipProvider>
       <div className="flex flex-col items-center text-center mb-4 gap-3">
         <div className="flex items-start gap-4 text-sm w-full justify-center pl-16">
-          <span className="text-foreground font-medium whitespace-nowrap pt-0.5">Exclusive: {pricing.waxPerDay} WAX/day</span>
+          <span className="text-foreground font-medium whitespace-nowrap pt-0.5">Exclusive Slot: {pricing.waxPerDay} WAX/day</span>
           <span className="text-muted-foreground pt-0.5">|</span>
           <div className="flex flex-col items-start">
-            <span className="text-foreground font-medium">Shared: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
+            <span className="text-foreground font-medium">Shared Slot: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
             <span className="text-xs text-muted-foreground">30% off, 50% display time</span>
             <span className="text-xs text-muted-foreground">BUT if nobody rents the other shared slot,</span>
             <span className="text-xs text-muted-foreground">you get exclusive for the cheaper price!</span>

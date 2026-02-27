@@ -18,7 +18,7 @@ export function BannerAdStatsBar() {
       color: "text-cheese",
     },
     {
-      label: "CHEESE Burnt",
+      label: "CHEESE Nulled",
       value: isLoading ? "-" : (data ? formatNumber(data.cheeseBurnt, 4) : "-"),
       Icon: Flame,
       color: "text-destructive",

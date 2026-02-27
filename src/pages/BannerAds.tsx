@@ -33,8 +33,8 @@ const BannerAds = () => {
               Rent Banner Ad Slots on CHEESEHub. Your Banner Persists Across All Dapp Pages. Each Day has 2 Slots Available. Choose from Exclusive or Shared.
             </p>
           </div>
-          <BannerAdStatsBar />
           <SlotCalendar />
+          <BannerAdStatsBar />
         </div>
       </section>
     </Layout>

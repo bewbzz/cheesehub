@@ -89,9 +89,9 @@ export async function fetchPowerzStats(): Promise<PowerzStats | null> {
   return rows[0] ?? null;
 }
 
-export async function fetchWhitelist(account: string): Promise<boolean> {
-  const rows = await fetchTable<{ account: string }>(
-    CHEESEBURNER, CHEESEBURNER, 'whitelist',
+export async function fetchIsAdmin(account: string): Promise<boolean> {
+  const rows = await fetchTable<BannadAdmin>(
+    CHEESEBANNAD, CHEESEBANNAD, 'admins',
     { lower_bound: account, upper_bound: account, limit: 1 }
   );
   return rows.length > 0 && rows[0].account === account;

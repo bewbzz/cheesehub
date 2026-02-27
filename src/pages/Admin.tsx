@@ -53,7 +53,7 @@ export default function Admin() {
   }
 
   // Derive overall statuses
-  const burnerDisabled = data?.burnerConfig && !data.burnerConfig.enabled;
+  const burnerDisabled = data?.burnerConfig != null && !data.burnerConfig.enabled;
   const cheeseWaxSeverity = data?.deviations?.cheeseWax != null
     ? getDeviationSeverity(data.deviations.cheeseWax)
     : 'green';
@@ -103,10 +103,12 @@ export default function Admin() {
                   rows={[
                     {
                       label: 'Status',
-                      value: data.burnerConfig?.enabled
-                        ? <Badge className="bg-green-500/20 text-green-400">Enabled</Badge>
-                        : <Badge className="bg-red-500/20 text-red-400">Disabled</Badge>,
-                      critical: !data.burnerConfig?.enabled,
+                      value: data.burnerConfig == null
+                        ? <Badge variant="outline" className="text-muted-foreground">Config Unavailable</Badge>
+                        : data.burnerConfig.enabled
+                          ? <Badge className="bg-green-500/20 text-green-400">Enabled</Badge>
+                          : <Badge className="bg-red-500/20 text-red-400">Disabled</Badge>,
+                      critical: burnerDisabled,
                     },
                     { label: 'Min WAX to Burn', value: data.burnerConfig?.min_wax_to_burn ?? '—' },
                     { label: 'Pool ID', value: data.burnerConfig?.alcor_pool_id ?? '—' },

@@ -58,7 +58,7 @@ export function PriceDeviationGauge({ label, baseline, live, deviationPct, unit 
               severity === 'green' ? 'bg-green-500' : severity === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
             }`}
             style={{
-              width: `${Math.min(Math.abs(deviationPct) * 10, 100)}%`,
+              width: `${Math.min(Math.abs(deviationPct) * 5, 50)}%`,
               left: deviationPct >= 0 ? '50%' : undefined,
               right: deviationPct < 0 ? '50%' : undefined,
             }}

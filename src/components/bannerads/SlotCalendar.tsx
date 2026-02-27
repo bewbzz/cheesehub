@@ -216,17 +216,17 @@ export function SlotCalendar() {
                            </Button>
                          )}
 
-                         {/* Edit button for slot owners */}
-                         {slot.isOnChain && !slot.suspended && (slot.user === accountName || slot.sharedUser === accountName) && (
-                           <Button
-                             size="sm"
-                             variant="outline"
-                             className="border-cheese/30 text-cheese text-xs h-7"
-                             onClick={() => setEditTarget(slot)}
-                           >
-                             Edit
-                           </Button>
-                         )}
+                         {/* Edit button - admin only (users set content during rental) */}
+                         {isAdmin && slot.isOnChain && !slot.suspended && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-cheese/30 text-cheese text-xs h-7"
+                              onClick={() => setEditTarget(slot)}
+                            >
+                              Edit
+                            </Button>
+                          )}
 
                          {/* Admin: Preview button (rented slots) */}
                          {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && (

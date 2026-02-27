@@ -61,6 +61,13 @@ function PreviewBannerDialog({ open, onOpenChange, slot }: { open: boolean; onOp
 }
 
 const BANNER_CONTRACT = "cheesebannad";
+const MIN_RENT_BUFFER_HOURS = 48;
+const MIN_JOIN_BUFFER_HOURS = 12;
+
+function isWithinBuffer(slotTime: number, bufferHours: number): boolean {
+  const cutoff = Math.floor(Date.now() / 1000) + bufferHours * 3600;
+  return slotTime >= cutoff;
+}
 
 function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: string | null }) {
   if (!slot.isOnChain) {
@@ -209,7 +216,7 @@ export function SlotCalendar() {
                       </div>
                       <div className="flex items-center gap-2">
                          {/* Rent / Join buttons for non-admin users */}
-                         {(slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && (
+                         {(slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS) && (
                            <Button
                              size="sm"
                              className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
@@ -218,7 +225,7 @@ export function SlotCalendar() {
                              Rent
                            </Button>
                          )}
-                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && (
+                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && isWithinBuffer(slot.time, MIN_JOIN_BUFFER_HOURS) && (
                            <Button
                              size="sm"
                              className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"

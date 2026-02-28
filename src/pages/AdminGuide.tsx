@@ -174,7 +174,7 @@ const dapps: DApp[] = [
   },
   {
     id: 'powerup',
-    name: 'CHEESEPowerUp',
+    name: 'CHEESEUp',
     contracts: ['cheesepowerz'],
     owner: 'CHEESE team',
     description: 'Smart contract that converts CHEESE into CPU/NET resources for WAX users. Users send CHEESE (with configurable min/max limits) to the cheesepowerz contract. The contract burns 100% of the received CHEESE, calculates the WAX equivalent using the live Alcor pool rate, then executes the eosio powerup action from its WAX reserves. Memo format supports custom CPU/NET split and gifting to other accounts. WAX reserves are replenished by cheeseburner (5%) and cheesebannad (25%).',

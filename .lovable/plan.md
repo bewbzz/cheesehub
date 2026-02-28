@@ -1,48 +1,35 @@
 
 
-## Fix Shared Banner Error and Center Ads
+## Add Crossfade Transition to Shared Banner Rotation
 
-### Problem 1: React Error
-The `SharedBannerRotator` crashes because it accesses `banners[1]` which can be `undefined` when only one shared banner exists. When `activeIdx` flips to 1, `displayBanner` becomes `undefined` and `BannerImage` crashes trying to read `banner.ipfsHash`.
+### Current Behavior
+When shared banners rotate every 30 seconds, the switch is instant -- one banner disappears and the next appears abruptly.
 
-### Problem 2: Centering
-The 2-column grid needs `justify-items-center` to center the ads so the gap between them aligns above the floating orb.
+### Solution
+Render **both** banners stacked on top of each other using absolute positioning, and crossfade between them using CSS opacity transitions with a 3-second duration.
 
 ### Changes
 
-**`src/components/home/BannerAd.tsx`**
+**`src/components/home/BannerAd.tsx`** -- Rewrite the `SharedBannerRotator` render section:
 
-1. **SharedBannerRotator** -- Guard against single-banner arrays:
-   - If `banners.length < 2`, render a single `BannerImage` (no rotation, no dots)
-   - Only run the rotation interval and dot indicators when there are 2 banners
+- Render both `BannerImage` components simultaneously, stacked via `absolute`/`relative` positioning
+- Apply `opacity-0` / `opacity-100` based on `activeIdx`, with `transition-opacity duration-[3000ms]`
+- The outgoing banner fades out over 3 seconds while the incoming one fades in, creating a smooth crossfade
 
-2. **Grid centering** -- Add `justify-items-center` to the 2-column grid (line 128) so both ads center within their cells and the gap sits in the middle of the page above the orb.
+```text
+Before:
+  <BannerImage banner={displayBanner} />    (single, swaps instantly)
 
-### Technical Details
-
-```typescript
-// SharedBannerRotator fix
-function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
-  const [activeIdx, setActiveIdx] = useState(0);
-
-  useEffect(() => {
-    if (banners.length < 2) return;
-    const interval = setInterval(() => {
-      setActiveIdx((prev) => (prev === 0 ? 1 : 0));
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [banners.length]);
-
-  if (banners.length < 2) {
-    return <BannerImage banner={banners[0]} isShared={true} />;
-  }
-
-  const displayBanner = activeIdx === 0 ? banners[0] : banners[1];
-  // ... rest with dots
-}
+After:
+  <div className="relative">
+    <div className={activeIdx === 0 ? "opacity-100" : "opacity-0"} style="transition: opacity 3s">
+      <BannerImage banner={banners[0]} />
+    </div>
+    <div className={activeIdx === 1 ? "opacity-100" : "opacity-0"} style="transition: opacity 3s; position: absolute; inset: 0">
+      <BannerImage banner={banners[1]} />
+    </div>
+  </div>
 ```
 
-Grid centering change on line 128:
-```
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
-```
+The dot indicators remain unchanged at the bottom-left, and their opacity transition stays instant so users immediately see which ad is active.
+

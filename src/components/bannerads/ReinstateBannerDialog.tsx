@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { BannerSlot } from "@/hooks/useBannerSlots";
-import { format } from "date-fns";
+import { formatSlotDateUTC } from "./SlotCalendar";
 
 interface ReinstateBannerDialogProps {
   open: boolean;
@@ -53,7 +53,7 @@ export function ReinstateBannerDialog({ open, onOpenChange, slot, onSuccess }: R
       if (result.resolved?.transaction.id) {
         toast({
           title: "Banner Reinstated",
-          description: `Position ${slot.position} on ${format(new Date(slot.time * 1000), "MMM d, yyyy")} is now unsuspended. The renter can re-upload.`,
+          description: `Position ${slot.position} on ${formatSlotDateUTC(slot.time)} is now unsuspended. The renter can re-upload.`,
         });
         onSuccess();
         onOpenChange(false);
@@ -87,7 +87,7 @@ export function ReinstateBannerDialog({ open, onOpenChange, slot, onSuccess }: R
 
         <div className="space-y-4 py-2">
           <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
-            <p><span className="text-muted-foreground">Slot:</span> <span className="font-medium">{format(new Date(slot.time * 1000), "EEE, MMM d yyyy")}</span></p>
+            <p><span className="text-muted-foreground">Slot:</span> <span className="font-medium">{formatSlotDateUTC(slot.time)}</span></p>
             <p><span className="text-muted-foreground">Position:</span> <span className="font-medium">{slot.position}</span></p>
             <p><span className="text-muted-foreground">Renter:</span> <span className="font-medium font-mono">{slot.user}</span></p>
           </div>

@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useWax } from "@/context/WaxContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { formatSlotDateUTC } from "./SlotCalendar";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
 
@@ -128,7 +128,7 @@ export function RentSlotDialog({
         <DialogHeader>
           <DialogTitle>{isJoining ? "Join Shared Banner Slot" : "Rent Banner Slot"}</DialogTitle>
           <DialogDescription>
-            Position {position} starting {format(new Date(startTime * 1000), "MMM d, yyyy")}
+            Position {position} starting {formatSlotDateUTC(startTime)}
           </DialogDescription>
         </DialogHeader>
 

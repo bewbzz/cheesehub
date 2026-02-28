@@ -120,8 +120,9 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
 
 /** Filter to only show future slots (exclude today / already live) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const nowSec = Math.floor(Date.now() / 1000);
-  return groups.filter((g) => g.time > nowSec);
+  const now = new Date();
+  const todayMidnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
+  return groups.filter((g) => g.time > todayMidnightUTC);
 }
 
 /** Live countdown component — shows minutes when < 1 hr, updates every 30s */

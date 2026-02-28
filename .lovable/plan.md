@@ -1,28 +1,22 @@
 
 
-## Fix: Live Countdown Showing Wrong Time
+## Minutes Countdown for Ad Slots Under 1 Hour
 
-### Root Cause
+### What Changes
 
-The slot times on-chain are set to **14:00 UTC** each day, not midnight. The `filterFutureGroups` function filters using `todayMidnightUTC`, which is always 00:00 UTC of the current day. This means a slot at 14:00 UTC today still passes the filter even after it has already started. `LiveCountdown` then calculates `slotTime - now` as negative, clamps it to 0 via `Math.max`, and displays "< 1 min".
+When an ad slot is less than 1 hour from going live, instead of showing "< 1 hr", it will display a live minutes countdown (e.g., "42 min", "5 min", "< 1 min") that updates every 30 seconds.
 
-### Fix
+### Technical Details
 
-**File: `src/components/bannerads/SlotCalendar.tsx`** (lines 121-126)
+**File: `src/components/bannerads/SlotCalendar.tsx`**
 
-Change `filterFutureGroups` to compare each group's `time` against the current Unix timestamp (in seconds) instead of today's midnight:
+1. **Replace the static `hoursUntilLive` function** with a new React component `LiveCountdown` that:
+   - Calculates the difference in seconds between now and the slot time
+   - If >= 1 hour: displays static hours text (same as current behavior)
+   - If < 1 hour: displays minutes remaining and uses a `useEffect` interval (every 30s) to re-render the countdown live
+   - If < 1 minute: shows "< 1 min"
 
-```tsx
-function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const nowSec = Math.floor(Date.now() / 1000);
-  return groups.filter((g) => g.time > nowSec);
-}
-```
+2. **Update the rendering** in the slot group row (around line 194) to use the new `<LiveCountdown slotTime={group.time} />` component instead of the `hoursUntilLive(group.time)` function call.
 
-This filters out any slot whose start time has already passed, regardless of what hour of the day it falls on. The result: only genuinely future slots appear, and the countdown will be accurate.
+No new dependencies needed -- just `useState` and `useEffect` from React (already imported).
 
-### What This Does NOT Change
-- No slots are deleted or modified on-chain
-- No changes to the `useBannerSlots` hook or any other component
-- All existing rented/shared/available slot data remains intact
-- Only the client-side visibility filter is corrected

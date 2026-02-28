@@ -212,8 +212,8 @@ function DripCard({
   const progress = getDripProgress(drip);
   const claimable = getClaimableCount(drip);
   const payout = parseAsset(drip.payout_amount);
-  const deposited = parseAsset(drip.amount_deposited);
-  const claimed = parseAsset(drip.amount_claimed);
+  const deposited = parseAsset(drip.total_amount);
+  const claimed = parseAsset(drip.total_amount_claimed);
   const secondsUntilClaim = getTimeUntilNextClaim(drip);
   const isExpired = drip.end_time <= Math.floor(Date.now() / 1000);
 

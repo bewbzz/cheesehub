@@ -57,7 +57,7 @@ export function MyDrips() {
           account: ESCROW_CONTRACT,
           name: "claimdrip",
           authorization: [session.permissionLevel],
-          data: { ID: drip.ID, claimer: accountName },
+          data: { receiver: accountName, ID: drip.ID },
         }],
         { successTitle: "Drip Claimed!", successDescription: `Claimed from drip #${drip.ID}` }
       );
@@ -76,7 +76,7 @@ export function MyDrips() {
           account: ESCROW_CONTRACT,
           name: "canceldrip",
           authorization: [session.permissionLevel],
-          data: { ID: drip.ID, canceller: accountName },
+          data: { ID: drip.ID, payer: accountName },
         }],
         { successTitle: "Drip Cancelled", successDescription: `Cancelled drip #${drip.ID}` }
       );
@@ -95,7 +95,7 @@ export function MyDrips() {
           account: ESCROW_CONTRACT,
           name: "finalizedrip",
           authorization: [session.permissionLevel],
-          data: { ID: drip.ID, finalizer: accountName },
+          data: { payer: accountName, ID: drip.ID },
         }],
         { successTitle: "Drip Finalized", successDescription: `Finalized drip #${drip.ID}` }
       );

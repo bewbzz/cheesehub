@@ -129,18 +129,18 @@ const dapps: DApp[] = [
   {
     id: 'powerup',
     name: 'CHEESEPowerUp',
-    contracts: ['cheesepowerz'],
+    contracts: [],
     owner: 'CHEESE team',
-    description: 'Powers up CPU and NET resources for WAX users. Funded by allocations from cheeseburner (5% of WAX) and cheesebannad (25% of ad revenue). Users can power up their own account or gift resources to others.',
-    feeNote: 'No direct user fees — funded by ecosystem contracts.',
+    description: 'CPU and NET resource service for WAX users. The cheesepowerz account is not a smart contract — it is a standard WAX account that accumulates WAX from cheeseburner (5% of vote rewards) and cheesebannad (25% of ad revenue). The CHEESEHub frontend uses the eosio powerup action to provide CPU/NET to users from this balance. Users can power up their own account or gift resources to others.',
+    feeNote: 'No direct user fees — funded by ecosystem contracts. cheesepowerz is an account, not a contract.',
   },
   {
     id: 'null',
     name: 'CHEESENull',
     contracts: ['cheeseburner'],
     owner: 'CHEESE team',
-    description: 'Client-side CHEESE burn interface. Users send CHEESE to the cheeseburner contract which triggers the burn flow. Stats (total burns, leaderboard) are tracked on-chain via the cheeseburner contract.',
-    feeNote: 'No platform fee. Users burn their own CHEESE directly.',
+    description: 'Client-side burn trigger. Users call the burn() action on the cheeseburner contract, which claims WAX vote rewards from eosio, stakes 20%, sends 5% to cheesepowerz, swaps 75% to CHEESE via Alcor, then burns 85% of the CHEESE and sends 15% to xcheeseliqst. No CHEESE is sent by the user — the burn is funded entirely by vote rewards. Stats (total burns, leaderboard) are tracked on-chain via the cheeseburner contract.',
+    feeNote: 'No platform fee. No caller reward. Burns are funded by WAX vote rewards.',
   },
   {
     id: 'amp',

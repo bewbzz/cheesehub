@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Droplets, Loader2, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TokenLogo } from "@/components/TokenLogo";
 
 export function MyDrips() {
   const { session, accountName, isConnected } = useWax();
@@ -248,10 +249,13 @@ function DripCard({
         </div>
 
         {/* Payout rate */}
-        <div className="text-center">
-          <p className="text-lg font-bold text-cheese">
-            {payout.amount.toFixed(payout.precision)} {payout.symbol}
-          </p>
+        <div className="text-center flex flex-col items-center">
+          <div className="flex items-center gap-2">
+            <TokenLogo contract={drip.token_contract} symbol={payout.symbol} size="md" />
+            <p className="text-lg font-bold text-cheese">
+              {payout.amount.toFixed(payout.precision)} {payout.symbol}
+            </p>
+          </div>
           <p className="text-xs text-muted-foreground">
             every {formatInterval(drip.hours_between_payouts)}
           </p>
@@ -260,8 +264,14 @@ function DripCard({
         {/* Progress */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Claimed: {claimed.amount.toFixed(claimed.precision)}</span>
-            <span>Deposited: {deposited.amount.toFixed(deposited.precision)}</span>
+            <span className="flex items-center gap-1">
+              <TokenLogo contract={drip.token_contract} symbol={claimed.symbol} size="sm" />
+              Claimed: {claimed.amount.toFixed(claimed.precision)}
+            </span>
+            <span className="flex items-center gap-1">
+              <TokenLogo contract={drip.token_contract} symbol={deposited.symbol} size="sm" />
+              Deposited: {deposited.amount.toFixed(deposited.precision)}
+            </span>
           </div>
           <Progress value={progress} className="h-2" />
         </div>

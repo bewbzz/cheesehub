@@ -133,8 +133,7 @@ function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
 /** Live countdown component — shows minutes when < 1 hr, updates every 30s */
 function LiveCountdown({ slotTime }: { slotTime: number }) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  const midnight = useMemo(() => toMidnightUTC(slotTime), [slotTime]);
-  const diffSec = Math.max(0, midnight - now);
+  const diffSec = Math.max(0, slotTime - now);
   const isUnderOneHour = diffSec < 3600;
 
   useEffect(() => {

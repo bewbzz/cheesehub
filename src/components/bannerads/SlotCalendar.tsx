@@ -14,7 +14,7 @@ import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
 import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { format } from "date-fns";
+
 
 function PreviewBannerImage({ ipfsHash, label }: { ipfsHash: string; label: string }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
@@ -41,7 +41,7 @@ function PreviewBannerDialog({ open, onOpenChange, slot }: { open: boolean; onOp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5 text-cheese" />
-            Preview — Pos {slot.position}, {format(new Date(slot.time * 1000), "MMM d yyyy")}
+            Preview — Pos {slot.position}, {new Date(slot.time * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -120,9 +120,8 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
 
 /** Filter to only show future slots (exclude today / already live) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const now = new Date();
-  const todayMidnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-  return groups.filter((g) => g.time > todayMidnightUTC);
+  const nowSec = Math.floor(Date.now() / 1000);
+  return groups.filter((g) => g.time > nowSec);
 }
 
 /** Live countdown component — shows minutes when < 1 hr, updates every 30s */
@@ -213,7 +212,7 @@ export function SlotCalendar() {
             <CardContent className="py-4 px-5">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="md:w-40 shrink-0">
-                  <p className="font-medium text-foreground">{format(group.date, "EEE, MMM d yyyy")}</p>
+                  <p className="font-medium text-foreground">{group.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</p>
                   <p className="text-xs text-muted-foreground">UTC Day</p>
                   <p className="text-xs text-cheese font-medium mt-0.5">Live in <LiveCountdown slotTime={group.time} /></p>
                 </div>

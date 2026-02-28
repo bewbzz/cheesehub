@@ -87,16 +87,22 @@ const feefeeWaxPath: FlowStep[] = [
 
 const powerupFlow: FlowStep[] = [
   {
-    label: 'Incoming WAX (from ecosystem)',
+    label: 'User sends CHEESE to cheesepowerz contract',
     items: [
-      { pct: '5%', dest: 'From cheeseburner (vote rewards)', highlight: 'burn' },
-      { pct: '25%', dest: 'From cheesebannad (ad revenue)', highlight: 'fee' },
+      { pct: '100%', dest: 'CHEESE burned (eosio.null)', highlight: 'burn' },
     ],
   },
   {
-    label: 'cheesepowerz account uses WAX to',
+    label: 'Contract calculates WAX equivalent via Alcor pool rate',
     items: [
-      { pct: '—', dest: 'Power up CPU/NET for users via eosio powerup action', highlight: 'power' },
+      { pct: '—', dest: 'WAX from contract reserves used for eosio powerup action', highlight: 'power' },
+    ],
+  },
+  {
+    label: 'WAX reserves funded by',
+    items: [
+      { pct: '5%', dest: 'cheeseburner (vote reward allocation)', highlight: 'stake' },
+      { pct: '25%', dest: 'cheesebannad (ad revenue allocation)', highlight: 'fee' },
     ],
   },
 ];
@@ -166,11 +172,11 @@ const dapps: DApp[] = [
   {
     id: 'powerup',
     name: 'CHEESEPowerUp',
-    contracts: [],
+    contracts: ['cheesepowerz'],
     owner: 'CHEESE team',
-    description: 'CPU and NET resource service for WAX users. The cheesepowerz account is not a smart contract — it is a standard WAX account that accumulates WAX from cheeseburner (5% of vote rewards) and cheesebannad (25% of ad revenue). The CHEESEHub frontend uses the eosio powerup action to provide CPU/NET to users from this balance. Users can power up their own account or gift resources to others.',
-    feeNote: 'No direct user fees — funded by ecosystem contracts. cheesepowerz is an account, not a contract.',
-    flows: [{ title: 'Funding Sources', steps: powerupFlow }],
+    description: 'Smart contract that converts CHEESE into CPU/NET resources for WAX users. Users send CHEESE (with configurable min/max limits) to the cheesepowerz contract. The contract burns 100% of the received CHEESE, calculates the WAX equivalent using the live Alcor pool rate, then executes the eosio powerup action from its WAX reserves. Memo format supports custom CPU/NET split and gifting to other accounts. WAX reserves are replenished by cheeseburner (5%) and cheesebannad (25%).',
+    feeNote: 'No platform fee on top. User pays in CHEESE which is fully burned. WAX reserves fund the powerup.',
+    flows: [{ title: 'PowerUp Flow', steps: powerupFlow }],
   },
   {
     id: 'null',

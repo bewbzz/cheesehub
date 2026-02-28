@@ -88,21 +88,36 @@ export function useBannerAds() {
         );
       });
 
-      return active.map((row) => ({
-        time: row.time,
-        position: row.position,
-        user: row.user,
-        ipfsHash: row.ipfs_hash,
-        websiteUrl: row.website_url,
-        rentalType: row.rental_type === 1 ? "shared" : "exclusive",
-        sharedUser: row.shared_user && row.shared_user !== BANNER_CONTRACT ? row.shared_user : undefined,
-        sharedIpfsHash: row.shared_ipfs_hash,
-        sharedWebsiteUrl: row.shared_website_url,
-        displayMode:
-          row.rental_type === 1 && row.shared_user && row.shared_user !== BANNER_CONTRACT
-            ? "shared"
-            : "full",
-      }));
+      return active.flatMap((row) => {
+        const primary: ActiveBanner = {
+          time: row.time,
+          position: row.position,
+          user: row.user,
+          ipfsHash: row.ipfs_hash,
+          websiteUrl: row.website_url,
+          rentalType: row.rental_type === 1 ? "shared" : "exclusive",
+          sharedUser: row.shared_user && row.shared_user !== BANNER_CONTRACT ? row.shared_user : undefined,
+          sharedIpfsHash: row.shared_ipfs_hash,
+          sharedWebsiteUrl: row.shared_website_url,
+          displayMode:
+            row.rental_type === 1 && row.shared_user && row.shared_user !== BANNER_CONTRACT
+              ? "shared"
+              : "full",
+        };
+
+        // If shared with a second renter who has content, emit second banner
+        if (primary.displayMode === "shared" && row.shared_ipfs_hash?.length > 0) {
+          const secondary: ActiveBanner = {
+            ...primary,
+            user: row.shared_user,
+            ipfsHash: row.shared_ipfs_hash,
+            websiteUrl: row.shared_website_url,
+          };
+          return [primary, secondary];
+        }
+
+        return [primary];
+      });
     },
     refetchInterval: 60000, // Poll every 60s
     staleTime: 30000,

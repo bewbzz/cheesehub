@@ -115,7 +115,7 @@ export function BannerAd() {
 
   const allDisplayBanners = [
     ...fullBanners,
-    ...[...sharedByPosition.values()].filter((pair) => pair.length === 2).map((pair) => pair[0]),
+    ...[...sharedByPosition.values()].filter((pair) => pair.length >= 1).map((pair) => pair[0]),
   ];
 
   if (allDisplayBanners.length === 0) return null;

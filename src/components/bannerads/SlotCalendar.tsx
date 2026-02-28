@@ -14,7 +14,7 @@ import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
 import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
-import { format } from "date-fns";
+
 
 function PreviewBannerImage({ ipfsHash, label }: { ipfsHash: string; label: string }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
@@ -41,7 +41,7 @@ function PreviewBannerDialog({ open, onOpenChange, slot }: { open: boolean; onOp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5 text-cheese" />
-            Preview — Pos {slot.position}, {format(new Date(slot.time * 1000), "MMM d yyyy")}
+            Preview — Pos {slot.position}, {formatSlotDateUTC(slot.time)}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -124,30 +124,39 @@ function toMidnightUTC(slotTime: number): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000;
 }
 
+/** Format a slot timestamp as a UTC date string */
+const utcDateFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+export function formatSlotDateUTC(slotTime: number): string {
+  return utcDateFormatter.format(new Date(slotTime * 1000));
+}
+
 /** Filter to only show future slots (exclude already-live / past days) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
   const todayMidnightUTC = toMidnightUTC(Math.floor(Date.now() / 1000));
-  return groups.filter((g) => g.time > todayMidnightUTC);
+  return groups.filter((g) => toMidnightUTC(g.time) > todayMidnightUTC);
 }
 
-/** Live countdown component — shows minutes when < 1 hr, updates every 30s */
+/** Live countdown component — updates every 30s, targets midnight UTC of slot date */
 function LiveCountdown({ slotTime }: { slotTime: number }) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const midnight = useMemo(() => toMidnightUTC(slotTime), [slotTime]);
   const diffSec = Math.max(0, midnight - now);
-  const isUnderOneHour = diffSec < 3600;
 
   useEffect(() => {
-    if (!isUnderOneHour) return;
     const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
     return () => clearInterval(id);
-  }, [isUnderOneHour]);
+  }, []);
 
-  if (!isUnderOneHour) {
-    const hrs = Math.round(diffSec / 3600);
-    return <>{hrs === 1 ? "~1 hr" : `~${hrs} hrs`}</>;
-  }
-  const mins = Math.floor(diffSec / 60);
+  if (diffSec <= 0) return <>{"< 1 min"}</>;
+  const hrs = Math.floor(diffSec / 3600);
+  const mins = Math.floor((diffSec % 3600) / 60);
+  if (hrs >= 1) return <>{`~${hrs} hr${hrs > 1 ? "s" : ""}`}</>;
   if (mins < 1) return <>{"< 1 min"}</>;
   return <>{`${mins} min`}</>;
 }
@@ -219,7 +228,7 @@ export function SlotCalendar() {
             <CardContent className="py-4 px-5">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="md:w-40 shrink-0">
-                  <p className="font-medium text-foreground">{format(group.date, "EEE, MMM d yyyy")}</p>
+                  <p className="font-medium text-foreground">{formatSlotDateUTC(group.time)}</p>
                   <p className="text-xs text-muted-foreground">UTC Day</p>
                   <p className="text-xs text-cheese font-medium mt-0.5">Live in <LiveCountdown slotTime={group.time} /></p>
                 </div>

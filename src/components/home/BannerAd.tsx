@@ -44,17 +44,20 @@ function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isSha
 
 function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const primaryBanner = banners[0];
-  const secondaryBanner = banners[1];
 
   useEffect(() => {
+    if (banners.length < 2) return;
     const interval = setInterval(() => {
       setActiveIdx((prev) => (prev === 0 ? 1 : 0));
-    }, 30000); // 30 seconds
+    }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [banners.length]);
 
-  const displayBanner = activeIdx === 0 ? primaryBanner : secondaryBanner;
+  if (banners.length < 2) {
+    return <BannerImage banner={banners[0]} isShared={true} />;
+  }
+
+  const displayBanner = activeIdx === 0 ? banners[0] : banners[1];
 
   return (
     <div className="relative">
@@ -125,7 +128,7 @@ export function BannerAd() {
     const displayPair = allDisplayBanners.slice(0, 2);
     return (
       <div className="container py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
           {displayPair[0].displayMode === "shared" && sharedByPosition.has(displayPair[0].position) ? (
             <SharedBannerRotator banners={sharedByPosition.get(displayPair[0].position)!} />
           ) : (

@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Droplets, Loader2, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TokenLogo } from "@/components/TokenLogo";
+import { TransactionSuccessDialog } from "@/components/wallet/TransactionSuccessDialog";
 
 export function MyDrips() {
   const { session, accountName, isConnected } = useWax();
@@ -30,6 +31,9 @@ export function MyDrips() {
   const [receiving, setReceiving] = useState<DripEscrow[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean; title: string; description: string; txId: string | null }>({
+    open: false, title: "", description: "", txId: null,
+  });
 
   const loadDrips = async () => {
     if (!accountName) return;
@@ -52,15 +56,25 @@ export function MyDrips() {
     if (!session || !accountName) return;
     setActionLoading(drip.ID);
     try {
-      await executeTransaction(
+      const result = await executeTransaction(
         [{
           account: ESCROW_CONTRACT,
           name: "claimdrip",
           authorization: [session.permissionLevel],
           data: { receiver: accountName, ID: drip.ID },
         }],
-        { successTitle: "Drip Claimed!", successDescription: `Claimed from drip #${drip.ID}` }
+        { successTitle: "Drip Claimed!", successDescription: `Claimed from drip #${drip.ID}`, showSuccessToast: false }
       );
+      if (result.success) {
+        const payout = parseAsset(drip.payout_amount);
+        const claimable = getClaimableCount(drip);
+        setSuccessDialog({
+          open: true,
+          title: "Drip Claimed!",
+          description: `Claimed ${(payout.amount * claimable).toFixed(payout.precision)} ${payout.symbol} from drip #${drip.ID}`,
+          txId: result.txId,
+        });
+      }
       await loadDrips();
     } finally {
       setActionLoading(null);
@@ -71,15 +85,23 @@ export function MyDrips() {
     if (!session || !accountName) return;
     setActionLoading(drip.ID);
     try {
-      await executeTransaction(
+      const result = await executeTransaction(
         [{
           account: ESCROW_CONTRACT,
           name: "canceldrip",
           authorization: [session.permissionLevel],
           data: { ID: drip.ID, payer: accountName },
         }],
-        { successTitle: "Drip Cancelled", successDescription: `Cancelled drip #${drip.ID}` }
+        { successTitle: "Drip Cancelled", successDescription: `Cancelled drip #${drip.ID}`, showSuccessToast: false }
       );
+      if (result.success) {
+        setSuccessDialog({
+          open: true,
+          title: "Drip Cancelled",
+          description: `Cancelled drip #${drip.ID}. Remaining funds returned.`,
+          txId: result.txId,
+        });
+      }
       await loadDrips();
     } finally {
       setActionLoading(null);
@@ -90,15 +112,23 @@ export function MyDrips() {
     if (!session || !accountName) return;
     setActionLoading(drip.ID);
     try {
-      await executeTransaction(
+      const result = await executeTransaction(
         [{
           account: ESCROW_CONTRACT,
           name: "finalizedrip",
           authorization: [session.permissionLevel],
           data: { payer: accountName, ID: drip.ID },
         }],
-        { successTitle: "Drip Finalized", successDescription: `Finalized drip #${drip.ID}` }
+        { successTitle: "Drip Finalized", successDescription: `Finalized drip #${drip.ID}`, showSuccessToast: false }
       );
+      if (result.success) {
+        setSuccessDialog({
+          open: true,
+          title: "Drip Finalized",
+          description: `Finalized drip #${drip.ID}. Remaining funds returned.`,
+          txId: result.txId,
+        });
+      }
       await loadDrips();
     } finally {
       setActionLoading(null);
@@ -190,6 +220,14 @@ export function MyDrips() {
           </div>
         )}
       </div>
+
+      <TransactionSuccessDialog
+        open={successDialog.open}
+        onOpenChange={(open) => setSuccessDialog(prev => ({ ...prev, open }))}
+        title={successDialog.title}
+        description={successDialog.description}
+        txId={successDialog.txId}
+      />
     </div>
   );
 }

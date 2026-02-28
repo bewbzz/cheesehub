@@ -12,8 +12,8 @@ export interface DripEscrow {
   hours_between_payouts: number;
   end_time: number;
   last_claim: number;
-  amount_deposited: string;
-  amount_claimed: string;
+  total_amount: string;
+  total_amount_claimed: string;
   status: number;
 }
 
@@ -69,8 +69,8 @@ export function getClaimableCount(drip: DripEscrow): number {
   const claimable = Math.floor(hoursSinceLastClaim / drip.hours_between_payouts);
 
   // Cap by remaining amount
-  const deposited = parseAsset(drip.amount_deposited);
-  const claimed = parseAsset(drip.amount_claimed);
+  const deposited = parseAsset(drip.total_amount);
+  const claimed = parseAsset(drip.total_amount_claimed);
   const payout = parseAsset(drip.payout_amount);
   
   if (payout.amount <= 0) return 0;
@@ -88,8 +88,8 @@ export function getTimeUntilNextClaim(drip: DripEscrow): number {
 
 /** Get drip progress as a percentage (0-100) */
 export function getDripProgress(drip: DripEscrow): number {
-  const deposited = parseAsset(drip.amount_deposited);
-  const claimed = parseAsset(drip.amount_claimed);
+  const deposited = parseAsset(drip.total_amount);
+  const claimed = parseAsset(drip.total_amount_claimed);
   if (deposited.amount <= 0) return 0;
   return Math.min(100, (claimed.amount / deposited.amount) * 100);
 }

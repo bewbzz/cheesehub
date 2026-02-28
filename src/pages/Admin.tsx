@@ -6,12 +6,14 @@ import { ContractStatusCard } from '@/components/admin/ContractStatusCard';
 import { PriceDeviationGauge } from '@/components/admin/PriceDeviationGauge';
 import { FailedTransactionLog } from '@/components/admin/FailedTransactionLog';
 import { parseAssetAmount, getDeviationSeverity } from '@/lib/adminData';
-import { Flame, CurrencyCircleDollar, Megaphone, Lightning, ShieldCheck, ArrowsClockwise } from '@phosphor-icons/react';
+import { Flame, CurrencyCircleDollar, Megaphone, Lightning, ShieldCheck, ArrowsClockwise, BookOpenText } from '@phosphor-icons/react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 export default function Admin() {
   const { isWhitelisted, isLoading: accessLoading, isConnected } = useAdminAccess();
@@ -80,7 +82,12 @@ export default function Admin() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1">Admin-only dashboard • Live on-chain data</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <Link to="/admin/guide">
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <BookOpenText size={14} /> Ecosystem Guide
+                </Button>
+              </Link>
               <ArrowsClockwise size={16} className={autoRefresh ? 'text-green-400 animate-spin' : 'text-muted-foreground'} style={{ animationDuration: '3s' }} />
               <Label htmlFor="auto-refresh" className="text-xs">Auto-refresh</Label>
               <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />

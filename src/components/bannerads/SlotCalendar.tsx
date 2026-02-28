@@ -118,17 +118,24 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
-/** Filter to only show future slots (exclude today / already live) */
+/** Normalize any on-chain slot time to midnight UTC of that date */
+function toMidnightUTC(slotTime: number): number {
+  const d = new Date(slotTime * 1000);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000;
+}
+
+/** Filter to only show future slots (exclude already-live / past days) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const now = new Date();
-  const todayMidnightUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
-  return groups.filter((g) => g.time > todayMidnightUTC);
+  const now = Math.floor(Date.now() / 1000);
+  const todayMidnightUTC = toMidnightUTC(now);
+  return groups.filter((g) => toMidnightUTC(g.time) > todayMidnightUTC);
 }
 
 /** Live countdown component — shows minutes when < 1 hr, updates every 30s */
 function LiveCountdown({ slotTime }: { slotTime: number }) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  const diffSec = Math.max(0, slotTime - now);
+  const midnight = useMemo(() => toMidnightUTC(slotTime), [slotTime]);
+  const diffSec = Math.max(0, midnight - now);
   const isUnderOneHour = diffSec < 3600;
 
   useEffect(() => {

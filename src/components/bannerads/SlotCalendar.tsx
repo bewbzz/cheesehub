@@ -126,9 +126,8 @@ function toMidnightUTC(slotTime: number): number {
 
 /** Filter to only show future slots (exclude already-live / past days) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const now = Math.floor(Date.now() / 1000);
-  const todayMidnightUTC = toMidnightUTC(now);
-  return groups.filter((g) => toMidnightUTC(g.time) > todayMidnightUTC);
+  const todayMidnightUTC = toMidnightUTC(Math.floor(Date.now() / 1000));
+  return groups.filter((g) => g.time > todayMidnightUTC);
 }
 
 /** Live countdown component — shows minutes when < 1 hr, updates every 30s */

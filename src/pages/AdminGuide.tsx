@@ -142,12 +142,15 @@ interface DApp {
 
 const dapps: DApp[] = [
   {
-    id: 'burner',
-    name: 'CHEESEBurner',
+    id: 'null',
+    name: 'CHEESENull',
     contracts: ['cheeseburner'],
     owner: 'CHEESE team',
-    description: 'Automated CHEESE burn engine. Claims WAX vote rewards from staked accounts, swaps the majority to CHEESE via Alcor DEX, and burns 85% of the resulting CHEESE. The remaining 15% goes to the xcheeseliqst liquidity pool. A portion of WAX is also re-staked and allocated to the powerup contract.',
-    flows: [{ title: 'Fee Flow', steps: burnerFlow }],
+    description: 'Automated CHEESE burn engine powered by the cheeseburner smart contract. Users call the burn() action which claims WAX vote rewards from staked accounts, swaps the majority to CHEESE via Alcor DEX, and burns 85% of the resulting CHEESE. The remaining 15% goes to the xcheeseliqst liquidity pool. A portion of WAX is also re-staked and allocated to the powerup contract. No CHEESE is sent by the user — burns are funded entirely by vote rewards. No caller reward.',
+    flows: [
+      { title: 'WAX Vote Rewards Split', steps: nullWaxFlow },
+      { title: 'Resulting CHEESE Split', steps: nullCheeseFlow },
+    ],
   },
   {
     id: 'ads',
@@ -177,17 +180,6 @@ const dapps: DApp[] = [
     description: 'Smart contract that converts CHEESE into CPU/NET resources for WAX users. Users send CHEESE (with configurable min/max limits) to the cheesepowerz contract. The contract burns 100% of the received CHEESE, calculates the WAX equivalent using the live Alcor pool rate, then executes the eosio powerup action from its WAX reserves. Memo format supports custom CPU/NET split and gifting to other accounts. WAX reserves are replenished by cheeseburner (5%) and cheesebannad (25%).',
     feeNote: 'No platform fee on top. User pays in CHEESE which is fully burned. WAX reserves fund the powerup.',
     flows: [{ title: 'PowerUp Flow', steps: powerupFlow }],
-  },
-  {
-    id: 'null',
-    name: 'CHEESENull',
-    contracts: ['cheeseburner'],
-    owner: 'CHEESE team',
-    description: 'Client-side burn trigger. Users call the burn() action on the cheeseburner contract, which claims WAX vote rewards from eosio. No CHEESE is sent by the user — the burn is funded entirely by vote rewards. No caller reward.',
-    flows: [
-      { title: 'WAX Vote Rewards Split', steps: nullWaxFlow },
-      { title: 'Resulting CHEESE Split', steps: nullCheeseFlow },
-    ],
   },
   {
     id: 'amp',

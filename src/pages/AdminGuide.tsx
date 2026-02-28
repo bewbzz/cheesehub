@@ -103,6 +103,7 @@ const powerupFlow: FlowStep[] = [
     items: [
       { pct: '5%', dest: 'cheeseburner (vote reward allocation)', highlight: 'stake' },
       { pct: '25%', dest: 'cheesebannad (ad revenue allocation)', highlight: 'fee' },
+      { pct: '—', dest: 'WAX vote rewards (direct staking rewards)', highlight: 'swap' },
     ],
   },
 ];

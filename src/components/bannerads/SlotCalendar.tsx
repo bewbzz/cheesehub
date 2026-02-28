@@ -118,12 +118,6 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
-/** Normalize any on-chain slot time to midnight UTC of that date */
-function toMidnightUTC(slotTime: number): number {
-  const d = new Date(slotTime * 1000);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000;
-}
-
 /** Format a slot timestamp as a UTC date string */
 const utcDateFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -138,15 +132,14 @@ export function formatSlotDateUTC(slotTime: number): string {
 
 /** Filter to only show future slots (exclude already-live / past days) */
 function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
-  const todayMidnightUTC = toMidnightUTC(Math.floor(Date.now() / 1000));
-  return groups.filter((g) => toMidnightUTC(g.time) > todayMidnightUTC);
+  const nowSec = Math.floor(Date.now() / 1000);
+  return groups.filter((g) => g.time > nowSec);
 }
 
 /** Live countdown component — updates every 30s, targets midnight UTC of slot date */
 function LiveCountdown({ slotTime }: { slotTime: number }) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  const midnight = useMemo(() => toMidnightUTC(slotTime), [slotTime]);
-  const diffSec = Math.max(0, midnight - now);
+  const diffSec = Math.max(0, slotTime - now);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
@@ -229,7 +222,7 @@ export function SlotCalendar() {
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="md:w-40 shrink-0">
                   <p className="font-medium text-foreground">{formatSlotDateUTC(group.time)}</p>
-                  <p className="text-xs text-muted-foreground">UTC Day</p>
+                  <p className="text-xs text-muted-foreground">Starts 14:00 UTC</p>
                   <p className="text-xs text-cheese font-medium mt-0.5">Live in <LiveCountdown slotTime={group.time} /></p>
                 </div>
 

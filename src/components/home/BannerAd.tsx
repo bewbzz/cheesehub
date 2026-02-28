@@ -57,12 +57,19 @@ function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
     return <BannerImage banner={banners[0]} isShared={true} />;
   }
 
-  const displayBanner = activeIdx === 0 ? banners[0] : banners[1];
-
   return (
     <div className="relative">
-      <BannerImage banner={displayBanner} isShared={true} />
-      <div className="absolute bottom-2 left-2 flex gap-1">
+      <div
+        className={`transition-opacity duration-[3000ms] ${activeIdx === 0 ? "opacity-100" : "opacity-0"}`}
+      >
+        <BannerImage banner={banners[0]} isShared={true} />
+      </div>
+      <div
+        className={`absolute inset-0 transition-opacity duration-[3000ms] ${activeIdx === 1 ? "opacity-100" : "opacity-0"}`}
+      >
+        <BannerImage banner={banners[1]} isShared={true} />
+      </div>
+      <div className="absolute bottom-2 left-2 flex gap-1 z-10">
         <div
           className="w-2 h-2 rounded-full bg-white/60 transition-all"
           style={{ opacity: activeIdx === 0 ? 1 : 0.3 }}

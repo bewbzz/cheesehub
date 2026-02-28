@@ -3,7 +3,7 @@ import { SlotCalendar } from "@/components/bannerads/SlotCalendar";
 import { BannerAdStatsBar } from "@/components/bannerads/BannerAdStatsBar";
 import { playRandomFart } from "@/lib/fartSounds";
 
-import cheeseLogo from "@/assets/cheese-logo.png";
+import cheeseBikini from "@/assets/cheese-bikini.png";
 
 const BannerAds = () => {
 
@@ -16,7 +16,7 @@ const BannerAds = () => {
             className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"
             onClick={playRandomFart}
           >
-            <img src={cheeseLogo} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
+            <img src={cheeseBikini} alt="CHEESE Logo" className="w-24 h-24 object-contain" />
           </div>
 
           <div className="text-center space-y-2">

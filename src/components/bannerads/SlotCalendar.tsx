@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useBannerSlots, BannerSlotGroup, BannerSlot } from "@/hooks/useBannerSlots";
 import { useWax } from "@/context/WaxContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -125,13 +125,25 @@ function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
   return groups.filter((g) => g.time > todayMidnightUTC);
 }
 
-/** Hours from now until a slot goes live */
-function hoursUntilLive(slotTime: number): string {
-  const nowSec = Math.floor(Date.now() / 1000);
-  const diffHours = Math.max(0, Math.round((slotTime - nowSec) / 3600));
-  if (diffHours < 1) return "< 1 hr";
-  if (diffHours === 1) return "~1 hr";
-  return `~${diffHours} hrs`;
+/** Live countdown component — shows minutes when < 1 hr, updates every 30s */
+function LiveCountdown({ slotTime }: { slotTime: number }) {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const diffSec = Math.max(0, slotTime - now);
+  const isUnderOneHour = diffSec < 3600;
+
+  useEffect(() => {
+    if (!isUnderOneHour) return;
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    return () => clearInterval(id);
+  }, [isUnderOneHour]);
+
+  if (!isUnderOneHour) {
+    const hrs = Math.round(diffSec / 3600);
+    return <>{hrs === 1 ? "~1 hr" : `~${hrs} hrs`}</>;
+  }
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 1) return <>{"< 1 min"}</>;
+  return <>{`${mins} min`}</>;
 }
 
 export function SlotCalendar() {
@@ -203,7 +215,7 @@ export function SlotCalendar() {
                 <div className="md:w-40 shrink-0">
                   <p className="font-medium text-foreground">{format(group.date, "EEE, MMM d yyyy")}</p>
                   <p className="text-xs text-muted-foreground">UTC Day</p>
-                  <p className="text-xs text-cheese font-medium mt-0.5">Live in {hoursUntilLive(group.time)}</p>
+                  <p className="text-xs text-cheese font-medium mt-0.5">Live in <LiveCountdown slotTime={group.time} /></p>
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">

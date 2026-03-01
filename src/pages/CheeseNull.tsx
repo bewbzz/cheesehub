@@ -40,7 +40,7 @@ export default function CheeseNull() {
               <span className="text-2xl">⛔</span>
             </div>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Earn $CHEESE, Null $CHEESE, Collateralize xCHEESE and fund CHEESEUp. Whitelisted accounts can Null as soon as the NULL button becomes active while non-whitelisted accounts must wait a further 48hrs after that before they can participate. Join the Telegram (link bottom of page) for whitelisting
+              Null $CHEESE, collateralize xCHEESE and fund CHEESEUp. A dapp for pure CHEESELovers increasing your share of supply, increasing the backing of xCHEESE and funding CHEESEUp CPU rentals
             </p>
           </div>
 

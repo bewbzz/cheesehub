@@ -216,10 +216,10 @@ export function TokenStatsBanner() {
                         <TableHead className="h-8 text-xs">Contract</TableHead>
                          <TableHead className="h-8 text-xs text-right">Nulled</TableHead>
                          <TableHead className="h-8 text-xs text-right w-16">%</TableHead>
-                         <TableHead className="h-8 text-xs text-right">7d</TableHead>
-                         <TableHead className="h-8 text-xs text-right w-16">7d %</TableHead>
-                         <TableHead className="h-8 text-xs text-right">24h</TableHead>
-                         <TableHead className="h-8 text-xs text-right w-16">24h %</TableHead>
+                         <TableHead className="h-8 text-xs text-right whitespace-nowrap">7d</TableHead>
+                         <TableHead className="h-8 text-xs text-right w-16 whitespace-nowrap">7d %</TableHead>
+                         <TableHead className="h-8 text-xs text-right whitespace-nowrap">24h</TableHead>
+                         <TableHead className="h-8 text-xs text-right w-16 whitespace-nowrap">24h %</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

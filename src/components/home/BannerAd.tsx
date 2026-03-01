@@ -4,17 +4,44 @@ import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
+import placeholderBanner from "@/assets/cheese-banner-placeholder.png";
 
 function BannerImage({ banner, isShared = false }: { banner: ActiveBanner; isShared?: boolean }) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
+  const isPlaceholder = banner.user === "__placeholder__";
 
-  const imgUrl = `${IPFS_GATEWAYS[gatewayIdx]}${banner.ipfsHash}`;
+  const imgUrl = isPlaceholder
+    ? placeholderBanner
+    : `${IPFS_GATEWAYS[gatewayIdx]}${banner.ipfsHash}`;
 
   const handleError = () => {
-    if (gatewayIdx < IPFS_GATEWAYS.length - 1) {
+    if (!isPlaceholder && gatewayIdx < IPFS_GATEWAYS.length - 1) {
       setGatewayIdx((i) => i + 1);
     }
   };
+
+  if (isPlaceholder) {
+    return (
+      <Link
+        to="/farm"
+        className="relative block rounded-lg overflow-hidden border border-border/30 hover:border-cheese/30 transition-colors group"
+      >
+        <img
+          src={placeholderBanner}
+          alt="CHEESE Farm — Create NFT Farms"
+          width={580}
+          height={150}
+          className="w-[580px] h-[150px] object-cover"
+        />
+        <Badge
+          variant="outline"
+          className="absolute top-2 right-2 bg-background/80 text-muted-foreground text-[10px] px-1.5 py-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
+        >
+          Ad (Shared)
+        </Badge>
+      </Link>
+    );
+  }
 
   return (
     <a

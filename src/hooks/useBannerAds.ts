@@ -89,24 +89,24 @@ export function useBannerAds() {
       });
 
       return active.flatMap((row) => {
+        const isSharedRental = row.rental_type === 1;
+        const hasSecondRenter = row.shared_user && row.shared_user !== BANNER_CONTRACT;
+
         const primary: ActiveBanner = {
           time: row.time,
           position: row.position,
           user: row.user,
           ipfsHash: row.ipfs_hash,
           websiteUrl: row.website_url,
-          rentalType: row.rental_type === 1 ? "shared" : "exclusive",
-          sharedUser: row.shared_user && row.shared_user !== BANNER_CONTRACT ? row.shared_user : undefined,
+          rentalType: isSharedRental ? "shared" : "exclusive",
+          sharedUser: hasSecondRenter ? row.shared_user : undefined,
           sharedIpfsHash: row.shared_ipfs_hash,
           sharedWebsiteUrl: row.shared_website_url,
-          displayMode:
-            row.rental_type === 1 && row.shared_user && row.shared_user !== BANNER_CONTRACT
-              ? "shared"
-              : "full",
+          displayMode: isSharedRental ? "shared" : "full",
         };
 
         // If shared with a second renter who has content, emit second banner
-        if (primary.displayMode === "shared" && row.shared_ipfs_hash?.length > 0) {
+        if (isSharedRental && hasSecondRenter && row.shared_ipfs_hash?.length > 0) {
           const secondary: ActiveBanner = {
             ...primary,
             user: row.shared_user,
@@ -114,6 +114,17 @@ export function useBannerAds() {
             websiteUrl: row.shared_website_url,
           };
           return [primary, secondary];
+        }
+
+        // If shared but no second renter, emit placeholder banner
+        if (isSharedRental && !hasSecondRenter) {
+          const placeholder: ActiveBanner = {
+            ...primary,
+            user: "__placeholder__",
+            ipfsHash: "",
+            websiteUrl: "/farm",
+          };
+          return [primary, placeholder];
         }
 
         return [primary];

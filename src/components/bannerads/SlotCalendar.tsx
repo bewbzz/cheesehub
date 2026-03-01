@@ -185,7 +185,7 @@ export function SlotCalendar() {
             <span className="text-foreground font-medium">Shared Slot: {(pricing.waxPerDay * 0.7).toFixed(0)} WAX/day</span>
             <span className="text-xs text-muted-foreground">30% off, 50% display time</span>
             <span className="text-xs text-muted-foreground">OR</span>
-            <span className="text-xs text-muted-foreground">For {(pricing.waxPerDay * 0.7 * 2).toFixed(0)} WAX Rent both shared slots</span>
+            <span className="text-foreground font-medium">Shared Slot: {(pricing.waxPerDay * 0.7 * 2).toFixed(0)} WAX/day</span>
             <span className="text-xs text-muted-foreground">and show 2 banners for less</span>
             <span className="text-xs text-muted-foreground">than 2 exclusive slots</span>
           </div>

@@ -1,15 +1,17 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useBannerSlots, BannerSlotGroup, BannerSlot } from "@/hooks/useBannerSlots";
 import { useWax } from "@/context/WaxContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, Eye } from "lucide-react";
+import { Loader2, RefreshCw, Eye, ShoppingCart } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { IPFS_GATEWAYS } from "@/lib/ipfsGateways";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { RentSlotDialog } from "./RentSlotDialog";
+import { BulkRentDialog, BulkSlotSelection } from "./BulkRentDialog";
 import { EditBannerDialog } from "./EditBannerDialog";
 import { RemoveBannerDialog } from "./RemoveBannerDialog";
 import { ReinstateBannerDialog } from "./ReinstateBannerDialog";
@@ -163,9 +165,53 @@ export function SlotCalendar() {
   const [reinstateTarget, setReinstateTarget] = useState<BannerSlot | null>(null);
   const [previewTarget, setPreviewTarget] = useState<BannerSlot | null>(null);
 
+  // Multi-select state
+  const [selectedSlots, setSelectedSlots] = useState<BulkSlotSelection[]>([]);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+
   const { isWhitelisted: isAdmin } = useAdminAccess();
 
   const futureGroups = useMemo(() => filterFutureGroups(slotGroups), [slotGroups]);
+
+  const slotKey = (time: number, position: number) => `${time}-${position}`;
+
+  const isSlotSelected = useCallback((time: number, position: number) => {
+    return selectedSlots.some(s => s.time === time && s.position === position);
+  }, [selectedSlots]);
+
+  const toggleSlotSelection = useCallback((time: number, position: number, isJoining: boolean) => {
+    setSelectedSlots(prev => {
+      const exists = prev.some(s => s.time === time && s.position === position);
+      if (exists) {
+        return prev.filter(s => !(s.time === time && s.position === position));
+      }
+      return [...prev, { time, position, isJoining }];
+    });
+  }, []);
+
+  const removeSlotFromSelection = useCallback((time: number, position: number) => {
+    setSelectedSlots(prev => prev.filter(s => !(s.time === time && s.position === position)));
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedSlots([]), []);
+
+  const handleBulkSuccess = useCallback(() => {
+    clearSelection();
+    refetch();
+  }, [clearSelection, refetch]);
+
+  // Helper: is this slot selectable for multi-rent?
+  const isSlotSelectable = (slot: BannerSlot): { selectable: boolean; isJoining: boolean } => {
+    // Available for new rental
+    if ((slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS)) {
+      return { selectable: true, isJoining: false };
+    }
+    // Available for joining shared
+    if (slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && isWithinBuffer(slot.time, MIN_JOIN_BUFFER_HOURS)) {
+      return { selectable: true, isJoining: true };
+    }
+    return { selectable: false, isJoining: false };
+  };
 
   if (isLoading) {
     return (
@@ -209,6 +255,13 @@ export function SlotCalendar() {
         and have it reviewed and possibly reinstated.
       </div>
 
+      {/* Multi-select hint */}
+      {!isAdmin && futureGroups.length > 0 && (
+        <div className="mb-4 text-xs text-muted-foreground text-center">
+          💡 Use the checkboxes to select multiple slots and rent them all in one transaction
+        </div>
+      )}
+
       <div className="space-y-3">
         {futureGroups.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
@@ -227,93 +280,122 @@ export function SlotCalendar() {
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {group.slots.map((slot) => (
-                    <div
-                      key={slot.position}
-                      className="flex items-center justify-between rounded-lg border border-border/30 p-3 bg-background/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-muted-foreground">Pos {slot.position}</span>
-                        <SlotBadge slot={slot} accountName={accountName} />
-                      </div>
-                      <div className="flex items-center gap-2">
-                         {/* Rent / Join buttons for non-admin users */}
-                         {(slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS) && (
-                           <Button
-                             size="sm"
-                             className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
-                             onClick={() => setRentTarget({ time: slot.time, position: slot.position })}
-                           >
-                             Rent
-                           </Button>
-                         )}
-                         {slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && isWithinBuffer(slot.time, MIN_JOIN_BUFFER_HOURS) && (
-                           <Button
-                             size="sm"
-                             className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
-                             onClick={() => setRentTarget({ time: slot.time, position: slot.position, isJoining: true })}
-                           >
-                             Join
-                           </Button>
-                         )}
+                  {group.slots.map((slot) => {
+                    const { selectable, isJoining } = isSlotSelectable(slot);
+                    const selected = isSlotSelected(slot.time, slot.position);
 
-                         {/* Edit button - admin only (users set content during rental) */}
-                         {isAdmin && slot.isOnChain && !slot.suspended && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-cheese/30 text-cheese text-xs h-7"
-                              onClick={() => setEditTarget(slot)}
-                            >
-                              Edit
-                            </Button>
+                    return (
+                      <div
+                        key={slot.position}
+                        className={`flex items-center justify-between rounded-lg border p-3 bg-background/50 transition-colors ${
+                          selected ? "border-cheese/60 bg-cheese/5" : "border-border/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Checkbox for selectable slots */}
+                          {selectable && (
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={() => toggleSlotSelection(slot.time, slot.position, isJoining)}
+                              className="data-[state=checked]:bg-cheese data-[state=checked]:border-cheese"
+                            />
                           )}
+                          <span className="text-sm font-medium text-muted-foreground">Pos {slot.position}</span>
+                          <SlotBadge slot={slot} accountName={accountName} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                           {/* Rent / Join buttons for non-admin users (single slot) */}
+                           {selectable && !selected && (
+                             <Button
+                               size="sm"
+                               className="bg-cheese hover:bg-cheese-dark text-primary-foreground text-xs h-7"
+                               onClick={() => setRentTarget({ time: slot.time, position: slot.position, isJoining })}
+                             >
+                               {isJoining ? "Join" : "Rent"}
+                             </Button>
+                           )}
 
-                         {/* Admin: Preview button (rented slots) */}
-                         {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && (
-                           <Button
-                             size="sm"
-                             variant="outline"
-                             className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
-                             onClick={() => setPreviewTarget(slot)}
-                           >
-                             <Eye className="h-3 w-3 mr-1" />
-                             Preview
-                           </Button>
-                         )}
+                           {/* Edit button - admin only (users set content during rental) */}
+                           {isAdmin && slot.isOnChain && !slot.suspended && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-cheese/30 text-cheese text-xs h-7"
+                                onClick={() => setEditTarget(slot)}
+                              >
+                                Edit
+                              </Button>
+                            )}
 
-                         {/* Admin: Remove button (active rented, not suspended) */}
-                         {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && !slot.suspended && (
-                           <Button
-                             size="sm"
-                             variant="destructive"
-                             className="text-xs h-7"
-                             onClick={() => setRemoveTarget(slot)}
-                           >
-                             Remove
-                           </Button>
-                         )}
+                           {/* Admin: Preview button (rented slots) */}
+                           {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && (
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
+                               onClick={() => setPreviewTarget(slot)}
+                             >
+                               <Eye className="h-3 w-3 mr-1" />
+                               Preview
+                             </Button>
+                           )}
 
-                         {/* Admin: Reinstate button (suspended slots) */}
-                         {isAdmin && slot.isOnChain && slot.suspended && (
-                           <Button
-                             size="sm"
-                             variant="outline"
-                             className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
-                             onClick={() => setReinstateTarget(slot)}
-                           >
-                             Reinstate
-                           </Button>
-                         )}
-                       </div>
-                    </div>
-                  ))}
+                           {/* Admin: Remove button (active rented, not suspended) */}
+                           {isAdmin && slot.isOnChain && slot.user !== BANNER_CONTRACT && !slot.suspended && (
+                             <Button
+                               size="sm"
+                               variant="destructive"
+                               className="text-xs h-7"
+                               onClick={() => setRemoveTarget(slot)}
+                             >
+                               Remove
+                             </Button>
+                           )}
+
+                           {/* Admin: Reinstate button (suspended slots) */}
+                           {isAdmin && slot.isOnChain && slot.suspended && (
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               className="border-green-500/50 text-green-600 text-xs h-7 hover:bg-green-500/10"
+                               onClick={() => setReinstateTarget(slot)}
+                             >
+                               Reinstate
+                             </Button>
+                           )}
+                         </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Floating bulk rent bar */}
+      {selectedSlots.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border border-cheese/40 bg-card/95 backdrop-blur-sm shadow-lg px-5 py-3">
+          <ShoppingCart className="h-4 w-4 text-cheese" />
+          <span className="text-sm font-medium">{selectedSlots.length} slot{selectedSlots.length > 1 ? "s" : ""} selected</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs text-muted-foreground h-7"
+            onClick={clearSelection}
+          >
+            Clear
+          </Button>
+          <Button
+            size="sm"
+            className="bg-cheese hover:bg-cheese-dark text-primary-foreground h-8"
+            onClick={() => setBulkDialogOpen(true)}
+          >
+            Rent All
+          </Button>
+        </div>
+      )}
 
       {rentTarget && (
         <RentSlotDialog
@@ -326,6 +408,15 @@ export function SlotCalendar() {
           onSuccess={refetch}
         />
       )}
+
+      <BulkRentDialog
+        open={bulkDialogOpen}
+        onOpenChange={setBulkDialogOpen}
+        selections={selectedSlots}
+        waxPricePerDay={pricing.waxPerDay}
+        onRemoveSlot={removeSlotFromSelection}
+        onSuccess={handleBulkSuccess}
+      />
 
       {editTarget && (
         <EditBannerDialog

@@ -38,18 +38,28 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
   const swapRef = useRef<HTMLElement>(null);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [lastTxId, setLastTxId] = useState<string | null>(null);
+  const [mountKey, setMountKey] = useState(0);
+  const prevOpenRef = useRef(false);
 
   const walletInfo = session ? JSON.stringify({
     accountName: String(session.actor),
     permission: String(session.permission),
   }) : undefined;
 
+  // Force remount when dialog opens or inputToken changes
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      setMountKey(k => k + 1);
+    }
+    prevOpenRef.current = open;
+  }, [open, inputToken]);
+
   // Set default tokens based on inputToken prop
   const inputTokenConfig = inputToken === 'WAXUSDC' 
     ? 'eth.token_WAXUSDC' 
     : 'eosio.token_WAX';
   
-  const lockTokens = JSON.stringify({
+  const initialLock = JSON.stringify({
     in: inputTokenConfig,
     out: 'cheeseburger_CHEESE'
   });
@@ -73,13 +83,19 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
       }
 
       // Set attributes imperatively to ensure the web component receives JSON config in preview
-      swapElement.setAttribute('lock', lockTokens);
+      swapElement.setAttribute('lock', initialLock);
       swapElement.setAttribute('config', swapConfig);
       if (walletInfo) {
         swapElement.setAttribute('wallet', walletInfo);
       } else {
         swapElement.removeAttribute('wallet');
       }
+
+      // Remove lock after short delay so full token list becomes available
+      const unlockTimer = setTimeout(() => {
+        swapElement.removeAttribute('lock');
+        console.log('[CheeseSwap] Lock removed – full token list unlocked');
+      }, 300);
 
       console.log('[CheeseSwap] Widget attrs set', {
         hasWallet: Boolean(walletInfo),
@@ -104,8 +120,8 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         'WAX': 'eosio.token',
         'CHEESE': 'cheeseburger',
         'NWO': 'cointreasure',
-        'WAXUSDC': 'alclorstable',
-        'WAXUSDT': 'alclorstable',
+        'WAXUSDC': 'eth.token',
+        'WAXUSDT': 'eth.token',
       };
 
       // Normalize actions from WaxOnEdge/NeftyBlocks to WharfKit format
@@ -249,6 +265,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
 
       // Store cleanup function
       (swapElement as any)._cleanup = () => {
+        clearTimeout(unlockTimer);
         swapElement.removeEventListener('connect', handleConnect);
         swapElement.removeEventListener('sign', handleSign as EventListener);
       };
@@ -261,7 +278,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         (swapElement as any)._cleanup();
       }
     };
-  }, [open, session, login, walletInfo, lockTokens, swapConfig]);
+  }, [open, session, login, walletInfo, initialLock, swapConfig]);
 
   return (
     <>
@@ -287,6 +304,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         </DialogHeader>
           <div className="cheese-swap-container p-4">
             <waxonedge-swap
+              key={mountKey}
               ref={swapRef}
             />
           </div>

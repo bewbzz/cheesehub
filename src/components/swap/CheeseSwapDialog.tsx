@@ -27,7 +27,6 @@ declare global {
       'waxonedge-swap': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
         wallet?: string;
         lock?: string;
-        default?: string;
       };
     }
   }
@@ -46,10 +45,10 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
 
   // Set default tokens based on inputToken prop
   const inputTokenConfig = inputToken === 'WAXUSDC' 
-    ? 'alclorstable_WAXUSDC' 
+    ? 'eth.token_WAXUSDC' 
     : 'eosio.token_WAX';
   
-  const defaultTokens = JSON.stringify({
+  const lockTokens = JSON.stringify({
     in: inputTokenConfig,
     out: 'cheeseburger_CHEESE'
   });
@@ -268,7 +267,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
             <waxonedge-swap
               ref={swapRef}
               wallet={walletInfo}
-              default={defaultTokens}
+              lock={lockTokens}
             />
           </div>
         </DialogContent>

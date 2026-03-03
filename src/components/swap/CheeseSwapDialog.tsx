@@ -55,6 +55,8 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
   });
 
   const swapConfig = JSON.stringify({
+    API: 'https://woe-api.neftyblocks.com',
+    RATES_API: 'https://rates.neftyblocks.com',
     CHAIN_API: 'https://api.wax.alohaeos.com',
     CHAIN: 'wax'
   });
@@ -70,6 +72,20 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         return;
       }
 
+      // Set attributes imperatively to ensure the web component receives JSON config in preview
+      swapElement.setAttribute('lock', lockTokens);
+      swapElement.setAttribute('config', swapConfig);
+      if (walletInfo) {
+        swapElement.setAttribute('wallet', walletInfo);
+      } else {
+        swapElement.removeAttribute('wallet');
+      }
+
+      console.log('[CheeseSwap] Widget attrs set', {
+        hasWallet: Boolean(walletInfo),
+        lock: swapElement.getAttribute('lock'),
+        config: swapElement.getAttribute('config')
+      });
       console.log('[CheeseSwap] Attaching event listeners to swap element');
 
       const handleConnect = async () => {
@@ -245,7 +261,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
         (swapElement as any)._cleanup();
       }
     };
-  }, [open, session, login]);
+  }, [open, session, login, walletInfo, lockTokens, swapConfig]);
 
   return (
     <>
@@ -272,9 +288,6 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
           <div className="cheese-swap-container p-4">
             <waxonedge-swap
               ref={swapRef}
-              wallet={walletInfo}
-              lock={lockTokens}
-              config={swapConfig}
             />
           </div>
         </DialogContent>

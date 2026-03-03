@@ -1,35 +1,30 @@
 
 
-## Add Crossfade Transition to Shared Banner Rotation
+## Fix: CHEESESwap Widget Not Showing CHEESE Token
 
-### Current Behavior
-When shared banners rotate every 30 seconds, the switch is instant -- one banner disappears and the next appears abruptly.
+### Root Cause
+The `<waxonedge-swap>` widget does **not** support a `default` attribute. The documented attributes are: `theme`, `chart`, `wallet`, `lock`, `signing`, and `config`. The `default` prop being passed is silently ignored, so the widget falls back to its own defaults (WAXUSDC -> WAX).
 
 ### Solution
-Render **both** banners stacked on top of each other using absolute positioning, and crossfade between them using CSS opacity transitions with a 3-second duration.
+Replace the `default` attribute with the `lock` attribute, which is the correct way to preset tokens in the WaxOnEdge widget. The `lock` attribute format is:
+
+```text
+{ in: "contract_symbol", out: "contract_symbol" }
+```
+
+For example: `{ in: "eosio.token_WAX", out: "cheeseburger_CHEESE" }`
 
 ### Changes
 
-**`src/components/home/BannerAd.tsx`** -- Rewrite the `SharedBannerRotator` render section:
+**File: `src/components/swap/CheeseSwapDialog.tsx`**
 
-- Render both `BannerImage` components simultaneously, stacked via `absolute`/`relative` positioning
-- Apply `opacity-0` / `opacity-100` based on `activeIdx`, with `transition-opacity duration-[3000ms]`
-- The outgoing banner fades out over 3 seconds while the incoming one fades in, creating a smooth crossfade
+1. Rename the `defaultTokens` variable to `lockTokens`
+2. Change the JSX attribute from `default={defaultTokens}` to `lock={lockTokens}`
+3. Fix the WAXUSDC contract name from `alclorstable` to `eth.token` (the correct contract on WAX mainnet, as confirmed by the network requests showing `eth.token` for WAXUSDC)
+4. Update the `IntrinsicElements` type declaration to remove `default` and ensure `lock` is included
 
-```text
-Before:
-  <BannerImage banner={displayBanner} />    (single, swaps instantly)
-
-After:
-  <div className="relative">
-    <div className={activeIdx === 0 ? "opacity-100" : "opacity-0"} style="transition: opacity 3s">
-      <BannerImage banner={banners[0]} />
-    </div>
-    <div className={activeIdx === 1 ? "opacity-100" : "opacity-0"} style="transition: opacity 3s; position: absolute; inset: 0">
-      <BannerImage banner={banners[1]} />
-    </div>
-  </div>
-```
-
-The dot indicators remain unchanged at the bottom-left, and their opacity transition stays instant so users immediately see which ad is active.
-
+### Result
+- When clicking CHEESE/WAX price: widget opens with WAX (input) locked to CHEESE (output)
+- When clicking CHEESE/USD price: widget opens with WAXUSDC (input) locked to CHEESE (output)
+- CHEESE token from `cheeseburger` contract will always appear as the output token
+- Users can still enter amounts and execute swaps normally

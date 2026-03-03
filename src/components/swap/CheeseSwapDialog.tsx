@@ -27,6 +27,7 @@ declare global {
       'waxonedge-swap': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
         wallet?: string;
         lock?: string;
+        config?: string;
       };
     }
   }
@@ -51,6 +52,11 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
   const lockTokens = JSON.stringify({
     in: inputTokenConfig,
     out: 'cheeseburger_CHEESE'
+  });
+
+  const swapConfig = JSON.stringify({
+    CHAIN_API: 'https://api.wax.alohaeos.com',
+    CHAIN: 'wax'
   });
 
   useEffect(() => {
@@ -268,6 +274,7 @@ export function CheeseSwapDialog({ open, onOpenChange, inputToken = 'WAX' }: Che
               ref={swapRef}
               wallet={walletInfo}
               lock={lockTokens}
+              config={swapConfig}
             />
           </div>
         </DialogContent>

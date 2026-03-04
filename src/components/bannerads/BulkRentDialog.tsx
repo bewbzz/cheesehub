@@ -23,6 +23,7 @@ export interface BulkSlotSelection {
   time: number;
   position: number;
   isJoining: boolean;
+  rentalMode: "exclusive" | "shared";
 }
 
 interface BulkRentDialogProps {
@@ -31,6 +32,7 @@ interface BulkRentDialogProps {
   selections: BulkSlotSelection[];
   waxPricePerDay: number;
   onRemoveSlot: (time: number, position: number) => void;
+  onUpdateSlotMode: (time: number, position: number, mode: "exclusive" | "shared") => void;
   onSuccess: () => void;
 }
 
@@ -40,11 +42,11 @@ export function BulkRentDialog({
   selections,
   waxPricePerDay,
   onRemoveSlot,
+  onUpdateSlotMode,
   onSuccess,
 }: BulkRentDialogProps) {
   const { session, refreshBalance } = useWax();
   const { toast } = useToast();
-  const [rentalMode, setRentalMode] = useState<"exclusive" | "shared">("exclusive");
   const [ipfsHash, setIpfsHash] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,19 +56,19 @@ export function BulkRentDialog({
 
   const isPromoz = session?.actor?.toString() === "cheesepromoz";
 
-  // Joining slots always use shared pricing; new rentals use selected mode
   const getSlotPrice = (slot: BulkSlotSelection) => {
-    const baseMultiplier = slot.isJoining ? (1 - SHARED_DISCOUNT) : (rentalMode === "shared" ? (1 - SHARED_DISCOUNT) : 1);
+    const baseMultiplier = slot.isJoining || slot.rentalMode === "shared" ? (1 - SHARED_DISCOUNT) : 1;
     const promozMultiplier = isPromoz ? (1 - PROMOZ_DISCOUNT) : 1;
     return waxPricePerDay * baseMultiplier * promozMultiplier;
   };
 
   const totalWax = selections.reduce((sum, s) => sum + getSlotPrice(s), 0);
 
-  const hasNewRentals = selections.some(s => !s.isJoining);
-  const hasJoins = selections.some(s => s.isJoining);
-
   const previewUrl = ipfsHash ? `${IPFS_GATEWAYS[0]}${ipfsHash}` : "";
+
+  const setAllMode = (mode: "exclusive" | "shared") => {
+    selections.filter(s => !s.isJoining).forEach(s => onUpdateSlotMode(s.time, s.position, mode));
+  };
 
   const handleBulkRent = async () => {
     if (!session) {
@@ -83,13 +85,11 @@ export function BulkRentDialog({
     try {
       const actions: any[] = [];
 
-      // Build one transfer + edit action per selected slot
       for (const slot of selections) {
-        const modeChar = slot.isJoining ? "j" : (rentalMode === "shared" ? "s" : "e");
+        const modeChar = slot.isJoining ? "j" : (slot.rentalMode === "shared" ? "s" : "e");
         const slotPrice = getSlotPrice(slot);
         const memo = `banner|${slot.time}|1|${slot.position}|${modeChar}`;
 
-        // Transfer action
         actions.push({
           account: "eosio.token",
           name: "transfer",
@@ -102,7 +102,6 @@ export function BulkRentDialog({
           },
         });
 
-        // Edit action (if IPFS hash provided)
         if (ipfsHash) {
           const editAction = slot.isJoining ? "editsharedad" : "editadbanner";
           actions.push({
@@ -146,6 +145,8 @@ export function BulkRentDialog({
     }
   };
 
+  const hasNewRentals = selections.some(s => !s.isJoining);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -157,24 +158,58 @@ export function BulkRentDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Selected slots list */}
+          {/* Bulk mode buttons */}
+          {hasNewRentals && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Set all to:</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAllMode("exclusive")}>Exclusive</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAllMode("shared")}>Shared</Button>
+            </div>
+          )}
+
+          {/* Selected slots list with per-slot mode toggle */}
           <div>
             <Label className="text-sm font-medium">Selected Slots</Label>
-            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+            <div className="mt-2 space-y-2 max-h-52 overflow-y-auto">
               {selections.map((slot) => (
                 <div
                   key={`${slot.time}-${slot.position}`}
-                  className="flex items-center justify-between rounded-lg border border-border/30 bg-muted/30 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg border border-border/30 bg-muted/30 px-3 py-2 gap-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{formatSlotDateUTC(slot.time)}</span>
-                    <Badge variant="outline" className="text-xs">Pos {slot.position}</Badge>
-                    {slot.isJoining && (
-                      <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">Join</Badge>
-                    )}
+                  <div className="flex items-center gap-2 min-w-0 flex-shrink">
+                    <span className="text-sm whitespace-nowrap">{formatSlotDateUTC(slot.time)}</span>
+                    <Badge variant="outline" className="text-xs shrink-0">Pos {slot.position}</Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{getSlotPrice(slot).toFixed(2)} WAX</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {slot.isJoining ? (
+                      <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">Join</Badge>
+                    ) : (
+                      <div className="flex rounded-md border border-border/50 overflow-hidden">
+                        <button
+                          type="button"
+                          className={`px-2 py-0.5 text-xs transition-colors ${
+                            slot.rentalMode === "exclusive"
+                              ? "bg-cheese/20 text-cheese font-medium"
+                              : "text-muted-foreground hover:bg-muted/50"
+                          }`}
+                          onClick={() => onUpdateSlotMode(slot.time, slot.position, "exclusive")}
+                        >
+                          Excl
+                        </button>
+                        <button
+                          type="button"
+                          className={`px-2 py-0.5 text-xs transition-colors border-l border-border/50 ${
+                            slot.rentalMode === "shared"
+                              ? "bg-cheese/20 text-cheese font-medium"
+                              : "text-muted-foreground hover:bg-muted/50"
+                          }`}
+                          onClick={() => onUpdateSlotMode(slot.time, slot.position, "shared")}
+                        >
+                          Shared
+                        </button>
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground w-16 text-right">{getSlotPrice(slot).toFixed(2)} WAX</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -189,34 +224,7 @@ export function BulkRentDialog({
             </div>
           </div>
 
-          {/* Rental mode - only show if there are new (non-join) rentals */}
-          {hasNewRentals && (
-            <div>
-              <Label>Rental Type {hasJoins && <span className="text-xs text-muted-foreground">(for new rentals only)</span>}</Label>
-              <RadioGroup
-                value={rentalMode}
-                onValueChange={(v) => setRentalMode(v as "exclusive" | "shared")}
-                className="mt-2 space-y-2"
-              >
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
-                  <RadioGroupItem value="exclusive" id="bulk-mode-exclusive" />
-                  <Label htmlFor="bulk-mode-exclusive" className="cursor-pointer flex-1">
-                    <span className="font-medium">Exclusive</span>
-                    <span className="text-xs text-muted-foreground ml-2">100% display time, full price</span>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50">
-                  <RadioGroupItem value="shared" id="bulk-mode-shared" />
-                  <Label htmlFor="bulk-mode-shared" className="cursor-pointer flex-1">
-                    <span className="font-medium">Shared (Save 30%)</span>
-                    <span className="text-xs text-muted-foreground ml-2">50% display time with rotation</span>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {/* Banner content - shared across all slots */}
+          {/* Banner content */}
           <div>
             <Label>IPFS Hash <span className="text-xs text-muted-foreground">(applied to all slots)</span></Label>
             <Input

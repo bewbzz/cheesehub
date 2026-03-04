@@ -203,11 +203,11 @@ export function SlotCalendar() {
   // Helper: is this slot selectable for multi-rent?
   const isSlotSelectable = (slot: BannerSlot): { selectable: boolean; isJoining: boolean } => {
     // Available for new rental
-    if ((slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && !isAdmin && isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS)) {
+    if ((slot.isAvailable || !slot.isOnChain) && slot.rentalType !== "shared" && isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS)) {
       return { selectable: true, isJoining: false };
     }
     // Available for joining shared
-    if (slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && !isAdmin && isWithinBuffer(slot.time, MIN_JOIN_BUFFER_HOURS)) {
+    if (slot.isOnChain && slot.isAvailable && slot.rentalType === "shared" && !slot.sharedUser && isWithinBuffer(slot.time, MIN_JOIN_BUFFER_HOURS)) {
       return { selectable: true, isJoining: true };
     }
     return { selectable: false, isJoining: false };
@@ -256,7 +256,7 @@ export function SlotCalendar() {
       </div>
 
       {/* Multi-select hint */}
-      {!isAdmin && futureGroups.length > 0 && (
+      {futureGroups.length > 0 && (
         <div className="mb-4 text-xs text-muted-foreground text-center">
           💡 Use the checkboxes to select multiple slots and rent them all in one transaction
         </div>

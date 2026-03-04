@@ -185,12 +185,16 @@ export function SlotCalendar() {
       if (exists) {
         return prev.filter(s => !(s.time === time && s.position === position));
       }
-      return [...prev, { time, position, isJoining }];
+      return [...prev, { time, position, isJoining, rentalMode: isJoining ? "shared" as const : "exclusive" as const }];
     });
   }, []);
 
   const removeSlotFromSelection = useCallback((time: number, position: number) => {
     setSelectedSlots(prev => prev.filter(s => !(s.time === time && s.position === position)));
+  }, []);
+
+  const updateSlotMode = useCallback((time: number, position: number, mode: "exclusive" | "shared") => {
+    setSelectedSlots(prev => prev.map(s => s.time === time && s.position === position ? { ...s, rentalMode: mode } : s));
   }, []);
 
   const clearSelection = useCallback(() => setSelectedSlots([]), []);
@@ -415,6 +419,7 @@ export function SlotCalendar() {
         selections={selectedSlots}
         waxPricePerDay={pricing.waxPerDay}
         onRemoveSlot={removeSlotFromSelection}
+        onUpdateSlotMode={updateSlotMode}
         onSuccess={handleBulkSuccess}
       />
 

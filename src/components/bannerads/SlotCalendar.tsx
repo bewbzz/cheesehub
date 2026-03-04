@@ -74,7 +74,12 @@ function isWithinBuffer(slotTime: number, bufferHours: number): boolean {
 }
 
 function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: string | null }) {
+  const isPending = !isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS);
+
   if (!slot.isOnChain) {
+    if (isPending) {
+      return <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-xs">Pending</Badge>;
+    }
     return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
   }
 
@@ -108,6 +113,9 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   
   // Shared slot, open for joining
   if (slot.rentalType === "shared" && !slot.sharedUser) {
+    if (isPending) {
+      return <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-xs">Shared - Pending</Badge>;
+    }
     return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Shared - Open</Badge>;
   }
   
@@ -117,6 +125,9 @@ function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: strin
   }
   
   // Default: available
+  if (isPending) {
+    return <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-xs">Pending</Badge>;
+  }
   return <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">Available</Badge>;
 }
 
@@ -132,9 +143,14 @@ export function formatSlotDateUTC(slotTime: number): string {
   return utcDateFormatter.format(new Date(slotTime * 1000));
 }
 
-/** Filter to only show future slots (exclude already-live / past days) */
-function filterFutureGroups(groups: BannerSlotGroup[]): BannerSlotGroup[] {
+/** Filter slots — admins see the current live slot too for moderation */
+function filterFutureGroups(groups: BannerSlotGroup[], isAdmin: boolean): BannerSlotGroup[] {
   const nowSec = Math.floor(Date.now() / 1000);
+  if (isAdmin) {
+    // Show current live slot (started within last 24h) + all future
+    const oneDayAgo = nowSec - 86400;
+    return groups.filter((g) => g.time > oneDayAgo);
+  }
   return groups.filter((g) => g.time > nowSec);
 }
 
@@ -171,7 +187,7 @@ export function SlotCalendar() {
 
   const { isWhitelisted: isAdmin } = useAdminAccess();
 
-  const futureGroups = useMemo(() => filterFutureGroups(slotGroups), [slotGroups]);
+  const futureGroups = useMemo(() => filterFutureGroups(slotGroups, isAdmin), [slotGroups, isAdmin]);
 
   const slotKey = (time: number, position: number) => `${time}-${position}`;
 

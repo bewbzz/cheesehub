@@ -74,7 +74,13 @@ function isWithinBuffer(slotTime: number, bufferHours: number): boolean {
 }
 
 function SlotBadge({ slot, accountName }: { slot: BannerSlot; accountName: string | null }) {
-  const isPending = !isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const isLive = slot.time <= nowSec;
+  const isPending = !isLive && !isWithinBuffer(slot.time, MIN_RENT_BUFFER_HOURS);
+
+  if (isLive && slot.isOnChain) {
+    return <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-xs animate-pulse">🔴 Live</Badge>;
+  }
 
   if (!slot.isOnChain) {
     if (isPending) {

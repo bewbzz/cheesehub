@@ -13,6 +13,7 @@ interface PowerupLeaderboardProps {
   rawActions: PowerupTransferAction[];
   isLoading: boolean;
   isError: boolean;
+  onRefresh?: () => void;
 }
 
 const SORT_OPTIONS: { mode: PowerupSortMode; label: string; icon: React.ReactNode }[] = [

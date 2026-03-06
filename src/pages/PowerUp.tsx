@@ -12,7 +12,7 @@ import { playRandomFart } from "@/lib/fartSounds";
 const PowerUp = () => {
   const { isConnected, accountName, isLoading, session, cheeseBalance, login, logout, refreshBalance } = useWax();
   const { stats, isLoading: statsLoading, refetch: refetchStats } = usePowerupStats();
-  const { rawActions, isLoading: lbLoading, isError: lbError } = usePowerupLeaderboard();
+  const { rawActions, isLoading: lbLoading, isError: lbError, refetch: refetchLeaderboard } = usePowerupLeaderboard();
 
   const handleConnectWallet = async () => {
     if (isConnected) {

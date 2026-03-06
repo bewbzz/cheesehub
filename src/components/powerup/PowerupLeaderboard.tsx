@@ -53,6 +53,16 @@ export function PowerupLeaderboard({ rawActions, isLoading, isError, onRefresh }
               CHEESEBoard
             </h3>
             <Trophy className="w-4 h-4 text-cheese" />
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="ml-1 p-1 rounded-md text-muted-foreground hover:text-cheese hover:bg-cheese/10 transition-colors disabled:opacity-50"
+                title="Refresh leaderboard"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+              </button>
+            )}
           </div>
         </div>
 

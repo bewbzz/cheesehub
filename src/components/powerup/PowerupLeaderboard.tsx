@@ -21,7 +21,7 @@ const SORT_OPTIONS: { mode: PowerupSortMode; label: string; icon: React.ReactNod
   { mode: 'powerups', label: 'Powerups', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
-export function PowerupLeaderboard({ rawActions, isLoading, isError }: PowerupLeaderboardProps) {
+export function PowerupLeaderboard({ rawActions, isLoading, isError, onRefresh }: PowerupLeaderboardProps) {
   const [sortBy, setSortBy] = useState<PowerupSortMode>('cheese');
 
   const leaderboard = useMemo(() => {

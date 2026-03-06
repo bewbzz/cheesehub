@@ -3,6 +3,8 @@ import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
 import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
+import { usePowerupLeaderboard } from "@/hooks/usePowerupLeaderboard";
+import { PowerupLeaderboard } from "@/components/powerup/PowerupLeaderboard";
 import cheeseUpLogo from "@/assets/cheeseup.png";
 import cheeseUpOrb from "@/assets/cheeseup-2.png";
 import { playRandomFart } from "@/lib/fartSounds";
@@ -10,6 +12,7 @@ import { playRandomFart } from "@/lib/fartSounds";
 const PowerUp = () => {
   const { isConnected, accountName, isLoading, session, cheeseBalance, login, logout, refreshBalance } = useWax();
   const { stats, isLoading: statsLoading, refetch: refetchStats } = usePowerupStats();
+  const { rawActions, isLoading: lbLoading, isError: lbError } = usePowerupLeaderboard();
 
   const handleConnectWallet = async () => {
     if (isConnected) {
@@ -63,6 +66,8 @@ const PowerUp = () => {
           onBalanceRefresh={refreshBalance}
           onStatsRefresh={refetchStats}
         />
+
+        <PowerupLeaderboard rawActions={rawActions} isLoading={lbLoading} isError={lbError} />
 
         <PowerupStatsBar stats={stats} isLoading={statsLoading} />
 

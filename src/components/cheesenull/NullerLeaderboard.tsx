@@ -18,6 +18,7 @@ interface NullerLeaderboardProps {
   rawActions: LogburnAction[];
   isLoading: boolean;
   isError: boolean;
+  onRefresh?: () => void;
 }
 
 const SORT_OPTIONS: { mode: SortMode; label: string; icon: React.ReactNode }[] = [

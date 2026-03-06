@@ -1,7 +1,6 @@
 const HYPERION_ENDPOINTS = [
+  'https://wax.eosphere.io/v2/history/get_actions',
   'https://wax.eosusa.io/v2/history/get_actions',
-  'https://api.waxsweden.org/v2/history/get_actions',
-  'https://wax.greymass.com/v2/history/get_actions',
 ];
 const BATCH_SIZE = 1000;
 const MAX_ACTIONS = 10000;
@@ -41,7 +40,7 @@ async function fetchFromEndpoint(endpoint: string): Promise<PowerupTransferActio
   let skip = 0;
 
   while (skip < MAX_ACTIONS) {
-    const url = `${endpoint}?act.account=cheeseburger&act.name=transfer&act.data.to=cheesepowerz&limit=${BATCH_SIZE}&skip=${skip}`;
+    const url = `${endpoint}?act.account=cheeseburger&act.name=transfer&transfer.to=cheesepowerz&limit=${BATCH_SIZE}&skip=${skip}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Hyperion API error: ${response.status}`);
 

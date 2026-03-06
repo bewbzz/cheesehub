@@ -124,7 +124,7 @@ export function Header() {
       {/* Row 2: Secondary Nav */}
       <div className="container hidden md:flex h-10 items-center justify-center border-t border-border/30">
         <nav className="flex items-center gap-1">
-          {/* CHEESEShoppe */}
+          {/* CHEESEShip */}
           <Link
             to="/drops"
             className={cn(
@@ -135,7 +135,7 @@ export function Header() {
             )}
           >
             <span className="text-base leading-none">🛒</span>
-            CHEESEShoppe
+            CHEESEShip
           </Link>
           {/* CHEESELock */}
           <Link

@@ -67,6 +67,8 @@ const PowerUp = () => {
           onStatsRefresh={refetchStats}
         />
 
+        <PowerupLeaderboard rawActions={rawActions} isLoading={lbLoading} isError={lbError} />
+
         <PowerupStatsBar stats={stats} isLoading={statsLoading} />
 
         <div className="text-center text-sm text-muted-foreground">

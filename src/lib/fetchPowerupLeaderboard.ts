@@ -1,4 +1,8 @@
-const HYPERION_ENDPOINT = 'https://wax.eosusa.io/v2/history/get_actions';
+const HYPERION_ENDPOINTS = [
+  'https://wax.eosusa.io/v2/history/get_actions',
+  'https://api.waxsweden.org/v2/history/get_actions',
+  'https://wax.greymass.com/v2/history/get_actions',
+];
 const BATCH_SIZE = 1000;
 const MAX_ACTIONS = 10000;
 
@@ -32,12 +36,12 @@ interface HyperionResponse {
   total: { value: number };
 }
 
-export async function fetchPowerupTransfers(): Promise<PowerupTransferAction[]> {
+async function fetchFromEndpoint(endpoint: string): Promise<PowerupTransferAction[]> {
   const allActions: PowerupTransferAction[] = [];
   let skip = 0;
 
   while (skip < MAX_ACTIONS) {
-    const url = `${HYPERION_ENDPOINT}?act.account=cheeseburger&act.name=transfer&transfer.to=cheesepowerz&limit=${BATCH_SIZE}&skip=${skip}`;
+    const url = `${endpoint}?act.account=cheesepowerz&act.name=transfer&limit=${BATCH_SIZE}&skip=${skip}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Hyperion API error: ${response.status}`);
 
@@ -48,7 +52,7 @@ export async function fetchPowerupTransfers(): Promise<PowerupTransferAction[]> 
 
     for (const action of actions) {
       const d = action.act?.data;
-      if (d?.from && d?.quantity) {
+      if (d?.from && d?.quantity && d?.to === 'cheesepowerz') {
         allActions.push({
           from: d.from,
           quantity: d.quantity,
@@ -61,6 +65,19 @@ export async function fetchPowerupTransfers(): Promise<PowerupTransferAction[]> 
   }
 
   return allActions;
+}
+
+export async function fetchPowerupTransfers(): Promise<PowerupTransferAction[]> {
+  for (const endpoint of HYPERION_ENDPOINTS) {
+    try {
+      const actions = await fetchFromEndpoint(endpoint);
+      if (actions.length > 0) return actions;
+    } catch (err) {
+      console.error(`Powerup leaderboard fetch failed for ${endpoint}:`, err);
+      continue;
+    }
+  }
+  return [];
 }
 
 function parseAsset(str: string): number {

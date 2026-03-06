@@ -1,7 +1,6 @@
 const HYPERION_ENDPOINTS = [
+  'https://wax.eosphere.io/v2/history/get_actions',
   'https://wax.eosusa.io/v2/history/get_actions',
-  'https://api.waxsweden.org/v2/history/get_actions',
-  'https://wax.greymass.com/v2/history/get_actions',
 ];
 const BATCH_SIZE = 1000;
 const MAX_ACTIONS = 10000;

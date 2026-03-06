@@ -26,7 +26,7 @@ const SORT_OPTIONS: { mode: SortMode; label: string; icon: React.ReactNode }[] =
   { mode: 'burns', label: 'Burns', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
-export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLeaderboardProps) {
+export function NullerLeaderboard({ rawActions, isLoading, isError, onRefresh }: NullerLeaderboardProps) {
   const [sortBy, setSortBy] = useState<SortMode>('cheese');
 
   const leaderboard = useMemo(() => {

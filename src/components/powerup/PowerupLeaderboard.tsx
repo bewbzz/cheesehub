@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Flame, Zap, Trophy } from 'lucide-react';
+import { Flame, Zap, Trophy, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -13,6 +13,7 @@ interface PowerupLeaderboardProps {
   rawActions: PowerupTransferAction[];
   isLoading: boolean;
   isError: boolean;
+  onRefresh?: () => void;
 }
 
 const SORT_OPTIONS: { mode: PowerupSortMode; label: string; icon: React.ReactNode }[] = [
@@ -20,7 +21,7 @@ const SORT_OPTIONS: { mode: PowerupSortMode; label: string; icon: React.ReactNod
   { mode: 'powerups', label: 'Powerups', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
-export function PowerupLeaderboard({ rawActions, isLoading, isError }: PowerupLeaderboardProps) {
+export function PowerupLeaderboard({ rawActions, isLoading, isError, onRefresh }: PowerupLeaderboardProps) {
   const [sortBy, setSortBy] = useState<PowerupSortMode>('cheese');
 
   const leaderboard = useMemo(() => {
@@ -52,6 +53,16 @@ export function PowerupLeaderboard({ rawActions, isLoading, isError }: PowerupLe
               CHEESEBoard
             </h3>
             <Trophy className="w-4 h-4 text-cheese" />
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="ml-1 p-1 rounded-md text-muted-foreground hover:text-cheese hover:bg-cheese/10 transition-colors disabled:opacity-50"
+                title="Refresh leaderboard"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+              </button>
+            )}
           </div>
         </div>
 

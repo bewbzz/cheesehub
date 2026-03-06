@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Flame, Zap, Trophy } from 'lucide-react';
+import { Flame, Zap, Trophy, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,6 +18,7 @@ interface NullerLeaderboardProps {
   rawActions: LogburnAction[];
   isLoading: boolean;
   isError: boolean;
+  onRefresh?: () => void;
 }
 
 const SORT_OPTIONS: { mode: SortMode; label: string; icon: React.ReactNode }[] = [
@@ -25,7 +26,7 @@ const SORT_OPTIONS: { mode: SortMode; label: string; icon: React.ReactNode }[] =
   { mode: 'burns', label: 'Burns', icon: <Zap className="w-3.5 h-3.5" /> },
 ];
 
-export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLeaderboardProps) {
+export function NullerLeaderboard({ rawActions, isLoading, isError, onRefresh }: NullerLeaderboardProps) {
   const [sortBy, setSortBy] = useState<SortMode>('cheese');
 
   const leaderboard = useMemo(() => {
@@ -65,6 +66,16 @@ export function NullerLeaderboard({ rawActions, isLoading, isError }: NullerLead
               CHEESEBoard
             </h3>
             <Trophy className="w-4 h-4 text-cheese" />
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="ml-1 p-1 rounded-md text-muted-foreground hover:text-cheese hover:bg-cheese/10 transition-colors disabled:opacity-50"
+                title="Refresh leaderboard"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+              </button>
+            )}
           </div>
         </div>
 

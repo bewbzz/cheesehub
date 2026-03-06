@@ -3,6 +3,8 @@ import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
 import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
+import { usePowerupLeaderboard } from "@/hooks/usePowerupLeaderboard";
+import { PowerupLeaderboard } from "@/components/powerup/PowerupLeaderboard";
 import cheeseUpLogo from "@/assets/cheeseup.png";
 import cheeseUpOrb from "@/assets/cheeseup-2.png";
 import { playRandomFart } from "@/lib/fartSounds";

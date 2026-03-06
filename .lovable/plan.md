@@ -1,33 +1,42 @@
 
+Goal: stop the churn, restore CHEESEBoard quickly, then only add one safe improvement.
 
-## Add Key Pair Generator to Create Account Section
+What’s actually broken
+- The current query uses `act.data.to=cheesepowerz`, which returns zero actions on EOSUSA/WaxSweden.
+- Hyperion expects `transfer.to=cheesepowerz` for token transfer filtering.
+- We also have bad fallback endpoints (`wax.greymass.com` returns 404 for `/v2/history/get_actions`) causing noisy failures.
 
-### Overview
-Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
+Reset-first approach (minimal, not overengineered)
+1) Revert to a known-good, simple fetch path in `src/lib/fetchPowerupLeaderboard.ts`
+- Use `transfer.to=cheesepowerz` (not `act.data.to`).
+- Start with one known-working endpoint first: `https://wax.eosphere.io/v2/history/get_actions`.
+- Keep pagination exactly as-is (`limit/skip`) to preserve historical loading behavior.
+- Keep aggregation unchanged.
 
-### Design
-- A collapsible "Key Generator" section below the account name field (or above the key inputs)
-- "Generate New Key Pair" button that creates a random private/public key pair
-- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
-- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
-- Option to generate separate keys for owner and active, or use the same key for both
-- Warning banner: "Save your private key securely. It will not be shown again."
+2) Add one safe fallback only (optional but low risk)
+- Secondary endpoint: `https://wax.eosusa.io/v2/history/get_actions`.
+- Remove WaxSweden/Greymass from this leaderboard path to avoid CORS/404 noise.
 
-### Implementation
+3) Improve failure visibility (small UX fix)
+- If fetch fails, surface “Error loading leaderboard” (already wired) and log which endpoint failed.
+- If fetch succeeds with zero rows, keep “No data yet”.
 
-**File: `src/components/wallet/CreateAccountManager.tsx`**
+Why this matches your request
+- It “goes back and starts again” from the last working idea (simple transfer-history query).
+- It avoids extra complexity and focuses only on getting data back reliably.
 
-1. Import `PrivateKey` from `@wharfkit/session`
-2. Add state for generated key pairs (up to 2: one for owner, one for active)
-3. Add a `KeyGenerator` sub-component:
-   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
-   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
-   - Copy-to-clipboard buttons for each key
-   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
-   - "Use for Both" shortcut button
-4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
-5. Strong warning about saving the private key before proceeding
+Files to update
+- `src/lib/fetchPowerupLeaderboard.ts`
+  - query param correction: `transfer.to=cheesepowerz`
+  - endpoint list cleanup to known working providers
+- No UI structural changes needed in leaderboard/page components.
 
-### Security Note
-Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
+Validation checklist (after patch)
+- Network request shows:
+  - `/v2/history/get_actions?act.account=cheeseburger&act.name=transfer&transfer.to=cheesepowerz...`
+- Response has `total.value > 0` and non-empty `actions`.
+- CHEESEBoard renders rows (not “No data yet”).
+- Sort toggle still works (CHEESE Burned vs Powerups).
 
+Optional next tiny fix (after data is back)
+- Add a small note: “Top 10 only” so it’s clear why top-10 sum can be less than total CHEESE in stats bar.

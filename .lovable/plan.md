@@ -1,33 +1,31 @@
 
 
-## Add Key Pair Generator to Create Account Section
+## Add CHEESEUp Top 10 Leaderboard
 
-### Overview
-Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
+### Approach
+Since the `cheesepowerz` contract doesn't have a dedicated logging action like `cheeseburner`'s `logburn`, we track powerup usage via **Hyperion transfer history** — specifically, all `cheeseburger::transfer` actions where `to=cheesepowerz`. Each transfer represents one powerup, and the `quantity` field gives us the CHEESE amount burned.
 
-### Design
-- A collapsible "Key Generator" section below the account name field (or above the key inputs)
-- "Generate New Key Pair" button that creates a random private/public key pair
-- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
-- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
-- Option to generate separate keys for owner and active, or use the same key for both
-- Warning banner: "Save your private key securely. It will not be shown again."
+This mirrors the CHEESENull leaderboard pattern but with a different data source.
 
-### Implementation
+### Files to Create/Edit
 
-**File: `src/components/wallet/CreateAccountManager.tsx`**
+**1. `src/lib/fetchPowerupLeaderboard.ts`** (new)
+- Fetch paginated transfer actions from Hyperion: `act.account=cheeseburger&act.name=transfer&act.data.to=cheesepowerz`
+- Aggregate by sender (`from` field): count powerups and sum CHEESE spent
+- Sort by CHEESE burned or powerup count, return top 10
+- Reuse the same batch/pagination pattern from `fetchLeaderboard.ts`
 
-1. Import `PrivateKey` from `@wharfkit/session`
-2. Add state for generated key pairs (up to 2: one for owner, one for active)
-3. Add a `KeyGenerator` sub-component:
-   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
-   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
-   - Copy-to-clipboard buttons for each key
-   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
-   - "Use for Both" shortcut button
-4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
-5. Strong warning about saving the private key before proceeding
+**2. `src/hooks/usePowerupLeaderboard.ts`** (new)
+- `useQuery` wrapper around the fetch function (same pattern as `useNullerLeaderboard`)
+- Expose `rawActions`, `data`, `isLoading`, `isError`
 
-### Security Note
-Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
+**3. `src/components/powerup/PowerupLeaderboard.tsx`** (new)
+- Reuse the same card/table layout as `NullerLeaderboard.tsx`
+- Title: "CHEESEBoard" with trophy icons
+- Sort toggles: "CHEESE Burned" and "Powerups"
+- Table columns: rank, account, primary value, secondary text
+- Styled consistently with the existing cheese theme
+
+**4. `src/pages/PowerUp.tsx`** (edit)
+- Import and render `PowerupLeaderboard` between the `PowerUpCard` and `PowerupStatsBar`
 

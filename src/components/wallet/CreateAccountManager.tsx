@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useWax } from '@/context/WaxContext';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
 import { Loader2, Check, X } from 'lucide-react';
+import { KeyPairGenerator } from './KeyPairGenerator';
 
 interface CreateAccountManagerProps {
   onTransactionComplete?: () => void;
@@ -157,6 +158,12 @@ export function CreateAccountManager({ onTransactionComplete, onTransactionSucce
           </p>
         )}
       </div>
+
+      {/* Key Pair Generator */}
+      <KeyPairGenerator
+        onUseAsOwnerKey={setOwnerKey}
+        onUseAsActiveKey={setActiveKey}
+      />
 
       {/* Owner Key */}
       <div className="space-y-2">

@@ -37,7 +37,7 @@ export async function fetchPowerupTransfers(): Promise<PowerupTransferAction[]> 
   let skip = 0;
 
   while (skip < MAX_ACTIONS) {
-    const url = `${HYPERION_ENDPOINT}?act.account=cheeseburger&act.name=transfer&act.data.to=cheesepowerz&limit=${BATCH_SIZE}&skip=${skip}`;
+    const url = `${HYPERION_ENDPOINT}?act.account=cheeseburger&act.name=transfer&transfer.to=cheesepowerz&limit=${BATCH_SIZE}&skip=${skip}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Hyperion API error: ${response.status}`);
 

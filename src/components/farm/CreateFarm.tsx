@@ -91,6 +91,7 @@ export function CreateFarm() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [defaultFaqItem, setDefaultFaqItem] = useState<string | undefined>(undefined);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   

@@ -45,6 +45,7 @@ const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
 export function CreateDao() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   

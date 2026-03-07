@@ -90,6 +90,7 @@ const CONFIRMATION_PHRASE = "I understand how the new farms work";
 export function CreateFarm() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   

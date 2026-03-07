@@ -79,6 +79,10 @@ const FAQ_ITEMS = [
     question: "What are the IPFS hash fields for?",
     answer: "Avatar Image is a small profile picture (e.g. 300x300px). Cover Image is a large background banner. Both should be IPFS hashes only (e.g. QmXxx...), not full URLs. Supported formats: JPEG and PNG.",
   },
+  {
+    question: "Why does Anchor show a 'Dangerous Transaction' warning?",
+    answer: "This transaction includes inline actions from the cheesefeefee smart contract — it sends WAXDAO tokens to your wallet and burns fees automatically. These are standard, safe operations and the contract is open source. To proceed in Anchor Wallet: (1) Tap the gear/settings icon, (2) Toggle 'Allow Dangerous Transactions' ON, (3) Sign the transaction, (4) Optionally toggle it back OFF afterward. Some versions of Anchor also show an 'Allow for this transaction only' checkbox you can use instead.",
+  },
 ];
 
 const CONFIRMATION_PHRASE = "I understand how the new farms work";
@@ -761,6 +765,14 @@ export function CreateFarm() {
             onWaxdaoAmountChange={handleWaxdaoAmountChange}
             disabled={loading}
           />
+
+          {/* Anchor Wallet Warning */}
+          <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <strong>help guide</strong> (ℹ️) above for instructions on how to allow it.
+            </span>
+          </div>
 
           {/* Submit Button */}
           <Button

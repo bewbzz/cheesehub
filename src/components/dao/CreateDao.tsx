@@ -8,7 +8,7 @@ import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, buildAssertPointAction, buildSetProfileActionWithSocials, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen } from "lucide-react";
+import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen, AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -578,6 +578,29 @@ export function CreateDao() {
                         </AccordionContent>
                       </AccordionItem>
 
+                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-amber-500">
+                          Why does Anchor show a "Dangerous Transaction" warning?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-foreground space-y-2">
+                          <p>
+                            This transaction includes <strong className="text-cheese">inline actions</strong> from the 
+                            <code className="text-cheese"> cheesefeefee</code> smart contract — it sends WAXDAO tokens to your 
+                            wallet and burns fees automatically. These are standard, safe operations and the contract is open source.
+                          </p>
+                          <p className="font-medium">To proceed in Anchor Wallet:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-2 text-xs">
+                            <li>Tap the gear/settings icon</li>
+                            <li>Toggle <strong>"Allow Dangerous Transactions"</strong> ON</li>
+                            <li>Sign the transaction</li>
+                            <li>Optionally toggle it back OFF afterward</li>
+                          </ol>
+                          <p className="text-xs bg-muted/50 p-2 rounded">
+                            Some versions of Anchor also show an <strong>"Allow for this transaction only"</strong> checkbox — you can use that instead.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
                     </Accordion>
                   </ScrollArea>
                 </DialogContent>
@@ -1137,6 +1160,14 @@ export function CreateDao() {
               onWaxdaoAmountChange={handleWaxdaoAmountChange}
               disabled={loading}
             />
+
+            {/* Anchor Wallet Warning */}
+            <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <strong>help guide</strong> (ℹ️) above for instructions on how to allow it.
+              </span>
+            </div>
 
             {/* Submit Button */}
             <Button

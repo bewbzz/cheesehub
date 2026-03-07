@@ -1,38 +1,33 @@
 
 
-## Add Anchor "Dangerous Transaction" Explainer to Create Farm & Create DAO
+## Add Key Pair Generator to Create Account Section
 
-### Problem
-When users pay to create a Farm or DAO, the transaction includes inline actions from the `cheesefeefee` contract (e.g., sending WAXDAO tokens back to the user, burning CHEESE/WAX). Anchor Wallet flags these as "dangerous transactions" by default, blocking users from signing unless they enable "Allow Dangerous Transactions" in settings.
+### Overview
+Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
 
-### Where to Add
-Both **CreateFarm** and **CreateDao** components — added as a new FAQ item in each help dialog, plus a visible inline warning near the submit button.
+### Design
+- A collapsible "Key Generator" section below the account name field (or above the key inputs)
+- "Generate New Key Pair" button that creates a random private/public key pair
+- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
+- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
+- Option to generate separate keys for owner and active, or use the same key for both
+- Warning banner: "Save your private key securely. It will not be shown again."
 
-### Changes
+### Implementation
 
-**1. `src/components/farm/CreateFarm.tsx`**
-- Add a new FAQ item to the `FAQ_ITEMS` array explaining inline actions, why they're safe, and how to temporarily enable "Allow Dangerous Transactions" in Anchor.
-- Add a small amber/warning alert near the "Create Farm" submit button area with a brief note and link to the FAQ.
+**File: `src/components/wallet/CreateAccountManager.tsx`**
 
-**2. `src/components/dao/CreateDao.tsx`**
-- Add the same FAQ item to the DAO creation help dialog accordion.
-- Add the same inline warning near the submit button area.
+1. Import `PrivateKey` from `@wharfkit/session`
+2. Add state for generated key pairs (up to 2: one for owner, one for active)
+3. Add a `KeyGenerator` sub-component:
+   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
+   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
+   - Copy-to-clipboard buttons for each key
+   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
+   - "Use for Both" shortcut button
+4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
+5. Strong warning about saving the private key before proceeding
 
-### FAQ Content (shared across both)
-- **Question**: "Why does Anchor show a 'Dangerous Transaction' warning?"
-- **Answer**: Explains that the transaction includes inline actions from the `cheesefeefee` smart contract (sending WAXDAO tokens to the user, burning fees). These are standard, safe operations — the contract is open source and verified. To proceed:
-  1. Open Anchor Wallet settings (gear icon)
-  2. Toggle "Allow Dangerous Transactions" ON
-  3. Sign the transaction
-  4. Optionally toggle it back OFF afterward
-  
-  Alternatively, users can check "Allow for this transaction only" if that option appears.
-
-### Inline Warning (near submit button)
-A small amber-colored alert box:
-> ⚠️ **Anchor Wallet Users**: This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe. See the help guide (ℹ️) above for instructions.
-
-### Files Modified
-- `src/components/farm/CreateFarm.tsx` — new FAQ item + inline alert
-- `src/components/dao/CreateDao.tsx` — new accordion item + inline alert
+### Security Note
+Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
 

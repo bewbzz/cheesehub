@@ -381,7 +381,7 @@ export function CreateFarm() {
                 <ScrollArea className="max-h-[65vh] pr-4">
                   <Accordion type="single" collapsible className="space-y-2" value={defaultFaqItem} onValueChange={setDefaultFaqItem}>
                     {FAQ_ITEMS.map((item, index) => (
-                      <AccordionItem key={index} value={`item-${index}`} className="border border-border/50 rounded-lg px-4">
+                      <AccordionItem key={index} value={`item-${index}`} className="border border-border/50 rounded-lg px-4" ref={index === FAQ_ITEMS.length - 1 ? anchorFaqRef : undefined}>
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
                           <span className="flex items-center gap-2">
                             {item.question}

@@ -352,7 +352,7 @@ export function CreateDao() {
               Create a New DAO
             </CardTitle>
             <div className="flex items-center gap-1.5">
-              <Dialog>
+              <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
                     <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />

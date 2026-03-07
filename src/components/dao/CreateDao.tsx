@@ -578,6 +578,29 @@ export function CreateDao() {
                         </AccordionContent>
                       </AccordionItem>
 
+                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5">
+                        <AccordionTrigger className="text-sm font-medium hover:no-underline text-amber-500">
+                          Why does Anchor show a "Dangerous Transaction" warning?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm text-foreground space-y-2">
+                          <p>
+                            This transaction includes <strong className="text-cheese">inline actions</strong> from the 
+                            <code className="text-cheese"> cheesefeefee</code> smart contract — it sends WAXDAO tokens to your 
+                            wallet and burns fees automatically. These are standard, safe operations and the contract is open source.
+                          </p>
+                          <p className="font-medium">To proceed in Anchor Wallet:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-2 text-xs">
+                            <li>Tap the gear/settings icon</li>
+                            <li>Toggle <strong>"Allow Dangerous Transactions"</strong> ON</li>
+                            <li>Sign the transaction</li>
+                            <li>Optionally toggle it back OFF afterward</li>
+                          </ol>
+                          <p className="text-xs bg-muted/50 p-2 rounded">
+                            Some versions of Anchor also show an <strong>"Allow for this transaction only"</strong> checkbox — you can use that instead.
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+
                     </Accordion>
                   </ScrollArea>
                 </DialogContent>

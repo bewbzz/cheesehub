@@ -390,7 +390,7 @@ export function CreateFarm() {
                             )}
                           </span>
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-foreground">
+                        <AccordionContent className="text-sm text-foreground whitespace-pre-line">
                           {item.answer}
                         </AccordionContent>
                       </AccordionItem>

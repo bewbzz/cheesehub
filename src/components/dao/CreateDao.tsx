@@ -47,6 +47,17 @@ export function CreateDao() {
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [defaultFaqValues, setDefaultFaqValues] = useState<string[]>(["cheese-payment", "dao-types", "settings"]);
+  const anchorFaqRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToAnchor = useRef(false);
+
+  useEffect(() => {
+    if (helpOpen && shouldScrollToAnchor.current) {
+      shouldScrollToAnchor.current = false;
+      setTimeout(() => {
+        anchorFaqRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [helpOpen]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   

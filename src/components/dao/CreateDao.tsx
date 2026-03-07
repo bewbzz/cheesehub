@@ -46,6 +46,7 @@ export function CreateDao() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [defaultFaqValues, setDefaultFaqValues] = useState<string[]>(["cheese-payment", "dao-types", "settings"]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   

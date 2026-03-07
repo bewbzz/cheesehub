@@ -368,7 +368,7 @@ export function CreateDao() {
                     </DialogTitle>
                   </DialogHeader>
                   <ScrollArea className="max-h-[65vh] pr-4">
-                    <Accordion type="multiple" defaultValue={["cheese-payment", "dao-types", "settings"]} className="space-y-2">
+                    <Accordion type="multiple" value={defaultFaqValues} onValueChange={setDefaultFaqValues} className="space-y-2">
                       
                       <AccordionItem value="cheese-payment" className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">

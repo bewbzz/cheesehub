@@ -81,7 +81,7 @@ const FAQ_ITEMS = [
   },
   {
     question: "Why does Anchor show a 'Dangerous Transaction' warning?",
-    answer: "This transaction includes inline actions from the cheesefeefee smart contract — it sends WAXDAO tokens to your wallet and burns fees automatically. These are standard, safe operations and the contract is open source. To proceed in Anchor Wallet: (1) Tap the gear/settings icon, (2) Toggle 'Allow Dangerous Transactions' ON, (3) Sign the transaction, (4) Optionally toggle it back OFF afterward. Some versions of Anchor also show an 'Allow for this transaction only' checkbox you can use instead.",
+    answer: "This transaction includes inline actions from the cheesefeefee smart contract — it sends WAXDAO tokens to your wallet and burns fees automatically. These are standard, safe operations and the contract is open source.\n\nTo proceed in Anchor Wallet:\n1. Tap the gear/settings icon\n2. Toggle 'Allow Dangerous Transactions' ON\n3. Sign the transaction\n4. Optionally toggle it back OFF afterward\n\nSome versions of Anchor also show an 'Allow for this transaction only' checkbox you can use instead.",
   },
 ];
 
@@ -390,7 +390,7 @@ export function CreateFarm() {
                             )}
                           </span>
                         </AccordionTrigger>
-                        <AccordionContent className="text-sm text-foreground">
+                        <AccordionContent className="text-sm text-foreground whitespace-pre-line">
                           {item.answer}
                         </AccordionContent>
                       </AccordionItem>

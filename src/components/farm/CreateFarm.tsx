@@ -352,7 +352,7 @@ export function CreateFarm() {
             <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
               V2 Non-Custodial
             </span>
-            <Dialog>
+            <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
                   <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />

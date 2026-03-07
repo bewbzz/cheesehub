@@ -91,6 +91,7 @@ export function CreateFarm() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [defaultFaqItem, setDefaultFaqItem] = useState<string | undefined>(undefined);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   
@@ -367,7 +368,7 @@ export function CreateFarm() {
                   </DialogTitle>
                 </DialogHeader>
                 <ScrollArea className="max-h-[65vh] pr-4">
-                  <Accordion type="single" collapsible className="space-y-2">
+                  <Accordion type="single" collapsible className="space-y-2" value={defaultFaqItem} onValueChange={setDefaultFaqItem}>
                     {FAQ_ITEMS.map((item, index) => (
                       <AccordionItem key={index} value={`item-${index}`} className="border border-border/50 rounded-lg px-4">
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-cheese">
@@ -771,7 +772,7 @@ export function CreateFarm() {
           <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
             <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => setHelpOpen(true)} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
+              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => { setDefaultFaqItem(`item-${FAQ_ITEMS.length - 1}`); setHelpOpen(true); }} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
             </span>
           </div>
 

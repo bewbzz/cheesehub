@@ -8,7 +8,7 @@ import { useWax } from "@/context/WaxContext";
 import { buildCreateDaoAction, buildAssertPointAction, buildSetProfileActionWithSocials, DAO_CONTRACT, PROPOSER_TYPES, DAO_TYPES } from "@/lib/dao";
 import { toast } from "sonner";
 import { closeWharfkitModals, getTransactPlugins } from "@/lib/wharfKit";
-import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen } from "lucide-react";
+import { Loader2, Plus, Wallet, ChevronDown, ChevronUp, HelpCircle, Info, Trash2, Globe, Youtube, BookOpen, AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";

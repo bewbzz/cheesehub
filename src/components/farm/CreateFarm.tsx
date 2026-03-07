@@ -90,6 +90,7 @@ const CONFIRMATION_PHRASE = "I understand how the new farms work";
 export function CreateFarm() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   
@@ -351,7 +352,7 @@ export function CreateFarm() {
             <span className="px-2.5 py-1 text-xs font-semibold bg-cheese/20 text-cheese border border-cheese/30 rounded-full">
               V2 Non-Custodial
             </span>
-            <Dialog>
+            <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
                   <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
@@ -770,7 +771,7 @@ export function CreateFarm() {
           <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
             <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <strong>help guide</strong> (ℹ️) above for instructions on how to allow it.
+              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => setHelpOpen(true)} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
             </span>
           </div>
 

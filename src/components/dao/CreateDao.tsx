@@ -45,6 +45,7 @@ const DAO_TYPE_DESCRIPTIONS: Record<number, { short: string; long: string }> = {
 export function CreateDao() {
   const { session, isConnected, login } = useWax();
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   
@@ -351,7 +352,7 @@ export function CreateDao() {
               Create a New DAO
             </CardTitle>
             <div className="flex items-center gap-1.5">
-              <Dialog>
+              <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="p-1.5 h-auto hover:bg-cheese/10 flex items-center gap-1.5">
                     <Info className="h-6 w-6 text-cheese hover:text-cheese/80 transition-colors" />
@@ -1165,7 +1166,7 @@ export function CreateDao() {
             <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
               <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <strong>help guide</strong> (ℹ️) above for instructions on how to allow it.
+                <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => setHelpOpen(true)} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
               </span>
             </div>
 

@@ -92,6 +92,17 @@ export function CreateFarm() {
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [defaultFaqItem, setDefaultFaqItem] = useState<string | undefined>(undefined);
+  const anchorFaqRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToAnchor = useRef(false);
+
+  useEffect(() => {
+    if (helpOpen && shouldScrollToAnchor.current) {
+      shouldScrollToAnchor.current = false;
+      setTimeout(() => {
+        anchorFaqRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [helpOpen]);
   const [confirmationText, setConfirmationText] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   

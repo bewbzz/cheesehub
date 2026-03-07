@@ -766,6 +766,14 @@ export function CreateFarm() {
             disabled={loading}
           />
 
+          {/* Anchor Wallet Warning */}
+          <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>
+              <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <strong>help guide</strong> (ℹ️) above for instructions on how to allow it.
+            </span>
+          </div>
+
           {/* Submit Button */}
           <Button
             type="submit"

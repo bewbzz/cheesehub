@@ -591,7 +591,7 @@ export function CreateDao() {
                         </AccordionContent>
                       </AccordionItem>
 
-                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5">
+                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5" ref={anchorFaqRef}>
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-amber-500">
                           Why does Anchor show a "Dangerous Transaction" warning?
                         </AccordionTrigger>

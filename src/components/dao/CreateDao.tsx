@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,17 @@ export function CreateDao() {
   const [loading, setLoading] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [defaultFaqValues, setDefaultFaqValues] = useState<string[]>(["cheese-payment", "dao-types", "settings"]);
+  const anchorFaqRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToAnchor = useRef(false);
+
+  useEffect(() => {
+    if (helpOpen && shouldScrollToAnchor.current) {
+      shouldScrollToAnchor.current = false;
+      setTimeout(() => {
+        anchorFaqRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+    }
+  }, [helpOpen]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSocials, setShowSocials] = useState(false);
   
@@ -580,7 +591,7 @@ export function CreateDao() {
                         </AccordionContent>
                       </AccordionItem>
 
-                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5">
+                      <AccordionItem value="anchor-warning" className="border border-amber-500/30 rounded-lg px-4 bg-amber-500/5" ref={anchorFaqRef}>
                         <AccordionTrigger className="text-sm font-medium hover:no-underline text-amber-500">
                           Why does Anchor show a "Dangerous Transaction" warning?
                         </AccordionTrigger>
@@ -1167,7 +1178,7 @@ export function CreateDao() {
             <div className="flex items-start gap-2 text-xs text-amber-500/90 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-md">
               <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
-                <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => { setDefaultFaqValues(prev => prev.includes("anchor-warning") ? prev : [...prev, "anchor-warning"]); setHelpOpen(true); }} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
+                <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => { setDefaultFaqValues(prev => prev.includes("anchor-warning") ? prev : [...prev, "anchor-warning"]); shouldScrollToAnchor.current = true; setHelpOpen(true); }} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
               </span>
             </div>
 

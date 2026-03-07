@@ -1167,6 +1167,7 @@ export function CreateDao() {
               <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
                 <strong>Anchor Wallet Users:</strong> This transaction includes inline actions and may trigger a "Dangerous Transaction" warning. This is normal and safe — see the <button type="button" onClick={() => setHelpOpen(true)} className="text-foreground underline font-semibold hover:text-cheese transition-colors">help guide</button> above for instructions on how to allow it.
+              </span>
             </div>
 
             {/* Submit Button */}

@@ -1,33 +1,31 @@
 
 
-## Add Key Pair Generator to Create Account Section
+## Add Frontend-Only Drip Naming
 
-### Overview
-Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
+### Approach
+Store drip names in `localStorage` keyed by `account:dripID`. Add a name field to the Create Drip form, and inline edit/display on each drip card in My Drips.
 
-### Design
-- A collapsible "Key Generator" section below the account name field (or above the key inputs)
-- "Generate New Key Pair" button that creates a random private/public key pair
-- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
-- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
-- Option to generate separate keys for owner and active, or use the same key for both
-- Warning banner: "Save your private key securely. It will not be shown again."
+### Changes
 
-### Implementation
+**1. `src/lib/dripNames.ts` (new)**
+- Helper functions: `getDripName(account, dripId)`, `setDripName(account, dripId, name)`, `getAllDripNames(account)`
+- Uses localStorage key `cheese_drip_names_{account}` storing a `Record<number, string>`
 
-**File: `src/components/wallet/CreateAccountManager.tsx`**
+**2. `src/components/drip/CreateDrip.tsx`**
+- Add a "Drip Name (optional)" text input at the top of the form
+- After successful creation (when `newDrip.ID` is known), save the name to localStorage via `setDripName`
 
-1. Import `PrivateKey` from `@wharfkit/session`
-2. Add state for generated key pairs (up to 2: one for owner, one for active)
-3. Add a `KeyGenerator` sub-component:
-   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
-   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
-   - Copy-to-clipboard buttons for each key
-   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
-   - "Use for Both" shortcut button
-4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
-5. Strong warning about saving the private key before proceeding
+**3. `src/components/drip/MyDrips.tsx`**
+- Pass `accountName` to `DripCard`
+- In `DripCard`: display the saved name above the drip ID, with inline click-to-edit (small pencil icon). Editing saves to localStorage immediately
+- If no name is set, show a subtle "Add name" link instead
 
-### Security Note
-Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
+### UI Details
+- Create form: simple `Input` field labeled "Drip Name (optional)" with placeholder "e.g. Mike's salary, Vesting Q2"
+- Drip card header: name displayed as bold text above "Drip #123". Pencil icon opens inline edit (input + checkmark to save). Empty state shows muted "Add name" text with pencil icon.
+
+### Files
+- `src/lib/dripNames.ts` — new, ~20 lines
+- `src/components/drip/CreateDrip.tsx` — add name input + save on create
+- `src/components/drip/MyDrips.tsx` — display/edit name on each card
 

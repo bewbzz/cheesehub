@@ -239,6 +239,7 @@ export function MyDrips() {
 function DripCard({
   drip,
   role,
+  accountName,
   actionLoading,
   onClaim,
   onCancel,
@@ -246,6 +247,7 @@ function DripCard({
 }: {
   drip: DripEscrow;
   role: "payer" | "receiver";
+  accountName: string;
   actionLoading: boolean;
   onClaim?: () => void;
   onCancel?: () => void;

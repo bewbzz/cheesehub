@@ -187,6 +187,7 @@ export function MyDrips() {
                 key={drip.ID}
                 drip={drip}
                 role="payer"
+                accountName={accountName || ""}
                 actionLoading={actionLoading === drip.ID}
                 onCancel={() => handleCancel(drip)}
                 onFinalize={() => handleFinalize(drip)}

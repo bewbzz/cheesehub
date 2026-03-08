@@ -18,10 +18,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Droplets, Loader2, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
+import { Droplets, Loader2, ArrowDown, ArrowUp, RefreshCw, Pencil, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TokenLogo } from "@/components/TokenLogo";
 import { TransactionSuccessDialog } from "@/components/wallet/TransactionSuccessDialog";
+import { getDripName, setDripName as saveDripName } from "@/lib/dripNames";
+import { Input } from "@/components/ui/input";
 
 export function MyDrips() {
   const { session, accountName, isConnected } = useWax();
@@ -185,6 +187,7 @@ export function MyDrips() {
                 key={drip.ID}
                 drip={drip}
                 role="payer"
+                accountName={accountName || ""}
                 actionLoading={actionLoading === drip.ID}
                 onCancel={() => handleCancel(drip)}
                 onFinalize={() => handleFinalize(drip)}
@@ -213,6 +216,7 @@ export function MyDrips() {
                 key={drip.ID}
                 drip={drip}
                 role="receiver"
+                accountName={accountName || ""}
                 actionLoading={actionLoading === drip.ID}
                 onClaim={() => handleClaim(drip)}
               />
@@ -235,6 +239,7 @@ export function MyDrips() {
 function DripCard({
   drip,
   role,
+  accountName,
   actionLoading,
   onClaim,
   onCancel,
@@ -242,6 +247,7 @@ function DripCard({
 }: {
   drip: DripEscrow;
   role: "payer" | "receiver";
+  accountName: string;
   actionLoading: boolean;
   onClaim?: () => void;
   onCancel?: () => void;
@@ -258,6 +264,13 @@ function DripCard({
 
   // Countdown display
   const [countdown, setCountdown] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(() => getDripName(accountName, drip.ID));
+
+  const handleSaveName = () => {
+    saveDripName(accountName, drip.ID, nameValue);
+    setEditingName(false);
+  };
   useEffect(() => {
     const update = () => {
       const secs = getTimeUntilNextClaim(drip);
@@ -278,12 +291,46 @@ function DripCard({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
-        {/* Header: ID + Status */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-mono text-muted-foreground">Drip #{drip.ID}</span>
-          <Badge variant="outline" className={getStatusColor(status)}>
-            {getStatusLabel(status)}
-          </Badge>
+        {/* Name + Header */}
+        <div className="space-y-1">
+          {/* Inline name editor */}
+          <div className="flex items-center gap-1.5 min-h-[24px]">
+            {editingName ? (
+              <>
+                <Input
+                  value={nameValue}
+                  onChange={e => setNameValue(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSaveName()}
+                  className="h-6 text-sm px-1.5 py-0 flex-1"
+                  maxLength={50}
+                  autoFocus
+                  placeholder="Name this drip..."
+                />
+                <button onClick={handleSaveName} className="text-green-400 hover:text-green-300 shrink-0">
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="flex items-center gap-1 text-sm group"
+              >
+                {nameValue ? (
+                  <span className="font-semibold text-foreground">{nameValue}</span>
+                ) : (
+                  <span className="text-muted-foreground italic">Add name</span>
+                )}
+                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
+          {/* ID + Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-mono text-muted-foreground">Drip #{drip.ID}</span>
+            <Badge variant="outline" className={getStatusColor(status)}>
+              {getStatusLabel(status)}
+            </Badge>
+          </div>
         </div>
 
         {/* Payout rate */}

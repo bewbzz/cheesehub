@@ -216,6 +216,7 @@ export function MyDrips() {
                 key={drip.ID}
                 drip={drip}
                 role="receiver"
+                accountName={accountName || ""}
                 actionLoading={actionLoading === drip.ID}
                 onClaim={() => handleClaim(drip)}
               />

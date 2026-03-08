@@ -240,6 +240,19 @@ export function CreateDrip() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Drip Name */}
+        <div className="space-y-2">
+          <Label htmlFor="dripLabel">Drip Name (optional)</Label>
+          <Input
+            id="dripLabel"
+            placeholder="e.g. Mike's salary, Vesting Q2"
+            value={dripLabel}
+            onChange={e => setDripLabel(e.target.value)}
+            maxLength={50}
+          />
+          <p className="text-xs text-muted-foreground">Stored locally for your reference only — not on-chain.</p>
+        </div>
+
         {/* Receiving Account */}
         <div className="space-y-2">
           <Label htmlFor="receiver">Receiving Account</Label>

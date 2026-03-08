@@ -291,12 +291,46 @@ function DripCard({
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
-        {/* Header: ID + Status */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-mono text-muted-foreground">Drip #{drip.ID}</span>
-          <Badge variant="outline" className={getStatusColor(status)}>
-            {getStatusLabel(status)}
-          </Badge>
+        {/* Name + Header */}
+        <div className="space-y-1">
+          {/* Inline name editor */}
+          <div className="flex items-center gap-1.5 min-h-[24px]">
+            {editingName ? (
+              <>
+                <Input
+                  value={nameValue}
+                  onChange={e => setNameValue(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSaveName()}
+                  className="h-6 text-sm px-1.5 py-0 flex-1"
+                  maxLength={50}
+                  autoFocus
+                  placeholder="Name this drip..."
+                />
+                <button onClick={handleSaveName} className="text-green-400 hover:text-green-300 shrink-0">
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="flex items-center gap-1 text-sm group"
+              >
+                {nameValue ? (
+                  <span className="font-semibold text-foreground">{nameValue}</span>
+                ) : (
+                  <span className="text-muted-foreground italic">Add name</span>
+                )}
+                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
+          </div>
+          {/* ID + Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-mono text-muted-foreground">Drip #{drip.ID}</span>
+            <Badge variant="outline" className={getStatusColor(status)}>
+              {getStatusLabel(status)}
+            </Badge>
+          </div>
         </div>
 
         {/* Payout rate */}

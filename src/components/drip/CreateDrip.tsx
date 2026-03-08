@@ -37,6 +37,7 @@ export function CreateDrip() {
   const [step, setStep] = useState<1 | 2>(1);
 
   // Form state
+  const [dripLabel, setDripLabel] = useState("");
   const [receiver, setReceiver] = useState("");
   const [payoutAmount, setPayoutAmount] = useState("");
   const [tokenName, setTokenName] = useState("");

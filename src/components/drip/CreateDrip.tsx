@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Droplets, Calendar, AlertCircle, Loader2, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getTokenLogoUrl, TOKEN_LOGO_PLACEHOLDER } from "@/lib/tokenLogos";
+import { setDripName } from "@/lib/dripNames";
 import {
   Select,
   SelectContent,

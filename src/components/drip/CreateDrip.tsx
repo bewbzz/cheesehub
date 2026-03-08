@@ -187,7 +187,12 @@ export function CreateDrip() {
       );
 
       if (depositResult.success) {
+        // Save drip name if provided
+        if (dripLabel.trim() && newDrip) {
+          setDripName(accountName, newDrip.ID, dripLabel.trim());
+        }
         // Reset form
+        setDripLabel("");
         setReceiver("");
         setPayoutAmount("");
         setTokenName("");

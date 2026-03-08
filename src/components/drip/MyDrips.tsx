@@ -264,6 +264,13 @@ function DripCard({
 
   // Countdown display
   const [countdown, setCountdown] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(() => getDripName(accountName, drip.ID));
+
+  const handleSaveName = () => {
+    saveDripName(accountName, drip.ID, nameValue);
+    setEditingName(false);
+  };
   useEffect(() => {
     const update = () => {
       const secs = getTimeUntilNextClaim(drip);

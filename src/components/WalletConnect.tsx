@@ -157,7 +157,7 @@ export function WalletConnect() {
             <span className="max-w-[120px] truncate">{accountName}</span>
             <span className="ml-2 text-cheese font-semibold flex items-center gap-1">
               <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
-              {cheeseBalance !== null ? cheeseBalance.toLocaleString() : '...'}
+              {cheeseBalance !== null ? cheeseBalance.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '...'}
             </span>
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>

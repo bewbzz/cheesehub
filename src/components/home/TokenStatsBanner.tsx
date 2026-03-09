@@ -183,7 +183,7 @@ export function TokenStatsBanner() {
                           className="text-xl font-bold text-foreground group-hover:text-cheese transition-colors"
                           title={`${formatFullNumber(stats?.nulledBalance ?? 0)} CHEESE sent to eosio.null`}
                         >
-                          {formatLargeNumber(stats?.nulledBalance ?? 0)} <span className="text-cheese">CHEESE</span>
+                          {formatFullNumber(stats?.nulledBalance ?? 0)} <span className="text-cheese">CHEESE</span>
                         </p>
                         <a
                           href="https://waxblock.io/account/eosio.null?code=cheeseburger&scope=eosio.null&table=accounts&lower_bound=&upper_bound=&limit=10&reverse=false#contract-tables"

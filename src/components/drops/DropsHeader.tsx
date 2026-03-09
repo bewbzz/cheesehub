@@ -70,7 +70,7 @@ export function DropsHeader() {
                 >
                   <div className="flex items-center gap-2">
                     <img src={cheeseLogo} alt="CHEESE" className="h-4 w-4" />
-                    <span className="font-medium text-primary">{cheeseBalance.toLocaleString()}</span>
+                    <span className="font-medium text-primary">{cheeseBalance.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</span>
                   </div>
                   <span className="text-muted-foreground">|</span>
                   <span className="max-w-[100px] truncate">{accountName}</span>

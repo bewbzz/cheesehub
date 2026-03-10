@@ -4,11 +4,11 @@ export default function Disclaimer() {
   return (
     <Layout>
       <div className="container max-w-3xl py-12 space-y-10">
-        <h1 className="text-3xl font-bold text-cheese">Disclaimer</h1>
+        <h1 className="text-3xl font-bold text-cheese">Clause</h1>
         <p className="text-sm text-muted-foreground">Last updated: March 2025</p>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">1. General Disclaimer</h2>
+          <h2 className="text-xl font-semibold text-foreground">1. General Clause</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is a community-built interface that provides access to decentralised applications and smart contracts on the WAX blockchain. The information presented on this platform is for general informational purposes only and does not constitute financial, legal, tax, or investment advice. No representation or warranty, express or implied, is made regarding the accuracy, completeness, or reliability of any content on this platform. Use of CHEESEHub is entirely at your own risk.
           </p>

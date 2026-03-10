@@ -4,7 +4,7 @@ export default function Disclaimer() {
   return (
     <Layout>
       <div className="container max-w-3xl py-12 space-y-10">
-        <h1 className="text-3xl font-bold text-cheese">Disclaimer</h1>
+        <h1 className="text-3xl font-bold text-cheese">Clause</h1>
         <p className="text-sm text-muted-foreground">Last updated: March 2025</p>
 
         <section className="space-y-3">

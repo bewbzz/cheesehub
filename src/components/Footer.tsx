@@ -37,7 +37,7 @@ export function Footer() {
           </Link>
           <span className="text-border">•</span>
           <Link to="/disclaimer" className="text-muted-foreground hover:text-cheese transition-colors">
-            Disclaimer
+            Clause
           </Link>
         </p>
       </div>

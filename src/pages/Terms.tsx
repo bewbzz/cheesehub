@@ -94,7 +94,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">11. Modifications to Terms</h2>
+          <h2 className="text-xl font-semibold text-foreground">12. Modifications to Terms</h2>
           <p className="text-muted-foreground leading-relaxed">
             These Terms of Use may be updated or modified at any time without prior notice. Changes will be effective immediately upon being published on this page. It is your responsibility to review these terms periodically. Your continued use of CHEESEHub after any modifications constitutes your acceptance of the updated terms.
           </p>

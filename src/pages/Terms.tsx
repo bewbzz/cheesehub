@@ -94,7 +94,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">11. Governing Law</h2>
+          <h2 className="text-xl font-semibold text-foreground">12. Governing Law</h2>
           <p className="text-muted-foreground leading-relaxed">
             These Terms of Use shall be governed by and construed in accordance with the applicable laws of the jurisdiction in which any dispute arises. Given the decentralised and global nature of the CHEESE DAO and the WAX blockchain, no specific jurisdiction is designated. Users are responsible for understanding and complying with the laws applicable to them in their own jurisdiction.
           </p>

@@ -87,12 +87,12 @@ function SharedBannerRotator({ banners }: { banners: ActiveBanner[] }) {
   return (
     <div className="relative">
       <div
-        className={`transition-opacity duration-[6000ms] ${activeIdx === 0 ? "opacity-100" : "opacity-0"}`}
+        className={`transition-opacity duration-[6000ms] ${activeIdx === 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}
       >
         <BannerImage banner={banners[0]} isShared={true} />
       </div>
       <div
-        className={`absolute inset-0 transition-opacity duration-[6000ms] ${activeIdx === 1 ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 transition-opacity duration-[6000ms] ${activeIdx === 1 ? "opacity-100" : "opacity-0 pointer-events-none"}`}
       >
         <BannerImage banner={banners[1]} isShared={true} />
       </div>

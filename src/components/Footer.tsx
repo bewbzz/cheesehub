@@ -32,6 +32,10 @@ export function Footer() {
             Advertise on CHEESEHub
           </Link>
           <span className="text-border">•</span>
+          <Link to="/terms" className="text-muted-foreground hover:text-cheese transition-colors">
+            Terms of Use
+          </Link>
+          <span className="text-border">•</span>
           <Link to="/disclaimer" className="text-muted-foreground hover:text-cheese transition-colors">
             Disclaimer
           </Link>

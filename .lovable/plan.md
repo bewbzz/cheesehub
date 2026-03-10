@@ -1,26 +1,33 @@
 
 
-## Terms of Use Page for CHEESEHub
+## Add Key Pair Generator to Create Account Section
 
-Create a `/terms` page covering platform usage terms, consistent with the existing Disclaimer page style and the project's decentralized, DAO-governed nature.
+### Overview
+Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
 
-### Content Sections
+### Design
+- A collapsible "Key Generator" section below the account name field (or above the key inputs)
+- "Generate New Key Pair" button that creates a random private/public key pair
+- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
+- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
+- Option to generate separate keys for owner and active, or use the same key for both
+- Warning banner: "Save your private key securely. It will not be shown again."
 
-1. **Acceptance of Terms** — by using CHEESEHub you agree to these terms; if you disagree, do not use the platform
-2. **Platform Description** — CHEESEHub is a community-built frontend for interacting with smart contracts on the WAX blockchain; it is not a custodial service
-3. **Eligibility** — users must be of legal age in their jurisdiction; users in restricted jurisdictions must not use the platform
-4. **User Responsibilities** — secure your own wallet and keys; you are solely responsible for all transactions; DYOR before interacting with any smart contract
-5. **Intellectual Property** — CHEESE branding and site content are community/DAO-owned; third-party content (NFTs, logos) belongs to respective owners
-6. **Prohibited Use** — no illegal activity, no exploiting smart contracts maliciously, no attempts to disrupt the platform
-7. **Third-Party Services** — the platform links to external services (Alcor, AtomicHub, etc.); CHEESEHub is not responsible for third-party platforms
-8. **No Warranties** — platform provided "as is" with no guarantees of uptime, accuracy, or availability
-9. **Limitation of Liability** — mirrors the disclaimer's liability clause (website owner, DAO, contributors)
-10. **Modifications** — terms may be updated at any time; continued use constitutes acceptance
-11. **Governing Law** — disputes governed by applicable law; no specific jurisdiction cited (consistent with generalized approach)
+### Implementation
 
-### Changes
+**File: `src/components/wallet/CreateAccountManager.tsx`**
 
-1. **Create `src/pages/Terms.tsx`** — styled identically to `Disclaimer.tsx` using `<Layout>`, same typography and spacing
-2. **Update `src/App.tsx`** — add route `/terms`
-3. **Update `src/components/Footer.tsx`** — add "Terms of Use" link alongside the Disclaimer link
+1. Import `PrivateKey` from `@wharfkit/session`
+2. Add state for generated key pairs (up to 2: one for owner, one for active)
+3. Add a `KeyGenerator` sub-component:
+   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
+   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
+   - Copy-to-clipboard buttons for each key
+   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
+   - "Use for Both" shortcut button
+4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
+5. Strong warning about saving the private key before proceeding
+
+### Security Note
+Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
 

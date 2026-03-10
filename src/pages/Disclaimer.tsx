@@ -29,6 +29,19 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">4. Open-Source Software &amp; Public Hosting</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            CHEESEHub is open-source software hosted publicly on GitHub. The entire source code of this frontend interface is freely available for inspection, review, and audit by any member of the public. CHEESEHub does not operate as a proprietary platform or commercial service — it is a community-maintained codebase that serves as an interface to independently deployed smart contracts on the WAX blockchain.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            All smart contracts accessible through CHEESEHub — including but not limited to <code className="text-cheese">cheeseburger</code>, <code className="text-cheese">cheesefeefee</code>, <code className="text-cheese">cheesebannad</code>, and <code className="text-cheese">cheeseamphub</code> — are deployed on the WAX blockchain and their source code is publicly available and auditable on-chain. Smart contracts on the WAX blockchain are inherently transparent; any user can independently verify the logic, permissions, and behaviour of any contract before interacting with it.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            While open-source transparency allows for public scrutiny and community-driven security review, it does not constitute a formal security audit. Open-source software is provided without warranty, and no guarantee is made that the code is free from bugs, vulnerabilities, or exploits. Users interact with all smart contracts and this interface entirely at their own risk, and are encouraged to conduct their own independent review of both the frontend code and any on-chain contracts before use.
+          </p>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">4. Financial Services</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub does not hold a financial services licence, authorisation, or registration in any jurisdiction. The platform is not regulated or supervised by any financial regulator, securities commission, or government authority. CHEESEHub does not provide financial product advice, deal in financial products, or operate as a financial services provider. Any interaction with tokens, smart contracts, or blockchain protocols through this platform is conducted on a peer-to-peer, permissionless basis.

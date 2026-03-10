@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
-import { CheeseSwapDialog } from '@/components/swap/CheeseSwapDialog';
 
 function formatPrice(price: number, decimals: number = 8): string {
   return price.toFixed(decimals);

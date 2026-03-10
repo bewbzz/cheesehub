@@ -62,13 +62,8 @@ export function CheesePriceBar() {
   return (
     <>
       <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
-        {/* CHEESE/WAX Price - Links to Alcor */}
-        <a
-          href="https://alcor.exchange/v/wax/swap?input=wax-eosio.token&output=cheese-cheeseburger"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
-        >
+        {/* CHEESE/WAX Price */}
+        <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
           <img src={waxToken} alt="WAX" className="w-6 h-6 rounded-full" />
           <div className="flex flex-col items-start">
             <span className="text-xs text-muted-foreground">CHEESE/WAX</span>
@@ -80,16 +75,10 @@ export function CheesePriceBar() {
               </span>
             )}
           </div>
-          <span className="text-xs text-cheese">Trade</span>
-        </a>
+        </div>
 
-        {/* CHEESE/USD Price - Links to Alcor */}
-        <a
-          href="https://alcor.exchange/v/wax/swap?input=waxusdc-eth.token&output=cheese-cheeseburger"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
-        >
+        {/* CHEESE/USD Price */}
+        <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">
           <span className="text-lg font-bold text-green-500">$</span>
           <div className="flex flex-col items-start">
             <span className="text-xs text-muted-foreground">CHEESE/USD</span>
@@ -101,8 +90,7 @@ export function CheesePriceBar() {
               </span>
             )}
           </div>
-          <span className="text-xs text-cheese">Trade</span>
-        </a>
+        </div>
 
       {/* Market Cap */}
       <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">

@@ -22,7 +22,14 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">3. Eligibility</h2>
+          <h2 className="text-xl font-semibold text-foreground">3. Immutable Token Contract</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            The CHEESE token is issued by the <code className="text-cheese">cheeseburger</code> smart contract on the WAX blockchain, whose owner and active keys have been permanently nulled to <code className="text-cheese">eosio.null</code>. This renders the contract immutable — it cannot be modified, upgraded, paused, or controlled by any party. No new tokens can be minted beyond the fixed maximum supply, and no tokens can be frozen or seized. You acknowledge that immutability means any bugs or unintended behaviour in the contract cannot be patched, and you accept this risk by using the platform.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">4. Eligibility</h2>
           <p className="text-muted-foreground leading-relaxed">
             You must be of legal age in your jurisdiction to use CHEESEHub. By using the platform, you represent and warrant that you meet this requirement. If the use of blockchain-based platforms, cryptocurrency, or digital assets is prohibited or restricted in your jurisdiction, you must not use CHEESEHub. It is your responsibility to ensure that your use of this platform complies with all applicable laws and regulations.
           </p>

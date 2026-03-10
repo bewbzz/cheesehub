@@ -22,6 +22,13 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">2. Immutable Token Contract</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            The CHEESE token is issued by the <code className="text-cheese">cheeseburger</code> smart contract on the WAX blockchain. The owner and active keys of this contract have been permanently nulled to <code className="text-cheese">eosio.null</code>, rendering the contract immutable. This means no individual, group, or entity — including the CHEESE DAO — has the ability to modify, upgrade, pause, or otherwise alter the contract's code or behaviour. No new tokens can be minted beyond the fixed maximum supply, and no tokens can be frozen, seized, or blacklisted. While immutability provides transparency and resistance to tampering, it also means that any bugs, vulnerabilities, or unintended behaviour in the contract cannot be patched or corrected.
+          </p>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">3. Financial Services</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub does not hold a financial services licence, authorisation, or registration in any jurisdiction. The platform is not regulated or supervised by any financial regulator, securities commission, or government authority. CHEESEHub does not provide financial product advice, deal in financial products, or operate as a financial services provider. Any interaction with tokens, smart contracts, or blockchain protocols through this platform is conducted on a peer-to-peer, permissionless basis.

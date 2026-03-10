@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { useCheesePriceData } from '@/hooks/useCheesePriceData';
 import { useCheeseStats } from '@/hooks/useCheeseStats';
 import { useCheeseTVL } from '@/hooks/useCheeseTVL';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import waxToken from '@/assets/wax-token.png';
-import { CheeseSwapDialog } from '@/components/swap/CheeseSwapDialog';
 
 function formatPrice(price: number, decimals: number = 8): string {
   return price.toFixed(decimals);
@@ -41,8 +39,6 @@ function formatWaxValue(value: number): string {
 }
 
 export function CheesePriceBar() {
-  const [swapOpen, setSwapOpen] = useState(false);
-  const [swapInputToken, setSwapInputToken] = useState<'WAX' | 'WAXUSDC'>('WAX');
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
   
@@ -65,12 +61,12 @@ export function CheesePriceBar() {
 
   return (
     <>
-      <CheeseSwapDialog open={swapOpen} onOpenChange={setSwapOpen} inputToken={swapInputToken} />
-      
       <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
-        {/* CHEESE/WAX Price - Click to open swap */}
-        <button
-          onClick={() => { setSwapInputToken('WAX'); setSwapOpen(true); }}
+        {/* CHEESE/WAX Price - Links to Alcor */}
+        <a
+          href="https://alcor.exchange/v/wax/swap?input=wax-eosio.token&output=cheese-cheeseburger"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
         >
           <img src={waxToken} alt="WAX" className="w-6 h-6 rounded-full" />
@@ -85,11 +81,13 @@ export function CheesePriceBar() {
             )}
           </div>
           <span className="text-xs text-cheese">Trade</span>
-        </button>
+        </a>
 
-        {/* CHEESE/USD Price - Click to open swap */}
-        <button
-          onClick={() => { setSwapInputToken('WAXUSDC'); setSwapOpen(true); }}
+        {/* CHEESE/USD Price - Links to Alcor */}
+        <a
+          href="https://alcor.exchange/v/wax/swap?input=waxusdc-eth.token&output=cheese-cheeseburger"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2 hover:from-cheese/20 hover:to-cheese-dark/20 hover:border-cheese/40 transition-colors group cursor-pointer"
         >
           <span className="text-lg font-bold text-green-500">$</span>
@@ -104,7 +102,7 @@ export function CheesePriceBar() {
             )}
           </div>
           <span className="text-xs text-cheese">Trade</span>
-        </button>
+        </a>
 
       {/* Market Cap */}
       <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">

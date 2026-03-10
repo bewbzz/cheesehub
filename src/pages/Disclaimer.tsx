@@ -46,9 +46,9 @@ export default function Disclaimer() {
           <h2 className="text-xl font-semibold text-foreground">6. Risk Warnings</h2>
           <ul className="list-disc list-inside text-muted-foreground leading-relaxed space-y-2">
             <li>Cryptocurrency markets are extremely volatile. The value of CHEESE and other tokens can fluctuate dramatically and may fall to zero.</li>
-            <li>Smart contracts may contain bugs, vulnerabilities, or exploits that could result in the partial or total loss of funds.</li>
+            <li>Smart contracts may contain bugs, vulnerabilities, or exploits that could result in the partial or total loss of funds. All smart contracts are auditable on chain and you are obligated to do your own research.</li>
             <li>Transactions on the blockchain are irreversible. There is no central authority, bank, or institution that can reverse or refund a transaction.</li>
-            <li>There is no deposit protection, insurance, or compensation scheme covering crypto assets on this platform.</li>
+            <li>There is no deposit protection, insurance, or compensation scheme covering crypto assets on the WAX Blockchain.</li>
             <li>Past performance is not indicative of future results. You should never invest more than you can afford to lose.</li>
           </ul>
         </section>
@@ -56,7 +56,7 @@ export default function Disclaimer() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">7. No Liability</h2>
           <p className="text-muted-foreground leading-relaxed">
-            To the fullest extent permitted by applicable law, the CHEESE DAO, its contributors, members, developers, and any individuals or entities associated with the development or maintenance of CHEESEHub accept no liability for any direct, indirect, incidental, consequential, or punitive damages arising from the use of this platform, the CHEESE token, or any associated smart contracts. This includes, but is not limited to, loss of funds, loss of profits, loss of data, or any other losses howsoever arising.
+            To the fullest extent permitted by applicable law, the owner of this website, the CHEESE DAO, its contributors, members, developers, and any individuals or entities associated with the development or maintenance of CHEESEHub accept no liability for any direct, indirect, incidental, consequential, or punitive damages arising from the use of this platform, the CHEESE token, or any associated smart contracts. This includes, but is not limited to, loss of funds, loss of profits, loss of data, or any other losses howsoever arising.
           </p>
         </section>
 

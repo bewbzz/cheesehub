@@ -29,6 +29,13 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">4. Open-Source Software &amp; Transparency</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            CHEESEHub is open-source software with its complete source code publicly hosted on GitHub. You acknowledge that: (a) the platform is a community-maintained codebase and not a proprietary commercial product; (b) all smart contracts accessible through CHEESEHub are deployed on the WAX blockchain with publicly available and on-chain auditable source code; (c) open-source availability does not constitute a formal security audit, and no guarantee is made that the code is free from bugs or vulnerabilities; and (d) you are responsible for independently reviewing any code — both frontend and on-chain contracts — before interacting with it. Any individual may fork, modify, or deploy their own instance of the CHEESEHub frontend independently.
+          </p>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">4. Eligibility</h2>
           <p className="text-muted-foreground leading-relaxed">
             You must be of legal age in your jurisdiction to use CHEESEHub. By using the platform, you represent and warrant that you meet this requirement. If the use of blockchain-based platforms, cryptocurrency, or digital assets is prohibited or restricted in your jurisdiction, you must not use CHEESEHub. It is your responsibility to ensure that your use of this platform complies with all applicable laws and regulations.

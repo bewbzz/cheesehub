@@ -60,7 +60,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">7. Prohibited Use</h2>
+          <h2 className="text-xl font-semibold text-foreground">8. Prohibited Use</h2>
           <p className="text-muted-foreground leading-relaxed">
             You agree not to use CHEESEHub for any unlawful purpose or in any way that could damage, disable, or impair the platform. Prohibited activities include, but are not limited to:
           </p>

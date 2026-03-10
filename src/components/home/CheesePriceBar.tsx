@@ -103,7 +103,6 @@ export function CheesePriceBar() {
           </div>
           <span className="text-xs text-cheese">Trade</span>
         </a>
-        </button>
 
       {/* Market Cap */}
       <div className="flex items-center gap-2 bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border border-cheese/20 rounded-lg px-4 py-2">

@@ -39,8 +39,6 @@ function formatWaxValue(value: number): string {
 }
 
 export function CheesePriceBar() {
-  const [swapOpen, setSwapOpen] = useState(false);
-  const [swapInputToken, setSwapInputToken] = useState<'WAX' | 'WAXUSDC'>('WAX');
   const { data: priceData, isLoading: priceLoading, error: priceError } = useCheesePriceData();
   const { data: stats, isLoading: statsLoading } = useCheeseStats();
   
@@ -63,8 +61,6 @@ export function CheesePriceBar() {
 
   return (
     <>
-      <CheeseSwapDialog open={swapOpen} onOpenChange={setSwapOpen} inputToken={swapInputToken} />
-      
       <div className="flex flex-wrap justify-center gap-4 md:gap-8 mt-6 mb-2">
         {/* CHEESE/WAX Price - Click to open swap */}
         <button

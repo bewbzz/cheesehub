@@ -27,9 +27,13 @@ export function Footer() {
           <span className="text-cheese">CHEESE</span>
           <span className="text-foreground">Hub</span> • Built on WAX • Powered by $CHEESE, WaxDAO and NFTHive Smart Contracts
         </p>
-        <p className="mt-4">
+        <p className="mt-4 flex justify-center gap-4">
           <Link to="/bannerads" className="text-cheese hover:text-cheese-dark transition-colors">
             Advertise on CHEESEHub
+          </Link>
+          <span className="text-border">•</span>
+          <Link to="/disclaimer" className="text-muted-foreground hover:text-cheese transition-colors">
+            Disclaimer
           </Link>
         </p>
       </div>

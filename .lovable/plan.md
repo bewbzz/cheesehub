@@ -1,28 +1,33 @@
 
 
-## Disclaimer Page for CHEESEHub (Generalized)
+## Add Key Pair Generator to Create Account Section
 
 ### Overview
-Create a `/disclaimer` page with comprehensive legal/tax disclaimer content. All references to Australian law, ASIC, AFSL, ATO, and the Corporations Act are removed. The content is generalized for a global audience while retaining all the same sections and substance.
+Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
 
-### Changes
+### Design
+- A collapsible "Key Generator" section below the account name field (or above the key inputs)
+- "Generate New Key Pair" button that creates a random private/public key pair
+- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
+- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
+- Option to generate separate keys for owner and active, or use the same key for both
+- Warning banner: "Save your private key securely. It will not be shown again."
 
-**1. Create `src/pages/Disclaimer.tsx`**
+### Implementation
 
-Full-page disclaimer using `<Layout>`, with these sections:
+**File: `src/components/wallet/CreateAccountManager.tsx`**
 
-1. **General Disclaimer** — CHEESEHub is a community-built interface; not financial, legal, or tax advice; no warranties
-2. **Nature of CHEESE** — memecoin with no intrinsic value; governed by a decentralized DAO with members worldwide; not a security or financial product under any jurisdiction
-3. **Financial Services** — CHEESEHub does not hold any financial services licence in any jurisdiction; does not provide regulated financial product advice; is not supervised by any financial regulator
-4. **Tax Obligations** — crypto assets may be treated as property, commodities, or otherwise depending on your jurisdiction; users are responsible for reporting gains/losses and maintaining records; goods and services taxes may apply; consult a qualified tax professional
-5. **International Users** — users must comply with all applicable laws and regulations in their own country or region
-6. **Risk Warnings** — extreme volatility, smart contract risk, total loss of funds possible, no recourse or deposit protection
-7. **No Liability** — the DAO, its contributors, and the platform accept no liability for any losses
-8. **Not Professional Advice** — users should seek independent legal, financial, and tax advice from qualified professionals in their jurisdiction
+1. Import `PrivateKey` from `@wharfkit/session`
+2. Add state for generated key pairs (up to 2: one for owner, one for active)
+3. Add a `KeyGenerator` sub-component:
+   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
+   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
+   - Copy-to-clipboard buttons for each key
+   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
+   - "Use for Both" shortcut button
+4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
+5. Strong warning about saving the private key before proceeding
 
-**2. Update `src/App.tsx`**
-- Import and add route: `<Route path="/disclaimer" element={<Disclaimer />} />`
-
-**3. Update `src/components/Footer.tsx`**
-- Add a "Disclaimer" link next to the existing "Advertise on CHEESEHub" link
+### Security Note
+Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
 

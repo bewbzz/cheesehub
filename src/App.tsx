@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import AdminGuide from "./pages/AdminGuide";
 import Drip from "./pages/Drip";
+import Disclaimer from "./pages/Disclaimer";
 
 const queryClient = new QueryClient();
 

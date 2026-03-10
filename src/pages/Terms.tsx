@@ -66,7 +66,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">7. Third-Party Services</h2>
+          <h2 className="text-xl font-semibold text-foreground">8. Third-Party Services</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub may contain links to or integrations with third-party services, including but not limited to Alcor Exchange, AtomicHub, WaxDAO, NFTHive, and blockchain wallet providers. These third-party services are not operated or controlled by CHEESEHub. We are not responsible for the content, privacy policies, terms of service, availability, or practices of any third-party platforms. Your use of third-party services is at your own risk and subject to their respective terms.
           </p>

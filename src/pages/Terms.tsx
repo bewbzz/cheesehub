@@ -36,7 +36,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">4. Eligibility</h2>
+          <h2 className="text-xl font-semibold text-foreground">5. Eligibility</h2>
           <p className="text-muted-foreground leading-relaxed">
             You must be of legal age in your jurisdiction to use CHEESEHub. By using the platform, you represent and warrant that you meet this requirement. If the use of blockchain-based platforms, cryptocurrency, or digital assets is prohibited or restricted in your jurisdiction, you must not use CHEESEHub. It is your responsibility to ensure that your use of this platform complies with all applicable laws and regulations.
           </p>

@@ -80,7 +80,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">9. No Warranties</h2>
+          <h2 className="text-xl font-semibold text-foreground">10. No Warranties</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is provided on an "as is" and "as available" basis without warranties of any kind, whether express or implied. No guarantee is made regarding the uptime, accuracy, completeness, reliability, or availability of the platform or any content displayed on it. CHEESEHub may be modified, updated, interrupted, suspended, or discontinued at any time without notice or liability.
           </p>

@@ -36,7 +36,7 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">4. Tax Obligations</h2>
+          <h2 className="text-xl font-semibold text-foreground">5. Tax Obligations</h2>
           <p className="text-muted-foreground leading-relaxed">
             The tax treatment of cryptocurrency and digital assets varies by jurisdiction. In many countries, crypto assets are treated as property, commodities, or taxable assets, and transactions involving them — including buying, selling, swapping, staking, or receiving rewards — may give rise to capital gains tax, income tax, goods and services tax, or other tax obligations. You are solely responsible for determining your own tax obligations, reporting all relevant transactions to the appropriate tax authority, and maintaining adequate records. CHEESEHub does not provide tax advice. You should consult a qualified tax professional in your jurisdiction before engaging in any cryptocurrency transactions.
           </p>

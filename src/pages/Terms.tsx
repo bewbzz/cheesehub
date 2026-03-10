@@ -36,7 +36,7 @@ export default function Terms() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">4. User Responsibilities</h2>
+          <h2 className="text-xl font-semibold text-foreground">5. User Responsibilities</h2>
           <ul className="list-disc list-inside text-muted-foreground leading-relaxed space-y-2">
             <li>You are solely responsible for the security of your blockchain wallet, private keys, and account credentials. CHEESEHub does not have access to your keys and cannot recover lost credentials.</li>
             <li>You are solely responsible for all transactions you initiate through the platform. All blockchain transactions are irreversible once confirmed.</li>

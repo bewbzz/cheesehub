@@ -95,9 +95,9 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">10. Not Professional Advice</h2>
+          <h2 className="text-xl font-semibold text-foreground">11. Not Professional Advice</h2>
           <p className="text-muted-foreground leading-relaxed">
-            Nothing on CHEESEHub constitutes legal, financial, tax, accounting, or investment advice. Before making any decisions related to cryptocurrency, you should seek independent professional advice from a qualified adviser licensed in your jurisdiction. Do not rely solely on information provided by this platform when making financial or tax decisions.
+            Nothing on CHEESEHub constitutes legal, financial, tax, accounting, or investment advice. Before making any decisions related to cryptocurrency, you should seek independent professional advice from a qualified adviser licensed in your jurisdiction. Do not rely solely on information provided by this platform when making financial or tax decisions. Nothing on this platform should be interpreted as a representation about the future value, performance, or suitability of any digital asset.
           </p>
         </section>
       </div>

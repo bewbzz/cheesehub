@@ -37,7 +37,7 @@ export function DropCard({ drop, isImageCached, onImageLoaded }: DropCardProps) 
   const [gatewayIndex, setGatewayIndex] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const racingRef = useRef(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mintedPercent = ((drop.totalSupply - drop.remaining) / drop.totalSupply) * 100;
   // Reset state when drop image changes
   useEffect(() => {

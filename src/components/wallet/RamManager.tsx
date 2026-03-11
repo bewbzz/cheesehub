@@ -40,7 +40,7 @@ export function RamManager({ resources, onTransactionComplete, onTransactionSucc
   const [isTransacting, setIsTransacting] = useState(false);
   const [ramPricePerByte, setRamPricePerByte] = useState<number | null>(null);
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Buy RAM state
   const [buyReceiver, setBuyReceiver] = useState('');

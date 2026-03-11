@@ -43,7 +43,7 @@ const DropDetail = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [authRequirements, setAuthRequirements] = useState<DropAuthRequirement[]>([]);
   const [selectedPriceIndex, setSelectedPriceIndex] = useState<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: drop, isLoading } = useQuery({
     queryKey: ['drop', id],

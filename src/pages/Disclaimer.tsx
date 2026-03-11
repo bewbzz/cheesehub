@@ -128,14 +128,7 @@ export default function Disclaimer() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-medium text-foreground">7.9 CHEESESwap</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                CHEESESwap embeds a swap widget powered by the <code className="text-cheese">swap.alcor</code> smart contract, which is owned and operated by Alcor Exchange — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. No additional CHEESE-specific fees are applied to swaps. Users interact directly with the Alcor contract and should review Alcor's own terms and disclosures before trading.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium text-foreground">7.10 CHEESEWallet</h3>
+              <h3 className="text-lg font-medium text-foreground">7.9 CHEESEWallet</h3>
               <p className="text-muted-foreground leading-relaxed">
                 CHEESEWallet is a client-side wallet management interface. It does not have its own smart contract and does not custody, store, or transmit private keys. All transactions are constructed in the browser and signed by the user's own wallet provider (Anchor Greymass or WAX Cloud Wallet). CHEESEWallet is a convenience interface — all actions it provides are also available directly through the user's wallet application.
               </p>

@@ -82,12 +82,19 @@ export default function Terms() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">9. Third-Party Services</h2>
           <p className="text-muted-foreground leading-relaxed">
-            CHEESEHub may contain links to or integrations with third-party services, including but not limited to Alcor Exchange, AtomicHub, WaxDAO, NFTHive, and blockchain wallet providers. These third-party services are not operated or controlled by CHEESEHub. We are not responsible for the content, privacy policies, terms of service, availability, or practices of any third-party platforms. Your use of third-party services is at your own risk and subject to their respective terms.
+            CHEESEHub may contain links to or integrations with third-party services, including but not limited to Alcor Exchange, AtomicHub, WaxDAO, NFTHive, and blockchain wallet providers. These third-party services are not operated or controlled by CHEESEHub. We are not responsible for the content, privacy policies, terms of service, availability, or practices of any third-party platforms. Your use of third-party services is at your own risk and subject to their respective terms. Any liquidity provision conducted via third-party decentralised exchanges such as Alcor Exchange is entirely self-directed and carries inherent risks including impermanent loss. No APR, APY, or return of any kind is promised or guaranteed by CHEESEHub.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">10. No Warranties</h2>
+          <h2 className="text-xl font-semibold text-foreground">10. Merchandise &amp; Consumer Protection</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Purchases of CHEESE NFTs and merchandise made through CHEESEShip are covered by applicable consumer protection laws. All goods purchased through the portal may be returned undamaged for a full refund at any time. You acknowledge that such purchases constitute consumer transactions and do not represent a financial investment, security, or speculative instrument.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">11. No Warranties</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is provided on an "as is" and "as available" basis without warranties of any kind, whether express or implied. No guarantee is made regarding the uptime, accuracy, completeness, reliability, or availability of the platform or any content displayed on it. CHEESEHub may be modified, updated, interrupted, suspended, or discontinued at any time without notice or liability.
           </p>

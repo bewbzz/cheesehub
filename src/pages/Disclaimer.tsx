@@ -22,9 +22,6 @@ export default function Disclaimer() {
           <p className="text-muted-foreground leading-relaxed">
             CHEESE was not issued through an initial coin offering (ICO), token sale, fundraising event, or any mechanism designed to raise capital for a commercial enterprise. The token does not represent equity, debt, a share of profits, or any contractual right against any person or entity. There is no expectation that the efforts of any individual, team, or issuer will generate returns for token holders — the token contract is immutable and no party has the ability to influence its supply, functionality, or value.
           </p>
-          <p className="text-muted-foreground leading-relaxed">
-            The CHEESENull feature — powered by the <code className="text-cheese">cheeseburner</code> smart contract — is a community-driven, voluntary function that claims accrued WAX vote rewards and distributes them across multiple ecosystem purposes. Not all value is used to purchase and burn CHEESE; a portion is restaked to sustain the contract's CPU resources, a portion funds network powerups via CHEESEUp (<code className="text-cheese">cheesepowerz</code>), and the remainder is swapped for CHEESE — of which a majority is permanently burned and a smaller portion is sent to the xCHEESE liquidity staking pool. This distribution is determined by fixed, immutable smart contract logic and cannot be altered by any party. The nulling of CHEESE should not, under any circumstances, be perceived or assumed to add value to the token. A reduction in circulating supply does not constitute, imply, or guarantee an increase in price, value, or financial return. No representation is made that participating in CHEESENull will result in any financial benefit to the participant or to any other token holder. CHEESENull exists as a community engagement and ecosystem infrastructure function — it is not a value-accrual mechanism, investment strategy, or managed fund.
-          </p>
         </section>
 
         <section className="space-y-3">
@@ -67,8 +64,91 @@ export default function Disclaimer() {
           </p>
         </section>
 
+        <section className="space-y-6">
+          <h2 className="text-xl font-semibold text-foreground">7. Platform Features &amp; dApps</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            CHEESEHub provides a unified interface to a variety of decentralised applications (dApps) deployed on the WAX blockchain. Each feature interacts with one or more independently deployed smart contracts. CHEESEHub does not own, operate, or control these contracts — it merely renders a user-friendly interface for constructing and signing transactions. The following subsections describe each feature and its relevant disclosures.
+          </p>
+
+          <div className="space-y-4 pl-4 border-l-2 border-cheese/20">
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.1 CHEESENull</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESENull is a community-driven, voluntary function powered by the <code className="text-cheese">cheeseburner</code> smart contract. It claims accrued WAX vote rewards and distributes them across multiple ecosystem purposes via fixed, immutable contract logic. Not all value is used to purchase and burn CHEESE — a portion is restaked to sustain the contract's CPU resources, a portion funds network powerups via CHEESEUp (<code className="text-cheese">cheesepowerz</code>), and the remainder is swapped for CHEESE, of which a majority is permanently burned and a smaller portion is sent to the xCHEESE liquidity staking pool. This distribution is determined entirely by on-chain logic and cannot be altered by any party. The nulling of CHEESE should not, under any circumstances, be perceived or assumed to add value to the token. A reduction in circulating supply does not constitute, imply, or guarantee an increase in price, value, or financial return. CHEESENull is a community engagement and ecosystem infrastructure function — it is not a value-accrual mechanism, investment strategy, or managed fund.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.2 CHEESEUp</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEUp is powered by the <code className="text-cheese">cheesepowerz</code> smart contract. Users send CHEESE to receive CPU and NET resources on the WAX blockchain. 100% of the CHEESE sent is permanently burned; the WAX used to fund the powerup comes from the contract's own reserves, which are replenished by other ecosystem functions. CHEESEUp is a utility function and does not constitute a financial service, exchange, or investment product.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.3 CHEESEAds</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEAds is powered by the <code className="text-cheese">cheesebannad</code> smart contract. Users may rent banner advertisement slots on CHEESEHub by paying a fee in WAX. Revenue collected by the contract is distributed via fixed, immutable contract logic across ecosystem functions including burning, powerups, and liquidity provision. CHEESEHub does not guarantee ad visibility, impressions, or any commercial outcome from renting a banner slot.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.4 CHEESEAmp</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEAmp is powered by the <code className="text-cheese">cheeseamphub</code> smart contract. It is a music NFT player that tracks play counts and distributes royalties to NFT creators based on on-chain logic. No fee is taken from listeners. CHEESEAmp is a community utility for music NFT holders and creators and does not constitute a streaming service, financial product, or investment mechanism.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.5 CHEESEFarm</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEFarm provides an interface to NFT staking farms powered by the <code className="text-cheese">farms.waxdao</code> smart contract, which is owned and operated by WaxDAO — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. Staking is non-custodial; NFTs remain in the user's wallet at all times. Farm creation fees paid in CHEESE are routed through the <code className="text-cheese">cheesefeefee</code> deterministic fee router. No return, yield, or reward rate is promised or guaranteed.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.6 CHEESEDao</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEDao provides an interface to decentralised autonomous organisation governance powered by the <code className="text-cheese">dao.waxdao</code> smart contract, which is owned and operated by WaxDAO — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. DAO creation fees paid in CHEESE are routed through the <code className="text-cheese">cheesefeefee</code> deterministic fee router. CHEESEHub does not control, moderate, or endorse any proposal, vote, or governance action taken through any DAO created via this interface.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.7 CHEESEDrops</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEDrops provides an interface to NFT drops powered by the <code className="text-cheese">nfthivedrops</code> smart contract, which is owned and operated by NFTHive — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. No CHEESE-specific fee routing applies to drops. Users interact directly with the NFTHive contract and are responsible for reviewing the terms of each individual drop before purchasing.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.8 CHEESELock</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESELock provides an interface to token and liquidity locking via the <code className="text-cheese">waxdaolocker</code> smart contract, which is owned and operated by WaxDAO — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. Locked tokens are held by the smart contract for the duration specified by the user. CHEESEHub does not have custody of locked tokens and cannot unlock, transfer, or modify any lock.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.9 CHEESESwap</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESESwap embeds a swap widget powered by the <code className="text-cheese">swap.alcor</code> smart contract, which is owned and operated by Alcor Exchange — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. No additional CHEESE-specific fees are applied to swaps. Users interact directly with the Alcor contract and should review Alcor's own terms and disclosures before trading.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium text-foreground">7.10 CHEESEWallet</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                CHEESEWallet is a client-side wallet management interface. It does not have its own smart contract and does not custody, store, or transmit private keys. All transactions are constructed in the browser and signed by the user's own wallet provider (Anchor Greymass or WAX Cloud Wallet). CHEESEWallet is a convenience interface — all actions it provides are also available directly through the user's wallet application.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed">
+            All features listed above are interfaces to independently deployed smart contracts on the WAX blockchain. CHEESEHub does not have custody of user funds at any time. All transactions are user-initiated, user-signed, and executed on-chain. Users interact with all dApps entirely at their own risk and are encouraged to independently verify the logic and permissions of any smart contract before use.
+          </p>
+        </section>
+
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">7. Liquidity Provision &amp; Farming</h2>
+          <h2 className="text-xl font-semibold text-foreground">8. Liquidity Provision &amp; Farming</h2>
           <p className="text-muted-foreground leading-relaxed">
             Liquidity provision on Alcor Exchange is a voluntary, self-directed activity. Users interact directly with Alcor's independently deployed smart contracts on the WAX blockchain — not with CHEESEHub. CHEESEHub merely provides an interface to view farming opportunities and construct transactions; it does not pool user funds, manage liquidity positions, or exercise day-to-day control over any user's assets.
           </p>
@@ -84,21 +164,21 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">8. Tax Obligations</h2>
+          <h2 className="text-xl font-semibold text-foreground">9. Tax Obligations</h2>
           <p className="text-muted-foreground leading-relaxed">
             The tax treatment of cryptocurrency and digital assets varies by jurisdiction. In many countries, crypto assets are treated as property, commodities, or taxable assets, and transactions involving them — including buying, selling, swapping, staking, or receiving rewards — may give rise to capital gains tax, income tax, goods and services tax, or other tax obligations. You are solely responsible for determining your own tax obligations, reporting all relevant transactions to the appropriate tax authority, and maintaining adequate records. CHEESEHub does not provide tax advice. You should consult a qualified tax professional in your jurisdiction before engaging in any cryptocurrency transactions.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">9. International Users</h2>
+          <h2 className="text-xl font-semibold text-foreground">10. International Users</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is accessible globally but makes no representation that its content or services are appropriate or available for use in any particular jurisdiction. Users are responsible for ensuring that their use of CHEESEHub complies with all applicable local, national, and international laws and regulations. If the use of this platform or any associated tokens is prohibited or restricted in your jurisdiction, you must not use them.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">10. Risk Warnings</h2>
+          <h2 className="text-xl font-semibold text-foreground">11. Risk Warnings</h2>
           <ul className="list-disc list-inside text-muted-foreground leading-relaxed space-y-2">
             <li>Cryptocurrency markets are extremely volatile. The value of CHEESE and other tokens can fluctuate dramatically and may fall to zero.</li>
             <li>Smart contracts may contain bugs, vulnerabilities, or exploits that could result in the partial or total loss of funds. All smart contracts are auditable on chain and you are obligated to do your own research.</li>
@@ -110,14 +190,14 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">11. Liability</h2>
+          <h2 className="text-xl font-semibold text-foreground">12. Liability</h2>
           <p className="text-muted-foreground leading-relaxed">
             To the fullest extent permitted by applicable law, the owner of this website, the CHEESE DAO, its contributors, members, developers, and any individuals or entities associated with the development or maintenance of CHEESEHub accept no liability for any direct, indirect, incidental, consequential, or punitive damages arising from the use of this platform, the CHEESE token, or any associated smart contracts. This includes, but is not limited to, loss of funds, loss of profits, loss of data, or any other losses howsoever arising.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">12. Not Professional Advice</h2>
+          <h2 className="text-xl font-semibold text-foreground">13. Not Professional Advice</h2>
           <p className="text-muted-foreground leading-relaxed">
             Nothing on CHEESEHub constitutes legal, financial, tax, accounting, or investment advice. Before making any decisions related to cryptocurrency, you should seek independent professional advice from a qualified adviser licensed in your jurisdiction. Do not rely solely on information provided by this platform when making financial or tax decisions. Nothing on this platform should be interpreted as a representation about the future value, performance, or suitability of any digital asset.
           </p>

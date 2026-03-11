@@ -114,9 +114,9 @@ export default function Disclaimer() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-medium text-foreground">7.7 CHEESEDrops</h3>
+              <h3 className="text-lg font-medium text-foreground">7.7 CHEESEShip</h3>
               <p className="text-muted-foreground leading-relaxed">
-                CHEESEDrops provides an interface to NFT drops powered by the <code className="text-cheese">nfthivedrops</code> smart contract, which is owned and operated by NFTHive — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. No CHEESE-specific fee routing applies to drops. Users interact directly with the NFTHive contract and are responsible for reviewing the terms of each individual drop before purchasing.
+                CHEESEShip provides an interface to NFT drops and CHEESE merchandise powered by the <code className="text-cheese">nfthivedrops</code> smart contract, which is owned and operated by NFTHive — a third party not affiliated with or controlled by CHEESEHub or the CHEESE DAO. Users may purchase CHEESE NFTs and merchandise through this portal. All goods purchased are covered by consumer protection laws and may be returned undamaged for a full refund at any time. No CHEESE-specific fee routing applies to purchases. Users interact directly with the NFTHive contract and are responsible for reviewing the terms of each individual drop or listing before purchasing.
               </p>
             </div>
 

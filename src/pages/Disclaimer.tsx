@@ -69,7 +69,7 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">7. International Users</h2>
+          <h2 className="text-xl font-semibold text-foreground">8. International Users</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is accessible globally but makes no representation that its content or services are appropriate or available for use in any particular jurisdiction. Users are responsible for ensuring that their use of CHEESEHub complies with all applicable local, national, and international laws and regulations. If the use of this platform or any associated tokens is prohibited or restricted in your jurisdiction, you must not use them.
           </p>

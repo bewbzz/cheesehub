@@ -53,6 +53,9 @@ export default function Terms() {
             <li>You acknowledge that some smart contracts accessible through CHEESEHub — notably the WaxDAO and NFTHive contracts — are built, owned, and controlled by other individuals or entities. In the case of any issues relating to these smart contracts, you should contact the owner/s of WaxDAO or NFTHive directly.</li>
             <li>You understand that features such as staking, farming, token locking, and NFT drops are direct on-chain interactions between you and independently deployed smart contracts on the WAX blockchain. CHEESEHub does not intermediate, execute, settle, or arrange these transactions on your behalf.</li>
             <li>You are responsible for determining whether your use of any feature on this platform constitutes a regulated activity in your jurisdiction, and for complying with all applicable laws and regulations accordingly.</li>
+            <li>You acknowledge that CHEESEHub does not hold a financial services licence in any jurisdiction and does not provide financial product advice, deal in financial products, or operate as a financial services provider.</li>
+            <li>You acknowledge that token burning or supply-reduction mechanisms (such as CHEESENull) do not constitute, imply, or guarantee an increase in price, value, or financial return. You accept that participation in such features is voluntary and carries no expectation of profit.</li>
+            <li>You acknowledge that certain platform actions involve deterministic on-chain fee routing via smart contracts (such as <code className="text-cheese">cheesefeefee</code>), which may automatically convert tokens as part of a single atomic transaction. These conversions are executed by fixed contract logic and do not constitute dealing or financial intermediation.</li>
           </ul>
         </section>
 
@@ -79,33 +82,40 @@ export default function Terms() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">9. Third-Party Services</h2>
           <p className="text-muted-foreground leading-relaxed">
-            CHEESEHub may contain links to or integrations with third-party services, including but not limited to Alcor Exchange, AtomicHub, WaxDAO, NFTHive, and blockchain wallet providers. These third-party services are not operated or controlled by CHEESEHub. We are not responsible for the content, privacy policies, terms of service, availability, or practices of any third-party platforms. Your use of third-party services is at your own risk and subject to their respective terms.
+            CHEESEHub may contain links to or integrations with third-party services, including but not limited to Alcor Exchange, AtomicHub, WaxDAO, NFTHive, and blockchain wallet providers. These third-party services are not operated or controlled by CHEESEHub. We are not responsible for the content, privacy policies, terms of service, availability, or practices of any third-party platforms. Your use of third-party services is at your own risk and subject to their respective terms. Any liquidity provision conducted via third-party decentralised exchanges such as Alcor Exchange is entirely self-directed and carries inherent risks including impermanent loss. No APR, APY, or return of any kind is promised or guaranteed by CHEESEHub.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">10. No Warranties</h2>
+          <h2 className="text-xl font-semibold text-foreground">10. Merchandise &amp; Consumer Protection</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Purchases of CHEESE NFTs and merchandise made through CHEESEShip are covered by applicable consumer protection laws. All goods purchased through the portal may be returned undamaged for a full refund at any time. You acknowledge that such purchases constitute consumer transactions and do not represent a financial investment, security, or speculative instrument.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">11. No Warranties</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is provided on an "as is" and "as available" basis without warranties of any kind, whether express or implied. No guarantee is made regarding the uptime, accuracy, completeness, reliability, or availability of the platform or any content displayed on it. CHEESEHub may be modified, updated, interrupted, suspended, or discontinued at any time without notice or liability.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">11. Limitation of Liability</h2>
+          <h2 className="text-xl font-semibold text-foreground">12. Limitation of Liability</h2>
           <p className="text-muted-foreground leading-relaxed">
             To the fullest extent permitted by applicable law, the owner of this website, the CHEESE DAO, its contributors, members, developers, and any individuals or entities associated with the development or maintenance of CHEESEHub accept no liability for any direct, indirect, incidental, consequential, or punitive damages arising from your use of, or inability to use, the platform. This includes, but is not limited to, loss of funds, loss of profits, loss of data, or any other losses howsoever arising.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">12. Modifications to Terms</h2>
+          <h2 className="text-xl font-semibold text-foreground">13. Modifications to Terms</h2>
           <p className="text-muted-foreground leading-relaxed">
             These Terms of Use may be updated or modified at any time without prior notice. Changes will be effective immediately upon being published on this page. It is your responsibility to review these terms periodically. Your continued use of CHEESEHub after any modifications constitutes your acceptance of the updated terms.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">13. Governing Law</h2>
+          <h2 className="text-xl font-semibold text-foreground">14. Governing Law</h2>
           <p className="text-muted-foreground leading-relaxed">
             These Terms of Use shall be governed by and construed in accordance with the applicable laws of the jurisdiction in which any dispute arises. Given the decentralised and global nature of the CHEESE DAO and the WAX blockchain, no specific jurisdiction is designated. Users are responsible for understanding and complying with the laws applicable to them in their own jurisdiction.
           </p>

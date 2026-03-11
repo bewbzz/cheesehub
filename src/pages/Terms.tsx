@@ -53,6 +53,9 @@ export default function Terms() {
             <li>You acknowledge that some smart contracts accessible through CHEESEHub — notably the WaxDAO and NFTHive contracts — are built, owned, and controlled by other individuals or entities. In the case of any issues relating to these smart contracts, you should contact the owner/s of WaxDAO or NFTHive directly.</li>
             <li>You understand that features such as staking, farming, token locking, and NFT drops are direct on-chain interactions between you and independently deployed smart contracts on the WAX blockchain. CHEESEHub does not intermediate, execute, settle, or arrange these transactions on your behalf.</li>
             <li>You are responsible for determining whether your use of any feature on this platform constitutes a regulated activity in your jurisdiction, and for complying with all applicable laws and regulations accordingly.</li>
+            <li>You acknowledge that CHEESEHub does not hold a financial services licence in any jurisdiction and does not provide financial product advice, deal in financial products, or operate as a financial services provider.</li>
+            <li>You acknowledge that token burning or supply-reduction mechanisms (such as CHEESENull) do not constitute, imply, or guarantee an increase in price, value, or financial return. You accept that participation in such features is voluntary and carries no expectation of profit.</li>
+            <li>You acknowledge that certain platform actions involve deterministic on-chain fee routing via smart contracts (such as <code className="text-cheese">cheesefeefee</code>), which may automatically convert tokens as part of a single atomic transaction. These conversions are executed by fixed contract logic and do not constitute dealing or financial intermediation.</li>
           </ul>
         </section>
 

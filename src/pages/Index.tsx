@@ -105,21 +105,6 @@ const Index = () => {
           </Card>
 
 
-          {/* xCHEESE */}
-          <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
-            <CardContent className="py-12 text-center">
-              <div className="h-16 w-16 rounded-full bg-cheese/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">✖️</span>
-              </div>
-              <h2 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><span><span className="text-foreground">x</span><span className="text-cheese">CHEESE</span></span><span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 leading-none">COMING SOON</span></h2>
-              <p className="text-muted-foreground max-w-sm mx-auto mb-6 select-none">
-                <span className="blur-[6px]">xCHEESE is a new collateralized Liquid Staking token that can never lose value in $CHEESE. xCHEESE earns $CHEESE from multiple different streams on CHEESEHub always increasing the $CHEESE backing of xCHEESE making xCHEESE holders effectively shareholders in the platform directly benefitting from increased revenue and usage</span>
-              </p>
-              <Button size="lg" className="bg-cheese/50 text-primary-foreground font-semibold cursor-not-allowed" disabled>
-                Coming Soon
-              </Button>
-            </CardContent>
-          </Card>
 
           {/* CHEESEFarm */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">

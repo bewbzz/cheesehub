@@ -63,16 +63,6 @@ export function Header() {
               <span className="text-base leading-none">⛔</span>
               CHEESENull
             </Link>
-            {/* CHEESEFaucet (external) */}
-            <a
-              href="https://cheeseonwax.github.io/tools/cheesefaucet.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-              <span className="text-base leading-none">🧀</span>
-              CHEESEFaucet
-            </a>
             {/* CHEESEFarm */}
             <Link
               to="/farm"

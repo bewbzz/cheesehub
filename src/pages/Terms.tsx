@@ -49,6 +49,8 @@ export default function Terms() {
             <li>You are solely responsible for all transactions you initiate through the platform. All blockchain transactions are irreversible once confirmed.</li>
             <li>You are obligated to do your own research (DYOR) before interacting with any smart contract, token, NFT, or decentralised application accessible through CHEESEHub.</li>
             <li>You acknowledge that you understand the risks associated with blockchain technology, cryptocurrency, and decentralised finance.</li>
+            <li>You acknowledge that CHEESEHub is in all instances solely a frontend portal to smart contracts on the WAX blockchain. Anyone could at any time build their own frontend to interact with these same contracts independently.</li>
+            <li>You acknowledge that some smart contracts accessible through CHEESEHub — notably the WaxDAO and NFTHive contracts — are built, owned, and controlled by other individuals or entities. In the case of any issues relating to these smart contracts, you should contact the owner/s of WaxDAO or NFTHive directly.</li>
           </ul>
         </section>
 

@@ -51,6 +51,8 @@ export default function Terms() {
             <li>You acknowledge that you understand the risks associated with blockchain technology, cryptocurrency, and decentralised finance.</li>
             <li>You acknowledge that CHEESEHub is in all instances solely a frontend portal to smart contracts on the WAX blockchain. Anyone could at any time build their own frontend to interact with these same contracts independently.</li>
             <li>You acknowledge that some smart contracts accessible through CHEESEHub — notably the WaxDAO and NFTHive contracts — are built, owned, and controlled by other individuals or entities. In the case of any issues relating to these smart contracts, you should contact the owner/s of WaxDAO or NFTHive directly.</li>
+            <li>You understand that features such as staking, farming, token locking, and NFT drops are direct on-chain interactions between you and independently deployed smart contracts on the WAX blockchain. CHEESEHub does not intermediate, execute, settle, or arrange these transactions on your behalf.</li>
+            <li>You are responsible for determining whether your use of any feature on this platform constitutes a regulated activity in your jurisdiction, and for complying with all applicable laws and regulations accordingly.</li>
           </ul>
         </section>
 

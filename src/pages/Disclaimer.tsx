@@ -70,6 +70,7 @@ export default function Disclaimer() {
             <li>Transactions on the blockchain are irreversible. There is no central authority, bank, or institution that can reverse or refund a transaction.</li>
             <li>There is no deposit protection, insurance, or compensation scheme covering crypto assets on the WAX Blockchain.</li>
             <li>Past performance is not indicative of future results. You should never invest more than you can afford to lose.</li>
+            <li>If you are inexperienced with blockchain or decentralised protocols, it is recommended that you proceed with extreme caution and even ask for help in the appropriate channels.</li>
           </ul>
         </section>
 

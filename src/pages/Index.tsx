@@ -64,7 +64,7 @@ const Index = () => {
           <h2 className="text-2xl md:text-3xl font-bold mb-4"><span className="text-cheese">CHEESE</span><span className="text-foreground">Tools</span></h2>
         </div>
 
-        {/* Grid of tools - 4x2 layout */}
+        {/* Grid of tools - top 8 in 2-col, bottom 3 centered */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* CHEESEUp */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
@@ -103,7 +103,6 @@ const Index = () => {
               </Button>
             </CardContent>
           </Card>
-
 
           {/* xCHEESE */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
@@ -215,7 +214,10 @@ const Index = () => {
               </Button>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Bottom 3 dApps - centered */}
+        <div className="grid md:grid-cols-3 gap-6 mt-6 max-w-full">
           {/* CHEESEWallet */}
           <Card className="bg-gradient-to-br from-cheese/10 via-background to-cheese-dark/10 border-cheese/20">
             <CardContent className="py-12 text-center">

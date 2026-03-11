@@ -17,7 +17,7 @@ export default function Disclaimer() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">2. Nature of CHEESE</h2>
           <p className="text-muted-foreground leading-relaxed">
-            CHEESE is a memecoin — a cryptocurrency token created primarily for entertainment and community engagement. It has no intrinsic value, is not backed by any asset or reserve, and carries no promise of return. CHEESE is governed by a decentralised autonomous organisation (DAO) with members located in countries around the world. CHEESE is not intended to be, and should not be treated as, a security, financial product, investment contract, or regulated instrument under the laws of any jurisdiction.
+            CHEESE is a memecoin — a cryptocurrency token created primarily for entertainment and community engagement. It has no intrinsic value, is not backed by any asset or reserve, and carries no promise of return. CHEESE is governed by a decentralised autonomous organisation (DAO) with members located in countries around the world. Any member of the DAO may, propose, vote on and even execute proposals should they pass. CHEESE is not intended to be, and should not be treated as, a security, financial product, investment contract, or regulated instrument under the laws of any jurisdiction.
           </p>
         </section>
 

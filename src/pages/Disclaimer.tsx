@@ -59,6 +59,9 @@ export default function Disclaimer() {
           <p className="text-muted-foreground leading-relaxed">
             Features such as staking, farming, token locking, and NFT drops are direct interactions between the user and independently deployed smart contracts on the WAX blockchain. CHEESEHub does not intermediate, execute, settle, or arrange these transactions. The user initiates and signs every action through their own wallet provider — CHEESEHub merely renders the interface. Any price information displayed on the platform is sourced from publicly available on-chain data and third-party decentralised exchanges (such as Alcor Exchange) for informational purposes only. Price displays do not constitute a recommendation, forecast, or representation about the future value or performance of any digital asset.
           </p>
+          <p className="text-muted-foreground leading-relaxed">
+            Certain platform operations — such as creating a DAO, opening a farm, or other fee-based actions — utilise a deterministic smart contract (<code className="text-cheese">cheesefeefee</code>) to perform atomic on-chain token conversions within a single user-signed transaction. For example, a user may pay a fee in CHEESE, and the contract automatically converts the necessary portion to the required token (e.g., WAXDAO) to complete the action. This conversion is executed by fixed, immutable contract logic — the contract does not exercise discretion, negotiate prices, select counterparties, or hold funds between transactions. If any step in the atomic transaction fails, the entire transaction reverts and the user retains their tokens. This automated fee routing is a deterministic utility function and does not constitute dealing, intermediation, market making, or the arrangement of deals in digital assets.
+          </p>
         </section>
 
         <section className="space-y-3">

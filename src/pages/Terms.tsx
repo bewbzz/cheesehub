@@ -57,7 +57,7 @@ export default function Terms() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">7. Intellectual Property</h2>
           <p className="text-muted-foreground leading-relaxed">
-            The CHEESE branding, logo, and original site content are community and DAO-owned. Third-party content displayed on the platform — including but not limited to NFTs, collection logos, token symbols, and external media — belongs to their respective owners. CHEESEHub does not claim ownership of any user-generated or third-party content displayed through the interface.
+            The CHEESE branding and logo are not trademarked and are not owned by any individual, entity, or organisation — anyone may freely use or display them. The site content is open-source software published on GitHub and freely accessible to everyone. Third-party content displayed on the platform — including but not limited to NFTs, collection logos, token symbols, and external media — belongs to their respective owners. CHEESEHub does not claim ownership of any user-generated or third-party content displayed through the interface.
           </p>
         </section>
 

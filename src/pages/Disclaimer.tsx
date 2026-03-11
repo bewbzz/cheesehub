@@ -62,21 +62,37 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">7. Tax Obligations</h2>
+          <h2 className="text-xl font-semibold text-foreground">7. Liquidity Provision &amp; Farming</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Liquidity provision on Alcor Exchange is a voluntary, self-directed activity. Users interact directly with Alcor's independently deployed smart contracts on the WAX blockchain — not with CHEESEHub. CHEESEHub merely provides an interface to view farming opportunities and construct transactions; it does not pool user funds, manage liquidity positions, or exercise day-to-day control over any user's assets.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            Users retain full custody and control of their funds at all times. They may join a liquidity pool, claim accrued rewards, or withdraw their funds at any time without restriction, lock-up period, or penalty. No annual percentage rate (APR), annual percentage yield (APY), or any other return is promised, guaranteed, or implied. Reward rates fluctuate based on on-chain conditions including pool depth, trading volume, and the total number of participants.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            The allocation of farming rewards is determined by the CHEESE DAO through decentralised community governance. Any member of the DAO may propose changes to reward allocations, and such proposals are decided by community vote — not by any centralised party, management team, or promoter. This governance model reinforces that no single entity directs, controls, or manages the returns available to liquidity providers.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            Providing liquidity serves a functional utility purpose: it supports the depth and stability of the CHEESE trading pair on Alcor Exchange, contributing to the overall health and security of the protocol's infrastructure on the WAX blockchain. Users should be aware of the risks associated with liquidity provision, including but not limited to impermanent loss, smart contract risk, and market volatility. Users are solely responsible for conducting their own research and assessing whether liquidity provision is appropriate for their circumstances.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">8. Tax Obligations</h2>
           <p className="text-muted-foreground leading-relaxed">
             The tax treatment of cryptocurrency and digital assets varies by jurisdiction. In many countries, crypto assets are treated as property, commodities, or taxable assets, and transactions involving them — including buying, selling, swapping, staking, or receiving rewards — may give rise to capital gains tax, income tax, goods and services tax, or other tax obligations. You are solely responsible for determining your own tax obligations, reporting all relevant transactions to the appropriate tax authority, and maintaining adequate records. CHEESEHub does not provide tax advice. You should consult a qualified tax professional in your jurisdiction before engaging in any cryptocurrency transactions.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">8. International Users</h2>
+          <h2 className="text-xl font-semibold text-foreground">9. International Users</h2>
           <p className="text-muted-foreground leading-relaxed">
             CHEESEHub is accessible globally but makes no representation that its content or services are appropriate or available for use in any particular jurisdiction. Users are responsible for ensuring that their use of CHEESEHub complies with all applicable local, national, and international laws and regulations. If the use of this platform or any associated tokens is prohibited or restricted in your jurisdiction, you must not use them.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">9. Risk Warnings</h2>
+          <h2 className="text-xl font-semibold text-foreground">10. Risk Warnings</h2>
           <ul className="list-disc list-inside text-muted-foreground leading-relaxed space-y-2">
             <li>Cryptocurrency markets are extremely volatile. The value of CHEESE and other tokens can fluctuate dramatically and may fall to zero.</li>
             <li>Smart contracts may contain bugs, vulnerabilities, or exploits that could result in the partial or total loss of funds. All smart contracts are auditable on chain and you are obligated to do your own research.</li>
@@ -88,14 +104,14 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">10. Liability</h2>
+          <h2 className="text-xl font-semibold text-foreground">11. Liability</h2>
           <p className="text-muted-foreground leading-relaxed">
             To the fullest extent permitted by applicable law, the owner of this website, the CHEESE DAO, its contributors, members, developers, and any individuals or entities associated with the development or maintenance of CHEESEHub accept no liability for any direct, indirect, incidental, consequential, or punitive damages arising from the use of this platform, the CHEESE token, or any associated smart contracts. This includes, but is not limited to, loss of funds, loss of profits, loss of data, or any other losses howsoever arising.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">11. Not Professional Advice</h2>
+          <h2 className="text-xl font-semibold text-foreground">12. Not Professional Advice</h2>
           <p className="text-muted-foreground leading-relaxed">
             Nothing on CHEESEHub constitutes legal, financial, tax, accounting, or investment advice. Before making any decisions related to cryptocurrency, you should seek independent professional advice from a qualified adviser licensed in your jurisdiction. Do not rely solely on information provided by this platform when making financial or tax decisions. Nothing on this platform should be interpreted as a representation about the future value, performance, or suitability of any digital asset.
           </p>

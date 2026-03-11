@@ -44,7 +44,7 @@ export default function Disclaimer() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold text-foreground">5. Financial Services</h2>
           <p className="text-muted-foreground leading-relaxed">
-            CHEESEHub does not hold a financial services licence, authorisation, or registration in any jurisdiction. The platform is not regulated or supervised by any financial regulator, securities commission, or government authority. CHEESEHub does not provide financial product advice, deal in financial products, or operate as a financial services provider. Any interaction with tokens, smart contracts, or blockchain protocols through this platform is conducted on a peer-to-peer, permissionless basis.
+            CHEESEHub does not hold a financial services licence, authorisation, or registration in any jurisdiction. The platform is not regulated or supervised by any financial regulator, securities commission, or government authority. CHEESEHub does not provide financial product advice, deal in financial products, or operate as a financial services provider. Any interaction with tokens, smart contracts, or blockchain protocols through this platform is conducted on a peer-to-peer, permissionless basis. At no time does CHEESEHub have custody of your assets nor your private keys. CHEESEWallet is merely an interface for your ACTUAL wallet (Anchor Greymass or WAX Cloud Wallet). All performable actions are actionable directly from these interfaces.
           </p>
         </section>
 

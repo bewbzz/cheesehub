@@ -19,6 +19,9 @@ export default function Disclaimer() {
           <p className="text-muted-foreground leading-relaxed">
             CHEESE is a memecoin — a cryptocurrency token created primarily for entertainment and community engagement. It has no intrinsic value, is not backed by any asset or reserve, and carries no promise of return. CHEESE is governed by a decentralised autonomous organisation (DAO) with members located in countries around the world. Any member of the DAO may, propose, vote on and even execute proposals should they pass. CHEESE is not intended to be, and should not be treated as, a security, financial product, investment contract, or regulated instrument under the laws of any jurisdiction.
           </p>
+          <p className="text-muted-foreground leading-relaxed">
+            CHEESE was not issued through an initial coin offering (ICO), token sale, fundraising event, or any mechanism designed to raise capital for a commercial enterprise. The token does not represent equity, debt, a share of profits, or any contractual right against any person or entity. There is no expectation that the efforts of any individual, team, or issuer will generate returns for token holders — the token contract is immutable and no party has the ability to influence its supply, functionality, or value.
+          </p>
         </section>
 
         <section className="space-y-3">

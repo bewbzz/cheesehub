@@ -52,7 +52,17 @@ export default function Disclaimer() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-foreground">6. Tax Obligations</h2>
+          <h2 className="text-xl font-semibold text-foreground">6. No Dealing, Advising or Market Making</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            CHEESEHub does not deal in digital assets, arrange for any person to deal in digital assets, make a market for digital assets, operate a financial market or exchange, or provide financial product advice of any kind. The platform is a passive, read-only interface that displays publicly available blockchain data and allows users to construct and sign their own transactions through their own wallets.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            Features such as staking, farming, token locking, and NFT drops are direct interactions between the user and independently deployed smart contracts on the WAX blockchain. CHEESEHub does not intermediate, execute, settle, or arrange these transactions. The user initiates and signs every action through their own wallet provider — CHEESEHub merely renders the interface. Any price information displayed on the platform is sourced from publicly available on-chain data and third-party decentralised exchanges (such as Alcor Exchange) for informational purposes only. Price displays do not constitute a recommendation, forecast, or representation about the future value or performance of any digital asset.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">7. Tax Obligations</h2>
           <p className="text-muted-foreground leading-relaxed">
             The tax treatment of cryptocurrency and digital assets varies by jurisdiction. In many countries, crypto assets are treated as property, commodities, or taxable assets, and transactions involving them — including buying, selling, swapping, staking, or receiving rewards — may give rise to capital gains tax, income tax, goods and services tax, or other tax obligations. You are solely responsible for determining your own tax obligations, reporting all relevant transactions to the appropriate tax authority, and maintaining adequate records. CHEESEHub does not provide tax advice. You should consult a qualified tax professional in your jurisdiction before engaging in any cryptocurrency transactions.
           </p>

@@ -42,7 +42,8 @@ export const PowerUpCard = ({
   accountName,
   cheeseBalance,
   onBalanceRefresh,
-  onStatsRefresh
+  onStatsRefresh,
+  onPowerUpSuccess
 }: PowerUpCardProps) => {
   const [cpuAmount, setCpuAmount] = useState("0");
   const [netAmount, setNetAmount] = useState("0");

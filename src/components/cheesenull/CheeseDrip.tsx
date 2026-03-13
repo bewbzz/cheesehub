@@ -10,7 +10,10 @@ interface Drip {
   width: number;
   delay: number;
   duration: number;
-  opacity: number;
+  maxHeight: number;
+  swayAmount: number;
+  swayDuration: number;
+  detaches: boolean;
 }
 
 export function CheeseDrip({ active }: CheeseDripProps) {
@@ -18,20 +21,27 @@ export function CheeseDrip({ active }: CheeseDripProps) {
 
   const drips = useMemo<Drip[]>(() => {
     if (!active) return [];
-    return Array.from({ length: 14 }, (_, i) => ({
+    // Cluster drips near edges with a few in the middle
+    const positions = [
+      2, 6, 11, 16, 25, 40, 55, 72, 84, 89, 94, 97,
+    ];
+    return positions.map((left, i) => ({
       id: i,
-      left: 3 + Math.random() * 94,
-      width: 6 + Math.random() * 14,
-      delay: Math.random() * 0.8,
-      duration: 2.5 + Math.random() * 2,
-      opacity: 0.7 + Math.random() * 0.3,
+      left: left + (Math.random() - 0.5) * 4,
+      width: 12 + Math.random() * 18,
+      delay: Math.random() * 2,
+      duration: 4 + Math.random() * 4,
+      maxHeight: 150 + Math.random() * 250,
+      swayAmount: 2 + Math.random() * 4,
+      swayDuration: 1.5 + Math.random() * 1.5,
+      detaches: Math.random() > 0.6,
     }));
   }, [active]);
 
   useEffect(() => {
     if (active) {
       setVisible(true);
-      const timer = setTimeout(() => setVisible(false), 4500);
+      const timer = setTimeout(() => setVisible(false), 10000);
       return () => clearTimeout(timer);
     }
   }, [active]);
@@ -40,6 +50,17 @@ export function CheeseDrip({ active }: CheeseDripProps) {
 
   return (
     <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+      {/* Top cheese coating bar */}
+      <div
+        className="absolute top-0 left-0 right-0"
+        style={{
+          height: '8px',
+          background: 'linear-gradient(to bottom, hsl(42, 90%, 48%), hsl(42, 90%, 50% / 0.6))',
+          borderRadius: '0 0 4px 4px',
+          animation: 'cheese-coat-in 0.4s ease-out forwards',
+        }}
+      />
+
       {drips.map((drip) => (
         <div
           key={drip.id}
@@ -47,42 +68,83 @@ export function CheeseDrip({ active }: CheeseDripProps) {
           style={{
             left: `${drip.left}%`,
             width: `${drip.width}px`,
-            opacity: drip.opacity,
-            animation: `cheese-drip ${drip.duration}s ease-in ${drip.delay}s forwards`,
+            transformOrigin: 'top center',
+            animation: `cheese-sway ${drip.swayDuration}s ease-in-out ${drip.delay}s infinite alternate`,
+            ['--sway' as string]: `${drip.swayAmount}px`,
           }}
         >
-          {/* Drip head blob */}
+          {/* Anchor bump at top */}
           <div
-            className="rounded-full mx-auto"
             style={{
-              width: `${drip.width}px`,
-              height: `${drip.width * 1.3}px`,
-              background: `radial-gradient(ellipse at 40% 30%, hsl(48, 100%, 65%), hsl(42, 90%, 50%) 50%, hsl(38, 80%, 35%))`,
-              animation: `cheese-blob ${0.6 + Math.random() * 0.4}s ease-in-out ${drip.delay}s infinite alternate`,
+              width: `${drip.width * 1.4}px`,
+              height: `${drip.width * 0.5}px`,
+              background: 'radial-gradient(ellipse at 50% 0%, hsl(42, 90%, 52%), hsl(40, 85%, 42%))',
+              borderRadius: '0 0 50% 50%',
+              margin: '0 auto',
             }}
           />
-          {/* Drip trail */}
+
+          {/* Stretching strand */}
           <div
-            className="mx-auto rounded-b-full"
             style={{
-              width: `${drip.width * 0.5}px`,
-              height: '80px',
-              background: `linear-gradient(to bottom, hsl(42, 90%, 50%), hsl(42, 90%, 50% / 0.3), transparent)`,
+              width: `${drip.width * 0.4}px`,
+              height: `${drip.maxHeight}px`,
+              margin: '0 auto',
               marginTop: '-2px',
+              transformOrigin: 'top center',
+              background: `linear-gradient(to bottom, 
+                hsl(42, 90%, 50%), 
+                hsl(42, 90%, 50%) 60%, 
+                ${drip.detaches ? 'hsl(42, 90%, 50% / 0.2)' : 'hsl(42, 90%, 50% / 0.5)'} 100%)`,
+              borderRadius: '0 0 3px 3px',
+              animation: `cheese-stretch ${drip.duration}s cubic-bezier(0.25, 0.1, 0.25, 1) ${drip.delay}s forwards`,
+            }}
+          />
+
+          {/* Bottom blob */}
+          <div
+            style={{
+              width: `${drip.width * 1.1}px`,
+              height: `${drip.width * 1.4}px`,
+              margin: '-4px auto 0',
+              background: `radial-gradient(ellipse at 40% 30%, 
+                hsl(48, 100%, 65%), 
+                hsl(42, 90%, 50%) 50%, 
+                hsl(38, 80%, 38%))`,
+              borderRadius: '40% 40% 50% 50%',
+              transformOrigin: 'top center',
+              animation: `cheese-bulge ${drip.duration}s cubic-bezier(0.25, 0.1, 0.25, 1) ${drip.delay}s forwards${drip.detaches ? `, cheese-detach ${drip.duration * 0.3}s ease-in ${drip.delay + drip.duration * 0.85}s forwards` : ''}`,
             }}
           />
         </div>
       ))}
 
       <style>{`
-        @keyframes cheese-drip {
-          0% { transform: translateY(-30px); opacity: 0; }
-          8% { opacity: 1; }
-          100% { transform: translateY(calc(100vh)); opacity: 0; }
+        @keyframes cheese-stretch {
+          0% { transform: scaleY(0.02); opacity: 0.8; }
+          10% { transform: scaleY(0.05); opacity: 1; }
+          40% { transform: scaleY(0.3); }
+          70% { transform: scaleY(0.7); }
+          100% { transform: scaleY(1); opacity: 0.9; }
         }
-        @keyframes cheese-blob {
-          0% { transform: scaleX(1) scaleY(1); }
-          100% { transform: scaleX(0.8) scaleY(1.2); }
+        @keyframes cheese-bulge {
+          0% { transform: scale(0.3); opacity: 0; }
+          15% { transform: scale(0.5); opacity: 1; }
+          50% { transform: scale(0.8) translateY(0); }
+          80% { transform: scale(1.1) translateY(4px); }
+          100% { transform: scale(1) translateY(2px); opacity: 0.9; }
+        }
+        @keyframes cheese-sway {
+          0% { transform: translateX(calc(var(--sway) * -1)); }
+          100% { transform: translateX(var(--sway)); }
+        }
+        @keyframes cheese-detach {
+          0% { transform: scale(1) translateY(0); opacity: 0.9; }
+          100% { transform: scale(0.6) translateY(120px); opacity: 0; }
+        }
+        @keyframes cheese-coat-in {
+          0% { transform: scaleX(0); opacity: 0; }
+          100% { transform: scaleX(1); opacity: 1; }
         }
       `}</style>
     </div>

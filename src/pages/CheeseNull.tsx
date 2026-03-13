@@ -17,7 +17,7 @@ export default function CheeseNull() {
   const handleBurnSuccess = useCallback(() => {
     refetchLeaderboard();
     setIsDripping(true);
-    setTimeout(() => setIsDripping(false), 4500);
+    setTimeout(() => setIsDripping(false), 10000);
   }, [refetchLeaderboard]);
 
   return (

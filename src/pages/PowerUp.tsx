@@ -35,6 +35,7 @@ const PowerUp = () => {
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
+        <CheeseDrip active={isDripping} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
@@ -73,6 +74,7 @@ const PowerUp = () => {
           cheeseBalance={cheeseBalance}
           onBalanceRefresh={refreshBalance}
           onStatsRefresh={refetchStats}
+          onPowerUpSuccess={handlePowerUpSuccess}
         />
 
         <PowerupLeaderboard rawActions={rawActions} isLoading={lbLoading} isError={lbError} onRefresh={() => refetchLeaderboard()} />

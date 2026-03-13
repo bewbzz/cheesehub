@@ -32,6 +32,7 @@ interface PowerUpCardProps {
   cheeseBalance: number;
   onBalanceRefresh?: () => void;
   onStatsRefresh?: () => void;
+  onPowerUpSuccess?: () => void;
 }
 
 export const PowerUpCard = ({

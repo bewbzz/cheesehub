@@ -1,30 +1,25 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { NullStats } from '@/components/cheesenull/NullStats';
 import { NullButton } from '@/components/cheesenull/NullButton';
 import { NullTotalStats } from '@/components/cheesenull/NullTotalStats';
 import { NullerLeaderboard } from '@/components/cheesenull/NullerLeaderboard';
-import { CheeseDrip } from '@/components/cheesenull/CheeseDrip';
 import { useNullerLeaderboard } from '@/hooks/useNullerLeaderboard';
 import cheeseNullLogo from '@/assets/cheesenull.png';
 import { playRandomFart } from '@/lib/fartSounds';
 
 export default function CheeseNull() {
   const [canClaim, setCanClaim] = useState(false);
-  const [isDripping, setIsDripping] = useState(false);
   const { rawActions, isLoading: lbLoading, isError: lbError, refetch: refetchLeaderboard } = useNullerLeaderboard();
 
-  const handleBurnSuccess = useCallback(() => {
+  const handleBurnSuccess = () => {
     refetchLeaderboard();
-    setIsDripping(true);
-    setTimeout(() => setIsDripping(false), 10000);
-  }, [refetchLeaderboard]);
+  };
 
   return (
     <Layout floatingLogo={cheeseNullLogo}>
       <section className="container py-12 md:py-20">
-        <div className="relative overflow-hidden flex flex-col items-center gap-8">
-          <CheeseDrip active={isDripping} />
+        <div className="flex flex-col items-center gap-8">
           {/* Floating Cheese Orb */}
           <div
             className="h-32 w-32 animate-float cheese-bubble rounded-full flex items-center justify-center cursor-pointer"

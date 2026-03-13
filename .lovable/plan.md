@@ -1,33 +1,29 @@
 
 
-## Add Key Pair Generator to Create Account Section
+## Drippy Cheese Animation on Null Success
 
-### Overview
-Add a "Generate Key Pair" button that creates a random EOS/WAX key pair (private + public) using the `PrivateKey` class already available from `@wharfkit/session` (installed dependency). Users can generate keys and optionally auto-fill the Owner/Active key fields, similar to WaxBlock's wallet utilities.
+When a successful null/burn transaction completes, gooey drippy yellow cheese will drip from the top edges of the main container, flowing down the sides.
 
-### Design
-- A collapsible "Key Generator" section below the account name field (or above the key inputs)
-- "Generate New Key Pair" button that creates a random private/public key pair
-- Display the generated private key (WIF format) and public key (PUB_K1_ format) with copy buttons
-- "Use as Owner Key" and "Use as Active Key" buttons to auto-fill the respective fields
-- Option to generate separate keys for owner and active, or use the same key for both
-- Warning banner: "Save your private key securely. It will not be shown again."
+### Approach
 
-### Implementation
+**1. New component: `src/components/cheesenull/CheeseDrip.tsx`**
+- Renders 10-15 absolutely-positioned "drip" elements along the top edge of the container
+- Each drip is a CSS-animated yellow/gold blob that stretches and slides downward with varying delays, speeds, and sizes for organic randomness
+- Uses CSS `border-radius` tricks + `@keyframes` to create the gooey dripping effect (elongating blobs that stretch, drip, and fade out)
+- Component accepts `active: boolean` prop — when true, drips animate for ~4 seconds then auto-dismiss
+- Pure CSS animation, no video file needed (the uploaded video is reference only)
 
-**File: `src/components/wallet/CreateAccountManager.tsx`**
+**2. Wire into CheeseNull page (`src/pages/CheeseNull.tsx`)**
+- Add `isDripping` state, set to `true` in `handleBurnSuccess`, auto-reset after ~4s
+- Wrap the main content `<div>` in a `relative overflow-hidden` container
+- Render `<CheeseDrip active={isDripping} />` inside that container
 
-1. Import `PrivateKey` from `@wharfkit/session`
-2. Add state for generated key pairs (up to 2: one for owner, one for active)
-3. Add a `KeyGenerator` sub-component:
-   - "Generate Key Pair" button calls `PrivateKey.generate('K1')` 
-   - Displays private key (`.toWif()`) and public key (`.toPublic().toString()`) 
-   - Copy-to-clipboard buttons for each key
-   - "Use as Owner Key" / "Use as Active Key" buttons that call `setOwnerKey` / `setActiveKey` with the public key
-   - "Use for Both" shortcut button
-4. Styled with a bordered card/section with a key icon, matching the existing cheese theme
-5. Strong warning about saving the private key before proceeding
+**3. CSS keyframes (in the component or `index.css`)**
+- `cheese-drip`: translateY from -100% to 120vh with scaleX oscillation for gooey wobble
+- `cheese-drip-blob`: subtle pulsing scale for the drip head
+- Colors: `hsl(42, 90%, 50%)` to `hsl(38, 80%, 35%)` gradient (cheese theme tokens)
 
-### Security Note
-Key generation happens entirely client-side using the WharfKit crypto library. No private keys are transmitted anywhere.
+### Files
+- **Create** `src/components/cheesenull/CheeseDrip.tsx`
+- **Edit** `src/pages/CheeseNull.tsx` — add drip state + component
 

@@ -145,6 +145,7 @@ export const PowerUpCard = ({
 
       onBalanceRefresh?.();
       onStatsRefresh?.();
+      onPowerUpSuccess?.();
 
       setCpuAmount("0");
       setNetAmount("0");

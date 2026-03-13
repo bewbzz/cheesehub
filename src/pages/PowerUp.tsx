@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { PowerUpCard } from "@/components/powerup/PowerUpCard";
 import { PowerupStatsBar } from "@/components/powerup/PowerupStatsBar";
@@ -5,6 +6,7 @@ import { useWax } from "@/context/WaxContext";
 import { usePowerupStats } from "@/hooks/usePowerupStats";
 import { usePowerupLeaderboard } from "@/hooks/usePowerupLeaderboard";
 import { PowerupLeaderboard } from "@/components/powerup/PowerupLeaderboard";
+import { CheeseDrip } from "@/components/cheesenull/CheeseDrip";
 import cheeseUpLogo from "@/assets/cheeseup.png";
 import cheeseUpOrb from "@/assets/cheeseup-2.png";
 import { playRandomFart } from "@/lib/fartSounds";
@@ -13,6 +15,12 @@ const PowerUp = () => {
   const { isConnected, accountName, isLoading, session, cheeseBalance, login, logout, refreshBalance } = useWax();
   const { stats, isLoading: statsLoading, refetch: refetchStats } = usePowerupStats();
   const { rawActions, isLoading: lbLoading, isError: lbError, refetch: refetchLeaderboard } = usePowerupLeaderboard();
+  const [isDripping, setIsDripping] = useState(false);
+
+  const handlePowerUpSuccess = useCallback(() => {
+    setIsDripping(true);
+    setTimeout(() => setIsDripping(false), 10000);
+  }, []);
 
   const handleConnectWallet = async () => {
     if (isConnected) {
@@ -27,6 +35,7 @@ const PowerUp = () => {
 
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
+        <CheeseDrip active={isDripping} />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent" />
         <div className="container relative z-10">
            <div className="flex flex-col items-center gap-8">
@@ -65,6 +74,7 @@ const PowerUp = () => {
           cheeseBalance={cheeseBalance}
           onBalanceRefresh={refreshBalance}
           onStatsRefresh={refetchStats}
+          onPowerUpSuccess={handlePowerUpSuccess}
         />
 
         <PowerupLeaderboard rawActions={rawActions} isLoading={lbLoading} isError={lbError} onRefresh={() => refetchLeaderboard()} />

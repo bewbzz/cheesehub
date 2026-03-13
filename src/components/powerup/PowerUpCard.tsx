@@ -32,6 +32,7 @@ interface PowerUpCardProps {
   cheeseBalance: number;
   onBalanceRefresh?: () => void;
   onStatsRefresh?: () => void;
+  onPowerUpSuccess?: () => void;
 }
 
 export const PowerUpCard = ({
@@ -41,7 +42,8 @@ export const PowerUpCard = ({
   accountName,
   cheeseBalance,
   onBalanceRefresh,
-  onStatsRefresh
+  onStatsRefresh,
+  onPowerUpSuccess
 }: PowerUpCardProps) => {
   const [cpuAmount, setCpuAmount] = useState("0");
   const [netAmount, setNetAmount] = useState("0");
@@ -143,6 +145,7 @@ export const PowerUpCard = ({
 
       onBalanceRefresh?.();
       onStatsRefresh?.();
+      onPowerUpSuccess?.();
 
       setCpuAmount("0");
       setNetAmount("0");

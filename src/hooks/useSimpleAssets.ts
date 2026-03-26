@@ -11,6 +11,8 @@ export interface SimpleAsset {
   image: string;
   idata: Record<string, unknown>;
   mdata: Record<string, unknown>;
+  container: unknown[];
+  containerf: unknown[];
 }
 
 interface RawSAsset {
@@ -104,6 +106,8 @@ export function useSimpleAssets(account: string | null) {
           image,
           idata,
           mdata,
+          container: row.container || [],
+          containerf: row.containerf || [],
         };
       });
 

@@ -8,6 +8,25 @@ interface SimpleAssetCardProps {
   onClick: () => void;
 }
 
+function getMintInfo(asset: SimpleAsset): string | null {
+  const combined = { ...asset.idata, ...asset.mdata };
+  const mintKeys = ['edition', 'mint', 'serial', 'num', 'mint_num'];
+
+  for (const key of mintKeys) {
+    const val = combined[key];
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      const str = String(val);
+      // "34/356" format — show as-is
+      if (str.includes('/')) return str;
+      // Check for companion supply field
+      const supply = combined.maxsupply ?? combined.max_supply ?? combined.supply;
+      if (supply !== undefined && supply !== null) return `#${str} / ${supply}`;
+      return `#${str}`;
+    }
+  }
+  return null;
+}
+
 export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
   const [imgError, setImgError] = useState(false);
@@ -27,6 +46,9 @@ export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
     if (hash && gatewayIdx > 0) return `${IPFS_GATEWAYS[gatewayIdx]}${hash}`;
     return asset.image;
   })();
+
+  const mintInfo = getMintInfo(asset);
+  const hasContained = asset.container.length > 0 || asset.containerf.length > 0;
 
   return (
     <Card
@@ -51,6 +73,20 @@ export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
           </span>
           <span className="text-[10px] text-muted-foreground">#{asset.id}</span>
         </div>
+        {(mintInfo || hasContained) && (
+          <div className="flex items-center gap-1.5 pt-0.5">
+            {mintInfo && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                {mintInfo}
+              </span>
+            )}
+            {hasContained && (
+              <span className="text-[10px] text-muted-foreground" title="Contains attached assets">
+                📎
+              </span>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

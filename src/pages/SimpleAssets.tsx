@@ -7,14 +7,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useWax } from '@/context/WaxContext';
 import { useSimpleAssets } from '@/hooks/useSimpleAssets';
+import { useGpkPacks } from '@/hooks/useGpkPacks';
 import { SimpleAssetCard } from '@/components/simpleassets/SimpleAssetCard';
 import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDetailDialog';
+import { GpkPackCard } from '@/components/simpleassets/GpkPackCard';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 export default function SimpleAssets() {
   const { accountName, isConnected, login } = useWax();
   const { assets, isLoading, error } = useSimpleAssets(accountName);
-
+  const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
   const [authorFilter, setAuthorFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -101,6 +103,18 @@ export default function SimpleAssets() {
               {/* Error */}
               {error && (
                 <p className="text-center text-destructive py-8">Error: {error}</p>
+              )}
+
+              {/* GPK Topps Packs */}
+              {!packsLoading && packs.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-xl font-semibold text-foreground">GPK Topps Packs</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {packs.map((pack) => (
+                      <GpkPackCard key={pack.symbol} pack={pack} />
+                    ))}
+                  </div>
+                </div>
               )}
 
               {/* Results */}

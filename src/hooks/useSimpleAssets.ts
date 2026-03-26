@@ -111,6 +111,7 @@ export function useSimpleAssets(account: string | null) {
         };
       });
 
+      parsed.sort((a, b) => Number(BigInt(a.id) - BigInt(b.id)));
       setAssets(parsed);
     } catch (err) {
       console.error('[SimpleAssets] Failed to fetch:', err);

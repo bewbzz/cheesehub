@@ -16,7 +16,7 @@ import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 export default function SimpleAssets() {
   const { accountName, isConnected, login } = useWax();
   const { assets, isLoading, error } = useSimpleAssets(accountName);
-
+  const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
   const [authorFilter, setAuthorFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');

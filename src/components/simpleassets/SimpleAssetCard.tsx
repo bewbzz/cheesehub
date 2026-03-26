@@ -48,7 +48,7 @@ export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
   })();
 
   const mintInfo = getMintInfo(asset);
-  const hasContained = asset.container.length > 0 || asset.containerf.length > 0;
+  const hasContained = (asset.container?.length ?? 0) > 0 || (asset.containerf?.length ?? 0) > 0;
 
   return (
     <Card

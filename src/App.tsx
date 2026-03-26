@@ -21,6 +21,7 @@ import AdminGuide from "./pages/AdminGuide";
 import Drip from "./pages/Drip";
 import Disclaimer from "./pages/Disclaimer";
 import Terms from "./pages/Terms";
+import SimpleAssets from "./pages/SimpleAssets";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => {
                 <Route path="/admin/guide" element={<AdminGuide />} />
                 <Route path="/disclaimer" element={<Disclaimer />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/simpleassets" element={<SimpleAssets />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

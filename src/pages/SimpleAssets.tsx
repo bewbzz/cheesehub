@@ -105,6 +105,18 @@ export default function SimpleAssets() {
                 <p className="text-center text-destructive py-8">Error: {error}</p>
               )}
 
+              {/* GPK Topps Packs */}
+              {!packsLoading && packs.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-xl font-semibold text-foreground">GPK Topps Packs</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {packs.map((pack) => (
+                      <GpkPackCard key={pack.symbol} pack={pack} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Results */}
               {!isLoading && !error && (
                 <>

@@ -7,8 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useWax } from '@/context/WaxContext';
 import { useSimpleAssets } from '@/hooks/useSimpleAssets';
+import { useGpkPacks } from '@/hooks/useGpkPacks';
 import { SimpleAssetCard } from '@/components/simpleassets/SimpleAssetCard';
 import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDetailDialog';
+import { GpkPackCard } from '@/components/simpleassets/GpkPackCard';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 export default function SimpleAssets() {

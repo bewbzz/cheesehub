@@ -78,7 +78,7 @@ export default function SimpleAssets() {
 
   useEffect(() => {
     setCustomOrder(null);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, sourceFilter]);
 
   const gridSlots = useMemo(() => {
     const base = customOrder ?? filtered.map((a) => a.id);

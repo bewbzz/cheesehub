@@ -37,28 +37,25 @@ export default function SimpleAssets() {
   const { assets, isLoading, error } = useSimpleAssets(accountName);
   const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
-  const [authorFilter, setAuthorFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
   const [customOrder, setCustomOrder] = useState<string[] | null>(null);
   const dragSourceIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  const authors = useMemo(() => [...new Set(assets.map((a) => a.author))].sort(), [assets]);
   const categories = useMemo(() => [...new Set(assets.map((a) => a.category))].sort(), [assets]);
 
   const filtered = useMemo(() => {
     return assets.filter((a) => {
       if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.id.includes(search)) return false;
-      if (authorFilter !== 'all' && a.author !== authorFilter) return false;
       if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
       return true;
     });
-  }, [assets, search, authorFilter, categoryFilter]);
+  }, [assets, search, categoryFilter]);
 
   useEffect(() => {
     setCustomOrder(null);
-  }, [search, authorFilter, categoryFilter]);
+  }, [search, categoryFilter]);
 
   const gridSlots = useMemo(() => {
     const base = customOrder ?? filtered.map((a) => a.id);
@@ -106,8 +103,8 @@ export default function SimpleAssets() {
       <div className="min-h-screen">
         <div className="container py-8 space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">SimpleAssets NFT Viewer</h1>
-            <p className="text-muted-foreground mt-1">View your legacy SimpleAssets NFTs stored on-chain. Drag cards to reorder them.</p>
+            <h1 className="text-3xl font-bold text-foreground">GPK Topps Collection</h1>
+            <p className="text-muted-foreground mt-1">View and organize your Garbage Pail Kids cards. Drag cards to reorder them.</p>
           </div>
 
           {!isConnected ? (
@@ -129,17 +126,6 @@ export default function SimpleAssets() {
                     className="pl-9"
                   />
                 </div>
-                <Select value={authorFilter} onValueChange={setAuthorFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Author" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Authors</SelectItem>
-                    {authors.map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Category" />

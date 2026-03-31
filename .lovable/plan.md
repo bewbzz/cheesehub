@@ -1,30 +1,28 @@
 
 
-## Surface Additional Asset Metadata
+## Add Drag-and-Drop Card Reordering (Swap)
 
-### What's available
-SimpleAssets' `sassets` table has no native mint-number or max-supply field. However:
-- Many authors embed fields like `mint`, `edition`, `serial`, `supply`, `maxsupply`, `backimg`, `video` etc. inside `idata`/`mdata` JSON
-- `container` and `containerf` arrays hold attached NFTs/FTs (nested assets)
+### Approach
+Use the native HTML5 Drag and Drop API (no new dependencies) to allow users to drag a card onto another, swapping their positions in the grid.
 
 ### Changes
 
-**1. `src/components/simpleassets/SimpleAssetCard.tsx`**
-- After category/ID row, show a mint badge if any of these keys exist in combined idata+mdata: `mint`, `serial`, `edition`, `num`, `mint_num`
-- If a field like `edition` contains "34/356" format, display as-is
-- If separate `mint` and `maxsupply`/`supply` fields exist, show "Mint #34 / 356"
-- Show a small "📎" indicator if `container` or `containerf` is non-empty
+**1. `src/pages/SimpleAssets.tsx`**
+- Add a `customOrder` state (`string[]` of asset IDs) initialized from `filtered` results
+- When `customOrder` is set, use it to reorder `filtered` for display
+- Pass `onDragStart`, `onDragOver`, `onDrop` handlers to each `SimpleAssetCard`
+- On drop: swap the dragged card's position with the drop target's position in `customOrder`
+- Reset `customOrder` when filters/search change
 
-**2. `src/hooks/useSimpleAssets.ts`**
-- Add `container` and `containerf` to the `SimpleAsset` interface (as arrays)
-- Pass them through from the raw row data
+**2. `src/components/simpleassets/SimpleAssetCard.tsx`**
+- Accept optional drag props: `draggable`, `onDragStart`, `onDragOver`, `onDrop`, `onDragEnd`
+- Add `draggable` attribute to the Card
+- Add visual feedback: highlight border/opacity change when dragging or when a card is a valid drop target
+- Prevent the drag from triggering the `onClick` (detail dialog)
 
-**3. `src/components/simpleassets/SimpleAssetDetailDialog.tsx`**
-- Add a "Mint Info" row at the top of metadata if mint/edition fields are detected
-- Add a "Contained Assets" section if container/containerf arrays are non-empty, showing count and IDs
-
-### Files
-- **Modified**: `src/hooks/useSimpleAssets.ts` — expand interface, pass container fields
-- **Modified**: `src/components/simpleassets/SimpleAssetCard.tsx` — show mint badge
-- **Modified**: `src/components/simpleassets/SimpleAssetDetailDialog.tsx` — show mint info and contained assets
+### Technical detail
+- Store drag source ID in a ref (no re-renders during drag)
+- On drop, find both indices in the order array and swap them
+- `customOrder` persists only for the session — reloading or changing filters resets it
+- No new dependencies needed
 

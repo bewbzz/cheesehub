@@ -132,6 +132,7 @@ export function useSimpleAssets(account: string | null) {
           category: row.category,
           name,
           image,
+          images,
           cardid,
           quality,
           idata,

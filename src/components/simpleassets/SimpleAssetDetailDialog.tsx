@@ -50,16 +50,10 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
 
   const handleImgError = (idx: number) => {
     const hash = extractIpfsHash(images[idx]);
-    if (hash && gatewayIndices[idx] < IPFS_GATEWAYS.length - 1) {
+    if (hash && (gatewayIndices[idx] || 0) < IPFS_GATEWAYS.length - 1) {
       setGatewayIndices((prev) => {
         const next = [...prev];
         next[idx] = (next[idx] || 0) + 1;
-        return next;
-      });
-    } else {
-      setImgErrors((prev) => {
-        const next = [...prev];
-        next[idx] = true;
         return next;
       });
     }

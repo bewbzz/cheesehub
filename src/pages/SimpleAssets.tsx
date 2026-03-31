@@ -48,11 +48,10 @@ export default function SimpleAssets() {
   const filtered = useMemo(() => {
     return assets.filter((a) => {
       if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.id.includes(search)) return false;
-      if (authorFilter !== 'all' && a.author !== authorFilter) return false;
       if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
       return true;
     });
-  }, [assets, search, authorFilter, categoryFilter]);
+  }, [assets, search, categoryFilter]);
 
   useEffect(() => {
     setCustomOrder(null);

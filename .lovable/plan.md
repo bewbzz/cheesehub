@@ -1,26 +1,22 @@
 
 
-## Focus SimpleAssets Viewer on GPK Topps Only
+## Sort GPK Cards by Card Number + Quality (1a, 1b, 2a, 2b...)
 
-Filter the viewer to only show assets authored by `gpk.topps` and remove generic UI elements that no longer apply.
+### Discovery
+The `cardid` field contains just the number (e.g. `"1"`, `"2"`, `"3"`), and the `quality` field contains the letter variant (`"a"` or `"b"`). Both are in `idata`/`mdata`.
 
 ### Changes
 
 **`src/hooks/useSimpleAssets.ts`**
-- After fetching all `sassets` rows, filter to only keep assets where `author === 'gpk.topps'`
-- This happens at the data level so no unnecessary assets are processed
+- Extract `cardid` and `quality` from the combined `idata`/`mdata` metadata
+- Add both as fields on the `SimpleAsset` interface
+- Replace the current sort with a comparator that:
+  1. Parses `cardid` as a number → sort ascending
+  2. Sorts by `quality` alphabetically (a before b)
+  3. Falls back to asset ID if either field is missing
 
-**`src/pages/SimpleAssets.tsx`**
-- Update page title to "GPK Topps Collection" (or similar)
-- Update description text to reference GPK Topps cards
-- Remove the Author filter dropdown (no longer needed since all cards are gpk.topps)
-- Keep the Category filter (useful for distinguishing series) and search bar
-- Keep GPK Packs section at top
+Result: cards display as `1a, 1b, 2a, 2b, 3a, 3b, ...`
 
-**`src/components/simpleassets/SimpleAssetDetailDialog.tsx`**
-- No structural changes needed — author field will always show gpk.topps but can remain visible for reference
-
-### Files modified: 2
+### Files modified: 1
 - `src/hooks/useSimpleAssets.ts`
-- `src/pages/SimpleAssets.tsx`
 

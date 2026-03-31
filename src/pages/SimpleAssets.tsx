@@ -13,6 +13,25 @@ import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDe
 import { GpkPackCard } from '@/components/simpleassets/GpkPackCard';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
+const EMPTY = '__empty__';
+const EXTRA_EMPTY_SLOTS = 6;
+
+function EmptySlot({ onDragOver, onDrop, isOver }: {
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  isOver: boolean;
+}) {
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragLeave={(e) => e.stopPropagation()}
+      className={`aspect-square rounded-lg border-2 border-dashed transition-all flex items-center justify-center
+        ${isOver ? 'border-primary bg-primary/10 scale-105' : 'border-border/50 bg-muted/10'}`}
+    />
+  );
+}
+
 export default function SimpleAssets() {
   const { accountName, isConnected, login } = useWax();
   const { assets, isLoading, error } = useSimpleAssets(accountName);
@@ -22,7 +41,8 @@ export default function SimpleAssets() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
   const [customOrder, setCustomOrder] = useState<string[] | null>(null);
-  const dragSourceId = useRef<string | null>(null);
+  const dragSourceIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   const authors = useMemo(() => [...new Set(assets.map((a) => a.author))].sort(), [assets]);
   const categories = useMemo(() => [...new Set(assets.map((a) => a.category))].sort(), [assets]);
@@ -36,46 +56,50 @@ export default function SimpleAssets() {
     });
   }, [assets, search, authorFilter, categoryFilter]);
 
-  // Reset custom order when filters change
   useEffect(() => {
     setCustomOrder(null);
   }, [search, authorFilter, categoryFilter]);
 
-  const displayAssets = useMemo(() => {
-    if (!customOrder) return filtered;
-    const assetMap = new Map(filtered.map((a) => [a.id, a]));
-    const ordered: SimpleAsset[] = [];
-    for (const id of customOrder) {
-      const asset = assetMap.get(id);
-      if (asset) ordered.push(asset);
-    }
-    // Include any filtered assets not in customOrder (shouldn't happen but safe)
-    for (const a of filtered) {
-      if (!customOrder.includes(a.id)) ordered.push(a);
-    }
-    return ordered;
-  }, [filtered, customOrder]);
+  const gridSlots = useMemo(() => {
+    const base = customOrder ?? filtered.map((a) => a.id);
+    const trimmed = [...base];
+    while (trimmed.length > 0 && trimmed[trimmed.length - 1] === EMPTY) trimmed.pop();
+    return [...trimmed, ...Array(EXTRA_EMPTY_SLOTS).fill(EMPTY)];
+  }, [customOrder, filtered]);
 
-  const handleDragStart = useCallback((assetId: string) => (e: DragEvent<HTMLDivElement>) => {
-    dragSourceId.current = assetId;
-    e.dataTransfer.effectAllowed = 'move';
+  const assetMap = useMemo(() => new Map(filtered.map((a) => [a.id, a])), [filtered]);
+
+  const handleDragStart = useCallback((idx: number) => (_e: DragEvent<HTMLDivElement>) => {
+    dragSourceIdx.current = idx;
   }, []);
 
-  const handleDrop = useCallback((targetId: string) => (_e: DragEvent<HTMLDivElement>) => {
-    const sourceId = dragSourceId.current;
-    dragSourceId.current = null;
-    if (!sourceId || sourceId === targetId) return;
+  const handleDragOver = useCallback((idx: number) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  }, []);
+
+  const handleDrop = useCallback((targetIdx: number) => (_e: DragEvent<HTMLDivElement>) => {
+    const srcIdx = dragSourceIdx.current;
+    dragSourceIdx.current = null;
+    setDragOverIdx(null);
+    if (srcIdx === null || srcIdx === targetIdx) return;
 
     const currentOrder = customOrder ?? filtered.map((a) => a.id);
-    const srcIdx = currentOrder.indexOf(sourceId);
-    const tgtIdx = currentOrder.indexOf(targetId);
-    if (srcIdx === -1 || tgtIdx === -1) return;
+    const padded = [...currentOrder];
+    const maxIdx = Math.max(srcIdx, targetIdx);
+    while (padded.length <= maxIdx) padded.push(EMPTY);
 
-    const newOrder = [...currentOrder];
-    newOrder[srcIdx] = targetId;
-    newOrder[tgtIdx] = sourceId;
+    const newOrder = [...padded];
+    const tmp = newOrder[srcIdx];
+    newOrder[srcIdx] = newOrder[targetIdx];
+    newOrder[targetIdx] = tmp;
     setCustomOrder(newOrder);
   }, [customOrder, filtered]);
+
+  const handleDragEnd = useCallback(() => {
+    dragSourceIdx.current = null;
+    setDragOverIdx(null);
+  }, []);
 
   return (
     <Layout>
@@ -95,7 +119,6 @@ export default function SimpleAssets() {
             </div>
           ) : (
             <>
-              {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -130,7 +153,6 @@ export default function SimpleAssets() {
                 </Select>
               </div>
 
-              {/* Loading */}
               {isLoading && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {Array.from({ length: 12 }).map((_, i) => (
@@ -143,12 +165,10 @@ export default function SimpleAssets() {
                 </div>
               )}
 
-              {/* Error */}
               {error && (
                 <p className="text-center text-destructive py-8">Error: {error}</p>
               )}
 
-              {/* GPK Topps Packs */}
               {!packsLoading && packs.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-xl font-semibold text-foreground">GPK Topps Packs</h2>
@@ -160,7 +180,6 @@ export default function SimpleAssets() {
                 </div>
               )}
 
-              {/* Results */}
               {!isLoading && !error && (
                 <>
                   <p className="text-sm text-muted-foreground">{filtered.length} NFT{filtered.length !== 1 ? 's' : ''} found</p>
@@ -170,16 +189,32 @@ export default function SimpleAssets() {
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {displayAssets.map((asset) => (
-                        <SimpleAssetCard
-                          key={asset.id}
-                          asset={asset}
-                          onClick={() => setSelectedAsset(asset)}
-                          draggable
-                          onDragStart={handleDragStart(asset.id)}
-                          onDrop={handleDrop(asset.id)}
-                        />
-                      ))}
+                      {gridSlots.map((slotId, idx) => {
+                        if (slotId === EMPTY) {
+                          return (
+                            <EmptySlot
+                              key={`empty-${idx}`}
+                              onDragOver={handleDragOver(idx)}
+                              onDrop={handleDrop(idx)}
+                              isOver={dragOverIdx === idx}
+                            />
+                          );
+                        }
+                        const asset = assetMap.get(slotId);
+                        if (!asset) return null;
+                        return (
+                          <SimpleAssetCard
+                            key={asset.id}
+                            asset={asset}
+                            onClick={() => setSelectedAsset(asset)}
+                            draggable
+                            onDragStart={handleDragStart(idx)}
+                            onDragOver={handleDragOver(idx)}
+                            onDrop={handleDrop(idx)}
+                            onDragEnd={handleDragEnd}
+                          />
+                        );
+                      })}
                     </div>
                   )}
                 </>

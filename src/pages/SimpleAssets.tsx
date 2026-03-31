@@ -43,7 +43,6 @@ export default function SimpleAssets() {
   const dragSourceIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  const authors = useMemo(() => [...new Set(assets.map((a) => a.author))].sort(), [assets]);
   const categories = useMemo(() => [...new Set(assets.map((a) => a.category))].sort(), [assets]);
 
   const filtered = useMemo(() => {

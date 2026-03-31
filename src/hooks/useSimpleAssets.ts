@@ -9,6 +9,7 @@ export interface SimpleAsset {
   category: string;
   name: string;
   image: string;
+  images: string[];
   cardid: string;
   quality: string;
   idata: Record<string, unknown>;
@@ -36,23 +37,43 @@ function parseJsonSafe(str: string): Record<string, unknown> {
   }
 }
 
-function resolveImage(data: Record<string, unknown>): string {
-  const raw = (data.img || data.image || data.icon || '') as string;
-  if (!raw) return '/placeholder.svg';
-
-  // Already a full URL
+function resolveRawImage(raw: string): string | null {
+  if (!raw) return null;
   if (raw.startsWith('http')) return raw;
-
-  // IPFS protocol
   const hash = extractIpfsHash(raw);
   if (hash) return getIpfsUrl(hash);
-
-  // Bare CID
   if (raw.startsWith('Qm') || raw.startsWith('bafy') || raw.startsWith('bafk')) {
     return getIpfsUrl(raw);
   }
+  return raw || null;
+}
 
-  return raw || '/placeholder.svg';
+const FRONT_KEYS = ['img', 'image', 'icon'];
+const BACK_KEYS = ['backimg', 'back', 'img2', 'image2', 'backimage'];
+
+function resolveAllImages(data: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+
+  // Front images first
+  for (const key of FRONT_KEYS) {
+    const raw = data[key] as string | undefined;
+    if (raw) {
+      const url = resolveRawImage(raw);
+      if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
+    }
+  }
+
+  // Back images second
+  for (const key of BACK_KEYS) {
+    const raw = data[key] as string | undefined;
+    if (raw) {
+      const url = resolveRawImage(raw);
+      if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
+    }
+  }
+
+  return urls.length > 0 ? urls : ['/placeholder.svg'];
 }
 
 export function useSimpleAssets(account: string | null) {
@@ -99,7 +120,8 @@ export function useSimpleAssets(account: string | null) {
         const mdata = parseJsonSafe(row.mdata);
         const combined = { ...idata, ...mdata };
         const name = (combined.name as string) || `Asset #${row.id}`;
-        const image = resolveImage(combined);
+        const images = resolveAllImages(combined);
+        const image = images[0];
         const cardid = (combined.cardid as string) || '';
         const quality = (combined.quality as string) || '';
 
@@ -110,6 +132,7 @@ export function useSimpleAssets(account: string | null) {
           category: row.category,
           name,
           image,
+          images,
           cardid,
           quality,
           idata,

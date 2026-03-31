@@ -149,6 +149,16 @@ export default function SimpleAssets() {
                     className="pl-9"
                   />
                 </div>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="simpleassets">Simple Assets</SelectItem>
+                    <SelectItem value="atomicassets">Atomic Assets</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Category" />

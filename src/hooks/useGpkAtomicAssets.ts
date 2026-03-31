@@ -1,41 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchTableRows } from '@/lib/waxRpcFallback';
+import { ATOMIC_API } from '@/lib/waxConfig';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { getIpfsUrl, extractIpfsHash } from '@/lib/ipfsGateways';
+import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
-export interface SimpleAsset {
-  id: string;
+interface AtomicAssetRaw {
+  asset_id: string;
   owner: string;
-  author: string;
-  category: string;
+  collection: { collection_name: string };
+  schema: { schema_name: string };
+  template?: { template_id: string };
+  immutable_data: Record<string, string>;
+  mutable_data: Record<string, string>;
+  data: Record<string, string>;
   name: string;
-  image: string;
-  images: string[];
-  cardid: string;
-  quality: string;
-  idata: Record<string, unknown>;
-  mdata: Record<string, unknown>;
-  container: unknown[];
-  containerf: unknown[];
-  source: 'simpleassets' | 'atomicassets';
-}
-
-interface RawSAsset {
-  id: string;
-  owner: string;
-  author: string;
-  category: string;
-  idata: string;
-  mdata: string;
-  container: unknown[];
-  containerf: unknown[];
-}
-
-function parseJsonSafe(str: string): Record<string, unknown> {
-  try {
-    return JSON.parse(str) || {};
-  } catch {
-    return {};
-  }
 }
 
 function resolveRawImage(raw: string): string | null {
@@ -52,22 +30,20 @@ function resolveRawImage(raw: string): string | null {
 const FRONT_KEYS = ['img', 'image', 'icon'];
 const BACK_KEYS = ['backimg', 'back', 'img2', 'image2', 'backimage'];
 
-function resolveAllImages(data: Record<string, unknown>): string[] {
+function resolveAllImages(data: Record<string, string>): string[] {
   const urls: string[] = [];
   const seen = new Set<string>();
 
-  // Front images first
   for (const key of FRONT_KEYS) {
-    const raw = data[key] as string | undefined;
+    const raw = data[key];
     if (raw) {
       const url = resolveRawImage(raw);
       if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
     }
   }
 
-  // Back images second
   for (const key of BACK_KEYS) {
-    const raw = data[key] as string | undefined;
+    const raw = data[key];
     if (raw) {
       const url = resolveRawImage(raw);
       if (url && !seen.has(url)) { seen.add(url); urls.push(url); }
@@ -77,7 +53,7 @@ function resolveAllImages(data: Record<string, unknown>): string[] {
   return urls.length > 0 ? urls : ['/placeholder.svg'];
 }
 
-export function useSimpleAssets(account: string | null) {
+export function useGpkAtomicAssets(account: string | null) {
   const [assets, setAssets] = useState<SimpleAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,55 +68,54 @@ export function useSimpleAssets(account: string | null) {
     setError(null);
 
     try {
-      const allRows: RawSAsset[] = [];
-      let lowerBound = '';
+      const allAssets: AtomicAssetRaw[] = [];
+      let page = 1;
       let hasMore = true;
 
       while (hasMore) {
-        const result = await fetchTableRows<RawSAsset>({
-          code: 'simpleassets',
-          scope: account,
-          table: 'sassets',
-          limit: 100,
-          lower_bound: lowerBound || undefined,
+        const params = new URLSearchParams({
+          owner: account,
+          collection_name: 'gpk.topps',
+          limit: '100',
+          page: String(page),
+          order: 'asc',
+          sort: 'asset_id',
         });
+        const path = `${ATOMIC_API.paths.assets}?${params}`;
+        const response = await fetchWithFallback(ATOMIC_API.baseUrls, path, undefined, 15000);
+        const json = await response.json();
 
-        allRows.push(...result.rows);
-        hasMore = result.more;
+        if (!json.success || !json.data) break;
 
-        if (hasMore && result.rows.length > 0) {
-          const lastId = result.rows[result.rows.length - 1].id;
-          lowerBound = String(BigInt(lastId) + 1n);
-        }
+        allAssets.push(...json.data);
+        hasMore = json.data.length === 100;
+        page++;
       }
 
-      const parsed: SimpleAsset[] = allRows
-        .filter((row) => row.author === 'gpk.topps')
-        .map((row) => {
-        const idata = parseJsonSafe(row.idata);
-        const mdata = parseJsonSafe(row.mdata);
-        const combined = { ...idata, ...mdata };
-        const name = (combined.name as string) || `Asset #${row.id}`;
+      const parsed: SimpleAsset[] = allAssets.map((raw) => {
+        const combined = { ...raw.immutable_data, ...raw.mutable_data, ...raw.data };
+        const name = combined.name || raw.name || `Asset #${raw.asset_id}`;
         const images = resolveAllImages(combined);
         const image = images[0];
-        const cardid = (combined.cardid as string) || '';
-        const quality = (combined.quality as string) || '';
+        const cardid = combined.cardid || '';
+        const quality = combined.quality || '';
+        const category = raw.schema?.schema_name || '';
 
         return {
-          id: row.id,
-          owner: row.owner,
-          author: row.author,
-          category: row.category,
+          id: raw.asset_id,
+          owner: raw.owner,
+          author: 'gpk.topps',
+          category,
           name,
           image,
           images,
           cardid,
           quality,
-          idata,
-          mdata,
-          container: row.container || [],
-          containerf: row.containerf || [],
-          source: 'simpleassets' as const,
+          idata: raw.immutable_data as Record<string, unknown>,
+          mdata: raw.mutable_data as Record<string, unknown>,
+          container: [],
+          containerf: [],
+          source: 'atomicassets' as const,
         };
       });
 
@@ -155,9 +130,10 @@ export function useSimpleAssets(account: string | null) {
         if (!isNaN(numB)) return 1;
         return Number(BigInt(a.id) - BigInt(b.id));
       });
+
       setAssets(parsed);
     } catch (err) {
-      console.error('[SimpleAssets] Failed to fetch:', err);
+      console.error('[GpkAtomicAssets] Failed to fetch:', err);
       setError((err as Error).message);
     } finally {
       setIsLoading(false);

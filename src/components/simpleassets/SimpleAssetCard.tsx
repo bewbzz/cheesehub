@@ -112,9 +112,18 @@ export function SimpleAssetCard({ asset, onClick, draggable, onDragStart, onDrag
         <p className="text-sm font-semibold text-foreground truncate">{asset.name}</p>
         <p className="text-xs text-muted-foreground truncate">by {asset.author}</p>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
-            {asset.category}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-accent-foreground">
+              {asset.category}
+            </span>
+            <span className={`text-[10px] px-1 py-0.5 rounded font-medium ${
+              asset.source === 'atomicassets' 
+                ? 'bg-primary/15 text-primary' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              {asset.source === 'atomicassets' ? 'AA' : 'SA'}
+            </span>
+          </div>
           <span className="text-[10px] text-muted-foreground">#{asset.id}</span>
         </div>
         {(mintInfo || hasContained) && (

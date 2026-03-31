@@ -5,7 +5,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { IPFS_GATEWAYS, extractIpfsHash } from '@/lib/ipfsGateways';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
-import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 interface Props {
   asset: SimpleAsset | null;
@@ -14,6 +13,7 @@ interface Props {
 }
 
 const MINT_KEYS = ['edition', 'mint', 'serial', 'num', 'mint_num'];
+const IMAGE_LABELS = ['Front', 'Back'];
 
 function getMintDisplay(asset: SimpleAsset): string | null {
   const combined = { ...asset.idata, ...asset.mdata };
@@ -33,10 +33,7 @@ function getMintDisplay(asset: SimpleAsset): string | null {
 export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
   const [showRawJson, setShowRawJson] = useState(false);
   const [gatewayIndices, setGatewayIndices] = useState<number[]>([]);
-  const [gatewayIndices, setGatewayIndices] = useState<number[]>([]);
-  const [imgErrors, setImgErrors] = useState<boolean[]>([]);
 
-  // Reset state when asset changes
   useEffect(() => {
     if (asset) {
       setGatewayIndices(new Array(asset.images.length).fill(0));
@@ -71,7 +68,7 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
     ([key]) => !['img', 'image', 'icon', 'backimg', 'back', 'img2', 'image2', 'backimage', 'name', ...MINT_KEYS, 'maxsupply', 'max_supply', 'supply'].includes(key)
   );
   const hasContainer = asset.container.length > 0;
-  const label = IMAGE_LABELS[imageIndex] || `Image ${imageIndex + 1}`;
+  const hasContainerf = asset.containerf.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,7 +81,7 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
         </DialogHeader>
 
         {/* Side-by-side images */}
-        <div className={`grid gap-4 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`grid gap-4 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1 max-w-[400px] mx-auto'}`}>
           {images.map((_, i) => (
             <div key={i} className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground text-center">

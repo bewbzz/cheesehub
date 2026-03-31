@@ -60,7 +60,6 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
   };
 
   const getDisplayUrl = (idx: number) => {
-    if (imgErrors[idx]) return '/placeholder.svg';
     const gIdx = gatewayIndices[idx] || 0;
     const hash = extractIpfsHash(images[idx]);
     if (hash && gIdx > 0) return `${IPFS_GATEWAYS[gIdx]}${hash}`;

@@ -71,9 +71,10 @@ export default function SimpleAssets() {
     return assets.filter((a) => {
       if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.id.includes(search)) return false;
       if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
+      if (sourceFilter !== 'all' && a.source !== sourceFilter) return false;
       return true;
     });
-  }, [assets, search, categoryFilter]);
+  }, [assets, search, categoryFilter, sourceFilter]);
 
   useEffect(() => {
     setCustomOrder(null);

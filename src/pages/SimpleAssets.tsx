@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useWax } from '@/context/WaxContext';
 import { useSimpleAssets } from '@/hooks/useSimpleAssets';
+import { useGpkAtomicAssets } from '@/hooks/useGpkAtomicAssets';
 import { useGpkPacks } from '@/hooks/useGpkPacks';
 import { SimpleAssetCard } from '@/components/simpleassets/SimpleAssetCard';
 import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDetailDialog';
@@ -34,11 +35,32 @@ function EmptySlot({ onDragOver, onDrop, isOver }: {
 
 export default function SimpleAssets() {
   const { accountName, isConnected, login } = useWax();
-  const { assets, isLoading, error } = useSimpleAssets(accountName);
+  const { assets: saAssets, isLoading: saLoading, error: saError } = useSimpleAssets(accountName);
+  const { assets: aaAssets, isLoading: aaLoading, error: aaError } = useGpkAtomicAssets(accountName);
   const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
+
+  const isLoading = saLoading || aaLoading;
+  const error = saError || aaError;
+
+  const assets = useMemo(() => {
+    const combined = [...saAssets, ...aaAssets];
+    combined.sort((a, b) => {
+      const numA = parseInt(a.cardid, 10);
+      const numB = parseInt(b.cardid, 10);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        if (numA !== numB) return numA - numB;
+        return a.quality.localeCompare(b.quality);
+      }
+      if (!isNaN(numA)) return -1;
+      if (!isNaN(numB)) return 1;
+      return Number(BigInt(a.id) - BigInt(b.id));
+    });
+    return combined;
+  }, [saAssets, aaAssets]);
   const [customOrder, setCustomOrder] = useState<string[] | null>(null);
   const dragSourceIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -49,13 +71,14 @@ export default function SimpleAssets() {
     return assets.filter((a) => {
       if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.id.includes(search)) return false;
       if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
+      if (sourceFilter !== 'all' && a.source !== sourceFilter) return false;
       return true;
     });
-  }, [assets, search, categoryFilter]);
+  }, [assets, search, categoryFilter, sourceFilter]);
 
   useEffect(() => {
     setCustomOrder(null);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, sourceFilter]);
 
   const gridSlots = useMemo(() => {
     const base = customOrder ?? filtered.map((a) => a.id);
@@ -126,6 +149,16 @@ export default function SimpleAssets() {
                     className="pl-9"
                   />
                 </div>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="simpleassets">Simple Assets</SelectItem>
+                    <SelectItem value="atomicassets">Atomic Assets</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Category" />

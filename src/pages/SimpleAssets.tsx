@@ -126,17 +126,6 @@ export default function SimpleAssets() {
                     className="pl-9"
                   />
                 </div>
-                <Select value={authorFilter} onValueChange={setAuthorFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Author" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Authors</SelectItem>
-                    {authors.map((a) => (
-                      <SelectItem key={a} value={a}>{a}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Category" />

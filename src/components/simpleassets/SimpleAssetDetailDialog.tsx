@@ -71,7 +71,6 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
     ([key]) => !['img', 'image', 'icon', 'backimg', 'back', 'img2', 'image2', 'backimage', 'name', ...MINT_KEYS, 'maxsupply', 'max_supply', 'supply'].includes(key)
   );
   const hasContainer = asset.container.length > 0;
-  const hasContainerf = asset.containerf.length > 0;
   const label = IMAGE_LABELS[imageIndex] || `Image ${imageIndex + 1}`;
 
   return (

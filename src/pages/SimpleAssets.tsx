@@ -35,11 +35,32 @@ function EmptySlot({ onDragOver, onDrop, isOver }: {
 
 export default function SimpleAssets() {
   const { accountName, isConnected, login } = useWax();
-  const { assets, isLoading, error } = useSimpleAssets(accountName);
+  const { assets: saAssets, isLoading: saLoading, error: saError } = useSimpleAssets(accountName);
+  const { assets: aaAssets, isLoading: aaLoading, error: aaError } = useGpkAtomicAssets(accountName);
   const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
+
+  const isLoading = saLoading || aaLoading;
+  const error = saError || aaError;
+
+  const assets = useMemo(() => {
+    const combined = [...saAssets, ...aaAssets];
+    combined.sort((a, b) => {
+      const numA = parseInt(a.cardid, 10);
+      const numB = parseInt(b.cardid, 10);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        if (numA !== numB) return numA - numB;
+        return a.quality.localeCompare(b.quality);
+      }
+      if (!isNaN(numA)) return -1;
+      if (!isNaN(numB)) return 1;
+      return Number(BigInt(a.id) - BigInt(b.id));
+    });
+    return combined;
+  }, [saAssets, aaAssets]);
   const [customOrder, setCustomOrder] = useState<string[] | null>(null);
   const dragSourceIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);

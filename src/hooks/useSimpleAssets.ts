@@ -16,6 +16,7 @@ export interface SimpleAsset {
   mdata: Record<string, unknown>;
   container: unknown[];
   containerf: unknown[];
+  source: 'simpleassets' | 'atomicassets';
 }
 
 interface RawSAsset {

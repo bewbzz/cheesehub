@@ -120,7 +120,8 @@ export function useSimpleAssets(account: string | null) {
         const mdata = parseJsonSafe(row.mdata);
         const combined = { ...idata, ...mdata };
         const name = (combined.name as string) || `Asset #${row.id}`;
-        const image = resolveImage(combined);
+        const images = resolveAllImages(combined);
+        const image = images[0];
         const cardid = (combined.cardid as string) || '';
         const quality = (combined.quality as string) || '';
 

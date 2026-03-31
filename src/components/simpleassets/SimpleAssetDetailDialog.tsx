@@ -32,7 +32,7 @@ function getMintDisplay(asset: SimpleAsset): string | null {
 
 export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
   const [showRawJson, setShowRawJson] = useState(false);
-  const [imageIndex, setImageIndex] = useState(0);
+  const [gatewayIndices, setGatewayIndices] = useState<number[]>([]);
   const [gatewayIndices, setGatewayIndices] = useState<number[]>([]);
   const [imgErrors, setImgErrors] = useState<boolean[]>([]);
 

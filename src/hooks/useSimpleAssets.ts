@@ -9,6 +9,8 @@ export interface SimpleAsset {
   category: string;
   name: string;
   image: string;
+  cardid: string;
+  quality: string;
   idata: Record<string, unknown>;
   mdata: Record<string, unknown>;
   container: unknown[];

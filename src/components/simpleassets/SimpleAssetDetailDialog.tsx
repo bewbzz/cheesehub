@@ -47,7 +47,6 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
   if (!asset) return null;
 
   const images = asset.images;
-  const hasMultiple = images.length > 1;
 
   const handleImgError = (idx: number) => {
     const hash = extractIpfsHash(images[idx]);

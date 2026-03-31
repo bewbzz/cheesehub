@@ -100,6 +100,8 @@ export function useSimpleAssets(account: string | null) {
         const combined = { ...idata, ...mdata };
         const name = (combined.name as string) || `Asset #${row.id}`;
         const image = resolveImage(combined);
+        const cardid = (combined.cardid as string) || '';
+        const quality = (combined.quality as string) || '';
 
         return {
           id: row.id,
@@ -108,6 +110,8 @@ export function useSimpleAssets(account: string | null) {
           category: row.category,
           name,
           image,
+          cardid,
+          quality,
           idata,
           mdata,
           container: row.container || [],
@@ -115,7 +119,17 @@ export function useSimpleAssets(account: string | null) {
         };
       });
 
-      parsed.sort((a, b) => Number(BigInt(a.id) - BigInt(b.id)));
+      parsed.sort((a, b) => {
+        const numA = parseInt(a.cardid, 10);
+        const numB = parseInt(b.cardid, 10);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          if (numA !== numB) return numA - numB;
+          return a.quality.localeCompare(b.quality);
+        }
+        if (!isNaN(numA)) return -1;
+        if (!isNaN(numB)) return 1;
+        return Number(BigInt(a.id) - BigInt(b.id));
+      });
       setAssets(parsed);
     } catch (err) {
       console.error('[SimpleAssets] Failed to fetch:', err);

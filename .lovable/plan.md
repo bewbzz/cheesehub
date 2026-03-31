@@ -1,28 +1,51 @@
 
 
-## Add Drag-and-Drop Card Reordering (Swap)
+## Persist Card Binder Layout (Cloud Storage)
 
-### Approach
-Use the native HTML5 Drag and Drop API (no new dependencies) to allow users to drag a card onto another, swapping their positions in the grid.
+The project currently has no backend. We'll set up Lovable Cloud (Supabase) to store each user's card arrangement tied to their WAX account name.
 
-### Changes
+### Database
 
-**1. `src/pages/SimpleAssets.tsx`**
-- Add a `customOrder` state (`string[]` of asset IDs) initialized from `filtered` results
-- When `customOrder` is set, use it to reorder `filtered` for display
-- Pass `onDragStart`, `onDragOver`, `onDrop` handlers to each `SimpleAssetCard`
-- On drop: swap the dragged card's position with the drop target's position in `customOrder`
-- Reset `customOrder` when filters/search change
+**New table: `card_layouts`**
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid (PK) | auto-generated |
+| wax_account | text (unique) | the user's WAX wallet name |
+| layout | jsonb | ordered array of asset IDs with empty slots |
+| updated_at | timestamptz | auto-updated |
 
-**2. `src/components/simpleassets/SimpleAssetCard.tsx`**
-- Accept optional drag props: `draggable`, `onDragStart`, `onDragOver`, `onDrop`, `onDragEnd`
-- Add `draggable` attribute to the Card
-- Add visual feedback: highlight border/opacity change when dragging or when a card is a valid drop target
-- Prevent the drag from triggering the `onClick` (detail dialog)
+RLS policy: anyone can read/write rows matching their `wax_account` (no auth — keyed by WAX account name, same trust model as the rest of the app).
 
-### Technical detail
-- Store drag source ID in a ref (no re-renders during drag)
-- On drop, find both indices in the order array and swap them
-- `customOrder` persists only for the session — reloading or changing filters resets it
-- No new dependencies needed
+### New files
+
+**`src/lib/cardLayoutApi.ts`**
+- `fetchLayout(supabase, waxAccount)` — SELECT from `card_layouts` WHERE `wax_account`
+- `saveLayout(supabase, waxAccount, layout)` — UPSERT the layout JSON
+
+**`src/hooks/useCardLayout.ts`**
+- Takes `waxAccount` and `filteredAssetIds`
+- On mount: fetches saved layout from Supabase
+- Merges saved order with current assets (handles new/removed NFTs gracefully)
+- Exposes `layout`, `swapCards(srcIdx, targetIdx)`, `isLoading`
+- Auto-saves to Supabase on change (debounced ~1s)
+
+### Modified files
+
+**`src/pages/SimpleAssets.tsx`**
+- Replace local `customOrder` state with `useCardLayout` hook
+- Pass layout from the hook into the grid rendering
+- Swap handler calls `useCardLayout.swapCards` instead of local state mutation
+- Layout persists across sessions and devices for the same WAX account
+
+### Behavior
+- First visit: cards appear in ID order (default)
+- User drags to rearrange: saves automatically after 1 second of inactivity
+- Return visit: layout loads from cloud, merged with any new/removed assets
+- Filter/search active: temporarily overrides binder view (no saves while filtering)
+- Clear filters: binder layout returns
+
+### Setup required
+- Enable Lovable Cloud (Supabase integration)
+- Create the `card_layouts` table via migration
+- Add Supabase client to the project
 

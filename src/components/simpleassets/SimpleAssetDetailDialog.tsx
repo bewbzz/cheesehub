@@ -4,7 +4,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { IPFS_GATEWAYS, extractIpfsHash } from '@/lib/ipfsGateways';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 interface Props {

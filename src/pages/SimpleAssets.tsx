@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, DragEvent } from 'react';
 import { Search } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,8 @@ export default function SimpleAssets() {
   const [authorFilter, setAuthorFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
+  const [customOrder, setCustomOrder] = useState<string[] | null>(null);
+  const dragSourceId = useRef<string | null>(null);
 
   const authors = useMemo(() => [...new Set(assets.map((a) => a.author))].sort(), [assets]);
   const categories = useMemo(() => [...new Set(assets.map((a) => a.category))].sort(), [assets]);
@@ -34,13 +36,54 @@ export default function SimpleAssets() {
     });
   }, [assets, search, authorFilter, categoryFilter]);
 
+  // Reset custom order when filters change
+  useEffect(() => {
+    setCustomOrder(null);
+  }, [search, authorFilter, categoryFilter]);
+
+  const displayAssets = useMemo(() => {
+    if (!customOrder) return filtered;
+    const assetMap = new Map(filtered.map((a) => [a.id, a]));
+    const ordered: SimpleAsset[] = [];
+    for (const id of customOrder) {
+      const asset = assetMap.get(id);
+      if (asset) ordered.push(asset);
+    }
+    // Include any filtered assets not in customOrder (shouldn't happen but safe)
+    for (const a of filtered) {
+      if (!customOrder.includes(a.id)) ordered.push(a);
+    }
+    return ordered;
+  }, [filtered, customOrder]);
+
+  const handleDragStart = useCallback((assetId: string) => (e: DragEvent<HTMLDivElement>) => {
+    dragSourceId.current = assetId;
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDrop = useCallback((targetId: string) => (_e: DragEvent<HTMLDivElement>) => {
+    const sourceId = dragSourceId.current;
+    dragSourceId.current = null;
+    if (!sourceId || sourceId === targetId) return;
+
+    const currentOrder = customOrder ?? filtered.map((a) => a.id);
+    const srcIdx = currentOrder.indexOf(sourceId);
+    const tgtIdx = currentOrder.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+
+    const newOrder = [...currentOrder];
+    newOrder[srcIdx] = targetId;
+    newOrder[tgtIdx] = sourceId;
+    setCustomOrder(newOrder);
+  }, [customOrder, filtered]);
+
   return (
     <Layout>
       <div className="min-h-screen">
         <div className="container py-8 space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-foreground">SimpleAssets NFT Viewer</h1>
-            <p className="text-muted-foreground mt-1">View your legacy SimpleAssets NFTs stored on-chain.</p>
+            <p className="text-muted-foreground mt-1">View your legacy SimpleAssets NFTs stored on-chain. Drag cards to reorder them.</p>
           </div>
 
           {!isConnected ? (
@@ -127,8 +170,15 @@ export default function SimpleAssets() {
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {filtered.map((asset) => (
-                        <SimpleAssetCard key={asset.id} asset={asset} onClick={() => setSelectedAsset(asset)} />
+                      {displayAssets.map((asset) => (
+                        <SimpleAssetCard
+                          key={asset.id}
+                          asset={asset}
+                          onClick={() => setSelectedAsset(asset)}
+                          draggable
+                          onDragStart={handleDragStart(asset.id)}
+                          onDrop={handleDrop(asset.id)}
+                        />
                       ))}
                     </div>
                   )}

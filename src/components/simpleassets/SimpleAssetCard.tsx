@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, DragEvent } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { IPFS_GATEWAYS, extractIpfsHash } from '@/lib/ipfsGateways';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
@@ -6,6 +6,11 @@ import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 interface SimpleAssetCardProps {
   asset: SimpleAsset;
   onClick: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: DragEvent<HTMLDivElement>) => void;
 }
 
 function getMintInfo(asset: SimpleAsset): string | null {
@@ -16,9 +21,7 @@ function getMintInfo(asset: SimpleAsset): string | null {
     const val = combined[key];
     if (val !== undefined && val !== null && String(val).trim() !== '') {
       const str = String(val);
-      // "34/356" format — show as-is
       if (str.includes('/')) return str;
-      // Check for companion supply field
       const supply = combined.maxsupply ?? combined.max_supply ?? combined.supply;
       if (supply !== undefined && supply !== null) return `#${str} / ${supply}`;
       return `#${str}`;
@@ -27,9 +30,11 @@ function getMintInfo(asset: SimpleAsset): string | null {
   return null;
 }
 
-export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
+export function SimpleAssetCard({ asset, onClick, draggable, onDragStart, onDragOver, onDrop, onDragEnd }: SimpleAssetCardProps) {
   const [gatewayIdx, setGatewayIdx] = useState(0);
   const [imgError, setImgError] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleImgError = () => {
     const hash = extractIpfsHash(asset.image);
@@ -50,12 +55,51 @@ export function SimpleAssetCard({ asset, onClick }: SimpleAssetCardProps) {
   const mintInfo = getMintInfo(asset);
   const hasContained = (asset.container?.length ?? 0) > 0 || (asset.containerf?.length ?? 0) > 0;
 
+  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    onDragStart?.(e);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+    onDragOver?.(e);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    onDrop?.(e);
+  };
+
+  const handleDragEnd = (e: DragEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    setIsDragOver(false);
+    onDragEnd?.(e);
+  };
+
+  const handleClick = () => {
+    if (!isDragging) onClick();
+  };
+
   return (
     <Card
-      className="overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-cheese/50 hover:shadow-lg hover:shadow-cheese/10 bg-card border-border"
-      onClick={onClick}
+      className={`overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-cheese/50 hover:shadow-lg hover:shadow-cheese/10 bg-card border-border
+        ${isDragging ? 'opacity-50 scale-95' : ''}
+        ${isDragOver ? 'ring-2 ring-primary shadow-lg shadow-primary/20 scale-105' : ''}`}
+      onClick={handleClick}
+      draggable={draggable}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onDragEnd={handleDragEnd}
     >
-      <div className="aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
+      <div className="aspect-square bg-muted/30 flex items-center justify-center overflow-hidden pointer-events-none">
         <img
           src={displayUrl}
           alt={asset.name}

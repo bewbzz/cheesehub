@@ -14,7 +14,6 @@ interface Props {
 }
 
 const MINT_KEYS = ['edition', 'mint', 'serial', 'num', 'mint_num'];
-const IMAGE_LABELS = ['Front', 'Back'];
 
 function getMintDisplay(asset: SimpleAsset): string | null {
   const combined = { ...asset.idata, ...asset.mdata };

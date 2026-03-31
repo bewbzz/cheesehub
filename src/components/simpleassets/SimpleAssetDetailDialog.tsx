@@ -39,9 +39,7 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
   // Reset state when asset changes
   useEffect(() => {
     if (asset) {
-      setImageIndex(0);
       setGatewayIndices(new Array(asset.images.length).fill(0));
-      setImgErrors(new Array(asset.images.length).fill(false));
       setShowRawJson(false);
     }
   }, [asset?.id]);

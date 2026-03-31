@@ -37,7 +37,6 @@ export default function SimpleAssets() {
   const { assets, isLoading, error } = useSimpleAssets(accountName);
   const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
   const [search, setSearch] = useState('');
-  const [authorFilter, setAuthorFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
   const [customOrder, setCustomOrder] = useState<string[] | null>(null);

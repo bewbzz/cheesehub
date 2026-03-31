@@ -90,7 +90,9 @@ export function useSimpleAssets(account: string | null) {
         }
       }
 
-      const parsed: SimpleAsset[] = allRows.map((row) => {
+      const parsed: SimpleAsset[] = allRows
+        .filter((row) => row.author === 'gpk.topps')
+        .map((row) => {
         const idata = parseJsonSafe(row.idata);
         const mdata = parseJsonSafe(row.mdata);
         const combined = { ...idata, ...mdata };

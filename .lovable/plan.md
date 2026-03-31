@@ -1,22 +1,23 @@
 
 
-## Sort GPK Cards by Card Number + Quality (1a, 1b, 2a, 2b...)
+## Show Card Back (Multiple Images) in Detail Dialog
 
 ### Discovery
-The `cardid` field contains just the number (e.g. `"1"`, `"2"`, `"3"`), and the `quality` field contains the letter variant (`"a"` or `"b"`). Both are in `idata`/`mdata`.
+GPK Topps cards typically store a front image as `img`/`image` and a back image as `backimg` in their `idata`/`mdata`. The current detail dialog only shows the front image.
 
 ### Changes
 
 **`src/hooks/useSimpleAssets.ts`**
-- Extract `cardid` and `quality` from the combined `idata`/`mdata` metadata
-- Add both as fields on the `SimpleAsset` interface
-- Replace the current sort with a comparator that:
-  1. Parses `cardid` as a number → sort ascending
-  2. Sorts by `quality` alphabetically (a before b)
-  3. Falls back to asset ID if either field is missing
+- Add a helper `resolveAllImages` that scans the combined metadata for all image-like keys (`img`, `image`, `icon`, `backimg`, `back`, `img2`, etc.) and returns an array of resolved URLs
+- Add an `images: string[]` field to the `SimpleAsset` interface (front first, back second, any others after)
 
-Result: cards display as `1a, 1b, 2a, 2b, 3a, 3b, ...`
+**`src/components/simpleassets/SimpleAssetDetailDialog.tsx`**
+- Replace the single image display with a gallery that shows front and back
+- Add a "Flip" button or left/right arrows to navigate between images
+- Show a label like "Front" / "Back" and a dot indicator for which image is active
+- Each image gets the same IPFS gateway fallback logic
 
-### Files modified: 1
+### Files modified: 2
 - `src/hooks/useSimpleAssets.ts`
+- `src/components/simpleassets/SimpleAssetDetailDialog.tsx`
 

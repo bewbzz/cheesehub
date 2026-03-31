@@ -83,55 +83,23 @@ export function SimpleAssetDetailDialog({ asset, open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Image gallery */}
-        <div className="relative">
-          <div className="aspect-square max-h-[400px] bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center">
-            <img
-              src={getDisplayUrl(imageIndex)}
-              alt={`${asset.name} - ${label}`}
-              className="max-w-full max-h-full object-contain"
-              onError={() => handleImgError(imageIndex)}
-            />
-          </div>
-
-          {hasMultiple && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 bg-background/70 hover:bg-background/90 rounded-full"
-                onClick={() => setImageIndex((prev) => (prev - 1 + images.length) % images.length)}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 bg-background/70 hover:bg-background/90 rounded-full"
-                onClick={() => setImageIndex((prev) => (prev + 1) % images.length)}
-              >
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-
-          {/* Label + dots */}
-          {hasMultiple && (
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-              <div className="flex gap-1">
-                {images.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setImageIndex(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === imageIndex ? 'bg-primary' : 'bg-muted-foreground/30'
-                    }`}
-                  />
-                ))}
+        {/* Side-by-side images */}
+        <div className={`grid gap-4 ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {images.map((_, i) => (
+            <div key={i} className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground text-center">
+                {IMAGE_LABELS[i] || `Image ${i + 1}`}
+              </p>
+              <div className="aspect-[3/4] bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center">
+                <img
+                  src={getDisplayUrl(i)}
+                  alt={`${asset.name} - ${IMAGE_LABELS[i] || `Image ${i + 1}`}`}
+                  className="max-w-full max-h-full object-contain"
+                  onError={() => handleImgError(i)}
+                />
               </div>
             </div>
-          )}
+          ))}
         </div>
 
         {mintDisplay && (

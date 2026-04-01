@@ -1,33 +1,43 @@
 
 
-## Simulate Pack Opening Experience
+## Fix Pack Reveal Not Showing Cards After Real Open
 
-### Approach
-Add a **"Demo Open"** button (only visible in dev/preview) to `GpkPackCard` that skips the wallet transaction entirely and jumps straight to the `PackRevealDialog` with **mock card data** — pulling real images from the user's existing collection to make it feel authentic.
+### Root cause
+There is a **race condition** in `PackRevealDialog`. When the dialog opens:
 
-### Changes
+1. The reset effect (line 123) runs and calls `setPhase('waiting')`
+2. The polling effect (line 145) runs in the **same render cycle**, but may see the previous `phase` value (e.g. `'revealing'` from a prior open), causing it to skip
+3. On re-render, both effects run again — but the reset effect re-sets `'waiting'` (triggering another render), creating an unstable loop where polling may never reliably start
 
-**`src/components/simpleassets/GpkPackCard.tsx`**
-- Add a "Demo Open" button (shown always for testing, can be removed later)
-- On click: open `PackRevealDialog` in a new **demo mode** where polling is skipped and mock cards are injected immediately
+Additionally, the AA asset fetch in polling uses `limit=100` which could miss new cards if the user has a large collection, and the 35-second timeout may be too short for slow WAX RNG responses.
+
+### Fix
 
 **`src/components/simpleassets/PackRevealDialog.tsx`**
-- Add optional `demoCards` prop: `RevealCard[]`
-- When `demoCards` is provided, skip all polling logic — go straight to `'revealing'` phase with those cards
-- Everything else (flip animation, stagger, close behavior) stays identical
 
-**`src/pages/SimpleAssets.tsx`**
-- Pass the user's existing merged SA+AA assets down to `GpkPackCard` so demo mode can pick random cards from the real collection as placeholders
+1. **Consolidate the reset + polling into a single effect** — when `open` becomes true and it's not demo mode, reset state and start polling in one effect. This eliminates the race between two competing effects.
 
-### How it works
-1. User clicks **"Demo Open"** on any pack card
-2. The dialog opens showing the pack shaking ("Opening pack...")
-3. After a brief 2-second fake delay, it transitions to the reveal phase
-4. Cards flip one-by-one using real images from the user's collection
-5. "Awesome! Close" button appears — no transaction, no balance change
+2. **Increase AA polling limit** from 100 to 200 (matches SA and snapshot limits)
 
-### Files modified: 3
-- `src/components/simpleassets/GpkPackCard.tsx`
+3. **Increase timeout** from 35s to 60s — WAX RNG can be slow
+
+4. **Add a small initial delay** (3-4 seconds) before first poll to give the RNG oracle time to process, reducing wasted early polls
+
+5. **Add console logging** to polling so failures are diagnosable:
+   - Log when polling starts, each poll result count, when cards are found, and timeout
+
+### Changes summary
+
+```text
+Before (2 separate effects):
+  Effect 1: reset phase on open change
+  Effect 2: start polling if phase === 'waiting' (race condition)
+
+After (1 unified effect):
+  Effect: if open && !demo → reset state, wait 4s, then start polling
+  Demo effect: unchanged (separate, no conflict)
+```
+
+### Files modified: 1
 - `src/components/simpleassets/PackRevealDialog.tsx`
-- `src/pages/SimpleAssets.tsx`
 

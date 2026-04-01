@@ -15,6 +15,15 @@ const SERIES_2_IMAGES: Record<string, string> = {
   GPKTWOC: gpkSeries2cImg,
 };
 
+/** Verified on-chain unbox type names for each pack symbol */
+const UNBOX_TYPE_MAP: Record<string, string> = {
+  GPKFIVE: 'five',
+  // GPKMEGA: 'thirty', // unverified — disabled for safety
+  GPKTWOA: 'gpktwoeight',
+  GPKTWOB: 'gpktwo25',
+  GPKTWOC: 'gpktwo55',
+};
+
 interface GpkPackCardProps {
   pack: GpkPack;
   session: Session | null;

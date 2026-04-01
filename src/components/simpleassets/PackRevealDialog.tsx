@@ -192,8 +192,9 @@ export function PackRevealDialog({
     if (revealedCount >= newCards.length) return;
 
     const timer = setTimeout(() => {
+      playRandomFart();
       setRevealedCount((c) => c + 1);
-    }, 400);
+    }, 800);
     return () => clearTimeout(timer);
   }, [phase, revealedCount, newCards.length]);
 

@@ -137,7 +137,7 @@ export function PackRevealDialog({
     const timer = setTimeout(() => {
       setNewCards(demoCards);
       setPhase('revealing');
-    }, 2000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [open, phase, demoCards]);
 
@@ -194,7 +194,7 @@ export function PackRevealDialog({
     const timer = setTimeout(() => {
       playRandomFart();
       setRevealedCount((c) => c + 1);
-    }, 800);
+    }, 1600);
     return () => clearTimeout(timer);
   }, [phase, revealedCount, newCards.length]);
 

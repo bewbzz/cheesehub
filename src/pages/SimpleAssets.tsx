@@ -34,10 +34,16 @@ function EmptySlot({ onDragOver, onDrop, isOver }: {
 }
 
 export default function SimpleAssets() {
-  const { accountName, isConnected, login } = useWax();
-  const { assets: saAssets, isLoading: saLoading, error: saError } = useSimpleAssets(accountName);
-  const { assets: aaAssets, isLoading: aaLoading, error: aaError } = useGpkAtomicAssets(accountName);
-  const { packs, isLoading: packsLoading } = useGpkPacks(accountName);
+  const { accountName, isConnected, login, session } = useWax();
+  const { assets: saAssets, isLoading: saLoading, error: saError, refetch: refetchSa } = useSimpleAssets(accountName);
+  const { assets: aaAssets, isLoading: aaLoading, error: aaError, refetch: refetchAa } = useGpkAtomicAssets(accountName);
+  const { packs, isLoading: packsLoading, refetch: refetchPacks } = useGpkPacks(accountName);
+
+  const handlePackOpened = useCallback(() => {
+    refetchPacks();
+    refetchSa();
+    refetchAa();
+  }, [refetchPacks, refetchSa, refetchAa]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');

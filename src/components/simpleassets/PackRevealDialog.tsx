@@ -137,7 +137,7 @@ export function PackRevealDialog({
     const timer = setTimeout(() => {
       setNewCards(demoCards);
       setPhase('revealing');
-    }, 2000);
+    }, 4000);
     return () => clearTimeout(timer);
   }, [open, phase, demoCards]);
 

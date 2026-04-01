@@ -36,10 +36,8 @@ const POLL_INTERVAL = 2500;
 const MAX_POLL_TIME = 35000;
 
 async function fetchGpkAssets(owner: string): Promise<{ asset_id: string; name: string; data: Record<string, string> }[]> {
-  const url = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
-  const resp = await fetchWithFallback(
-    ATOMIC_API.baseUrls.map((base) => `${base}${url}`)
-  );
+  const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
+  const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
   const json = await resp.json();
   return json?.data ?? [];
 }

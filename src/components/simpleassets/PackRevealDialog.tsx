@@ -109,7 +109,7 @@ export function PackRevealDialog({
   const [newCards, setNewCards] = useState<RevealCard[]>([]);
   const [revealedCount, setRevealedCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTime = useRef(0);
+  
   const expectedCount = EXPECTED_CARDS[packSymbol] ?? 5;
 
   const stopPolling = useCallback(() => {

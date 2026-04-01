@@ -102,6 +102,7 @@ export function PackRevealDialog({
   accountName,
   preOpenAssetIds,
   onComplete,
+  demoCards,
 }: PackRevealDialogProps) {
   const [phase, setPhase] = useState<'waiting' | 'revealing' | 'timeout'>('waiting');
   const [newCards, setNewCards] = useState<RevealCard[]>([]);

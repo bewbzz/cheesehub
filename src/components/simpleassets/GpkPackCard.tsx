@@ -9,7 +9,7 @@ import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
-import gpkSeries2aImg from '@/assets/gpk_pack_series_2.png';
+import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
 import gpkSeries2cImg from '@/assets/gpk_pack_series_2c.png';
 
@@ -118,7 +118,7 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
       <Card className="bg-card border-border hover:border-primary/40 transition-colors">
         <CardContent className="p-4 flex flex-col items-center text-center space-y-2">
           {series2Img ? (
-            <img src={series2Img} alt={pack.label} className="w-20 h-auto rounded" />
+            <img src={series2Img} alt={pack.label} className="w-full h-auto rounded" />
           ) : (
             <span className="text-3xl">📦</span>
           )}

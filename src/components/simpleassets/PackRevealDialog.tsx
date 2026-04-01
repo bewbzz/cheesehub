@@ -35,6 +35,13 @@ function resolveImage(data: Record<string, unknown>): string | null {
 function parseJsonSafe(str: string): Record<string, unknown> {
   try { return JSON.parse(str) || {}; } catch { return {}; }
 }
+export interface RevealCard {
+  asset_id: string;
+  name: string;
+  image: string | null;
+  rarity: string;
+}
+
 interface PackRevealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +51,7 @@ interface PackRevealDialogProps {
   accountName: string;
   preOpenAssetIds: Set<string>;
   onComplete: () => void;
+  demoCards?: RevealCard[];
 }
 
 const POLL_INTERVAL = 2500;

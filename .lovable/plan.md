@@ -1,35 +1,33 @@
 
 
-## Pack Inventory Browser for Multiple Packs
+## Simulate Pack Opening Experience
 
-### Current behavior
-When a user has multiple of the same pack (e.g., 5x GPKTWOA), the `GpkPackCard` shows the count and a single "Open Pack" button that opens one immediately.
-
-### New behavior
-- When `pack.amount > 1`, the button text changes to **"Open Packs"**
-- Clicking it opens a **dialog/drawer** showing individual pack instances laid out in a grid (same visual style as the card grid)
-- Each instance shows the pack image and an "Open" button
-- **Pagination**: show 10 packs per page with simple prev/next controls (not infinite scroll — keeps it simple and avoids rendering hundreds of DOM nodes for heavy collectors)
-- When `pack.amount === 1`, behavior stays the same — single "Open Pack" button opens directly
+### Approach
+Add a **"Demo Open"** button (only visible in dev/preview) to `GpkPackCard` that skips the wallet transaction entirely and jumps straight to the `PackRevealDialog` with **mock card data** — pulling real images from the user's existing collection to make it feel authentic.
 
 ### Changes
 
 **`src/components/simpleassets/GpkPackCard.tsx`**
-- Add state for a new `packBrowserOpen` dialog
-- When `pack.amount > 1`: button says "Open Packs", onClick opens the pack browser dialog
-- When `pack.amount === 1`: button says "Open Pack", onClick opens directly (current behavior)
-- Render the new `PackBrowserDialog` component
+- Add a "Demo Open" button (shown always for testing, can be removed later)
+- On click: open `PackRevealDialog` in a new **demo mode** where polling is skipped and mock cards are injected immediately
 
-**`src/components/simpleassets/PackBrowserDialog.tsx`** (new)
-- Full-screen or large dialog showing pack instances in a grid
-- Each pack rendered as a card with the pack image and "Open" button
-- Generate `pack.amount` virtual instances (they're fungible tokens, not unique — just visual slots)
-- Paginated: 10 per page, prev/next buttons, page indicator
-- Clicking "Open" on any instance triggers the same open logic (snapshot + transfer + unbox + reveal)
-- After successful open, decrement the displayed count and remove that slot
-- Reuses the existing `snapshotAssetIds`, `UNBOX_TYPE_MAP`, `SERIES_2_IMAGES`, and `PackRevealDialog`
+**`src/components/simpleassets/PackRevealDialog.tsx`**
+- Add optional `demoCards` prop: `RevealCard[]`
+- When `demoCards` is provided, skip all polling logic — go straight to `'revealing'` phase with those cards
+- Everything else (flip animation, stagger, close behavior) stays identical
 
-### Files modified: 2 (1 new)
+**`src/pages/SimpleAssets.tsx`**
+- Pass the user's existing merged SA+AA assets down to `GpkPackCard` so demo mode can pick random cards from the real collection as placeholders
+
+### How it works
+1. User clicks **"Demo Open"** on any pack card
+2. The dialog opens showing the pack shaking ("Opening pack...")
+3. After a brief 2-second fake delay, it transitions to the reveal phase
+4. Cards flip one-by-one using real images from the user's collection
+5. "Awesome! Close" button appears — no transaction, no balance change
+
+### Files modified: 3
 - `src/components/simpleassets/GpkPackCard.tsx`
-- `src/components/simpleassets/PackBrowserDialog.tsx` (new)
+- `src/components/simpleassets/PackRevealDialog.tsx`
+- `src/pages/SimpleAssets.tsx`
 

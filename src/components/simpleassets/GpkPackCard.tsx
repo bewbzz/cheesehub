@@ -1,15 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Play } from 'lucide-react';
 import { Session } from '@wharfkit/session';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
 import { ATOMIC_API } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
+import type { RevealCard } from './PackRevealDialog';
 import { PackBrowserDialog } from './PackBrowserDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
+import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 import gpkSeries1Img from '@/assets/gpk_pack_series_1.png';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
@@ -30,11 +32,19 @@ const UNBOX_TYPE_MAP: Record<string, string> = {
   GPKTWOC: 'gpktwo55',
 };
 
+const EXPECTED_CARDS: Record<string, number> = {
+  GPKFIVE: 5,
+  GPKTWOA: 8,
+  GPKTWOB: 25,
+  GPKTWOC: 55,
+};
+
 interface GpkPackCardProps {
   pack: GpkPack;
   session: Session | null;
   accountName: string;
   onSuccess?: () => void;
+  collectionAssets?: SimpleAsset[];
 }
 
 async function snapshotAssetIds(owner: string): Promise<Set<string>> {

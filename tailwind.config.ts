@@ -98,6 +98,18 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-5px)" },
         },
+        "pack-shake": {
+          "0%, 100%": { transform: "rotate(0deg) scale(1)" },
+          "10%": { transform: "rotate(-3deg) scale(1.02)" },
+          "20%": { transform: "rotate(3deg) scale(1.04)" },
+          "30%": { transform: "rotate(-3deg) scale(1.02)" },
+          "40%": { transform: "rotate(3deg) scale(1.04)" },
+          "50%": { transform: "rotate(0deg) scale(1.06)" },
+          "60%": { transform: "rotate(-2deg) scale(1.04)" },
+          "70%": { transform: "rotate(2deg) scale(1.02)" },
+          "80%": { transform: "rotate(-1deg) scale(1.01)" },
+          "90%": { transform: "rotate(1deg) scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",

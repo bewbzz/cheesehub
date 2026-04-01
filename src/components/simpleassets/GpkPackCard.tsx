@@ -30,18 +30,15 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
     if (!session) return;
     setIsOpening(true);
     try {
-      const quantity = `${pack.amount >= 1 ? 1 : pack.amount.toFixed(pack.precision)} ${pack.symbol}`;
       const result = await executeTransaction(
         [
           {
-            account: 'packs.topps',
-            name: 'transfer',
+            account: 'gpk.topps',
+            name: 'unbox',
             authorization: [{ actor: String(session.actor), permission: String(session.permission) }],
             data: {
               from: String(session.actor),
-              to: 'gpk.topps',
-              quantity,
-              memo: '',
+              type: pack.symbol,
             },
           },
         ],

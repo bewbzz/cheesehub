@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { Session } from '@wharfkit/session';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
+import { ATOMIC_API } from '@/lib/waxConfig';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { PackRevealDialog } from './PackRevealDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
@@ -27,17 +30,31 @@ const UNBOX_TYPE_MAP: Record<string, string> = {
 interface GpkPackCardProps {
   pack: GpkPack;
   session: Session | null;
+  accountName: string;
   onSuccess?: () => void;
 }
 
-export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
+async function snapshotAssetIds(owner: string): Promise<Set<string>> {
+  try {
+    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
+    const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const json = await resp.json();
+    return new Set((json?.data ?? []).map((a: { asset_id: string }) => a.asset_id));
+  } catch {
+    return new Set();
+  }
+}
+
+export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCardProps) {
   const series2Img = SERIES_2_IMAGES[pack.symbol];
   const [isOpening, setIsOpening] = useState(false);
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [preOpenIds, setPreOpenIds] = useState<Set<string>>(new Set());
   const { executeTransaction } = useWaxTransaction(session);
 
   const unboxType = UNBOX_TYPE_MAP[pack.symbol];
 
-  const handleOpen = async () => {
+  const handleOpen = useCallback(async () => {
     if (!session || !unboxType) return;
     setIsOpening(true);
     const actor = String(session.actor);
@@ -47,6 +64,10 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
       : `1 ${pack.symbol}`;
 
     try {
+      // Snapshot current assets before opening
+      const snapshot = await snapshotAssetIds(accountName);
+      setPreOpenIds(snapshot);
+
       const result = await executeTransaction(
         [
           {
@@ -64,38 +85,55 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
         ],
         {
           successTitle: 'Pack Opened!',
-          successDescription: `Your ${pack.label} has been opened. New cards should appear shortly.`,
+          successDescription: `Your ${pack.label} has been opened. Revealing cards...`,
         }
       );
       if (result.success) {
-        setTimeout(() => onSuccess?.(), 2000);
+        setRevealOpen(true);
       }
     } finally {
       setIsOpening(false);
     }
-  };
+  }, [session, unboxType, pack, accountName, executeTransaction]);
+
+  const handleRevealComplete = useCallback(() => {
+    onSuccess?.();
+  }, [onSuccess]);
 
   return (
-    <Card className="bg-card border-border hover:border-primary/40 transition-colors">
-      <CardContent className="p-4 flex flex-col items-center text-center space-y-2">
-        {series2Img ? (
-          <img src={series2Img} alt={pack.label} className="w-20 h-auto rounded" />
-        ) : (
-          <span className="text-3xl">📦</span>
-        )}
-        <p className="font-bold text-foreground text-sm">{pack.label}</p>
-        <p className="text-xs text-muted-foreground">{pack.symbol}</p>
-        <p className="text-lg font-mono text-primary">{pack.amount}</p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full text-xs"
-          disabled={!session || isOpening || !unboxType}
-          onClick={handleOpen}
-        >
-          {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}
-        </Button>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="bg-card border-border hover:border-primary/40 transition-colors">
+        <CardContent className="p-4 flex flex-col items-center text-center space-y-2">
+          {series2Img ? (
+            <img src={series2Img} alt={pack.label} className="w-20 h-auto rounded" />
+          ) : (
+            <span className="text-3xl">📦</span>
+          )}
+          <p className="font-bold text-foreground text-sm">{pack.label}</p>
+          <p className="text-xs text-muted-foreground">{pack.symbol}</p>
+          <p className="text-lg font-mono text-primary">{pack.amount}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-xs"
+            disabled={!session || isOpening || !unboxType}
+            onClick={handleOpen}
+          >
+            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <PackRevealDialog
+        open={revealOpen}
+        onOpenChange={setRevealOpen}
+        packSymbol={pack.symbol}
+        packLabel={pack.label}
+        packImage={series2Img}
+        accountName={accountName}
+        preOpenAssetIds={preOpenIds}
+        onComplete={handleRevealComplete}
+      />
+    </>
   );
 }

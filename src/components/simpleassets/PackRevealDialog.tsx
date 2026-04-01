@@ -133,27 +133,26 @@ export function PackRevealDialog({
     const poll = async () => {
       try {
         const assets = await fetchGpkAssets(accountName);
-        const fresh = assets.filter((a) => !preOpenAssetIds.has(a.asset_id));
+        const fresh = assets.filter((a) => !preOpenAssetIds.has(a.id));
 
         if (fresh.length >= expectedCount) {
           stopPolling();
           const cards: RevealCard[] = fresh.slice(0, expectedCount).map((a) => ({
-            asset_id: a.asset_id,
-            name: a.name || a.data?.name || 'GPK Card',
-            image: resolveImage(a.data),
-            rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+            asset_id: a.id,
+            name: a.name,
+            image: a.image,
+            rarity: a.rarity,
           }));
           setNewCards(cards);
           setPhase('revealing');
         } else if (Date.now() - startTime.current > MAX_POLL_TIME) {
-          // Check if we got at least some cards
           if (fresh.length > 0) {
             stopPolling();
             const cards: RevealCard[] = fresh.map((a) => ({
-              asset_id: a.asset_id,
-              name: a.name || a.data?.name || 'GPK Card',
-              image: resolveImage(a.data),
-              rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+              asset_id: a.id,
+              name: a.name,
+              image: a.image,
+              rarity: a.rarity,
             }));
             setNewCards(cards);
             setPhase('revealing');

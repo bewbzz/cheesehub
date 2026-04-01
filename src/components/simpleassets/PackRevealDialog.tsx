@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles } from 'lucide-react';
 import { ATOMIC_API } from '@/lib/waxConfig';
+import { playRandomFart } from '@/lib/fartSounds';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { getIpfsUrl, extractIpfsHash } from '@/lib/ipfsGateways';

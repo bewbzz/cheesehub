@@ -54,7 +54,7 @@ export default function SimpleAssets() {
 
   const assets = useMemo(() => {
     const combined = [...saAssets, ...aaAssets];
-    const variantOrder = ['base', 'prism', 'sketch', 'collector'];
+    const variantOrder = ['base', 'prism', 'sketch', 'collector', 'golden'];
     const getVariantRank = (q: string) => {
       const idx = variantOrder.indexOf(q.toLowerCase());
       return idx === -1 ? variantOrder.length : idx;

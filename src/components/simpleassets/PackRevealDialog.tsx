@@ -15,13 +15,7 @@ const EXPECTED_CARDS: Record<string, number> = {
   GPKTWOC: 55,
 };
 
-interface RevealCard {
-  asset_id: string;
-  name: string;
-  image: string | null;
-  rarity: string;
-}
-
+/* RevealCard is exported from the new declaration below */
 function resolveImage(data: Record<string, unknown>): string | null {
   const raw = (data?.img || data?.image || data?.frontimg || data?.backimg || '') as string;
   if (!raw) return null;

@@ -2,9 +2,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { GpkPack } from '@/hooks/useGpkPacks';
-import gpkSeries2Img from '@/assets/gpk_pack_series_2.png';
+import gpkSeries2aImg from '@/assets/gpk_pack_series_2.png';
+import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
+import gpkSeries2cImg from '@/assets/gpk_pack_series_2c.png';
 
-const SERIES_2_SYMBOLS = new Set(['GPKTWOA', 'GPKTWOB', 'GPKTWOC']);
+const SERIES_2_IMAGES: Record<string, string> = {
+  GPKTWOA: gpkSeries2aImg,
+  GPKTWOB: gpkSeries2bImg,
+  GPKTWOC: gpkSeries2cImg,
+};
 
 interface GpkPackCardProps {
   pack: GpkPack;

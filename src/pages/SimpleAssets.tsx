@@ -54,12 +54,18 @@ export default function SimpleAssets() {
 
   const assets = useMemo(() => {
     const combined = [...saAssets, ...aaAssets];
+    const variantOrder = ['base', 'prism', 'sketch', 'collector'];
+    const getVariantRank = (q: string) => {
+      const idx = variantOrder.indexOf(q.toLowerCase());
+      return idx === -1 ? variantOrder.length : idx;
+    };
     combined.sort((a, b) => {
       const numA = parseInt(a.cardid, 10);
       const numB = parseInt(b.cardid, 10);
       if (!isNaN(numA) && !isNaN(numB)) {
         if (numA !== numB) return numA - numB;
-        return a.quality.localeCompare(b.quality);
+        const rankDiff = getVariantRank(a.quality) - getVariantRank(b.quality);
+        return rankDiff !== 0 ? rankDiff : a.quality.localeCompare(b.quality);
       }
       if (!isNaN(numA)) return -1;
       if (!isNaN(numB)) return 1;

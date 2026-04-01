@@ -1,32 +1,30 @@
 
 
-## Add "Open Pack" Functionality to GPK Pack Cards
+## Fix Pack Opening to Use gpk.topps::unbox
 
-Pack opening works by transferring the pack token from the user's account to `gpk.topps` via the `packs.topps::transfer` action. The contract then mints cards back to the user.
+The current implementation uses `packs.topps::transfer` to send the pack token to `gpk.topps`, but the contract actually has a dedicated `unbox` action that triggers WAX RNG-based card generation.
 
-### Transaction Details
+### Confirmed Contract Details
 
 ```text
-Contract:  packs.topps
-Action:    transfer
-Data:      { from: user, to: "gpk.topps", quantity: "1 GPKTWOA", memo: "" }
+Contract:  gpk.topps
+Action:    unbox
+Data:      { from: "youraccount", type: "GPKTWOA" }
 ```
+
+The `unbox` action:
+- Takes `from` (the user's account name) and `type` (the pack symbol, e.g. `GPKTWOA`, `GPKTWOB`, `GPKTWOC`)
+- Internally requests a random number from WAX RNG
+- Burns the pack token and mints cards back to the user
 
 ### Changes
 
 **`src/components/simpleassets/GpkPackCard.tsx`**
-- Accept `session` (from useWax) and `onSuccess` callback as props
-- Enable the "Open Pack" button (remove `disabled` + tooltip wrapper)
-- On click, sign a `packs.topps::transfer` action sending `1 {SYMBOL}` to `gpk.topps` with empty memo
-- Use `useWaxTransaction` for signing with automatic modal cleanup and toast feedback
-- Add loading state while transaction is in-flight
-- On success, call `onSuccess()` so the parent can refetch pack balances and card lists
+- Change the transaction from `packs.topps::transfer` to `gpk.topps::unbox`
+- Action data changes from `{ from, to, quantity, memo }` to `{ from, type }`
+- `type` is the pack symbol (e.g. `"GPKTWOA"`)
+- Authorization remains the user's session actor/permission
 
-**`src/pages/SimpleAssets.tsx`**
-- Pass `session` and a `refetch` callback down to each `GpkPackCard`
-- After a successful open, refetch both pack balances and SimpleAssets so newly minted cards appear immediately
-
-### Files modified: 2
+### Files modified: 1
 - `src/components/simpleassets/GpkPackCard.tsx`
-- `src/pages/SimpleAssets.tsx`
 

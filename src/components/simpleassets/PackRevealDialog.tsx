@@ -49,8 +49,8 @@ interface PackRevealDialogProps {
   demoCards?: RevealCard[];
 }
 
-const POLL_INTERVAL = 2500;
-const MAX_POLL_TIME = 35000;
+const POLL_INTERVAL = 3000;
+const MAX_POLL_TIME = 60000;
 
 /** Fetch GPK assets from both AtomicAssets API and SimpleAssets on-chain table */
 async function fetchGpkAssets(owner: string): Promise<{ id: string; name: string; image: string | null; rarity: string }[]> {

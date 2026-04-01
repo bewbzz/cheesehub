@@ -15,6 +15,15 @@ const SERIES_2_IMAGES: Record<string, string> = {
   GPKTWOC: gpkSeries2cImg,
 };
 
+/** Verified on-chain unbox type names for each pack symbol */
+const UNBOX_TYPE_MAP: Record<string, string> = {
+  GPKFIVE: 'five',
+  // GPKMEGA: 'thirty', // unverified — disabled for safety
+  GPKTWOA: 'gpktwoeight',
+  GPKTWOB: 'gpktwo25',
+  GPKTWOC: 'gpktwo55',
+};
+
 interface GpkPackCardProps {
   pack: GpkPack;
   session: Session | null;
@@ -26,20 +35,31 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
   const [isOpening, setIsOpening] = useState(false);
   const { executeTransaction } = useWaxTransaction(session);
 
+  const unboxType = UNBOX_TYPE_MAP[pack.symbol];
+
   const handleOpen = async () => {
-    if (!session) return;
+    if (!session || !unboxType) return;
     setIsOpening(true);
+    const actor = String(session.actor);
+    const auth = [{ actor, permission: String(session.permission) }];
+    const qty = pack.precision > 0
+      ? `${(1).toFixed(pack.precision)} ${pack.symbol}`
+      : `1 ${pack.symbol}`;
+
     try {
       const result = await executeTransaction(
         [
           {
+            account: 'packs.topps',
+            name: 'transfer',
+            authorization: auth,
+            data: { from: actor, to: 'gpk.topps', quantity: qty, memo: '' },
+          },
+          {
             account: 'gpk.topps',
             name: 'unbox',
-            authorization: [{ actor: String(session.actor), permission: String(session.permission) }],
-            data: {
-              from: String(session.actor),
-              type: pack.symbol,
-            },
+            authorization: auth,
+            data: { from: actor, type: unboxType },
           },
         ],
         {
@@ -70,7 +90,7 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
           size="sm"
           variant="outline"
           className="w-full text-xs"
-          disabled={!session || isOpening}
+          disabled={!session || isOpening || !unboxType}
           onClick={handleOpen}
         >
           {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}

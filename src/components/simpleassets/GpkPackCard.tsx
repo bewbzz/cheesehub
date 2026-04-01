@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Loader2 } from 'lucide-react';
+import { Session } from '@wharfkit/session';
+import { useWaxTransaction } from '@/hooks/useWaxTransaction';
 import type { GpkPack } from '@/hooks/useGpkPacks';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
@@ -14,10 +17,46 @@ const SERIES_2_IMAGES: Record<string, string> = {
 
 interface GpkPackCardProps {
   pack: GpkPack;
+  session: Session | null;
+  onSuccess?: () => void;
 }
 
-export function GpkPackCard({ pack }: GpkPackCardProps) {
+export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
   const series2Img = SERIES_2_IMAGES[pack.symbol];
+  const [isOpening, setIsOpening] = useState(false);
+  const { executeTransaction } = useWaxTransaction(session);
+
+  const handleOpen = async () => {
+    if (!session) return;
+    setIsOpening(true);
+    try {
+      const quantity = `${pack.amount >= 1 ? 1 : pack.amount.toFixed(pack.precision)} ${pack.symbol}`;
+      const result = await executeTransaction(
+        [
+          {
+            account: 'packs.topps',
+            name: 'transfer',
+            authorization: [{ actor: String(session.actor), permission: String(session.permission) }],
+            data: {
+              from: String(session.actor),
+              to: 'gpk.topps',
+              quantity,
+              memo: '',
+            },
+          },
+        ],
+        {
+          successTitle: 'Pack Opened!',
+          successDescription: `Your ${pack.label} has been opened. New cards should appear shortly.`,
+        }
+      );
+      if (result.success) {
+        setTimeout(() => onSuccess?.(), 2000);
+      }
+    } finally {
+      setIsOpening(false);
+    }
+  };
 
   return (
     <Card className="bg-card border-border hover:border-primary/40 transition-colors">
@@ -30,18 +69,15 @@ export function GpkPackCard({ pack }: GpkPackCardProps) {
         <p className="font-bold text-foreground text-sm">{pack.label}</p>
         <p className="text-xs text-muted-foreground">{pack.symbol}</p>
         <p className="text-lg font-mono text-primary">{pack.amount}</p>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="sm" variant="outline" disabled className="w-full text-xs opacity-50">
-                Open Pack
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Coming soon — verifying unbox contract status</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full text-xs"
+          disabled={!session || isOpening}
+          onClick={handleOpen}
+        >
+          {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}
+        </Button>
       </CardContent>
     </Card>
   );

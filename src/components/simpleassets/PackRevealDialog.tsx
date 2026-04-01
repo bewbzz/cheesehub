@@ -35,8 +35,63 @@ function resolveImage(data: Record<string, unknown>): string | null {
 function parseJsonSafe(str: string): Record<string, unknown> {
   try { return JSON.parse(str) || {}; } catch { return {}; }
 }
+interface PackRevealDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  packSymbol: string;
+  packLabel: string;
+  packImage?: string;
+  accountName: string;
+  preOpenAssetIds: Set<string>;
+  onComplete: () => void;
+}
 
-export function PackRevealDialog({
+const POLL_INTERVAL = 2500;
+const MAX_POLL_TIME = 35000;
+
+/** Fetch GPK assets from both AtomicAssets API and SimpleAssets on-chain table */
+async function fetchGpkAssets(owner: string): Promise<{ id: string; name: string; image: string | null; rarity: string }[]> {
+  const results: { id: string; name: string; image: string | null; rarity: string }[] = [];
+
+  // AtomicAssets
+  try {
+    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
+    const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const json = await resp.json();
+    for (const a of json?.data ?? []) {
+      results.push({
+        id: `aa-${a.asset_id}`,
+        name: a.name || a.data?.name || 'GPK Card',
+        image: resolveImage(a.data || {}),
+        rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+      });
+    }
+  } catch { /* ignore */ }
+
+  // SimpleAssets
+  try {
+    const saRows = await fetchTableRows<{ id: string; author: string; idata: string; mdata: string }>({
+      code: 'simpleassets',
+      scope: owner,
+      table: 'sassets',
+      limit: 200,
+    });
+    for (const r of saRows.rows) {
+      if (r.author !== 'gpk.topps') continue;
+      const combined = { ...parseJsonSafe(r.idata), ...parseJsonSafe(r.mdata) };
+      results.push({
+        id: `sa-${r.id}`,
+        name: (combined.name as string) || `Asset #${r.id}`,
+        image: resolveImage(combined),
+        rarity: (combined.rarity as string) || (combined.quality as string) || (combined.variant as string) || '',
+      });
+    }
+  } catch { /* ignore */ }
+
+  return results;
+}
+
+
   open,
   onOpenChange,
   packSymbol,

@@ -1,0 +1,274 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Loader2, Sparkles } from 'lucide-react';
+import { ATOMIC_API } from '@/lib/waxConfig';
+import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { getIpfsUrl } from '@/lib/ipfsGateways';
+
+/** Expected card counts per pack symbol */
+const EXPECTED_CARDS: Record<string, number> = {
+  GPKFIVE: 5,
+  GPKTWOA: 8,
+  GPKTWOB: 25,
+  GPKTWOC: 55,
+};
+
+interface RevealCard {
+  asset_id: string;
+  name: string;
+  image: string | null;
+  rarity: string;
+}
+
+interface PackRevealDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  packSymbol: string;
+  packLabel: string;
+  packImage?: string;
+  accountName: string;
+  preOpenAssetIds: Set<string>;
+  onComplete: () => void;
+}
+
+const POLL_INTERVAL = 2500;
+const MAX_POLL_TIME = 35000;
+
+async function fetchGpkAssets(owner: string): Promise<{ asset_id: string; name: string; data: Record<string, string> }[]> {
+  const url = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
+  const resp = await fetchWithFallback(
+    ATOMIC_API.baseUrls.map((base) => `${base}${url}`)
+  );
+  const json = await resp.json();
+  return json?.data ?? [];
+}
+
+function resolveImage(data: Record<string, string>): string | null {
+  const raw = data?.img || data?.image || data?.frontimg || data?.backimg || '';
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw;
+  if (raw.startsWith('Qm') || raw.startsWith('bafy') || raw.startsWith('bafk')) return getIpfsUrl(raw);
+  return null;
+}
+
+export function PackRevealDialog({
+  open,
+  onOpenChange,
+  packSymbol,
+  packLabel,
+  packImage,
+  accountName,
+  preOpenAssetIds,
+  onComplete,
+}: PackRevealDialogProps) {
+  const [phase, setPhase] = useState<'waiting' | 'revealing' | 'timeout'>('waiting');
+  const [newCards, setNewCards] = useState<RevealCard[]>([]);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTime = useRef(0);
+  const expectedCount = EXPECTED_CARDS[packSymbol] ?? 5;
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setPhase('waiting');
+      setNewCards([]);
+      setRevealedCount(0);
+      startTime.current = Date.now();
+    } else {
+      stopPolling();
+    }
+  }, [open, stopPolling]);
+
+  // Polling logic
+  useEffect(() => {
+    if (!open || phase !== 'waiting' || !accountName) return;
+
+    const poll = async () => {
+      try {
+        const assets = await fetchGpkAssets(accountName);
+        const fresh = assets.filter((a) => !preOpenAssetIds.has(a.asset_id));
+
+        if (fresh.length >= expectedCount) {
+          stopPolling();
+          const cards: RevealCard[] = fresh.slice(0, expectedCount).map((a) => ({
+            asset_id: a.asset_id,
+            name: a.name || a.data?.name || 'GPK Card',
+            image: resolveImage(a.data),
+            rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+          }));
+          setNewCards(cards);
+          setPhase('revealing');
+        } else if (Date.now() - startTime.current > MAX_POLL_TIME) {
+          // Check if we got at least some cards
+          if (fresh.length > 0) {
+            stopPolling();
+            const cards: RevealCard[] = fresh.map((a) => ({
+              asset_id: a.asset_id,
+              name: a.name || a.data?.name || 'GPK Card',
+              image: resolveImage(a.data),
+              rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+            }));
+            setNewCards(cards);
+            setPhase('revealing');
+          } else {
+            stopPolling();
+            setPhase('timeout');
+          }
+        }
+      } catch {
+        // Ignore polling errors, try again next interval
+      }
+    };
+
+    poll(); // immediate first poll
+    pollRef.current = setInterval(poll, POLL_INTERVAL);
+    return stopPolling;
+  }, [open, phase, accountName, preOpenAssetIds, expectedCount, stopPolling]);
+
+  // Staggered card reveal
+  useEffect(() => {
+    if (phase !== 'revealing' || newCards.length === 0) return;
+    if (revealedCount >= newCards.length) return;
+
+    const timer = setTimeout(() => {
+      setRevealedCount((c) => c + 1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [phase, revealedCount, newCards.length]);
+
+  const handleClose = () => {
+    onOpenChange(false);
+    onComplete();
+  };
+
+  const allRevealed = phase === 'revealing' && revealedCount >= newCards.length;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
+        <DialogTitle className="sr-only">Pack Reveal</DialogTitle>
+
+        {/* Waiting phase */}
+        {phase === 'waiting' && (
+          <div className="flex flex-col items-center justify-center py-12 space-y-6">
+            <div className="animate-pack-shake">
+              {packImage ? (
+                <img src={packImage} alt={packLabel} className="w-32 h-auto rounded-lg shadow-lg shadow-primary/30" />
+              ) : (
+                <span className="text-7xl">📦</span>
+              )}
+            </div>
+            <div className="text-center space-y-2">
+              <p className="text-lg font-bold text-foreground">Opening {packLabel}...</p>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Waiting for cards to be minted...</span>
+              </div>
+              <p className="text-xs text-muted-foreground/60">This usually takes 2-15 seconds</p>
+            </div>
+          </div>
+        )}
+
+        {/* Reveal phase */}
+        {phase === 'revealing' && (
+          <div className="space-y-6 py-4">
+            <div className="text-center space-y-1">
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold text-foreground">
+                  {allRevealed ? 'All Cards Revealed!' : 'Revealing Cards...'}
+                </h2>
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {newCards.length} card{newCards.length !== 1 ? 's' : ''} from {packLabel}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3" style={{ perspective: '1000px' }}>
+              {newCards.map((card, i) => {
+                const isRevealed = i < revealedCount;
+                return (
+                  <div
+                    key={card.asset_id}
+                    className="relative aspect-[2/3] rounded-lg"
+                    style={{
+                      transformStyle: 'preserve-3d',
+                      transition: 'transform 0.6s ease-out',
+                      transform: isRevealed ? 'rotateY(0deg)' : 'rotateY(180deg)',
+                    }}
+                  >
+                    {/* Front - card image */}
+                    <div
+                      className="absolute inset-0 rounded-lg overflow-hidden border border-border bg-card shadow-md"
+                      style={{ backfaceVisibility: 'hidden' }}
+                    >
+                      {card.image ? (
+                        <img
+                          src={card.image}
+                          alt={card.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted text-2xl">🃏</div>
+                      )}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                        <p className="text-[10px] text-white font-medium truncate">{card.name}</p>
+                        {card.rarity && (
+                          <p className="text-[9px] text-primary-foreground/80 truncate">{card.rarity}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Back - card back */}
+                    <div
+                      className="absolute inset-0 rounded-lg border-2 border-primary/30 bg-gradient-to-br from-primary/20 via-accent/20 to-primary/30 flex items-center justify-center shadow-md"
+                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                    >
+                      <div className="text-center space-y-1">
+                        <span className="text-3xl">🧀</span>
+                        <p className="text-[10px] text-muted-foreground font-medium">GPK</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {allRevealed && (
+              <div className="flex justify-center pt-2">
+                <Button onClick={handleClose} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  Awesome! Close
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Timeout phase */}
+        {phase === 'timeout' && (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
+            <span className="text-5xl">⏳</span>
+            <p className="text-foreground font-semibold">Cards are still being minted</p>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              The WAX RNG oracle is processing your pack. Your new cards should appear in your collection shortly.
+            </p>
+            <Button onClick={handleClose} variant="outline">
+              Close & Refresh
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

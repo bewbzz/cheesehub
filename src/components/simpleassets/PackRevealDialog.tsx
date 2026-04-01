@@ -15,13 +15,7 @@ const EXPECTED_CARDS: Record<string, number> = {
   GPKTWOC: 55,
 };
 
-interface RevealCard {
-  asset_id: string;
-  name: string;
-  image: string | null;
-  rarity: string;
-}
-
+/* RevealCard is exported from the new declaration below */
 function resolveImage(data: Record<string, unknown>): string | null {
   const raw = (data?.img || data?.image || data?.frontimg || data?.backimg || '') as string;
   if (!raw) return null;
@@ -35,6 +29,13 @@ function resolveImage(data: Record<string, unknown>): string | null {
 function parseJsonSafe(str: string): Record<string, unknown> {
   try { return JSON.parse(str) || {}; } catch { return {}; }
 }
+export interface RevealCard {
+  asset_id: string;
+  name: string;
+  image: string | null;
+  rarity: string;
+}
+
 interface PackRevealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,6 +45,7 @@ interface PackRevealDialogProps {
   accountName: string;
   preOpenAssetIds: Set<string>;
   onComplete: () => void;
+  demoCards?: RevealCard[];
 }
 
 const POLL_INTERVAL = 2500;
@@ -100,6 +102,7 @@ export function PackRevealDialog({
   accountName,
   preOpenAssetIds,
   onComplete,
+  demoCards,
 }: PackRevealDialogProps) {
   const [phase, setPhase] = useState<'waiting' | 'revealing' | 'timeout'>('waiting');
   const [newCards, setNewCards] = useState<RevealCard[]>([]);
@@ -127,9 +130,19 @@ export function PackRevealDialog({
     }
   }, [open, stopPolling]);
 
-  // Polling logic
+  // Demo mode: fake delay then reveal
   useEffect(() => {
-    if (!open || phase !== 'waiting' || !accountName) return;
+    if (!open || phase !== 'waiting' || !demoCards || demoCards.length === 0) return;
+    const timer = setTimeout(() => {
+      setNewCards(demoCards);
+      setPhase('revealing');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [open, phase, demoCards]);
+
+  // Polling logic (skipped in demo mode)
+  useEffect(() => {
+    if (!open || phase !== 'waiting' || !accountName || (demoCards && demoCards.length > 0)) return;
 
     const poll = async () => {
       try {

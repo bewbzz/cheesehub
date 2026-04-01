@@ -1,15 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Play } from 'lucide-react';
 import { Session } from '@wharfkit/session';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
 import { ATOMIC_API } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
+import type { RevealCard } from './PackRevealDialog';
 import { PackBrowserDialog } from './PackBrowserDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
+import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 import gpkSeries1Img from '@/assets/gpk_pack_series_1.png';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
@@ -30,11 +32,19 @@ const UNBOX_TYPE_MAP: Record<string, string> = {
   GPKTWOC: 'gpktwo55',
 };
 
+const EXPECTED_CARDS: Record<string, number> = {
+  GPKFIVE: 5,
+  GPKTWOA: 8,
+  GPKTWOB: 25,
+  GPKTWOC: 55,
+};
+
 interface GpkPackCardProps {
   pack: GpkPack;
   session: Session | null;
   accountName: string;
   onSuccess?: () => void;
+  collectionAssets?: SimpleAsset[];
 }
 
 async function snapshotAssetIds(owner: string): Promise<Set<string>> {
@@ -59,16 +69,30 @@ async function snapshotAssetIds(owner: string): Promise<Set<string>> {
   return ids;
 }
 
-export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCardProps) {
+export function GpkPackCard({ pack, session, accountName, onSuccess, collectionAssets = [] }: GpkPackCardProps) {
   const series2Img = SERIES_2_IMAGES[pack.symbol];
   const [isOpening, setIsOpening] = useState(false);
   const [revealOpen, setRevealOpen] = useState(false);
   const [preOpenIds, setPreOpenIds] = useState<Set<string>>(new Set());
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [demoRevealOpen, setDemoRevealOpen] = useState(false);
   const { executeTransaction } = useWaxTransaction(session);
 
   const unboxType = UNBOX_TYPE_MAP[pack.symbol];
   const hasMultiple = pack.amount > 1;
+  const expectedCount = EXPECTED_CARDS[pack.symbol] ?? 5;
+
+  // Build demo cards from the user's existing collection
+  const demoCards = useMemo((): RevealCard[] => {
+    if (collectionAssets.length === 0) return [];
+    const shuffled = [...collectionAssets].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, expectedCount).map((a) => ({
+      asset_id: `demo-${a.id}`,
+      name: a.name,
+      image: a.image || null,
+      rarity: a.quality || '',
+    }));
+  }, [collectionAssets, expectedCount]);
 
   const handleOpen = useCallback(async () => {
     if (!session || !unboxType) return;
@@ -80,7 +104,6 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
       : `1 ${pack.symbol}`;
 
     try {
-      // Snapshot current assets before opening
       const snapshot = await snapshotAssetIds(accountName);
       setPreOpenIds(snapshot);
 
@@ -137,10 +160,20 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
           >
             {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : hasMultiple ? 'Open Packs' : 'Open Pack'}
           </Button>
+          {demoCards.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full text-xs text-muted-foreground"
+              onClick={() => setDemoRevealOpen(true)}
+            >
+              <Play className="h-3 w-3 mr-1" /> Demo Open
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      {/* Single-pack reveal (amount === 1) */}
+      {/* Real single-pack reveal */}
       <PackRevealDialog
         open={revealOpen}
         onOpenChange={setRevealOpen}
@@ -152,7 +185,20 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
         onComplete={handleRevealComplete}
       />
 
-      {/* Multi-pack browser (amount > 1) */}
+      {/* Demo reveal */}
+      <PackRevealDialog
+        open={demoRevealOpen}
+        onOpenChange={setDemoRevealOpen}
+        packSymbol={pack.symbol}
+        packLabel={pack.label}
+        packImage={series2Img}
+        accountName={accountName}
+        preOpenAssetIds={new Set()}
+        onComplete={() => {}}
+        demoCards={demoCards}
+      />
+
+      {/* Multi-pack browser */}
       <PackBrowserDialog
         open={browserOpen}
         onOpenChange={setBrowserOpen}

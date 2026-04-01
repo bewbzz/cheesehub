@@ -90,7 +90,7 @@ export function GpkPackCard({ pack, session, onSuccess }: GpkPackCardProps) {
           size="sm"
           variant="outline"
           className="w-full text-xs"
-          disabled={!session || isOpening}
+          disabled={!session || isOpening || !unboxType}
           onClick={handleOpen}
         >
           {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}

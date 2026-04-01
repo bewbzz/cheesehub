@@ -9,7 +9,7 @@ export interface GpkPack {
 }
 
 const GPK_LABELS: Record<string, string> = {
-  GPKFIVE: 'GPK Series 5 Pack',
+  GPKFIVE: 'GPK Series 1 Pack',
   GPKMEGA: 'GPK Mega Pack',
   GPKTWOA: 'GPK Series 2A Pack',
   GPKTWOB: 'GPK Series 2B Pack',

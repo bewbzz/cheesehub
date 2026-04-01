@@ -10,11 +10,13 @@ import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
 import { PackBrowserDialog } from './PackBrowserDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
+import gpkSeries1Img from '@/assets/gpk_pack_series_1.png';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
 import gpkSeries2cImg from '@/assets/gpk_pack_series_2c.png';
 
 const SERIES_2_IMAGES: Record<string, string> = {
+  GPKFIVE: gpkSeries1Img,
   GPKTWOA: gpkSeries2aImg,
   GPKTWOB: gpkSeries2bImg,
   GPKTWOC: gpkSeries2cImg,

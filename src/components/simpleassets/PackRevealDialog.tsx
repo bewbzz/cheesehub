@@ -130,9 +130,19 @@ export function PackRevealDialog({
     }
   }, [open, stopPolling]);
 
-  // Polling logic
+  // Demo mode: fake delay then reveal
   useEffect(() => {
-    if (!open || phase !== 'waiting' || !accountName) return;
+    if (!open || phase !== 'waiting' || !demoCards || demoCards.length === 0) return;
+    const timer = setTimeout(() => {
+      setNewCards(demoCards);
+      setPhase('revealing');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [open, phase, demoCards]);
+
+  // Polling logic (skipped in demo mode)
+  useEffect(() => {
+    if (!open || phase !== 'waiting' || !accountName || (demoCards && demoCards.length > 0)) return;
 
     const poll = async () => {
       try {

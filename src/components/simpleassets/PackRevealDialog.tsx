@@ -125,7 +125,6 @@ export function PackRevealDialog({
       setPhase('waiting');
       setNewCards([]);
       setRevealedCount(0);
-      startTime.current = Date.now();
     } else {
       stopPolling();
     }
@@ -141,50 +140,84 @@ export function PackRevealDialog({
     return () => clearTimeout(timer);
   }, [open, phase, demoCards]);
 
-  // Polling logic (skipped in demo mode)
+  // Unified polling effect for real opens (skipped in demo mode)
   useEffect(() => {
-    if (!open || phase !== 'waiting' || !accountName || (demoCards && demoCards.length > 0)) return;
+    if (!open || !accountName || (demoCards && demoCards.length > 0)) return;
+    // Skip if not in waiting phase
+    if (phase !== 'waiting') return;
+
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const startTs = Date.now();
 
     const poll = async () => {
       try {
         const assets = await fetchGpkAssets(accountName);
         const fresh = assets.filter((a) => !preOpenAssetIds.has(a.id));
+        console.log('[pack-reveal] poll', fresh.length, 'new cards found');
+
+        if (cancelled) return;
 
         if (fresh.length >= expectedCount) {
-          stopPolling();
+          clearInterval(interval);
+          clearTimeout(timeout);
           const cards: RevealCard[] = fresh.slice(0, expectedCount).map((a) => ({
             asset_id: a.id,
             name: a.name,
             image: a.image,
             rarity: a.rarity,
           }));
+          console.log('[pack-reveal] success —', cards.length, 'cards revealed');
           setNewCards(cards);
           setPhase('revealing');
-        } else if (Date.now() - startTime.current > MAX_POLL_TIME) {
+        } else if (Date.now() - startTs > MAX_POLL_TIME) {
+          clearInterval(interval);
+          clearTimeout(timeout);
           if (fresh.length > 0) {
-            stopPolling();
             const cards: RevealCard[] = fresh.map((a) => ({
               asset_id: a.id,
               name: a.name,
               image: a.image,
               rarity: a.rarity,
             }));
+            console.log('[pack-reveal] partial timeout —', cards.length, 'cards');
             setNewCards(cards);
             setPhase('revealing');
           } else {
-            stopPolling();
+            console.warn('[pack-reveal] timeout — no cards found after', MAX_POLL_TIME / 1000, 's');
             setPhase('timeout');
           }
         }
-      } catch {
-        // Ignore polling errors, try again next interval
+      } catch (e) {
+        console.error('[pack-reveal] poll error', e);
       }
     };
 
-    poll(); // immediate first poll
-    pollRef.current = setInterval(poll, POLL_INTERVAL);
-    return stopPolling;
-  }, [open, phase, accountName, preOpenAssetIds, expectedCount, stopPolling]);
+    // Initial delay before first poll (give RNG oracle time)
+    console.log('[pack-reveal] starting with 4s delay');
+    const startDelay = setTimeout(() => {
+      if (cancelled) return;
+      console.log('[pack-reveal] polling started');
+      poll();
+      interval = setInterval(poll, POLL_INTERVAL);
+    }, 4000);
+
+    timeout = setTimeout(() => {
+      if (!cancelled) {
+        clearInterval(interval);
+        console.warn('[pack-reveal] hard timeout');
+        setPhase((p) => p === 'waiting' ? 'timeout' : p);
+      }
+    }, MAX_POLL_TIME + 5000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(startDelay);
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [open, phase, accountName, preOpenAssetIds, expectedCount, demoCards]);
 
   // Staggered card reveal
   useEffect(() => {

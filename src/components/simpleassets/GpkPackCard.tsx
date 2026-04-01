@@ -131,13 +131,14 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
             variant="outline"
             className="w-full text-xs"
             disabled={!session || isOpening || !unboxType}
-            onClick={handleOpen}
+            onClick={hasMultiple ? () => setBrowserOpen(true) : handleOpen}
           >
-            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}
+            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : hasMultiple ? 'Open Packs' : 'Open Pack'}
           </Button>
         </CardContent>
       </Card>
 
+      {/* Single-pack reveal (amount === 1) */}
       <PackRevealDialog
         open={revealOpen}
         onOpenChange={setRevealOpen}
@@ -147,6 +148,18 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
         accountName={accountName}
         preOpenAssetIds={preOpenIds}
         onComplete={handleRevealComplete}
+      />
+
+      {/* Multi-pack browser (amount > 1) */}
+      <PackBrowserDialog
+        open={browserOpen}
+        onOpenChange={setBrowserOpen}
+        pack={pack}
+        packImage={series2Img}
+        session={session}
+        accountName={accountName}
+        snapshotAssetIds={snapshotAssetIds}
+        onSuccess={onSuccess}
       />
     </>
   );

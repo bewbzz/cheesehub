@@ -1,61 +1,46 @@
 
 
-## Fix GPK Pack Opening — Critical Bugs Found
+## Pack Opening Card Reveal Animation
 
-### Problem
+### Current behavior
+On successful pack open: a toast says "Pack Opened!", then after 2 seconds `onSuccess` fires which refetches pack balances and card lists. No visual reveal.
 
-The current pack opening code has **two critical bugs** that would cause transactions to fail and potentially lose packs:
+### Challenge
+WAX RNG pack opening is **asynchronous** — the contract requests a random number from the WAX RNG oracle, and cards are minted in a separate callback (`receiverand → getcards`). This means cards don't appear instantly after the transaction succeeds. There's typically a 2-10 second delay.
 
-1. **Missing transfer action**: Real pack-open transactions require TWO actions in one transaction — first a `packs.topps::transfer` to send the pack token to `gpk.topps`, then a `gpk.topps::unbox`. Our code only sends the `unbox` action.
+### Plan
 
-2. **Wrong type values**: The `unbox` action's `type` field uses lowercase eosio names (`gpktwoeight`, `gpktwo25`, etc.), NOT the token symbols (`GPKTWOA`, `GPKTWOB`, etc.). Our code passes `pack.symbol` directly.
+**New component: `src/components/simpleassets/PackRevealDialog.tsx`**
+- A full-screen overlay dialog triggered after a successful pack-open transaction
+- Shows the pack image with a shake/glow animation while "Waiting for cards..."
+- Polls the user's AtomicAssets (gpk.topps collection, sorted by mint descending) every 2 seconds, comparing against a snapshot taken before opening
+- Once new cards are detected, transitions to a card reveal sequence:
+  - Cards appear face-down in a row, then flip over one-by-one with a staggered delay (CSS 3D flip transform)
+  - Each card shows its image, name, and rarity/quality
+- If no new cards appear after ~30 seconds, shows a fallback message: "Cards are still being minted. Check back in a moment." with a close button
+- Close button dismisses the dialog and triggers the existing `onSuccess` refetch
 
-### Evidence (verified from on-chain transactions)
+**Modified: `src/components/simpleassets/GpkPackCard.tsx`**
+- Before sending the transaction, snapshot the user's current AtomicAssets asset IDs (or just pass the count)
+- On success, instead of just showing a toast, open the `PackRevealDialog` with the pack info and pre-open asset snapshot
+- Pass `session`/`accountName` so the dialog can poll for new cards
 
-```text
-Transaction 9bd120c4... (GPKTWOA):
-  Action 1: packs.topps::transfer { from: "rvfr2.wam", to: "gpk.topps", quantity: "1 GPKTWOA", memo: "" }
-  Action 2: gpk.topps::unbox      { from: "rvfr2.wam", type: "gpktwoeight" }
+**Modified: `src/pages/SimpleAssets.tsx`**
+- Pass `accountName` down to `GpkPackCard` (already has `session`)
 
-Transaction 1fbe46f4... (GPKTWOB):
-  Action 1: packs.topps::transfer { from: "i3fqu.wam", to: "gpk.topps", quantity: "1 GPKTWOB", memo: "" }
-  Action 2: gpk.topps::unbox      { from: "i3fqu.wam", type: "gpktwo25" }
+### Animation details (all CSS, no library needed)
+- **Pack shake**: `@keyframes pack-shake` — small rotation oscillation for 1-2s
+- **Pack burst**: scale up + fade out when cards are detected
+- **Card flip**: CSS `perspective` + `rotateY(180deg)` transition, cards start face-down (showing a card-back pattern), flip to reveal the actual card image
+- **Stagger**: each card flips 300ms after the previous one
 
-Transaction 18c4ca26... (GPKTWOC):
-  Action 1: packs.topps::transfer { from: "i3fqu.wam", to: "gpk.topps", quantity: "1 GPKTWOC", memo: "" }
-  Action 2: gpk.topps::unbox      { from: "i3fqu.wam", type: "gpktwo55" }
+### Technical details
+- Polling uses the existing AtomicAssets API: `GET /atomicassets/v1/assets?owner={user}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=N`
+- Compare asset IDs before/after to identify newly minted cards
+- Expected new card counts: GPKFIVE=5, GPKTWOA=8, GPKTWOB=25, GPKTWOC=55
 
-Transaction cc9ef15c... (GPKFIVE):
-  Action 1: packs.topps::transfer { from: "i3fqu.wam", to: "gpk.topps", quantity: "1 GPKFIVE", memo: "" }
-  Action 2: gpk.topps::unbox      { from: "i3fqu.wam", type: "five" }
-```
-
-### Confirmed mapping
-
-| Token Symbol | Unbox Type     | Description                    |
-|-------------|----------------|--------------------------------|
-| GPKFIVE     | `five`         | Series 1 Standard (5 cards)    |
-| GPKMEGA     | `thirty`       | Series 1 Mega (30 cards) *     |
-| GPKTWOA     | `gpktwoeight`  | Series 2 Standard (8 cards)    |
-| GPKTWOB     | `gpktwo25`     | Series 2 Mega (25 cards)       |
-| GPKTWOC     | `gpktwo55`     | Series 2 Ultimate (55 cards)   |
-
-\* GPKMEGA was not found in recent transactions. The unbox type `thirty` is an educated guess (30 cards, matching the naming pattern). If unknown, the Open button should be disabled for GPKMEGA to prevent pack loss.
-
-### Changes
-
-**`src/components/simpleassets/GpkPackCard.tsx`**
-- Add a symbol-to-unbox-type mapping constant
-- Send TWO actions in the transaction: `packs.topps::transfer` first, then `gpk.topps::unbox`
-- The transfer sends `1 {SYMBOL}` to `gpk.topps` with empty memo
-- The unbox uses the mapped lowercase type name
-- Disable the Open button if no mapping exists for the symbol (safety for GPKMEGA)
-- Format the quantity using the pack's precision (e.g. `"1 GPKTWOA"` for precision 0)
-
-**`src/hooks/useGpkPacks.ts`**
-- Fix the `GPKFIVE` label from "GPK Series 5 Pack" to "GPK Series 1 Pack" (it's 5 cards from Series 1, not Series 5)
-
-### Files modified: 2
+### Files modified: 3 (1 new)
+- `src/components/simpleassets/PackRevealDialog.tsx` (new)
 - `src/components/simpleassets/GpkPackCard.tsx`
-- `src/hooks/useGpkPacks.ts`
+- `src/pages/SimpleAssets.tsx`
 

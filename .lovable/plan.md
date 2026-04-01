@@ -1,29 +1,20 @@
 
 
-## Fix Pack Reveal Polling to Include SimpleAssets
+## Fix Series 1 Variant Sort Order
 
 ### Problem
-The `PackRevealDialog` and `GpkPackCard.snapshotAssetIds` only poll the **AtomicAssets API** (`collection_name=gpk.topps`). However, GPK cards — particularly Series 1 — are minted on the **SimpleAssets contract** (`simpleassets::sassets` table, author `gpk.topps`). The current polling would miss newly minted cards entirely for Series 1 packs, and possibly Series 2 as well.
+The current sort uses alphabetical `localeCompare` on the `quality` field when cards share the same `cardid`. This produces: base, collector, prism, sketch — but the correct order is: **base, prism, sketch, collector**.
 
-### Fix
+### Change
 
-**`src/components/simpleassets/GpkPackCard.tsx`**
-- Change `snapshotAssetIds` to snapshot **both** sources:
-  - AtomicAssets API (current approach, for `gpk.topps` collection)
-  - SimpleAssets on-chain table (`simpleassets::sassets`, filtered by `author === 'gpk.topps'`)
-- Combine both sets of IDs into the pre-open snapshot
+**`src/pages/SimpleAssets.tsx`** (sort logic, ~line 57-67)
+- Replace `a.quality.localeCompare(b.quality)` with a lookup against a defined variant order: `['base', 'prism', 'sketch', 'collector']`
+- Unknown variants fall to the end, preserving alphabetical as fallback
 
-**`src/components/simpleassets/PackRevealDialog.tsx`**
-- Change `fetchGpkAssets` to poll **both** sources in parallel:
-  - AtomicAssets API (existing)
-  - SimpleAssets table rows via RPC (`fetchTableRows` from `@/lib/waxRpcFallback`)
-- Merge results, deduplicate by ID, then compare against the pre-open snapshot
-- Normalize the SimpleAssets data format (parse `idata`/`mdata` JSON strings) to extract card name, image, rarity — same as `useSimpleAssets` already does
+```text
+Card 1a base → Card 1a prism → Card 1a sketch → Card 1a collector → Card 1b base → ...
+```
 
-### No other changes needed
-The rest of the reveal animation logic (flip cards, stagger, timeout) stays the same. The `onComplete` callback already triggers `refetchSa()` + `refetchAa()` + `refetchPacks()`.
-
-### Files modified: 2
-- `src/components/simpleassets/GpkPackCard.tsx`
-- `src/components/simpleassets/PackRevealDialog.tsx`
+### Files modified: 1
+- `src/pages/SimpleAssets.tsx`
 

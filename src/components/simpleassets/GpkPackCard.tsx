@@ -8,6 +8,7 @@ import { ATOMIC_API } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
+import { PackBrowserDialog } from './PackBrowserDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
@@ -37,14 +38,12 @@ interface GpkPackCardProps {
 async function snapshotAssetIds(owner: string): Promise<Set<string>> {
   const ids = new Set<string>();
   try {
-    // AtomicAssets
     const aaPath = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
     const aaResp = await fetchWithFallback(ATOMIC_API.baseUrls, aaPath);
     const aaJson = await aaResp.json();
     for (const a of aaJson?.data ?? []) ids.add(`aa-${a.asset_id}`);
   } catch { /* ignore */ }
   try {
-    // SimpleAssets
     const saRows = await fetchTableRows<{ id: string; author: string }>({
       code: 'simpleassets',
       scope: owner,
@@ -63,9 +62,11 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
   const [isOpening, setIsOpening] = useState(false);
   const [revealOpen, setRevealOpen] = useState(false);
   const [preOpenIds, setPreOpenIds] = useState<Set<string>>(new Set());
+  const [browserOpen, setBrowserOpen] = useState(false);
   const { executeTransaction } = useWaxTransaction(session);
 
   const unboxType = UNBOX_TYPE_MAP[pack.symbol];
+  const hasMultiple = pack.amount > 1;
 
   const handleOpen = useCallback(async () => {
     if (!session || !unboxType) return;
@@ -130,13 +131,14 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
             variant="outline"
             className="w-full text-xs"
             disabled={!session || isOpening || !unboxType}
-            onClick={handleOpen}
+            onClick={hasMultiple ? () => setBrowserOpen(true) : handleOpen}
           >
-            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : 'Open Pack'}
+            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : hasMultiple ? 'Open Packs' : 'Open Pack'}
           </Button>
         </CardContent>
       </Card>
 
+      {/* Single-pack reveal (amount === 1) */}
       <PackRevealDialog
         open={revealOpen}
         onOpenChange={setRevealOpen}
@@ -146,6 +148,18 @@ export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCa
         accountName={accountName}
         preOpenAssetIds={preOpenIds}
         onComplete={handleRevealComplete}
+      />
+
+      {/* Multi-pack browser (amount > 1) */}
+      <PackBrowserDialog
+        open={browserOpen}
+        onOpenChange={setBrowserOpen}
+        pack={pack}
+        packImage={series2Img}
+        session={session}
+        accountName={accountName}
+        snapshotAssetIds={snapshotAssetIds}
+        onSuccess={onSuccess}
       />
     </>
   );

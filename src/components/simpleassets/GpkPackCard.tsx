@@ -6,6 +6,7 @@ import { Session } from '@wharfkit/session';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
 import { ATOMIC_API } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
+import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
 import type { GpkPack } from '@/hooks/useGpkPacks';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2.png';
@@ -21,7 +22,6 @@ const SERIES_2_IMAGES: Record<string, string> = {
 /** Verified on-chain unbox type names for each pack symbol */
 const UNBOX_TYPE_MAP: Record<string, string> = {
   GPKFIVE: 'five',
-  // GPKMEGA: 'thirty', // unverified — disabled for safety
   GPKTWOA: 'gpktwoeight',
   GPKTWOB: 'gpktwo25',
   GPKTWOC: 'gpktwo55',
@@ -35,14 +35,27 @@ interface GpkPackCardProps {
 }
 
 async function snapshotAssetIds(owner: string): Promise<Set<string>> {
+  const ids = new Set<string>();
   try {
-    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
-    const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-    const json = await resp.json();
-    return new Set((json?.data ?? []).map((a: { asset_id: string }) => a.asset_id));
-  } catch {
-    return new Set();
-  }
+    // AtomicAssets
+    const aaPath = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
+    const aaResp = await fetchWithFallback(ATOMIC_API.baseUrls, aaPath);
+    const aaJson = await aaResp.json();
+    for (const a of aaJson?.data ?? []) ids.add(`aa-${a.asset_id}`);
+  } catch { /* ignore */ }
+  try {
+    // SimpleAssets
+    const saRows = await fetchTableRows<{ id: string; author: string }>({
+      code: 'simpleassets',
+      scope: owner,
+      table: 'sassets',
+      limit: 200,
+    });
+    for (const r of saRows.rows) {
+      if (r.author === 'gpk.topps') ids.add(`sa-${r.id}`);
+    }
+  } catch { /* ignore */ }
+  return ids;
 }
 
 export function GpkPackCard({ pack, session, accountName, onSuccess }: GpkPackCardProps) {

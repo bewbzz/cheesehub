@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles } from 'lucide-react';
 import { ATOMIC_API } from '@/lib/waxConfig';
 import { fetchWithFallback } from '@/lib/fetchWithFallback';
-import { getIpfsUrl } from '@/lib/ipfsGateways';
+import { fetchTableRows } from '@/lib/waxRpcFallback';
+import { getIpfsUrl, extractIpfsHash } from '@/lib/ipfsGateways';
 
 /** Expected card counts per pack symbol */
 const EXPECTED_CARDS: Record<string, number> = {
@@ -21,6 +22,19 @@ interface RevealCard {
   rarity: string;
 }
 
+function resolveImage(data: Record<string, unknown>): string | null {
+  const raw = (data?.img || data?.image || data?.frontimg || data?.backimg || '') as string;
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw;
+  const hash = extractIpfsHash(raw);
+  if (hash) return getIpfsUrl(hash);
+  if (raw.startsWith('Qm') || raw.startsWith('bafy') || raw.startsWith('bafk')) return getIpfsUrl(raw);
+  return null;
+}
+
+function parseJsonSafe(str: string): Record<string, unknown> {
+  try { return JSON.parse(str) || {}; } catch { return {}; }
+}
 interface PackRevealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,19 +49,46 @@ interface PackRevealDialogProps {
 const POLL_INTERVAL = 2500;
 const MAX_POLL_TIME = 35000;
 
-async function fetchGpkAssets(owner: string): Promise<{ asset_id: string; name: string; data: Record<string, string> }[]> {
-  const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
-  const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
-  const json = await resp.json();
-  return json?.data ?? [];
-}
+/** Fetch GPK assets from both AtomicAssets API and SimpleAssets on-chain table */
+async function fetchGpkAssets(owner: string): Promise<{ id: string; name: string; image: string | null; rarity: string }[]> {
+  const results: { id: string; name: string; image: string | null; rarity: string }[] = [];
 
-function resolveImage(data: Record<string, string>): string | null {
-  const raw = data?.img || data?.image || data?.frontimg || data?.backimg || '';
-  if (!raw) return null;
-  if (raw.startsWith('http')) return raw;
-  if (raw.startsWith('Qm') || raw.startsWith('bafy') || raw.startsWith('bafk')) return getIpfsUrl(raw);
-  return null;
+  // AtomicAssets
+  try {
+    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
+    const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
+    const json = await resp.json();
+    for (const a of json?.data ?? []) {
+      results.push({
+        id: `aa-${a.asset_id}`,
+        name: a.name || a.data?.name || 'GPK Card',
+        image: resolveImage(a.data || {}),
+        rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+      });
+    }
+  } catch { /* ignore */ }
+
+  // SimpleAssets
+  try {
+    const saRows = await fetchTableRows<{ id: string; author: string; idata: string; mdata: string }>({
+      code: 'simpleassets',
+      scope: owner,
+      table: 'sassets',
+      limit: 200,
+    });
+    for (const r of saRows.rows) {
+      if (r.author !== 'gpk.topps') continue;
+      const combined = { ...parseJsonSafe(r.idata), ...parseJsonSafe(r.mdata) };
+      results.push({
+        id: `sa-${r.id}`,
+        name: (combined.name as string) || `Asset #${r.id}`,
+        image: resolveImage(combined),
+        rarity: (combined.rarity as string) || (combined.quality as string) || (combined.variant as string) || '',
+      });
+    }
+  } catch { /* ignore */ }
+
+  return results;
 }
 
 export function PackRevealDialog({
@@ -93,27 +134,26 @@ export function PackRevealDialog({
     const poll = async () => {
       try {
         const assets = await fetchGpkAssets(accountName);
-        const fresh = assets.filter((a) => !preOpenAssetIds.has(a.asset_id));
+        const fresh = assets.filter((a) => !preOpenAssetIds.has(a.id));
 
         if (fresh.length >= expectedCount) {
           stopPolling();
           const cards: RevealCard[] = fresh.slice(0, expectedCount).map((a) => ({
-            asset_id: a.asset_id,
-            name: a.name || a.data?.name || 'GPK Card',
-            image: resolveImage(a.data),
-            rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+            asset_id: a.id,
+            name: a.name,
+            image: a.image,
+            rarity: a.rarity,
           }));
           setNewCards(cards);
           setPhase('revealing');
         } else if (Date.now() - startTime.current > MAX_POLL_TIME) {
-          // Check if we got at least some cards
           if (fresh.length > 0) {
             stopPolling();
             const cards: RevealCard[] = fresh.map((a) => ({
-              asset_id: a.asset_id,
-              name: a.name || a.data?.name || 'GPK Card',
-              image: resolveImage(a.data),
-              rarity: a.data?.rarity || a.data?.quality || a.data?.variant || '',
+              asset_id: a.id,
+              name: a.name,
+              image: a.image,
+              rarity: a.rarity,
             }));
             setNewCards(cards);
             setPhase('revealing');
@@ -151,7 +191,7 @@ export function PackRevealDialog({
   const allRevealed = phase === 'revealing' && revealedCount >= newCards.length;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogTitle className="sr-only">Pack Reveal</DialogTitle>
 

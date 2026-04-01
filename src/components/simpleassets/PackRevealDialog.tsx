@@ -91,8 +91,7 @@ async function fetchGpkAssets(owner: string): Promise<{ id: string; name: string
   return results;
 }
 
-
-  open,
+export function PackRevealDialog({
   onOpenChange,
   packSymbol,
   packLabel,

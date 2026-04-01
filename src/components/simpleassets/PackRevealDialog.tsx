@@ -190,7 +190,7 @@ export function PackRevealDialog({
   const allRevealed = phase === 'revealing' && revealedCount >= newCards.length;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogTitle className="sr-only">Pack Reveal</DialogTitle>
 

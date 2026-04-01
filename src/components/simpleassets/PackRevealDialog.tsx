@@ -58,7 +58,7 @@ async function fetchGpkAssets(owner: string): Promise<{ id: string; name: string
 
   // AtomicAssets
   try {
-    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=100`;
+    const path = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
     const resp = await fetchWithFallback(ATOMIC_API.baseUrls, path);
     const json = await resp.json();
     for (const a of json?.data ?? []) {

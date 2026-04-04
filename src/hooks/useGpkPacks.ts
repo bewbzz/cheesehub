@@ -16,6 +16,9 @@ const GPK_LABELS: Record<string, string> = {
   GPKTWOC: 'GPK Series 2C Pack',
 };
 
+/** Symbols that should always appear in the pack list (even with 0 count) */
+const ALWAYS_VISIBLE: string[] = ['GPKFIVE', 'GPKMEGA', 'GPKTWOA', 'GPKTWOB', 'GPKTWOC'];
+
 export function useGpkPacks(accountName: string | null) {
   const [packs, setPacks] = useState<GpkPack[]>([]);
   const [isLoading, setIsLoading] = useState(false);

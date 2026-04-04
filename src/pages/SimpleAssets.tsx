@@ -117,7 +117,18 @@ export default function SimpleAssets() {
   const dragSourceIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  const categories = useMemo(() => [...new Set(assets.map((a) => a.category))].sort(), [assets]);
+  const categories = useMemo(() => {
+    const fromAssets = new Set(assets.map((a) => a.category).filter((c) => c !== 'packs'));
+    for (const p of packs) {
+      const cat = PACK_CATEGORY_MAP[p.symbol];
+      if (cat) fromAssets.add(cat);
+    }
+    for (const p of atomicPacks) {
+      const cat = ATOMIC_PACK_CATEGORY_MAP[p.templateId];
+      if (cat) fromAssets.add(cat);
+    }
+    return [...fromAssets].sort();
+  }, [assets, packs, atomicPacks]);
 
   const filtered = useMemo(() => {
     return assets.filter((a) => {

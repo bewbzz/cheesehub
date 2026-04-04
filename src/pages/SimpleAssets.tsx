@@ -241,24 +241,30 @@ export default function SimpleAssets() {
                 <p className="text-center text-destructive py-8">Error: {error}</p>
               )}
 
-              {!packsLoading && packs.length > 0 && (
+              {/* Token packs filtered by current category */}
+              {!packsLoading && packs.filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">GPK Topps Packs</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {packs.map((pack) => (
-                      <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
-                    ))}
+                    {packs
+                      .filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter)
+                      .map((pack) => (
+                        <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
+                      ))}
                   </div>
                 </div>
               )}
 
-              {!atomicPacksLoading && atomicPacks.length > 0 && (
+              {/* Atomic packs filtered by current category */}
+              {!atomicPacksLoading && atomicPacks.filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">GPK AtomicAssets Packs</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {atomicPacks.map((pack) => (
-                      <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
-                    ))}
+                    {atomicPacks
+                      .filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter)
+                      .map((pack) => (
+                        <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
+                      ))}
                   </div>
                 </div>
               )}

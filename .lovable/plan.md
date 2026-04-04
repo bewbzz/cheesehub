@@ -1,65 +1,40 @@
 
 
-## Add Crash Gordon & Tiger King Pack Opening Support
+## Remove "Packs" Category, Ensure Pack-Only Categories Appear
 
-### Background
-Crash Gordon and Tiger King (exotic) cards are **already displayed** in the viewer since they're AtomicAssets under `gpk.topps`. But pack opening for these collections uses a completely different mechanism than GPK Series 1/2:
+### Problem
+1. "Packs" exists as a category in the dropdown (from AA cards with schema `packs`). It should not be a standalone category.
+2. If a user has Crash Gordon packs but no Crash Gordon cards, "Crash Gordon" won't appear in the category dropdown because `categories` is derived only from card assets.
+3. Packs are already filtered by category correctly via `PACK_CATEGORY_MAP` and `ATOMIC_PACK_CATEGORY_MAP`, so the mapping is fine — just need to clean up the category list.
 
-- **Series 1/2**: Token-based packs via `packs.topps` → unbox via `gpk.topps` → cards in `pendingnft.a` → claim via `getcards`
-- **Crash Gordon**: AtomicAssets NFT packs (template 13778) → transfer to `gpkcrashpack` with memo `unbox` → oracle → `logresult` with template_ids → claim via `claimunboxed`
-- **Tiger King + Bernventures + Mittens**: AtomicAssets NFT packs → transfer to `burnieunpack` with memo `unbox` → same flow → `claimunboxed`
+### Changes (1 file: `src/pages/SimpleAssets.tsx`)
 
-### Key differences from existing pack flow
-1. Packs are **AtomicAssets NFTs** (not fungible tokens) — each has a unique `asset_id`
-2. The unpack contract is different per series (`gpkcrashpack` vs `burnieunpack`)
-3. Results come as `template_ids` in a `logresult` action (not `pendingnft.a` table rows)
-4. Claim action is `claimunboxed` with `pack_asset_id` + `origin_roll_ids` (not `getcards`)
-5. Card images come from AtomicAssets template data (IPFS URLs in template immutable_data), not deterministic IPFS patterns
+1. **Remove `packs` from `CATEGORY_LABELS`** — no longer needed as a category.
 
-### Plan
+2. **Exclude `packs` category from the card assets** when building the `categories` list — filter out any asset with `category === 'packs'` from the categories memo.
 
-**1. New hook: `src/hooks/useGpkAtomicPacks.ts`**
-- Fetch user's AtomicAssets in `gpk.topps` collection, schema `packs`
-- Return packs grouped by template_id with name, image, description, count, and individual asset_ids
-- Map each pack template to its unpack contract:
-  - Template 13778 (Crash Gordon) → `gpkcrashpack`
-  - Template 48479 (Bernventures) → `burnieunpack`
-  - Template 51437 (Mitten) → `burnieunpack`
-  - Template 53187 (GameStonk) → `burnieunpack` or `gpkpoolunbox`
-  - Templates 59072, 59489-59492 (Food Fight) → `burnieunpack` or `gpkpoolunbox`
+3. **Expand `categories` to include pack-only categories** — merge in categories from `PACK_CATEGORY_MAP` values (for token packs the user owns) and `ATOMIC_PACK_CATEGORY_MAP` values (for atomic packs the user owns), so that e.g. "Crash Gordon" appears in the dropdown even if the user has zero Crash Gordon cards but has a Crash Gordon pack.
 
-**2. New component: `src/components/simpleassets/AtomicPackCard.tsx`**
-- Similar layout to `GpkPackCard` but for AtomicAssets NFT packs
-- Shows pack image (from template data), name, count
-- "Open Pack" button transfers the pack NFT to the appropriate unpack contract
-- Open action: single `atomicassets::transfer` action with `asset_ids: [packAssetId]`, `to: unpackContract`, `memo: 'unbox'`
-- After successful transfer, opens a modified reveal dialog
+4. **Also filter out cards with `category === 'packs'` from the `filtered` list** so pack NFTs don't show as card grid items (they're already shown via the dedicated pack sections above the grid).
 
-**3. New component or mode in PackRevealDialog: `AtomicPackRevealDialog`**
-- Poll the unpack contract's table for results (need to check `gpkcrashpack` and `burnieunpack` table structure — likely a `results` or `unboxed` table scoped to the pack asset_id or user)
-- Alternative: poll `logresult` actions via Hyperion for the `pack_asset_id`
-- Simpler approach: poll the unpack contract tables for pending results, then use template_ids to fetch card images from AtomicAssets API
-- After reveal animation, show "Collect Assets" button that calls `{contract}::claimunboxed` with `pack_asset_id` and `origin_roll_ids: [0, 1, 2, ..., N-1]` (where N = number of cards)
+### Technical detail
+```typescript
+// categories memo becomes:
+const categories = useMemo(() => {
+  const fromAssets = new Set(assets.map(a => a.category).filter(c => c !== 'packs'));
+  // Add categories from owned token packs
+  for (const p of packs) {
+    const cat = PACK_CATEGORY_MAP[p.symbol];
+    if (cat) fromAssets.add(cat);
+  }
+  // Add categories from owned atomic packs
+  for (const p of atomicPacks) {
+    const cat = ATOMIC_PACK_CATEGORY_MAP[p.templateId];
+    if (cat) fromAssets.add(cat);
+  }
+  return [...fromAssets].sort();
+}, [assets, packs, atomicPacks]);
 
-**4. Update `src/pages/SimpleAssets.tsx`**
-- Import and use `useGpkAtomicPacks` alongside existing `useGpkPacks`
-- Add a new section "GPK AtomicAssets Packs" showing Crash Gordon, Bernventures, Mitten, GameStonk, Food Fight packs
-- Wire refetch callbacks
-
-### Card image resolution for reveals
-- After `logresult` provides `template_ids`, fetch each template from AtomicAssets API to get `img` and `backimg` from immutable_data
-- Cache template data to avoid repeated fetches
-- Use the existing `resolveRawImage` / `getIpfsUrl` utilities for IPFS resolution
-
-### Technical details
-- `gpkcrashpack::claimunboxed` signature: `{ origin_roll_ids: number[], pack_asset_id: number }`
-- `burnieunpack::claimunboxed` signature: same
-- Both contracts use `assoc_id` = pack asset_id for oracle correlation
-- Crash Gordon packs contain 5 cards; Bernventures packs contain 2; Mitten packs contain 5; Food Fight packs contain 3
-
-### Files to create/modify
-- `src/hooks/useGpkAtomicPacks.ts` (new)
-- `src/components/simpleassets/AtomicPackCard.tsx` (new)
-- `src/components/simpleassets/AtomicPackRevealDialog.tsx` (new — separate from existing PackRevealDialog to avoid overcomplicating the gpk.topps-specific logic)
-- `src/pages/SimpleAssets.tsx` (add atomic packs section)
+// filtered memo adds: && a.category !== 'packs'
+```
 

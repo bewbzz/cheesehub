@@ -36,17 +36,27 @@ export function useGpkPacks(accountName: string | null) {
         limit: 100,
       });
 
-      const parsed: GpkPack[] = res.rows
-        .map((row) => {
-          const parts = row.balance.split(' ');
-          const amount = parseFloat(parts[0]) || 0;
-          const symbol = parts[1] || '';
-          const precision = parts[0].includes('.') ? parts[0].split('.')[1].length : 0;
-          return { symbol, amount, precision, label: GPK_LABELS[symbol] || symbol };
-        })
-        .filter((p) => p.amount > 0 && GPK_LABELS[p.symbol]);
+      const parsed = new Map<string, GpkPack>();
 
-      setPacks(parsed);
+      // Parse balances from chain
+      for (const row of res.rows) {
+        const parts = row.balance.split(' ');
+        const amount = parseFloat(parts[0]) || 0;
+        const symbol = parts[1] || '';
+        const precision = parts[0].includes('.') ? parts[0].split('.')[1].length : 0;
+        if (GPK_LABELS[symbol]) {
+          parsed.set(symbol, { symbol, amount, precision, label: GPK_LABELS[symbol] });
+        }
+      }
+
+      // Ensure always-visible symbols are present (with 0 count if not owned)
+      for (const sym of ALWAYS_VISIBLE) {
+        if (!parsed.has(sym)) {
+          parsed.set(sym, { symbol: sym, amount: 0, precision: 0, label: GPK_LABELS[sym] });
+        }
+      }
+
+      setPacks([...parsed.values()]);
     } catch (e) {
       console.warn('[GPK Packs] Fetch failed:', e);
       setError((e as Error).message);

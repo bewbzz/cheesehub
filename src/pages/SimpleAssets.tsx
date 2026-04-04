@@ -49,7 +49,7 @@ export default function SimpleAssets() {
     refetchAa();
   }, [refetchPacks, refetchAtomicPacks, refetchSa, refetchAa]);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('series1');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
 

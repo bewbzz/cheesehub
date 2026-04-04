@@ -9,9 +9,11 @@ import { useWax } from '@/context/WaxContext';
 import { useSimpleAssets } from '@/hooks/useSimpleAssets';
 import { useGpkAtomicAssets } from '@/hooks/useGpkAtomicAssets';
 import { useGpkPacks } from '@/hooks/useGpkPacks';
+import { useGpkAtomicPacks } from '@/hooks/useGpkAtomicPacks';
 import { SimpleAssetCard } from '@/components/simpleassets/SimpleAssetCard';
 import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDetailDialog';
 import { GpkPackCard } from '@/components/simpleassets/GpkPackCard';
+import { AtomicPackCard } from '@/components/simpleassets/AtomicPackCard';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 const EMPTY = '__empty__';
@@ -38,12 +40,14 @@ export default function SimpleAssets() {
   const { assets: saAssets, isLoading: saLoading, error: saError, refetch: refetchSa } = useSimpleAssets(accountName);
   const { assets: aaAssets, isLoading: aaLoading, error: aaError, refetch: refetchAa } = useGpkAtomicAssets(accountName);
   const { packs, isLoading: packsLoading, refetch: refetchPacks } = useGpkPacks(accountName);
+  const { packs: atomicPacks, isLoading: atomicPacksLoading, refetch: refetchAtomicPacks } = useGpkAtomicPacks(accountName);
 
   const handlePackOpened = useCallback(() => {
     refetchPacks();
+    refetchAtomicPacks();
     refetchSa();
     refetchAa();
-  }, [refetchPacks, refetchSa, refetchAa]);
+  }, [refetchPacks, refetchAtomicPacks, refetchSa, refetchAa]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -206,6 +210,17 @@ export default function SimpleAssets() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {packs.map((pack) => (
                       <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!atomicPacksLoading && atomicPacks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-xl font-semibold text-foreground">GPK AtomicAssets Packs</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {atomicPacks.map((pack) => (
+                      <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
                     ))}
                   </div>
                 </div>

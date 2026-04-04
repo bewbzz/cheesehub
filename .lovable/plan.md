@@ -1,77 +1,65 @@
 
 
-## Revised Plan: Poll `pendingnft.a` + Construct Card Images + Collect Assets
+## Add Crash Gordon & Tiger King Pack Opening Support
 
-### Discovery
-GPK card images follow a **deterministic IPFS URL pattern**. No image storage needed.
+### Background
+Crash Gordon and Tiger King (exotic) cards are **already displayed** in the viewer since they're AtomicAssets under `gpk.topps`. But pack opening for these collections uses a completely different mechanism than GPK Series 1/2:
 
-```text
-Series 1 (boxtype "five"):
-  QmSRti2HK95NXWYG3t3he7UK7hkgw8w9TdqPc6hi5euV1p/{variant}/{cardid}{quality}.{ext}
+- **Series 1/2**: Token-based packs via `packs.topps` → unbox via `gpk.topps` → cards in `pendingnft.a` → claim via `getcards`
+- **Crash Gordon**: AtomicAssets NFT packs (template 13778) → transfer to `gpkcrashpack` with memo `unbox` → oracle → `logresult` with template_ids → claim via `claimunboxed`
+- **Tiger King + Bernventures + Mittens**: AtomicAssets NFT packs → transfer to `burnieunpack` with memo `unbox` → same flow → `claimunboxed`
 
-Series 2 (boxtype "gpktwoeight", "gpktwo25", "gpktwo55"):
-  QmcAkyEvUNgc6CDKn9yQP9my6pCz5Dk21amr2t6pdZocDZ/{variant}/{cardid}{quality}.{ext}
+### Key differences from existing pack flow
+1. Packs are **AtomicAssets NFTs** (not fungible tokens) — each has a unique `asset_id`
+2. The unpack contract is different per series (`gpkcrashpack` vs `burnieunpack`)
+3. Results come as `template_ids` in a `logresult` action (not `pendingnft.a` table rows)
+4. Claim action is `claimunboxed` with `pack_asset_id` + `origin_roll_ids` (not `getcards`)
+5. Card images come from AtomicAssets template data (IPFS URLs in template immutable_data), not deterministic IPFS patterns
 
-Back images:
-  {same hash}/back/{cardid}.jpg
+### Plan
 
-Extension: .jpg for base/collector/golden, .gif for prism/sketch/slime/raw
-```
+**1. New hook: `src/hooks/useGpkAtomicPacks.ts`**
+- Fetch user's AtomicAssets in `gpk.topps` collection, schema `packs`
+- Return packs grouped by template_id with name, image, description, count, and individual asset_ids
+- Map each pack template to its unpack contract:
+  - Template 13778 (Crash Gordon) → `gpkcrashpack`
+  - Template 48479 (Bernventures) → `burnieunpack`
+  - Template 51437 (Mitten) → `burnieunpack`
+  - Template 53187 (GameStonk) → `burnieunpack` or `gpkpoolunbox`
+  - Templates 59072, 59489-59492 (Food Fight) → `burnieunpack` or `gpkpoolunbox`
 
-The `pendingnft.a` table rows contain `boxtype`, `variant`, `cardid`, and `quality` - everything needed to construct the exact image URL. No API calls, no template lookups, no image storage.
+**2. New component: `src/components/simpleassets/AtomicPackCard.tsx`**
+- Similar layout to `GpkPackCard` but for AtomicAssets NFT packs
+- Shows pack image (from template data), name, count
+- "Open Pack" button transfers the pack NFT to the appropriate unpack contract
+- Open action: single `atomicassets::transfer` action with `asset_ids: [packAssetId]`, `to: unpackContract`, `memo: 'unbox'`
+- After successful transfer, opens a modified reveal dialog
 
-### New Flow
+**3. New component or mode in PackRevealDialog: `AtomicPackRevealDialog`**
+- Poll the unpack contract's table for results (need to check `gpkcrashpack` and `burnieunpack` table structure — likely a `results` or `unboxed` table scoped to the pack asset_id or user)
+- Alternative: poll `logresult` actions via Hyperion for the `pack_asset_id`
+- Simpler approach: poll the unpack contract tables for pending results, then use template_ids to fetch card images from AtomicAssets API
+- After reveal animation, show "Collect Assets" button that calls `{contract}::claimunboxed` with `pack_asset_id` and `origin_roll_ids: [0, 1, 2, ..., N-1]` (where N = number of cards)
 
-```text
-Pack opened (tx success)
-  → Poll gpk.topps pendingnft.a table (scoped to user)
-  → Find new rows with done=0 for the latest unboxingid
-  → Construct card images from IPFS pattern
-  → Reveal animation with real card images
-  → "Collect Assets" button appears
-  → User clicks → getcards transaction fires
-  → Success → refresh collection
-```
+**4. Update `src/pages/SimpleAssets.tsx`**
+- Import and use `useGpkAtomicPacks` alongside existing `useGpkPacks`
+- Add a new section "GPK AtomicAssets Packs" showing Crash Gordon, Bernventures, Mitten, GameStonk, Food Fight packs
+- Wire refetch callbacks
 
-### Changes
-
-**1. `src/lib/gpkCardImages.ts` (new file)**
-- Export `buildGpkCardImageUrl(boxtype, variant, cardid, quality)` that returns the IPFS URL
-- Map boxtypes to series IPFS hashes
-- Map variants to file extensions (.jpg vs .gif)
-- Export `buildGpkCardBackUrl(boxtype, cardid)` for back images
-
-**2. `src/components/simpleassets/PackRevealDialog.tsx`**
-- Add new props: `session` (Session | null)
-- Change polling target for real opens: poll `gpk.topps` table `pendingnft.a` scoped to `accountName` instead of wallet assets
-- `preOpenAssetIds` becomes `preOpenUnboxingIds` (Set of known unboxingids before opening)
-- Filter rows where `done === 0` and unboxingid not in pre-open set
-- Convert pending rows to `RevealCard` objects using `buildGpkCardImageUrl`
-- Remove hard timeout - let polling continue indefinitely with status messages at 30s and 60s
-- After all cards revealed, show **"Collect Assets"** button instead of "Awesome! Close"
-- On click: fire `gpk.topps::getcards` with `{ from: accountName, unboxing: unboxingId, card_ids: [rowId1, rowId2, ...] }`
-- On success: toast, call `onComplete()`, show "Close" button
-- On failure: show error, keep button available to retry
-- Demo mode unchanged (skips collect phase entirely)
-
-**3. `src/components/simpleassets/GpkPackCard.tsx`**
-- Pass `session` to `PackRevealDialog`
-- Change `snapshotAssetIds` to `snapshotUnboxingIds`: query `pendingnft.a` scoped to user, collect unique unboxingid values
-- Pass pre-open unboxingid set instead of asset id set
-
-**4. `src/components/simpleassets/PackBrowserDialog.tsx`**
-- Same changes as GpkPackCard: pass `session`, change snapshot to capture unboxingids
-- Update `snapshotAssetIds` prop type/usage accordingly
+### Card image resolution for reveals
+- After `logresult` provides `template_ids`, fetch each template from AtomicAssets API to get `img` and `backimg` from immutable_data
+- Cache template data to avoid repeated fetches
+- Use the existing `resolveRawImage` / `getIpfsUrl` utilities for IPFS resolution
 
 ### Technical details
-- `pendingnft.a` query: `code: 'gpk.topps'`, `scope: accountName`, `table: 'pendingnft.a'`
-- Row fields: `id` (row id for getcards), `unboxingid`, `cardid`, `quality`, `variant`, `boxtype`, `done`, `user`
-- `getcards` action: `{ from: string, unboxing: number, card_ids: number[] }` where card_ids = array of row `id` values
-- Card name can be derived from the user's `collectionAssets` by matching cardid+quality, or shown as "Card #{cardid}{quality}" fallback
+- `gpkcrashpack::claimunboxed` signature: `{ origin_roll_ids: number[], pack_asset_id: number }`
+- `burnieunpack::claimunboxed` signature: same
+- Both contracts use `assoc_id` = pack asset_id for oracle correlation
+- Crash Gordon packs contain 5 cards; Bernventures packs contain 2; Mitten packs contain 5; Food Fight packs contain 3
 
-### Files: 4
-- `src/lib/gpkCardImages.ts` (new)
-- `src/components/simpleassets/PackRevealDialog.tsx`
-- `src/components/simpleassets/GpkPackCard.tsx`
-- `src/components/simpleassets/PackBrowserDialog.tsx`
+### Files to create/modify
+- `src/hooks/useGpkAtomicPacks.ts` (new)
+- `src/components/simpleassets/AtomicPackCard.tsx` (new)
+- `src/components/simpleassets/AtomicPackRevealDialog.tsx` (new — separate from existing PackRevealDialog to avoid overcomplicating the gpk.topps-specific logic)
+- `src/pages/SimpleAssets.tsx` (add atomic packs section)
 

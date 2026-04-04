@@ -24,7 +24,7 @@ interface PackBrowserDialogProps {
   packImage?: string;
   session: Session | null;
   accountName: string;
-  snapshotAssetIds: (owner: string) => Promise<Set<string>>;
+  snapshotUnboxingIds: (owner: string) => Promise<Set<number>>;
   onSuccess?: () => void;
 }
 
@@ -35,17 +35,16 @@ export function PackBrowserDialog({
   packImage,
   session,
   accountName,
-  snapshotAssetIds,
+  snapshotUnboxingIds,
   onSuccess,
 }: PackBrowserDialogProps) {
   const [page, setPage] = useState(0);
   const [openingIdx, setOpeningIdx] = useState<number | null>(null);
   const [revealOpen, setRevealOpen] = useState(false);
-  const [preOpenIds, setPreOpenIds] = useState<Set<string>>(new Set());
+  const [preOpenIds, setPreOpenIds] = useState<Set<number>>(new Set());
   const [localCount, setLocalCount] = useState(pack.amount);
   const { executeTransaction } = useWaxTransaction(session);
 
-  // Reset local count when dialog opens or pack changes
   const handleOpenChange = useCallback((v: boolean) => {
     if (v) setLocalCount(pack.amount);
     setPage(0);
@@ -68,7 +67,7 @@ export function PackBrowserDialog({
       : `1 ${pack.symbol}`;
 
     try {
-      const snapshot = await snapshotAssetIds(accountName);
+      const snapshot = await snapshotUnboxingIds(accountName);
       setPreOpenIds(snapshot);
 
       const result = await executeTransaction(
@@ -94,7 +93,6 @@ export function PackBrowserDialog({
       if (result.success) {
         setLocalCount(prev => prev - 1);
         setRevealOpen(true);
-        // Adjust page if we emptied it
         if (visibleCount === 1 && page > 0) {
           setPage(p => p - 1);
         }
@@ -102,7 +100,7 @@ export function PackBrowserDialog({
     } finally {
       setOpeningIdx(null);
     }
-  }, [session, unboxType, pack, accountName, snapshotAssetIds, executeTransaction, visibleCount, page]);
+  }, [session, unboxType, pack, accountName, snapshotUnboxingIds, executeTransaction, visibleCount, page]);
 
   const handleRevealComplete = useCallback(() => {
     onSuccess?.();
@@ -182,8 +180,9 @@ export function PackBrowserDialog({
         packLabel={pack.label}
         packImage={packImage}
         accountName={accountName}
-        preOpenAssetIds={preOpenIds}
+        preOpenUnboxingIds={preOpenIds}
         onComplete={handleRevealComplete}
+        session={session}
       />
     </>
   );

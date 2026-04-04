@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Play } from 'lucide-react';
 import { Session } from '@wharfkit/session';
 import { useWaxTransaction } from '@/hooks/useWaxTransaction';
-import { ATOMIC_API } from '@/lib/waxConfig';
-import { fetchWithFallback } from '@/lib/fetchWithFallback';
 import { fetchTableRows } from '@/lib/waxRpcFallback';
 import { PackRevealDialog } from './PackRevealDialog';
 import type { RevealCard } from './PackRevealDialog';
@@ -47,24 +45,17 @@ interface GpkPackCardProps {
   collectionAssets?: SimpleAsset[];
 }
 
-async function snapshotAssetIds(owner: string): Promise<Set<string>> {
-  const ids = new Set<string>();
+/** Snapshot existing unboxingids from pendingnft.a before opening a pack */
+async function snapshotUnboxingIds(owner: string): Promise<Set<number>> {
+  const ids = new Set<number>();
   try {
-    const aaPath = `${ATOMIC_API.paths.assets}?owner=${owner}&collection_name=gpk.topps&order=desc&sort=asset_id&limit=200`;
-    const aaResp = await fetchWithFallback(ATOMIC_API.baseUrls, aaPath);
-    const aaJson = await aaResp.json();
-    for (const a of aaJson?.data ?? []) ids.add(`aa-${a.asset_id}`);
-  } catch { /* ignore */ }
-  try {
-    const saRows = await fetchTableRows<{ id: string; author: string }>({
-      code: 'simpleassets',
+    const result = await fetchTableRows<{ unboxingid: number }>({
+      code: 'gpk.topps',
       scope: owner,
-      table: 'sassets',
-      limit: 200,
+      table: 'pendingnft.a',
+      limit: 500,
     });
-    for (const r of saRows.rows) {
-      if (r.author === 'gpk.topps') ids.add(`sa-${r.id}`);
-    }
+    for (const r of result.rows) ids.add(r.unboxingid);
   } catch { /* ignore */ }
   return ids;
 }
@@ -73,7 +64,7 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
   const series2Img = SERIES_2_IMAGES[pack.symbol];
   const [isOpening, setIsOpening] = useState(false);
   const [revealOpen, setRevealOpen] = useState(false);
-  const [preOpenIds, setPreOpenIds] = useState<Set<string>>(new Set());
+  const [preOpenIds, setPreOpenIds] = useState<Set<number>>(new Set());
   const [browserOpen, setBrowserOpen] = useState(false);
   const [demoRevealOpen, setDemoRevealOpen] = useState(false);
   const { executeTransaction } = useWaxTransaction(session);
@@ -104,7 +95,7 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
       : `1 ${pack.symbol}`;
 
     try {
-      const snapshot = await snapshotAssetIds(accountName);
+      const snapshot = await snapshotUnboxingIds(accountName);
       setPreOpenIds(snapshot);
 
       const result = await executeTransaction(
@@ -181,8 +172,9 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
         packLabel={pack.label}
         packImage={series2Img}
         accountName={accountName}
-        preOpenAssetIds={preOpenIds}
+        preOpenUnboxingIds={preOpenIds}
         onComplete={handleRevealComplete}
+        session={session}
       />
 
       {/* Demo reveal */}
@@ -193,7 +185,7 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
         packLabel={pack.label}
         packImage={series2Img}
         accountName={accountName}
-        preOpenAssetIds={new Set()}
+        preOpenUnboxingIds={new Set()}
         onComplete={() => {}}
         demoCards={demoCards}
       />
@@ -206,7 +198,7 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
         packImage={series2Img}
         session={session}
         accountName={accountName}
-        snapshotAssetIds={snapshotAssetIds}
+        snapshotUnboxingIds={snapshotUnboxingIds}
         onSuccess={onSuccess}
       />
     </>

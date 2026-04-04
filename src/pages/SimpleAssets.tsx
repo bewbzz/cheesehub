@@ -215,6 +215,17 @@ export default function SimpleAssets() {
                 </div>
               )}
 
+              {!atomicPacksLoading && atomicPacks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-xl font-semibold text-foreground">GPK AtomicAssets Packs</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {atomicPacks.map((pack) => (
+                      <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {!isLoading && !error && (
                 <>
                   <p className="text-sm text-muted-foreground">{filtered.length} NFT{filtered.length !== 1 ? 's' : ''} found</p>

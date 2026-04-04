@@ -19,6 +19,43 @@ import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 const EMPTY = '__empty__';
 const EXTRA_EMPTY_SLOTS = 6;
 
+/** Friendly labels for category/schema names */
+const CATEGORY_LABELS: Record<string, string> = {
+  series1: 'Series 1',
+  series2: 'Series 2',
+  crashgordon: 'Crash Gordon',
+  exotic: 'Tiger King',
+  bernventures: 'Bernventures',
+  mittens: 'Mittens',
+  gamestonk: 'GameStonk',
+  foodfightb: 'Food Fight',
+  bonus: 'Bonus',
+  promo: 'Promo',
+  originalart: 'Original Art',
+  packs: 'Packs',
+};
+
+/** Map token pack symbols to their category */
+const PACK_CATEGORY_MAP: Record<string, string> = {
+  GPKFIVE: 'series1',
+  GPKTWOA: 'series2',
+  GPKTWOB: 'series2',
+  GPKTWOC: 'series2',
+};
+
+/** Map atomic pack template IDs to their category */
+const ATOMIC_PACK_CATEGORY_MAP: Record<string, string> = {
+  '13778': 'crashgordon',
+  '48479': 'bernventures',
+  '51437': 'mittens',
+  '53187': 'gamestonk',
+  '59072': 'foodfightb',
+  '59489': 'foodfightb',
+  '59490': 'foodfightb',
+  '59491': 'foodfightb',
+  '59492': 'foodfightb',
+};
+
 function EmptySlot({ onDragOver, onDrop, isOver }: {
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
@@ -49,7 +86,7 @@ export default function SimpleAssets() {
     refetchAa();
   }, [refetchPacks, refetchAtomicPacks, refetchSa, refetchAa]);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('series1');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<SimpleAsset | null>(null);
 
@@ -182,7 +219,7 @@ export default function SimpleAssets() {
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
                     {categories.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>{CATEGORY_LABELS[c] || c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -204,24 +241,30 @@ export default function SimpleAssets() {
                 <p className="text-center text-destructive py-8">Error: {error}</p>
               )}
 
-              {!packsLoading && packs.length > 0 && (
+              {/* Token packs filtered by current category */}
+              {!packsLoading && packs.filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">GPK Topps Packs</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {packs.map((pack) => (
-                      <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
-                    ))}
+                    {packs
+                      .filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter)
+                      .map((pack) => (
+                        <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
+                      ))}
                   </div>
                 </div>
               )}
 
-              {!atomicPacksLoading && atomicPacks.length > 0 && (
+              {/* Atomic packs filtered by current category */}
+              {!atomicPacksLoading && atomicPacks.filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">GPK AtomicAssets Packs</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {atomicPacks.map((pack) => (
-                      <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
-                    ))}
+                    {atomicPacks
+                      .filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter)
+                      .map((pack) => (
+                        <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
+                      ))}
                   </div>
                 </div>
               )}

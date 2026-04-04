@@ -1,89 +1,77 @@
 
-I found your cards.
 
-## What I verified on-chain
+## Revised Plan: Poll `pendingnft.a` + Construct Card Images + Collect Assets
 
-Your pack open `af5ebc4121e4974b2bfc7d238c6d70eee6ef8fd7bbe45d2ace8fe0a357873f5e` created an unboxing job with `assoc_id / unboxingid = 30355`.
-
-In `gpk.topps` table `pendingnft.a`, scoped to your account `guydgnjzgage`, there are 8 rows for that unboxing:
+### Discovery
+GPK card images follow a **deterministic IPFS URL pattern**. No image storage needed.
 
 ```text
-id        unboxingid draw boxtype     user         variant quality done cardid
-30355000  30355      0    gpktwoeight guydgnjzgage slime   b       0    13
-30355001  30355      1    gpktwoeight guydgnjzgage slime   b       0    35
-30355002  30355      2    gpktwoeight guydgnjzgage slime   a       0    21
-30355003  30355      3    gpktwoeight guydgnjzgage slime   b       0    4
-30355004  30355      4    gpktwoeight guydgnjzgage raw     a       0    32
-30355008  30355      8    gpktwoeight guydgnjzgage base    b       0    30
-30355009  30355      9    gpktwoeight guydgnjzgage base    b       0    1
-30355010  30355      10   gpktwoeight guydgnjzgage base    b       0    3
+Series 1 (boxtype "five"):
+  QmSRti2HK95NXWYG3t3he7UK7hkgw8w9TdqPc6hi5euV1p/{variant}/{cardid}{quality}.{ext}
+
+Series 2 (boxtype "gpktwoeight", "gpktwo25", "gpktwo55"):
+  QmcAkyEvUNgc6CDKn9yQP9my6pCz5Dk21amr2t6pdZocDZ/{variant}/{cardid}{quality}.{ext}
+
+Back images:
+  {same hash}/back/{cardid}.jpg
+
+Extension: .jpg for base/collector/golden, .gif for prism/sketch/slime/raw
 ```
 
-## The important difference vs successful opens
+The `pendingnft.a` table rows contain `boxtype`, `variant`, `cardid`, and `quality` - everything needed to construct the exact image URL. No API calls, no template lookups, no image storage.
 
-I also checked a successful user scope (`rvfr2.wam`) in the same `pendingnft.a` table.
-
-For their pack rows:
-- the same kind of entries exist
-- but their `done` value is `1`
-
-For your 8 rows:
-- `done = 0` on every row
-
-## Conclusion
-
-Your cards are not lost in the UI and they are not just “pending indexers”.
-
-They are stuck inside `gpk.topps` as unresolved pending mint rows for unboxing `30355`.
-
-That is the concrete reason they never appeared in your wallet:
-- card outcomes were generated
-- rows were written into `pendingnft.a`
-- the contract never completed the final step that marks them done and delivers them
-
-## What to build next
-
-1. Add a GPK recovery inspector to `/simpleassets`
-   - query `pendingnft.a`, `mintcounts.a`, and `rngjobs`
-   - group by `unboxingid`
-   - show exact stuck cards like the 8 above
-
-2. Upgrade `PackRevealDialog`
-   - after open, check contract tables in addition to wallet assets
-   - detect:
-     - wallet delivered
-     - pending contract rows
-     - fully stuck mint
-
-3. Show a precise stuck-state UI
-   - “Your cards are stuck in `gpk.topps` pending queue”
-   - show `unboxingid 30355`
-   - show the exact 8 pending cards
-   - link the opening tx and callback tx
-
-4. If the ABI exposes a finalize/claim action, wire a recovery flow
-   - inspect contract actions for a mint-finalize or claim path
-   - if callable by user, add a “Recover Pending Cards” button
-   - if not callable, expose the exact evidence needed for Topps/manual recovery
-
-## Technical details
+### New Flow
 
 ```text
-Your flow:
-pack tx succeeds
--> RNG/callback resolves
--> pendingnft.a rows written
--> rows remain done=0
--> no wallet delivery
-
-Successful flow:
-pack tx succeeds
--> RNG/callback resolves
--> pendingnft.a rows written
--> rows become done=1
--> cards appear in wallet
+Pack opened (tx success)
+  → Poll gpk.topps pendingnft.a table (scoped to user)
+  → Find new rows with done=0 for the latest unboxingid
+  → Construct card images from IPFS pattern
+  → Reveal animation with real card images
+  → "Collect Assets" button appears
+  → User clicks → getcards transaction fires
+  → Success → refresh collection
 ```
 
-So the real issue is not “where did the cards go?” anymore.
+### Changes
 
-They are sitting in `gpk.topps.pendingnft.a` under unboxing `30355`, waiting on the final mint/complete step that never happened.
+**1. `src/lib/gpkCardImages.ts` (new file)**
+- Export `buildGpkCardImageUrl(boxtype, variant, cardid, quality)` that returns the IPFS URL
+- Map boxtypes to series IPFS hashes
+- Map variants to file extensions (.jpg vs .gif)
+- Export `buildGpkCardBackUrl(boxtype, cardid)` for back images
+
+**2. `src/components/simpleassets/PackRevealDialog.tsx`**
+- Add new props: `session` (Session | null)
+- Change polling target for real opens: poll `gpk.topps` table `pendingnft.a` scoped to `accountName` instead of wallet assets
+- `preOpenAssetIds` becomes `preOpenUnboxingIds` (Set of known unboxingids before opening)
+- Filter rows where `done === 0` and unboxingid not in pre-open set
+- Convert pending rows to `RevealCard` objects using `buildGpkCardImageUrl`
+- Remove hard timeout - let polling continue indefinitely with status messages at 30s and 60s
+- After all cards revealed, show **"Collect Assets"** button instead of "Awesome! Close"
+- On click: fire `gpk.topps::getcards` with `{ from: accountName, unboxing: unboxingId, card_ids: [rowId1, rowId2, ...] }`
+- On success: toast, call `onComplete()`, show "Close" button
+- On failure: show error, keep button available to retry
+- Demo mode unchanged (skips collect phase entirely)
+
+**3. `src/components/simpleassets/GpkPackCard.tsx`**
+- Pass `session` to `PackRevealDialog`
+- Change `snapshotAssetIds` to `snapshotUnboxingIds`: query `pendingnft.a` scoped to user, collect unique unboxingid values
+- Pass pre-open unboxingid set instead of asset id set
+
+**4. `src/components/simpleassets/PackBrowserDialog.tsx`**
+- Same changes as GpkPackCard: pass `session`, change snapshot to capture unboxingids
+- Update `snapshotAssetIds` prop type/usage accordingly
+
+### Technical details
+- `pendingnft.a` query: `code: 'gpk.topps'`, `scope: accountName`, `table: 'pendingnft.a'`
+- Row fields: `id` (row id for getcards), `unboxingid`, `cardid`, `quality`, `variant`, `boxtype`, `done`, `user`
+- `getcards` action: `{ from: string, unboxing: number, card_ids: number[] }` where card_ids = array of row `id` values
+- Card name can be derived from the user's `collectionAssets` by matching cardid+quality, or shown as "Card #{cardid}{quality}" fallback
+
+### Files: 4
+- `src/lib/gpkCardImages.ts` (new)
+- `src/components/simpleassets/PackRevealDialog.tsx`
+- `src/components/simpleassets/GpkPackCard.tsx`
+- `src/components/simpleassets/PackBrowserDialog.tsx`
+

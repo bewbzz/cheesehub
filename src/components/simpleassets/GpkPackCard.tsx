@@ -14,9 +14,11 @@ import gpkSeries1Img from '@/assets/gpk_pack_series_1.png';
 import gpkSeries2aImg from '@/assets/gpk_pack_series_2a.png';
 import gpkSeries2bImg from '@/assets/gpk_pack_series_2b.png';
 import gpkSeries2cImg from '@/assets/gpk_pack_series_2c.png';
+import gpkSeries1MegaImg from '@/assets/gpk_pack_series_1_mega.jpg';
 
 const SERIES_2_IMAGES: Record<string, string> = {
   GPKFIVE: gpkSeries1Img,
+  GPKMEGA: gpkSeries1MegaImg,
   GPKTWOA: gpkSeries2aImg,
   GPKTWOB: gpkSeries2bImg,
   GPKTWOC: gpkSeries2cImg,

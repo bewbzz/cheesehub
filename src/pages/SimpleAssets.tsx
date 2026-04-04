@@ -19,6 +19,44 @@ import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 const EMPTY = '__empty__';
 const EXTRA_EMPTY_SLOTS = 6;
 
+/** Friendly labels for category/schema names */
+const CATEGORY_LABELS: Record<string, string> = {
+  series1: 'Series 1',
+  series2: 'Series 2',
+  crashgordon: 'Crash Gordon',
+  exotic: 'Tiger King',
+  bernventures: 'Bernventures',
+  mittens: 'Mittens',
+  gamestonk: 'GameStonk',
+  foodfightb: 'Food Fight',
+  bonus: 'Bonus',
+  promo: 'Promo',
+  originalart: 'Original Art',
+  packs: 'Packs',
+};
+
+/** Map token pack symbols to their category */
+const PACK_CATEGORY_MAP: Record<string, string> = {
+  GPKFIVE: 'series1',
+  GPKTWOA: 'series2',
+  GPKTWOB: 'series2',
+  GPKTWOC: 'series2',
+};
+
+/** Map atomic pack template IDs to their category */
+const ATOMIC_PACK_CATEGORY_MAP: Record<string, string> = {
+  '13778': 'crashgordon',
+  '48479': 'bernventures',
+  '51437': 'mittens',
+  '53187': 'gamestonk',
+  '59072': 'foodfightb',
+  '59489': 'foodfightb',
+  '59490': 'foodfightb',
+  '59491': 'foodfightb',
+  '59492': 'foodfightb',
+};
+const EXTRA_EMPTY_SLOTS = 6;
+
 function EmptySlot({ onDragOver, onDrop, isOver }: {
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;

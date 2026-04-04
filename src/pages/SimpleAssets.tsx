@@ -244,12 +244,14 @@ export default function SimpleAssets() {
               {/* Token packs filtered by current category */}
               {!packsLoading && packs.filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <h2 className="text-xl font-semibold text-foreground text-center">Packs</h2>
+                  <div className="flex flex-wrap justify-center gap-4">
                     {packs
                       .filter((p) => categoryFilter === 'all' || PACK_CATEGORY_MAP[p.symbol] === categoryFilter)
                       .map((pack) => (
-                        <GpkPackCard key={pack.symbol} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
+                        <div key={pack.symbol} className="w-[calc(50%-0.5rem)] sm:w-48">
+                          <GpkPackCard pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} collectionAssets={assets} />
+                        </div>
                       ))}
                   </div>
                 </div>
@@ -258,12 +260,14 @@ export default function SimpleAssets() {
               {/* Atomic packs filtered by current category */}
               {!atomicPacksLoading && atomicPacks.filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter).length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-xl font-semibold text-foreground">Packs</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <h2 className="text-xl font-semibold text-foreground text-center">Packs</h2>
+                  <div className="flex flex-wrap justify-center gap-4">
                     {atomicPacks
                       .filter((p) => categoryFilter === 'all' || ATOMIC_PACK_CATEGORY_MAP[p.templateId] === categoryFilter)
                       .map((pack) => (
-                        <AtomicPackCard key={pack.templateId} pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
+                        <div key={pack.templateId} className="w-[calc(50%-0.5rem)] sm:w-48">
+                          <AtomicPackCard pack={pack} session={session} accountName={accountName || ''} onSuccess={handlePackOpened} />
+                        </div>
                       ))}
                   </div>
                 </div>

@@ -142,15 +142,21 @@ export function GpkPackCard({ pack, session, accountName, onSuccess, collectionA
           <p className="font-bold text-foreground text-sm">{pack.label}</p>
           <p className="text-xs text-muted-foreground">{pack.symbol}</p>
           <p className="text-lg font-mono text-primary">{pack.amount}</p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full text-xs"
-            disabled={!session || isOpening || !unboxType}
-            onClick={hasMultiple ? () => setBrowserOpen(true) : handleOpen}
-          >
-            {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : hasMultiple ? 'Open Packs' : 'Open Pack'}
-          </Button>
+          {pack.amount > 0 ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs"
+              disabled={!session || isOpening || !unboxType}
+              onClick={hasMultiple ? () => setBrowserOpen(true) : handleOpen}
+            >
+              {isOpening ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Opening...</> : hasMultiple ? 'Open Packs' : 'Open Pack'}
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="w-full text-xs" disabled>
+              No Packs
+            </Button>
+          )}
           {demoCards.length > 0 && (
             <Button
               size="sm"

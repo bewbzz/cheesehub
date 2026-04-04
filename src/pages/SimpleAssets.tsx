@@ -219,7 +219,7 @@ export default function SimpleAssets() {
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
                     {categories.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>{CATEGORY_LABELS[c] || c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

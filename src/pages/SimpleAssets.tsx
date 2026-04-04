@@ -9,9 +9,11 @@ import { useWax } from '@/context/WaxContext';
 import { useSimpleAssets } from '@/hooks/useSimpleAssets';
 import { useGpkAtomicAssets } from '@/hooks/useGpkAtomicAssets';
 import { useGpkPacks } from '@/hooks/useGpkPacks';
+import { useGpkAtomicPacks } from '@/hooks/useGpkAtomicPacks';
 import { SimpleAssetCard } from '@/components/simpleassets/SimpleAssetCard';
 import { SimpleAssetDetailDialog } from '@/components/simpleassets/SimpleAssetDetailDialog';
 import { GpkPackCard } from '@/components/simpleassets/GpkPackCard';
+import { AtomicPackCard } from '@/components/simpleassets/AtomicPackCard';
 import type { SimpleAsset } from '@/hooks/useSimpleAssets';
 
 const EMPTY = '__empty__';

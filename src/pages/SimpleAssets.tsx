@@ -32,7 +32,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   bonus: 'Bonus',
   promo: 'Promo',
   originalart: 'Original Art',
-  packs: 'Packs',
 };
 
 /** Map token pack symbols to their category */

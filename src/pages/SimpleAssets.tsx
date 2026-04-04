@@ -55,7 +55,6 @@ const ATOMIC_PACK_CATEGORY_MAP: Record<string, string> = {
   '59491': 'foodfightb',
   '59492': 'foodfightb',
 };
-const EXTRA_EMPTY_SLOTS = 6;
 
 function EmptySlot({ onDragOver, onDrop, isOver }: {
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;

@@ -40,12 +40,14 @@ export default function SimpleAssets() {
   const { assets: saAssets, isLoading: saLoading, error: saError, refetch: refetchSa } = useSimpleAssets(accountName);
   const { assets: aaAssets, isLoading: aaLoading, error: aaError, refetch: refetchAa } = useGpkAtomicAssets(accountName);
   const { packs, isLoading: packsLoading, refetch: refetchPacks } = useGpkPacks(accountName);
+  const { packs: atomicPacks, isLoading: atomicPacksLoading, refetch: refetchAtomicPacks } = useGpkAtomicPacks(accountName);
 
   const handlePackOpened = useCallback(() => {
     refetchPacks();
+    refetchAtomicPacks();
     refetchSa();
     refetchAa();
-  }, [refetchPacks, refetchSa, refetchAa]);
+  }, [refetchPacks, refetchAtomicPacks, refetchSa, refetchAa]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');

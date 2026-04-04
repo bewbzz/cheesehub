@@ -37,6 +37,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 /** Map token pack symbols to their category */
 const PACK_CATEGORY_MAP: Record<string, string> = {
   GPKFIVE: 'series1',
+  GPKMEGA: 'series1',
   GPKTWOA: 'series2',
   GPKTWOB: 'series2',
   GPKTWOC: 'series2',
